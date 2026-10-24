@@ -1,7 +1,6 @@
 -- Card-info provider for MPAPI's Lobby Info overlay (see
--- BalatroMultiplayerAPI/api/card_info_providers.lua): ranked lobbies show
--- Elo; PvP has no per-card info of its own for private/casual lobbies today
--- (returning nil there is valid per the provider contract).
+-- BalatroMultiplayerAPI/api/card_info_providers.lua): every lobby shows the
+-- player's lives, ranked lobbies also show Elo.
 --
 -- Cached per (gamemode, player) since MPAPI.matchmaking.get_rating is an
 -- async network call and hover callbacks must return synchronously: the
@@ -44,10 +43,22 @@ local function elo_row(lobby, player_data)
 	return text_row("Elo: " .. tostring(cached.rating or "Placement"))
 end
 
+local function lives_row(player_data)
+	local lives = PVP.lives_of(player_data.id, {
+		ref_players = PVP.REF and PVP.REF.players,
+		self_id = PVP._pvp_action_helpers.self_id(),
+		own_lives = PVP.GAME and PVP.GAME.lives,
+		cache = PVP._player_lives_cache,
+		starting_lives = PVP.LOBBY.config.starting_lives,
+	})
+	return text_row(tostring(lives) .. " " .. localize("k_lives"))
+end
+
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)
+	local rows = { lives_row(player_data) }
 	local meta = lobby:get_metadata() or {}
 	if meta.kind == PVP.LobbyAccess.RANKED then
-		return { elo_row(lobby, player_data) }
+		rows[#rows + 1] = elo_row(lobby, player_data)
 	end
-	return nil
+	return rows
 end)
