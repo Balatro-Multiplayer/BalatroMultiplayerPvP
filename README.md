@@ -12,7 +12,7 @@ This is the PvP mod of the Balatro Multiplayer Platform. It runs on top of [Mult
 
 Requirements:
 
-- [Steamodded](https://github.com/Steamodded/smods) (>= 1.0.0~BETA-1620a)
+- [Steamodded](https://github.com/Steamodded/smods) (>= 1.0.0~BETA-1814a)
 - [Lovely Injector](https://github.com/ethangreen-dev/lovely-injector) (>= 0.9)
 - [MultiplayerAPI](https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI) (required dependency)
 - Balatro running through Steam (the API signs in with your Steam account)

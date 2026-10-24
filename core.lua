@@ -98,7 +98,7 @@ end
 
 G.C.MULTIPLAYER = HEX("AC3232")
 
-PVP.SMODS_VERSION = "1.0.0~BETA-1620a"
+PVP.MIN_SMODS_VERSION = "1.0.0~BETA-1814a"
 PVP.REQUIRED_LOVELY_VERSION = "0.9"
 
 -- The Order (deterministic/anti-desync RNG) engine now lives entirely in the API

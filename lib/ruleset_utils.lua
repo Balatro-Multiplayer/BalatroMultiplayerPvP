@@ -32,8 +32,8 @@ function PVP.timer_is_local()
 end
 
 function PVP.UTILS.check_smods_version()
-	if SMODS.version ~= PVP.SMODS_VERSION then
-		return localize({ type = "variable", key = "k_ruleset_disabled_smods_version", vars = { PVP.SMODS_VERSION } })
+	if V(SMODS.version) < V(PVP.MIN_SMODS_VERSION) then
+		return localize({ type = "variable", key = "k_ruleset_disabled_smods_version", vars = { PVP.MIN_SMODS_VERSION } })
 	end
 	return false
 end

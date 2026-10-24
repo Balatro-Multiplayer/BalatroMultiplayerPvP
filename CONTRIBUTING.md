@@ -10,7 +10,7 @@ For architecture notes, gotchas and code conventions, read [AGENTS.md](AGENTS.md
 
 ## Quick Start
 
-**Prerequisites**: Install [Steamodded 1.0.0~BETA-1620a](https://github.com/Steamodded/smods/releases/tag/1.0.0-beta-1620a) and [Lovely Injector](https://github.com/ethangreen-dev/lovely-injector) (>=0.9)
+**Prerequisites**: Install [Steamodded 1.0.0~BETA-1814a](https://github.com/Steamodded/smods/releases/tag/1.0.0-beta-1814a) or newer and [Lovely Injector](https://github.com/ethangreen-dev/lovely-injector) (>=0.9)
 
 ```bash
 # 1. Fork on GitHub, then clone

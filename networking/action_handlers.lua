@@ -385,7 +385,7 @@ local function action_start_game(p)
 			different_seeds = PVP.LOBBY.config.different_seeds,
 			mod_version = PVP and PVP.version,
 			mod_hash = PVP.MOD_STRING,
-			smods_version = PVP.SMODS_VERSION,
+			smods_version = SMODS.version,
 			lovely_version = PVP.REQUIRED_LOVELY_VERSION,
 		})
 	end
