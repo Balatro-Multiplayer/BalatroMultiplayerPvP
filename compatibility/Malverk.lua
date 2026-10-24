@@ -1,6 +1,7 @@
 -- Malverk (texture pack manager) compatibility: register the alt_t_*.png art
--- (see objects/consumables/traps.lua for the base t_*.png cards) as a selectable
--- alternate texture pack for the Trap consumable type. Optional -- no-ops entirely
+-- (see objects/consumables/traps.lua for the base art on the shared "Trap" sheet) as a
+-- selectable alternate texture pack for the Trap consumable type. Malverk reads the default
+-- art from G.ASSET_ATLAS["Trap"], so that sheet must exist (one row, TRAPS order). Optional -- no-ops entirely
 -- if Malverk isn't installed.
 if SMODS.Mods["malverk"] and SMODS.Mods["malverk"].can_load then
 	sendDebugMessage("Malverk compatibility detected", "MULTIPLAYER")

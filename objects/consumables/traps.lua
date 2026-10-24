@@ -38,7 +38,6 @@ local TRAPS = {
 	-- Spectral pack to open.
 	{
 		key = "trap_glyph_of_warding",
-		atlas = "t_glyph_of_warding.png",
 		calculate = function(self, card, context)
 			if context.using_consumeable and context.consumeable.config.center.set == "Spectral" then
 				PVP.TRAP.reveal_and_consume(card)
@@ -66,7 +65,6 @@ local TRAPS = {
 	-- Symbol: when the holder plays a flush, convert all scored cards to random suits.
 	{
 		key = "trap_symbol",
-		atlas = "t_symbol.png",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Flush"]) then
 				PVP.TRAP.reveal_and_consume(card)
@@ -87,7 +85,6 @@ local TRAPS = {
 	-- Alarm: when the holder rerolls their shop, the drafter gains 2 free rerolls.
 	{
 		key = "trap_alarm",
-		atlas = "t_alarm.png",
 		calculate = function(self, card, context)
 			if context.reroll_shop then
 				PVP.TRAP.reveal_and_consume(card)
@@ -106,11 +103,10 @@ local TRAPS = {
 	-- that hand are guaranteed to break. Deferred: forcing a glass break bypasses SMODS's own
 	-- probability roll and needs its own destroy_card-context hook (see plan's Phase 3 notes);
 	-- not yet implemented.
-	{ key = "trap_explosive_runes", atlas = "t_explosive_runes.png" },
+	{ key = "trap_explosive_runes" },
 	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
 	{
 		key = "trap_sepia_snake_sigil",
-		atlas = "t_sepia_snake_sigil.png",
 		calculate = function(self, card, context)
 			if
 				context.buying_card
@@ -137,7 +133,6 @@ local TRAPS = {
 	-- cards by 1.
 	{
 		key = "trap_fire_trap",
-		atlas = "t_fire_trap.png",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Pair"]) then
 				PVP.TRAP.reveal_and_consume(card)
@@ -158,7 +153,6 @@ local TRAPS = {
 	-- to their deck.
 	{
 		key = "trap_guards_and_wards",
-		atlas = "t_guards_and_wards.png",
 		calculate = function(self, card, context)
 			if context.playing_card_added then
 				PVP.TRAP.reveal_and_consume(card)
@@ -181,11 +175,10 @@ local TRAPS = {
 	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
 	-- Deferred: seal triggers resolve via direct per-card method calls (Card:calculate_seal /
 	-- Card:get_end_of_round_effect), never a broadcast calculate context -- needs its own hook.
-	{ key = "trap_magic_mouth", atlas = "t_magic_mouth.png" },
+	{ key = "trap_magic_mouth" },
 	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
 	{
 		key = "trap_snare",
-		atlas = "t_snare.png",
 		calculate = function(self, card, context)
 			if context.skip_blind then
 				local skipped_tag = G.GAME.tags[#G.GAME.tags]
@@ -207,16 +200,15 @@ local TRAPS = {
 	-- they get trapped instead. Deferred: needs a "another trap just fired" signal, which isn't
 	-- a natural calculate-context flag -- would need PVP.TRAP.reveal_and_consume itself to fire a
 	-- custom local context so a co-resident Arcane Lock can intercept. Not yet implemented.
-	{ key = "trap_arcane_lock", atlas = "t_arcane_lock.png" },
+	{ key = "trap_arcane_lock" },
 	-- Programmed Illusion: when the holder opens a booster pack, add a fake card to it.
 	-- Deferred: Card:open builds its pack_cards list in a function-local table with no exposed
 	-- extension point for injecting an extra card -- needs a direct hook/override, not a
 	-- calculate-context check. Not yet implemented.
-	{ key = "trap_programmed_illusion", atlas = "t_programmed_illusion.png" },
+	{ key = "trap_programmed_illusion" },
 	-- Web: when the holder uses any consumable, the drafter gains a negative copy of it.
 	{
 		key = "trap_web",
-		atlas = "t_web.png",
 		calculate = function(self, card, context)
 			if context.using_consumeable then
 				PVP.TRAP.reveal_and_consume(card)
@@ -240,12 +232,11 @@ local TRAPS = {
 	-- Deferred: the draw loop (G.FUNCS.draw_from_deck_to_hand) has no exposed "flip after
 	-- draw" hook -- needs a new override on the draw path, not a calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_forbiddance", atlas = "t_forbiddance.png" },
+	{ key = "trap_forbiddance" },
 	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
 	-- poker hand.
 	{
 		key = "trap_faithful_hound",
-		atlas = "t_faithful_hound.png",
 		calculate = function(self, card, context)
 			if context.using_consumeable and context.consumeable.config.center.set == "Planet" then
 				local hand_type = context.consumeable.ability.consumeable and context.consumeable.ability.consumeable.hand_type
@@ -269,7 +260,6 @@ local TRAPS = {
 	-- their hand.
 	{
 		key = "trap_phase_door",
-		atlas = "t_phase_door.png",
 		calculate = function(self, card, context)
 			if context.before and context.scoring_hand then
 				local gold_count = 0
@@ -296,20 +286,27 @@ local TRAPS = {
 	-- 2 Wheel of Fortunes. Deferred: needs new state-tracking (record Wheel of Fortune
 	-- appearances per shop visit, checked at ending_shop) -- not a pure calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_mental_prison", atlas = "t_mental_prison.png" },
+	{ key = "trap_mental_prison" },
 }
 
-for _, def in ipairs(TRAPS) do
-	SMODS.Atlas({
-		key = def.key,
-		path = def.atlas,
-		px = 71,
-		py = 95,
-	})
+-- One shared "Trap" sheet holds every trap's art in a single row, in TRAPS order: a trap's
+-- column is its index here, so append new traps at the end. Malverk needs one atlas per
+-- set under the bare set name, so the atlas key is unprefixed.
+SMODS.Atlas({
+	key = "Trap",
+	path = "Trap.png",
+	px = 71,
+	py = 95,
+	prefix_config = { key = false },
+})
+
+for index, def in ipairs(TRAPS) do
 	MPAPI.Consumable({
 		key = def.key,
 		set = "Trap",
-		atlas = def.key,
+		atlas = "Trap",
+		pos = { x = index - 1, y = 0 },
+		prefix_config = { atlas = false },
 		cost = 4,
 		unlocked = true,
 		discovered = true,
