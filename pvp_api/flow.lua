@@ -162,11 +162,16 @@ function PVP.pvp_leave_lobby()
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
 		-- Mid-match leave: send the roster before the leave completes, so the
-		-- others still see this player's jokers on their end screen.
+		-- others still see this player's jokers on their end screen. The leave
+		-- waits for the roster to be relayed: it would otherwise reach the
+		-- server first and the roster would be dropped.
 		if G.STAGE == G.STAGES.RUN and PVP._match_players and PVP.GAME and PVP.GAME.lives then
-			PVP.report_roster_result()
+			PVP.report_roster_result(function()
+				lobby:leave()
+			end)
+		else
+			lobby:leave()
 		end
-		lobby:leave()
 	end
 	PVP.end_session()
 	PVP._version_mismatch_shown = false

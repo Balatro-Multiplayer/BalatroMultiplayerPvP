@@ -36,9 +36,13 @@ end
 
 -- Called once, when this client's own match involvement ends (win or loss --
 -- see action_win_game/action_lose_game in networking/action_handlers.lua).
-function PVP.report_roster_result()
+-- `on_delivered` (optional) runs once the server has relayed the roster back to
+-- us, or after ROSTER_ECHO_TIMEOUT seconds, whichever comes first.
+local ROSTER_ECHO_TIMEOUT = 2
+function PVP.report_roster_result(on_delivered)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby then
+		if on_delivered then on_delivered() end
 		return
 	end
 	local jokers = capture_local_jokers()
@@ -50,6 +54,28 @@ function PVP.report_roster_result()
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
 	}
+	if on_delivered then
+		-- A leave sent right behind the roster can reach the server first and
+		-- get the roster dropped, so the caller waits for the echo.
+		local delivered = false
+		PVP._roster_delivered = function()
+			if delivered then return end
+			delivered = true
+			PVP._roster_delivered = nil
+			on_delivered()
+		end
+		G.E_MANAGER:add_event(Event({
+			trigger = "after",
+			delay = ROSTER_ECHO_TIMEOUT,
+			timer = "REAL",
+			blocking = false,
+			blockable = false,
+			func = function()
+				if PVP._roster_delivered then PVP._roster_delivered() end
+				return true
+			end,
+		}))
+	end
 	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
 		jokers = jokers,
 		deck_back = deck_back,
@@ -71,6 +97,10 @@ MPAPI.ActionType({
 		}
 		if PVP.UI.refresh_roster then
 			PVP.UI.refresh_roster()
+		end
+		local lobby = MPAPI.get_current_lobby()
+		if PVP._roster_delivered and lobby and from_player_id == lobby.player_id then
+			PVP._roster_delivered()
 		end
 	end,
 })
