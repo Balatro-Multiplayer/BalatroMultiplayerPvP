@@ -41,6 +41,14 @@ local function my_lives()
 	return PVP.GAME.lives or 0
 end
 
+-- Tell the opponent our hands/skips/lives. Goes through the Nemesis blind's own
+-- sync, not MPAPI.calculate_blind: that only reaches the blind we are on now, which
+-- is not Nemesis at blind start or skip.
+local function relay_enemy_info(payload)
+	local nemesis = G.P_BLINDS and G.P_BLINDS.bl_mp_nemesis
+	if nemesis then nemesis:sync(payload) end
+end
+
 local function gen_seed()
 	local cfg = PVP.LOBBY.config
 	if cfg.custom_seed and cfg.custom_seed ~= "random" and cfg.custom_seed ~= "" then
@@ -104,8 +112,7 @@ local ROUTES = {
 		-- result (confirmed live: END/CHK trailer landed right after this
 		-- hand's `play` opcode with no `hand_result` in between).
 		if PVP.RLOG then PVP.RLOG.record("hand_result", { tostring(msg.score), msg.handsLeft }) end
-		-- Display sync is the active blind's own decision now (see objects/blinds/nemesis.lua).
-		MPAPI.calculate_blind({ hand_played = true, score = msg.score, hands_left = msg.handsLeft, skips = my_skips(), lives = my_lives() })
+		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives(), blindStarted = msg.blindStarted })
 	end,
 	setAnte = function(msg)
 		broadcast("pvp_set_ante", { ante = msg.ante })
@@ -119,10 +126,9 @@ local ROUTES = {
 	skip = function(msg)
 		broadcast("pvp_skip", { skips = msg.skips, score = my_score_str(), handsLeft = my_hands(), lives = my_lives() }) -- referee (host-authoritative)
 		-- See playHand's hand_result comment above -- same rationale, for discards:
-		-- recorded BEFORE calculate_blind so a match-ending skip still logs.
+		-- recorded BEFORE the relay so a match-ending skip still logs.
 		if PVP.RLOG then PVP.RLOG.record("hand_result", { my_score_str(), my_hands() }) end
-		-- Display sync is the active blind's own decision now (see objects/blinds/nemesis.lua).
-		MPAPI.calculate_blind({ discarded = true, skips = msg.skips, score = my_score_str(), hands_left = my_hands(), lives = my_lives() })
+		relay_enemy_info({ score = my_score_str(), handsLeft = my_hands(), skips = msg.skips, lives = my_lives() })
 	end,
 	startAnteTimer = function(msg)
 		broadcast("pvp_ante_timer", { time = msg.time, isPvP = msg.isPvP })

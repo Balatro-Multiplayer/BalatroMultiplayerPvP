@@ -28,17 +28,7 @@ MPAPI.Blind({
 		return false
 	end,
 
-	-- Decides whether/what to tell the opponent on a hand played or discard, dispatched via
-	-- MPAPI.calculate_blind from pvp_api/net.lua's playHand/skip routes -- the blind's own
-	-- decision now, not an external hardcoded sync call.
-	calculate = function(self, context)
-		if context.hand_played or context.discarded then
-			return {
-				send = { score = context.score, handsLeft = context.hands_left, skips = context.skips, lives = context.lives },
-			}
-		end
-	end,
-
+	-- The opponent's side is sent by pvp_api/net.lua (relay_enemy_info) through this blind's sync.
 	-- Display-only sync of the opponent's score/hands/skips/lives (was action_enemy_info).
 	-- Runs on the OTHER player's client (self-echo suppressed by the framework); writes the
 	-- PVP.GAME.enemy.* store the HUD already reads. The referee (win/lose/lives) is separate,
@@ -63,7 +53,6 @@ MPAPI.Blind({
 		local score = PVP.INSANE_INT.from_string(d.score)
 		local hands_left = tonumber(d.handsLeft)
 		local skips = tonumber(d.skips)
-		local lives = tonumber(d.lives)
 
 		-- No-animation timer: opponent skip adds time immediately.
 		if skips and PVP.GAME.enemy.skips ~= skips then
@@ -103,10 +92,8 @@ MPAPI.Blind({
 
 		PVP.UI.ease_enemy_score(score)
 
-		if PVP.GAME.enemy.lives > lives then
-			play_sound("holo1", 0.865, 0.9)
-			play_sound("gong", 0.765, 0.4)
-		end
+		-- Lives are not read here: pvp_player_lives (pvp_api/actions/outcomes.lua) owns them and plays the lives sound.
+		if d.blindStarted then PVP.OPPONENT_SIGNALS.play_blind_start() end
 		if PVP.GAME.enemy.skips < skips then
 			play_sound("negative", 0.865, 0.4)
 			play_sound("gong", 0.765, 0.4)
@@ -115,7 +102,6 @@ MPAPI.Blind({
 		PVP.GAME.enemy.real_score = score
 		PVP.GAME.enemy.hands = hands_left
 		PVP.GAME.enemy.skips = skips
-		PVP.GAME.enemy.lives = lives
 		-- We've now heard from the opponent this blind: unmask their hands count.
 		PVP.GAME.enemy.info_received = true
 		if PVP.UI.juice_up_pvp_hud then PVP.UI.juice_up_pvp_hud() end
