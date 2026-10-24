@@ -144,7 +144,7 @@ times = 1
 [[patches]]
 [patches.pattern]
 target = "functions/UI_definitions.lua"
-pattern = "local flags = SMODS.calculate_context({create_shop_card = true, set = v.type})"
+pattern = "local flags = SMODS.calculate_context({create_shop_card = true, set = v.type*})"
 position = 'before'
 payload = '''
 if PVP.in_session() then args.front = false end
