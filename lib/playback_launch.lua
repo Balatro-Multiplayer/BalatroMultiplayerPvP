@@ -62,12 +62,9 @@ function PVP._start_playback(manifest, on_ready)
 	-- PVP.LOBBY.deck, NOT off the args table passed to it (args.stake there is
 	-- unused dead weight -- confirmed by reading its body) -- these must be set
 	-- here for the seed to actually reproduce the original match's cards.
-	PVP.LOBBY.deck.back = manifest.deck
-	PVP.LOBBY.deck.stake = manifest.stake
-	PVP.LOBBY.deck.sleeve = manifest.sleeve
-	PVP.LOBBY.deck.challenge = manifest.challenge
-	PVP.LOBBY.config.ruleset = manifest.ruleset
-	PVP.LOBBY.config.gamemode = manifest.gamemode
+	-- The lobby config gets them too: set_metadata's mirror and copy_host_deck copy
+	-- config back onto the deck, and a default config would reset it to Red Deck.
+	PVP.apply_replay_loadout(PVP.LOBBY, manifest)
 
 	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
 
