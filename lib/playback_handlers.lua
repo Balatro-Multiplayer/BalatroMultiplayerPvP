@@ -134,10 +134,12 @@ local function do_select_blind()
 	G.FUNCS.select_blind({ config = { ref_table = G.P_BLINDS[blind_key] }, UIBox = G.blind_select })
 end
 
-MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
-	if not ctx.is_pov then
-		return
-	end
+-- Leaving the shop (the Next Round button) is not recorded as an event: the
+-- next select_blind or skip_blind implies it. Both handlers must therefore
+-- close the shop themselves. skip_blind did not, so a replay of "cash out,
+-- then skip the next blind" waited for BLIND_SELECT forever and the rest of
+-- the recording applied to the wrong blind.
+local function leave_shop_for_blind_select()
 	if G.STATE == G.STATES.SHOP then
 		-- A bare nil e crashes if any installed mod injects a defensive
 		-- e.config.foo read into a function confirmed e-free in vanilla today
@@ -145,6 +147,13 @@ MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
 		-- always pass a non-nil e = {config = {}} instead.
 		G.FUNCS.toggle_shop({ config = {} })
 	end
+end
+
+MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
+	if not ctx.is_pov then
+		return
+	end
+	leave_shop_for_blind_select()
 	PVP._playback_wait_for(function()
 		return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
 	end, do_select_blind)
@@ -152,6 +161,7 @@ end)
 
 MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
 	if ctx.is_pov then
+		leave_shop_for_blind_select()
 		-- Same real-UIBox technique as select_blind -- skip_blind's entire
 		-- state-advance (blind_on_deck/blind_states) lives inside vanilla's own
 		-- `if _tag then ... end`, so a stubbed/absent UIBox would silently skip
