@@ -1117,7 +1117,7 @@ return {
 			k_no_banned_objs = "Không Cấm #1#",
 			k_reworked_objs = "Đã Thêm/Sửa Lại #1#",
 			k_no_reworked_objs = "Không Thêm/Sửa Lại #1#",
-			k_ruleset_disabled_smods_version = "Needs Steamodded #1# or newer",
+			k_ruleset_disabled_smods_version = "Yêu cần phiên bản SMODS #1#",
 			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "Không thể tham gia phòng: #1#",
 			k_ante_number = "Ante #1#",

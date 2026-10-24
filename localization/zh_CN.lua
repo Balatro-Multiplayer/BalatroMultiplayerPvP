@@ -399,7 +399,7 @@ return {
 			k_no_banned_objs = "非禁用 #1#",
 			k_reworked_objs = "修改 #1#",
 			k_no_reworked_objs = "非修改 #1#",
-			k_ruleset_disabled_smods_version = "Needs Steamodded #1# or newer",
+			k_ruleset_disabled_smods_version = "需求 SMODS 版本 #1#",
 			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "加入房间失败: #1#",
 			k_ante_number = "底注 #1#",
