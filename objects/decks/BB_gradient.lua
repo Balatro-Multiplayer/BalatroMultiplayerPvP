@@ -143,7 +143,7 @@ local update_ref = Card.update
 function Card:update(dt)
 	local ret = update_ref(self, dt)
 	if G.GAME.modifiers.mp_gradient then
-		if self.ability.name == "Cloud 9" then
+		if self.ability and self.ability.name == "Cloud 9" then
 			self.ability.nine_tally = 0
 			for k, v in pairs(G.playing_cards) do
 				local id = v:get_id()
