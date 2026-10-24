@@ -348,7 +348,7 @@ local card_update_ref = Card.update
 function Card:update(dt)
 	card_update_ref(self, dt)
 	if G.STAGE == G.STAGES.RUN then
-		if self.ability.name == "Swashbuckler" and self.ability.release then
+		if self.ability and self.ability.name == "Swashbuckler" and self.ability.release then
 			local sell_cost = 0
 			for i = 1, #G.jokers.cards do
 				if G.jokers.cards[i] == self or (self.area and (self.area ~= G.jokers)) then break end
