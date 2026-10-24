@@ -326,7 +326,7 @@ function G.FUNCS.lobby_start_run(e, args)
 	if PVP.LOBBY.deck.back == "Challenge Deck" then
 		challenge = G.CHALLENGES[get_challenge_int_from_id(PVP.LOBBY.deck.challenge)]
 	else
-		G.GAME.viewed_back = G.P_CENTERS[PVP.UTILS.get_deck_key_from_name(PVP.LOBBY.deck.back)]
+		G.GAME.viewed_back = PVP.UTILS.back_for_key(PVP.UTILS.get_deck_key_from_name(PVP.LOBBY.deck.back))
 	end
 
 	G.FUNCS.start_run(e, {
