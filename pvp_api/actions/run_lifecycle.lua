@@ -79,9 +79,29 @@ function PVP._ban_pick_on_complete_for(gm_def, lobby, seed, fallback_stake)
 			PVP.LOBBY.deck.stake = stake
 		end
 		if lobby and lobby.is_host then
+			PVP.publish_drafted_loadout(lobby, PVP.LOBBY.config.back, stake)
 			PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		end
 		PVP.dispatch_action("startGame", { seed = seed, stake = stake or fallback_stake })
+	end
+end
+
+-- The host writes the drafted deck and stake over the queued ones in the lobby
+-- metadata. The metadata mirror (pvp_api/lobby_bridge.lua) copies it back into
+-- PVP.LOBBY on every metadata change, so a stale queued stake there would undo the
+-- draft (and a Reseed would then start on it). `drafted_stake` is what the server
+-- reads to restart a server-run game on the drafted stake.
+function PVP.publish_drafted_loadout(lobby, back, stake)
+	local patch = {}
+	if back then
+		patch.deck = back
+	end
+	if stake then
+		patch.stake = tostring(stake)
+		patch.drafted_stake = tostring(stake)
+	end
+	if next(patch) then
+		lobby:set_metadata(patch)
 	end
 end
 
@@ -119,6 +139,7 @@ function PVP.on_game_start(params)
 			PVP.LOBBY.deck.stake = stake
 		end
 		if lobby and lobby.is_host then
+			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
 			PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		end
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
