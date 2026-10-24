@@ -311,7 +311,9 @@ local function replay_buy(args, ctx)
 		local area = area_object(area_id)
 		local card = area and area.cards and area.cards[idx]
 		if card then
-			local id = card.ability and card.ability.set == 'Booster' and 'buy_and_use' or nil
+			-- args[5]: the player pressed "Buy & Use" (a consumable bought and used at once).
+			local bought_and_used = args and args[5] == true
+			local id = ((card.ability and card.ability.set == 'Booster') or bought_and_used) and 'buy_and_use' or nil
 			G.FUNCS.buy_from_shop({ config = { id = id, ref_table = card } })
 		end
 	end)
