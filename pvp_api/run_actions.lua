@@ -42,6 +42,8 @@ function PVP.pvp_forfeit()
 	if not lobby or not MPAPI.ActionTypes["pvp_forfeit"] then
 		return
 	end
+	-- Roster first: the others list this player's jokers on their end screen.
+	PVP.report_roster_result()
 	lobby:action(MPAPI.ActionTypes["pvp_forfeit"]):broadcast({})
 end
 
