@@ -946,7 +946,8 @@ return {
 		k_no_banned_objs = "금지된 #1# 없음",
 		k_reworked_objs = "리워크된 #1#",
 		k_no_reworked_objs = "리워크된 #1# 없음",
-		k_ruleset_disabled_smods_version = "SMODS 버전 #1# 필요",
+		k_ruleset_disabled_smods_version = "Needs Steamodded #1# or newer",
+		k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 		k_failed_to_join_lobby = "로비 참가 실패: #1#",
 
 		k_ante_number = "앤티 #1#",

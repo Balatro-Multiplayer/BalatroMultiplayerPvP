@@ -689,7 +689,8 @@ return {
 			k_no_banned_objs = "Non ci sono #1# Banditi",
 			k_reworked_objs = "#1# Aggiunti/Modificati",
 			k_no_reworked_objs = "Non ci sono #1# Aggiunti/Modificati",
-			k_ruleset_disabled_smods_version = "Versione SMODS #1# necessaria",
+			k_ruleset_disabled_smods_version = "Needs Steamodded #1# or newer",
+			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "Errore nel connettersi alla lobby: #1#",
 			k_ante_number = "Ante #1#",
 			k_ante_min = "Ante #1#+", --Per esempio, "Ante 2+"

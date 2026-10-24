@@ -389,7 +389,7 @@ local function action_start_game(p)
 			mod_version = PVP and PVP.version,
 			mod_hash = PVP.MOD_STRING,
 			smods_version = SMODS.version,
-			lovely_version = PVP.REQUIRED_LOVELY_VERSION,
+			lovely_version = PVP.MIN_LOVELY_VERSION,
 		})
 	end
 	MPAPI.RLOGCodes.run_info:write(seed, PVP.LOBBY.config.back, stake)
