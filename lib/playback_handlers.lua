@@ -134,11 +134,8 @@ local function do_select_blind()
 	G.FUNCS.select_blind({ config = { ref_table = G.P_BLINDS[blind_key] }, UIBox = G.blind_select })
 end
 
--- Leaving the shop (the Next Round button) is not recorded as an event: the
--- next select_blind or skip_blind implies it. Both handlers must therefore
--- close the shop themselves. skip_blind did not, so a replay of "cash out,
--- then skip the next blind" waited for BLIND_SELECT forever and the rest of
--- the recording applied to the wrong blind.
+-- Older recordings have no leave_shop event: select_blind and skip_blind imply it, so both
+-- close the shop themselves.
 local function leave_shop_for_blind_select()
 	if G.STATE == G.STATES.SHOP then
 		-- A bare nil e crashes if any installed mod injects a defensive
@@ -182,10 +179,8 @@ MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
 		PVP._playback_wait_for(function()
 			return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
 		end, function()
-			-- vanilla's skip button lives in the PER-BLIND UIBox; it reads the tag to
-			-- grant from that box's own tag_container. G.blind_select holds all three
-			-- panels, so its first tag_container is always the Small blind's tag: a
-			-- replayed Big skip granted the Small tag a second time.
+			-- Vanilla's skip button reads the tag from the per-blind panel; G.blind_select's
+			-- first tag_container is always the Small blind's.
 			local panel = G.blind_select_opts and G.blind_select_opts[string.lower(G.GAME.blind_on_deck or 'Small')]
 			G.FUNCS.skip_blind({ UIBox = panel or G.blind_select })
 		end)
