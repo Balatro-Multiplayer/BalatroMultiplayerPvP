@@ -12,7 +12,7 @@
   "priority": 0,
   "badge_colour": "AC3232",
   "badge_text_colour": "FFFFFF",
-  "version": "0.5.1",
+  "version": "1.0.1",
   "dependencies": [
     "Steamodded (>=1.0.0~BETA-1814a)",
     "Lovely (>=0.8)",
