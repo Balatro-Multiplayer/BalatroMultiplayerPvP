@@ -71,8 +71,11 @@ local j_broken = {
 
 local card_init_ref = Card.init
 function Card:init(X, Y, W, H, card, center, params)
-	if center == nil then center = j_broken end
-	card_init_ref(self, X, Y, W, H, card, center, params)
+	if center == nil then
+		sendWarnMessage("Card created without a center, using the BROKEN stand-in\n" .. debug.traceback(), "MULTIPLAYER")
+		center = j_broken
+	end
+	PVP.UTILS.guarded_card_init(card_init_ref, self, X, Y, W, H, card, center, params)
 end
 
 PVP.DECK.MAX_STAKE = 0

@@ -139,7 +139,7 @@ end
 local update_ref = Card.update
 function Card:update(dt)
 	update_ref(self, dt)
-	if self.ability.mp_sticker_persistent then
+	if self.ability and self.ability.mp_sticker_persistent then
 		self.sell_cost_label = self.facing == "back" and "?" or self.ability.mp_sell_price
 	end
 end
