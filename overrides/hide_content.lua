@@ -40,6 +40,36 @@ local function hook(orig, type)
 	end
 end
 
+-- The deck option cycle (G.FUNCS.change_viewed_back) is shared by the run setup
+-- screen and the Collection. Only the run setup swaps the pool, because its
+-- cycle is built from the hidden pool. The Collection cycle is built from the
+-- full pool, so a swapped pool there would point at the wrong deck (and
+-- Back:change_to(nil) falls back to Red Deck). run_setup_option tags the cycles
+-- it builds, and the callback swaps only for a tagged cycle.
+local RUN_SETUP_CYCLE = "pvp_run_setup_cycle"
+
+local function tag_run_setup_cycles(orig)
+	return function(...)
+		local create_option_cycle_ref = create_option_cycle
+		create_option_cycle = function(args)
+			if args and args.opt_callback == "change_viewed_back" then args[RUN_SETUP_CYCLE] = true end
+			return create_option_cycle_ref(args)
+		end
+		local ok, results = pcall(orig, ...)
+		create_option_cycle = create_option_cycle_ref
+		if not ok then error(results, 0) end
+		return results
+	end
+end
+
+local function hide_in_run_setup_cycle(orig, type)
+	local hidden = hook(orig, type)
+	return function(args, ...)
+		if args and args.cycle_config and args.cycle_config[RUN_SETUP_CYCLE] then return hidden(args, ...) end
+		return orig(args, ...)
+	end
+end
+
 local hooks = {
 	Stake = {
 		{ tbl = G.UIDEF, str = "deck_stake_column" },
@@ -49,10 +79,12 @@ local hooks = {
 	},
 	Back = {
 		{ tbl = G.UIDEF, str = "run_setup_option" },
-		{ tbl = G.FUNCS, str = "change_viewed_back" },
 		{ tbl = G.FUNCS, str = "change_selected_back" },
 	},
 }
+
+G.UIDEF.run_setup_option = tag_run_setup_cycles(G.UIDEF.run_setup_option)
+G.FUNCS.change_viewed_back = hide_in_run_setup_cycle(G.FUNCS.change_viewed_back, "Back")
 
 for k, v in pairs(hooks) do
 	for i, vv in ipairs(v) do
