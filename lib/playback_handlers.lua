@@ -235,6 +235,47 @@ MPAPI.playback.register_handler('pvp', 'sell', function(args, ctx)
 	end
 end)
 
+-- A shop action can be dispatched while the shop is still being built: cash_out
+-- flips G.STATE at once, but G.shop_jokers (and the other shop areas) only exist
+-- once a later queued event has run, and the driver dispatches again as soon as
+-- the event queues are empty. A buy then found no area and bought nothing, and a
+-- reroll crashed in vanilla's queued event (button_callbacks.lua, "attempt to
+-- index field 'shop_jokers'"), which killed a rejoin whose recording ended in the
+-- shop. Runs `fn` at once when the shop is up; otherwise pauses the driver, waits
+-- for the shop (bounded, like SPDRN's with_shop_ready), runs `fn` and resumes.
+local SHOP_READY_TIMEOUT_SECONDS = 10
+local function shop_is_ready()
+	return G.shop_jokers ~= nil and G.shop_jokers.cards ~= nil
+end
+local function with_shop_ready(ctx, fn)
+	if shop_is_ready() then
+		fn()
+		return
+	end
+	local driver = ctx.driver
+	if driver then
+		driver:pause()
+	end
+	local deadline = love.timer.getTime() + SHOP_READY_TIMEOUT_SECONDS
+	PVP._playback_wait_for(function()
+		if shop_is_ready() then
+			return true
+		end
+		if love.timer.getTime() >= deadline then
+			MPAPI.sendWarnMessage('[replay] shop never became ready after ' .. SHOP_READY_TIMEOUT_SECONDS .. 's, skipping this action')
+			return true
+		end
+		return false
+	end, function()
+		if shop_is_ready() then
+			fn()
+		end
+		if driver then
+			driver:play()
+		end
+	end)
+end
+
 -- Vanilla's own G.FUNCS.buy_from_shop calls G.FUNCS.check_for_buy_space(c1)
 -- unless e.config.id == 'buy_and_use' -- and that check only recognizes
 -- Voucher/Enhanced/Default/Joker/consumeable cards. A Booster Pack is none of
@@ -250,13 +291,15 @@ local function replay_buy(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	local area_id, idx = args and args[1], args and args[2]
-	local area = area_object(area_id)
-	local card = area and area.cards and area.cards[idx]
-	if card then
-		local id = card.ability and card.ability.set == 'Booster' and 'buy_and_use' or nil
-		G.FUNCS.buy_from_shop({ config = { id = id, ref_table = card } })
-	end
+	with_shop_ready(ctx, function()
+		local area_id, idx = args and args[1], args and args[2]
+		local area = area_object(area_id)
+		local card = area and area.cards and area.cards[idx]
+		if card then
+			local id = card.ability and card.ability.set == 'Booster' and 'buy_and_use' or nil
+			G.FUNCS.buy_from_shop({ config = { id = id, ref_table = card } })
+		end
+	end)
 end
 MPAPI.playback.register_handler('pvp', 'buy', replay_buy)
 MPAPI.playback.register_handler('pvp', 'open_pack', replay_buy)
@@ -300,7 +343,9 @@ end)
 
 MPAPI.playback.register_handler('pvp', 'reroll', function(_args, ctx)
 	if ctx.is_pov then
-		G.FUNCS.reroll_shop({ config = {} })
+		with_shop_ready(ctx, function()
+			G.FUNCS.reroll_shop({ config = {} })
+		end)
 	end
 end)
 
