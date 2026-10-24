@@ -173,7 +173,12 @@ MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
 		PVP._playback_wait_for(function()
 			return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
 		end, function()
-			G.FUNCS.skip_blind({ UIBox = G.blind_select })
+			-- vanilla's skip button lives in the PER-BLIND UIBox; it reads the tag to
+			-- grant from that box's own tag_container. G.blind_select holds all three
+			-- panels, so its first tag_container is always the Small blind's tag: a
+			-- replayed Big skip granted the Small tag a second time.
+			local panel = G.blind_select_opts and G.blind_select_opts[string.lower(G.GAME.blind_on_deck or 'Small')]
+			G.FUNCS.skip_blind({ UIBox = panel or G.blind_select })
 		end)
 	else
 		-- Direct projection, same reasoning as project_enemy_hand_result above
