@@ -231,7 +231,20 @@ function G.FUNCS:continue_in_singleplayer(e)
 	-- frame later and game over removes it, so it is never read back here.
 	G.SETTINGS.current_setup = "Continue"
 	G.FUNCS.wipe_on()
+	-- A vanilla boss to stand in for the PvP blind, picked while the run is live.
+	local fallback_boss
+	for _, key in pairs(G.GAME.round_resets.blind_choices) do
+		if key == "bl_mp_nemesis" then fallback_boss = get_new_boss(); break end
+	end
 	local snapshot = PVP.take_run_snapshot(G, save_run)
+	-- The PvP blind (or the game over) is finished: resume at blind select.
+	if snapshot then
+		PVP.solo_resume_snapshot(snapshot, {
+			states = G.STATES,
+			nemesis_key = "bl_mp_nemesis",
+			fallback_boss = fallback_boss,
+		})
+	end
 	G:delete_run()
 
 	G.E_MANAGER:add_event(Event({
