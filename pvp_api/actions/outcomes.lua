@@ -46,6 +46,9 @@ A_host("pvp_player_lives", function(_at, _from, params)
 		PVP.dispatch_action("playerInfo", { lives = lives })
 	elseif params.player_id == PVP.current_target_id() then
 		if PVP.GAME.enemy then
+			if PVP.OPPONENT_SIGNALS.lives_dropped(PVP.GAME.enemy.lives, lives) then
+				PVP.OPPONENT_SIGNALS.play_life_lost()
+			end
 			PVP.GAME.enemy.lives = lives
 			if PVP.UI and PVP.UI.juice_up_pvp_hud then
 				pcall(PVP.UI.juice_up_pvp_hud)
