@@ -26,39 +26,16 @@ end
 -- (MPAPI.playback.build_timeline) -- merges the first match_manifest (for
 -- schema_version) + first lobby_info (gamemode/ruleset/sleeve/challenge,
 -- the latter two now riding in lobby_info's options dict, see
--- networking/action_handlers.lua's action_start_game) + first run_info
--- (seed/deck/stake) event, replacing the old single 'manifest' event's args
+-- networking/action_handlers.lua's action_start_game) + LAST run_info
+-- (seed/deck/stake) event, so a reseeded match replays its latest seed. This
+-- replaces the old single 'manifest' event's args
 -- now that match framing is split across three events fired at three
 -- different scopes (see BalatroMultiplayerAPI/api/replay/framing_codes.lua).
 -- Returns the same {seed, deck, sleeve, challenge, stake, ruleset, gamemode}
 -- shape PVP._start_playback already expects, plus schema_version for the
 -- compatibility gate below.
 local function find_bootstrap(timeline, player_id)
-	local bootstrap = {}
-	local found = {}
-	for _, entry in ipairs(timeline) do
-		if entry.player_id == player_id then
-			if not found.match_manifest and entry.opcode == 'match_manifest' then
-				found.match_manifest = true
-				bootstrap.schema_version = entry.args.schema_version
-			elseif not found.lobby_info and entry.opcode == 'lobby_info' then
-				found.lobby_info = true
-				bootstrap.gamemode = entry.args.gamemode
-				bootstrap.ruleset = entry.args.ruleset
-				local options = entry.args.options or {}
-				bootstrap.sleeve = options.sleeve
-				bootstrap.challenge = options.challenge
-			elseif not found.run_info and entry.opcode == 'run_info' then
-				found.run_info = true
-				bootstrap.seed = entry.args.seed
-				bootstrap.deck = entry.args.deck
-				bootstrap.stake = entry.args.stake
-			end
-			if found.match_manifest and found.lobby_info and found.run_info then break end
-		end
-	end
-	if not (found.lobby_info and found.run_info) then return nil end
-	return bootstrap
+	return PVP.replay_bootstrap(timeline, player_id)
 end
 
 function PVP._launch_replay(run_id)
