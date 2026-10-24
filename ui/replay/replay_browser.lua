@@ -65,6 +65,7 @@ function PVP._launch_replay(run_id)
 				mod_id = 'pvp',
 				pov_player_id = my_id,
 				schema_version = bootstrap.schema_version,
+				paced = true,
 				on_complete = function()
 					-- No `cover` field: confirmed live (via SPDRN's identical
 					-- on_complete call, ported from this one) to crash --
@@ -82,6 +83,7 @@ function PVP._launch_replay(run_id)
 			})
 			driver:finish()
 			driver:play()
+			PVP.replay_hud.show(driver)
 		end)
 	end)
 end
