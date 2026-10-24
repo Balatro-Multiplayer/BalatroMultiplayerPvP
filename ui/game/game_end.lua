@@ -63,15 +63,30 @@ end
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
 	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, result and result.jokers)
-	PVP.end_game_jokers_text = (result and result.jokers) and ((player_name or "Player") .. "'s Jokers")
-		or ((player_name or "Player") .. " -- still playing...")
+	local lobby = MPAPI.get_current_lobby()
+	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
+	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
+	local name = player_name or "Player"
+	if state == "roster" then
+		PVP.end_game_jokers_text = name .. "'s Jokers"
+	elseif state == "left" then
+		PVP.end_game_jokers_text = name .. " -- left the match"
+	else
+		PVP.end_game_jokers_text = name .. " -- still playing..."
+	end
+end
+
+-- The players the end screen lists: everyone who started the match (a player
+-- who left or forfeited stays), else the current lobby members (a rejoin has
+-- no start snapshot).
+local function end_screen_players(lobby)
+	return PVP._match_players or (lobby and lobby:get_players()) or {}
 end
 
 G.FUNCS.pvp_end_screen_select_player = function(e)
 	if not e then return end
 	local lobby = MPAPI.get_current_lobby()
-	local players = lobby and lobby:get_players()
-	local p = players and players[e.to_key]
+	local p = end_screen_players(lobby)[e.to_key]
 	if not p then return end
 	PVP._end_screen_selected_player_id = p.id
 	PVP._end_screen_selected_player_name = p.displayName or p.id
@@ -96,7 +111,7 @@ function PVP.UI.build_end_game_extras()
 	)
 
 	local lobby = MPAPI.get_current_lobby()
-	local players, options, current_option = MPAPI.end_screen_default_selection(lobby)
+	local players, options, current_option = MPAPI.end_screen_default_selection(lobby, end_screen_players(lobby))
 
 	local selected = players[current_option]
 	PVP._end_screen_selected_player_id = selected and selected.id

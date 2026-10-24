@@ -5,7 +5,7 @@
 # assets stay crisp instead of blurring at the higher resolution.
 #
 # Usage:
-#   scripts/scale_2x.sh <name>...   Scale specific files (e.g. t_alarm.png or t_alarm)
+#   scripts/scale_2x.sh <name>...   Scale specific files (e.g. alt_t_alarm.png or alt_t_alarm)
 #   scripts/scale_2x.sh --all       Scale every png in assets/1x
 #
 set -euo pipefail

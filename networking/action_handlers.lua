@@ -344,6 +344,9 @@ local function action_start_game(p)
 	PVP.SP.practice = false
 
 	PVP.reset_game_states()
+	-- Snapshot who started this match: the end screen lists them even after they leave.
+	local start_lobby = MPAPI.get_current_lobby()
+	PVP._match_players = PVP.MATCH_PLAYERS.snapshot(start_lobby and start_lobby:get_players())
 	-- Stamp the run start (drives the pause menu's seed-change window) and clear any
 	-- pending seed-change votes from a previous run/reseed.
 	PVP._run_started_at = love.timer.getTime()
@@ -410,8 +413,10 @@ local function action_start_blind(p)
 	PVP.GAME.enemy.score = PVP.INSANE_INT.empty()
 	PVP.GAME.enemy.real_score = PVP.INSANE_INT.empty()
 	PVP.GAME.enemy.score_text = "0"
-	-- Re-mask the opponent's hands until the first enemyInfo of the new blind.
+	-- Re-mask the opponent's score until the first enemyInfo of the new blind.
 	PVP.GAME.enemy.info_received = false
+	-- Both players start on the same hands count; show it until their first real update.
+	PVP.GAME.enemy.hands = PVP.OPPONENT_SIGNALS.starting_hands(G.GAME.round_resets)
 	-- Royale's live target and the Manhunt Runner's live target are re-broadcast
 	-- fresh each blind by the host (pvp_api/referee.lua), so clear the stale value
 	-- here too (a no-op for 1v1/Nemesis, which don't use these fields). Teams'
@@ -989,7 +994,7 @@ end
 
 ---@param score number
 ---@param hands_left number
-function PVP.ACTIONS.play_hand(score, hands_left)
+function PVP.ACTIONS.play_hand(score, hands_left, blind_started)
 	local fixed_score = tostring(to_big(score))
 	-- Credit to sidmeierscivilizationv on discord for this fix for Talisman
 	if string.match(fixed_score, "[eE]") == nil and string.match(fixed_score, "[.]") then
@@ -1024,6 +1029,7 @@ function PVP.ACTIONS.play_hand(score, hands_left)
 		action = "playHand",
 		score = fixed_score,
 		handsLeft = hands_left,
+		blindStarted = blind_started or false,
 	})
 end
 

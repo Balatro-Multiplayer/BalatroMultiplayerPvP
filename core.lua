@@ -235,6 +235,8 @@ function PVP.reset_game_states()
 	-- §17.10: fresh per-match roster collection -- must not carry over from
 	-- whatever match (if any) this player was previously in.
 	PVP._collected_results = {}
+	-- Players who started the match (lib/match_players.lua); set by action_start_game.
+	PVP._match_players = nil
 	PVP.GAME = {
 		ready_blind = false,
 		ready_blind_text = localize("b_ready"),
