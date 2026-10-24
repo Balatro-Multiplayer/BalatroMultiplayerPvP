@@ -243,7 +243,7 @@ function G.FUNCS:continue_in_singleplayer(e)
 			states = G.STATES,
 			nemesis_key = "bl_mp_nemesis",
 			fallback_boss = fallback_boss,
-			next_voucher_key = get_next_voucher_key,
+			next_vouchers = SMODS.get_next_vouchers,
 		})
 	end
 	G:delete_run()

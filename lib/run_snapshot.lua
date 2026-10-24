@@ -39,7 +39,8 @@ end
 --   ctx.states           { GAME_OVER = n, ROUND_EVAL = n } (G.STATES)
 --   ctx.nemesis_key      key of the PvP blind
 --   ctx.fallback_boss    key of a vanilla boss for the Boss slot (optional)
---   ctx.next_voucher_key function giving the voucher a Boss blind unlocks (optional)
+--   ctx.next_vouchers    function giving the shop vouchers a Boss blind unlocks, as the
+--                        table Steamodded keeps in current_round.voucher (optional)
 function PVP.solo_resume_snapshot(snap, ctx)
 	local game = snap.GAME
 	local in_pvp_blind = snap.BLIND and snap.BLIND.config_blind == ctx.nemesis_key
@@ -59,7 +60,7 @@ function PVP.solo_resume_snapshot(snap, ctx)
 	game.round_resets.blind_states[on_deck] = "Defeated"
 	if on_deck == "Boss" then
 		game.round_resets.ante = game.round_resets.ante + 1
-		if ctx.next_voucher_key then game.current_round.voucher = ctx.next_voucher_key() end
+		if ctx.next_vouchers then game.current_round.voucher = ctx.next_vouchers() end
 		for _, card in ipairs(snap.cardAreas.deck.cards) do
 			if type(card) == "table" and card.ability then card.ability.played_this_ante = nil end
 		end
