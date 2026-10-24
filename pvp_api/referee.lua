@@ -383,6 +383,15 @@ function PVP.referee_on_player_reconnected(player_id)
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:set(player_id, false)
 	end
+	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
+	-- dropped who its opponent is: the pairing is only sent when an ante starts, so
+	-- without this it never learns it again, and every lives update about its opponent
+	-- (pvp_player_lives) is skipped as "not my target". Sent before the lives.
+	if PVP.LOBBY.config.nemesis_pairing then
+		broadcast_nemesis_pairing()
+	elseif PVP.LOBBY.config.team_based then
+		broadcast_team_card_target()
+	end
 	for id, other in pairs(PVP.REF.players) do
 		broadcast("pvp_player_lives", { player_id = id, lives = other.lives })
 	end
