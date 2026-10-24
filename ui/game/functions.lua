@@ -74,7 +74,7 @@ function G.FUNCS.select_blind(e)
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
 		PVP.RLOG.record("set_ante_key", PVP.GAME.ante_key)
-		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands, true)
+		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands)
 		PVP.ACTIONS.new_round()
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
 		if PVP.UI.hide_enemy_location then PVP.UI.hide_enemy_location() end

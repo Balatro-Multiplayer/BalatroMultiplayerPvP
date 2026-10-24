@@ -370,6 +370,15 @@ return {
 			loc_playing = "Gra w ",
 		},
 		v_dictionary = {
+			k_end_player_jokers = {
+				"#1#'s Jokers",
+			},
+			k_end_player_left = {
+				"#1# -- left the match",
+			},
+			k_end_player_playing = {
+				"#1# -- still playing...",
+			},
 			a_mp_art = {
 				"Zasoby: #1#",
 			},

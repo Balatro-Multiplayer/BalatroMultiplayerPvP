@@ -22,22 +22,6 @@ local function format_run_label(run)
 	return date .. '  ' .. tostring(run.lobbyCode or '??????') .. '  ' .. status .. place
 end
 
--- Finds this player's own bootstrap data in an already-built timeline
--- (MPAPI.playback.build_timeline) -- merges the first match_manifest (for
--- schema_version) + first lobby_info (gamemode/ruleset/sleeve/challenge,
--- the latter two now riding in lobby_info's options dict, see
--- networking/action_handlers.lua's action_start_game) + LAST run_info
--- (seed/deck/stake) event, so a reseeded match replays its latest seed. This
--- replaces the old single 'manifest' event's args
--- now that match framing is split across three events fired at three
--- different scopes (see BalatroMultiplayerAPI/api/replay/framing_codes.lua).
--- Returns the same {seed, deck, sleeve, challenge, stake, ruleset, gamemode}
--- shape PVP._start_playback already expects, plus schema_version for the
--- compatibility gate below.
-local function find_bootstrap(timeline, player_id)
-	return PVP.replay_bootstrap(timeline, player_id)
-end
-
 function PVP._launch_replay(run_id)
 	MPAPI.replay.get(run_id, function(err, data)
 		if err or not data or not data.logs then
@@ -47,7 +31,7 @@ function PVP._launch_replay(run_id)
 
 		local timeline = MPAPI.playback.build_timeline(data.logs)
 		local my_id = MPAPI.get_replay_player_id()
-		local bootstrap = find_bootstrap(timeline, my_id)
+		local bootstrap = PVP.replay_bootstrap(timeline, my_id)
 		if not bootstrap then
 			MPAPI.sendWarnMessage('[replay] no bootstrap data found for our own player in run ' .. tostring(run_id))
 			return

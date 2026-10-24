@@ -368,6 +368,15 @@ return {
 			loc_playing = "战斗", -- translates to "fighting" because the direct translation for playing sounds a bit funny in context
 		},
 		v_dictionary = {
+			k_end_player_jokers = {
+				"#1#'s Jokers",
+			},
+			k_end_player_left = {
+				"#1# -- left the match",
+			},
+			k_end_player_playing = {
+				"#1# -- still playing...",
+			},
 			a_mp_art = {
 				"Art: #1#",
 			},

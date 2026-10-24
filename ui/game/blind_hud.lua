@@ -208,7 +208,7 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 		return
 	end
 
-	-- Hands start at the shared starting count (set when the blind starts), so
+	-- Hands start at the opponent's starting count (set when the blind starts), so
 	-- there is nothing to hide.
 	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
 

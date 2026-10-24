@@ -38,33 +38,10 @@ function PVP.UTILS.check_smods_version()
 	return false
 end
 
--- Numeric parts of a dotted version, e.g. "0.9.3-beta" -> { 0, 9, 3 }.
-local function version_parts(version)
-	local parts = {}
-	for number in tostring(version):gmatch("%d+") do
-		parts[#parts + 1] = tonumber(number)
-	end
-	return parts
-end
-
--- True when `version` is the same as or newer than `minimum` (missing parts count as 0).
-function PVP.UTILS.version_at_least(version, minimum)
-	local have, need = version_parts(version), version_parts(minimum)
-	if #have == 0 then
-		return false
-	end
-	for i = 1, math.max(#have, #need) do
-		local h, n = have[i] or 0, need[i] or 0
-		if h ~= n then
-			return h > n
-		end
-	end
-	return true
-end
-
 function PVP.UTILS.check_lovely_version()
 	local lovely_ver = SMODS.Mods["Lovely"] and SMODS.Mods["Lovely"].version or ""
-	if not PVP.UTILS.version_at_least(lovely_ver, PVP.MIN_LOVELY_VERSION) then
+	-- V() cannot parse a version that does not start with a number (Lovely missing or unversioned).
+	if not lovely_ver:match("^%d") or V(lovely_ver) < V(PVP.MIN_LOVELY_VERSION) then
 		return localize({
 			type = "variable",
 			key = "k_ruleset_disabled_lovely_version",

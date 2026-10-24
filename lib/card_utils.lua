@@ -153,15 +153,6 @@ function PVP.UTILS.get_deck_key_from_name(_name)
 	end
 end
 
--- G.GAME.viewed_back must be a Back object, not a raw center: Steamodded 26.x
--- Card:set_sprites reads viewed_back.effect.center.sprite_args, and vanilla
--- start_run reads viewed_back.name. Returns nil when the key is not a center.
-function PVP.UTILS.back_for_key(key)
-	local center = key and G.P_CENTERS[key]
-	if not center then return nil end
-	return Back(center)
-end
-
 -- Drives the grim/familiar/incantation lovely patch. Returns center *objects*
 -- (not keys) to match the vanilla loop body the patch slots into.
 function PVP.UTILS.get_spectral_enhancement_pool()

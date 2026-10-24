@@ -15,10 +15,12 @@
 
 PVP._pvp_action_helpers = {}
 
-function PVP._pvp_action_helpers.self_id()
+-- This client's player id in the current lobby (nil outside a lobby).
+function PVP.self_player_id()
 	local lobby = MPAPI.get_current_lobby()
 	return lobby and lobby.player_id
 end
+PVP._pvp_action_helpers.self_id = PVP.self_player_id
 
 function PVP._pvp_action_helpers.A(key, on_receive)
 	-- prefix_config.key = false: keep the literal `pvp_*` key. Otherwise SMODS

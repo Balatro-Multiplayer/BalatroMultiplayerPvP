@@ -81,8 +81,8 @@ local ROUTES = {
 	stopGame = function(_msg)
 		broadcast("pvp_stop_game", {})
 	end,
-	readyBlind = function(_msg)
-		broadcast("pvp_ready_blind", {})
+	readyBlind = function(msg)
+		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands })
 	end,
 	unreadyBlind = function(_msg)
 		broadcast("pvp_unready_blind", {})
@@ -112,7 +112,7 @@ local ROUTES = {
 		-- result (confirmed live: END/CHK trailer landed right after this
 		-- hand's `play` opcode with no `hand_result` in between).
 		if PVP.RLOG then PVP.RLOG.record("hand_result", { tostring(msg.score), msg.handsLeft }) end
-		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives(), blindStarted = msg.blindStarted })
+		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() })
 	end,
 	setAnte = function(msg)
 		broadcast("pvp_set_ante", { ante = msg.ante })

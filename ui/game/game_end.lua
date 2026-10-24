@@ -60,6 +60,12 @@ end
 -- sender id, so in any N>2 lobby whichever response landed last would've
 -- clobbered every other player's data; _collected_results is keyed by
 -- sender id and already had to solve that problem for the Roster screen.
+local END_GAME_JOKERS_TEXT_KEY = {
+	[PVP.MATCH_PLAYERS.State.ROSTER] = "k_end_player_jokers",
+	[PVP.MATCH_PLAYERS.State.LEFT] = "k_end_player_left",
+	[PVP.MATCH_PLAYERS.State.PLAYING] = "k_end_player_playing",
+}
+
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
 	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, result and result.jokers)
@@ -67,13 +73,7 @@ local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
 	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
 	local name = player_name or "Player"
-	if state == "roster" then
-		PVP.end_game_jokers_text = name .. "'s Jokers"
-	elseif state == "left" then
-		PVP.end_game_jokers_text = name .. " -- left the match"
-	else
-		PVP.end_game_jokers_text = name .. " -- still playing..."
-	end
+	PVP.end_game_jokers_text = localize({ type = "variable", key = END_GAME_JOKERS_TEXT_KEY[state], vars = { name } })
 end
 
 -- The players the end screen lists: everyone who started the match (a player

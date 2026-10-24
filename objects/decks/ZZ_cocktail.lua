@@ -218,7 +218,7 @@ function Card:click() -- i'd rather deal with the cardarea but this is fine i su
 			local cfg = PVP.config
 			for i, v in ipairs(decks) do
 				local row = math.floor((((i - 1) / #decks) * 2) + 1)
-				G.GAME.viewed_back = PVP.UTILS.back_for_key(v)
+				G.GAME.viewed_back = MPAPI.back_for_key(v)
 				local card = Card(
 					G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2,
 					G.ROOM.T.h,
@@ -236,7 +236,7 @@ function Card:click() -- i'd rather deal with the cardarea but this is fine i su
 				card.highlighted = tonumber(num) >= 1 and true or false
 				card.mp_cocktail_forced = num == "2" and true or false
 			end
-			G.GAME.viewed_back = PVP.UTILS.back_for_key("b_mp_cocktail")
+			G.GAME.viewed_back = MPAPI.back_for_key("b_mp_cocktail")
 			PVP.show_cocktail_decks = PVP.cocktail_cfg_readpos("show") ~= "H" and true or false
 			deck_tables = {}
 			for i = 1, #G.cocktail_select do

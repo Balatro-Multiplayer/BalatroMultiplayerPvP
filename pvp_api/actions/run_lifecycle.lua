@@ -86,11 +86,20 @@ function PVP._ban_pick_on_complete_for(gm_def, lobby, seed, fallback_stake)
 	end
 end
 
+-- Lobby metadata keys PvP shares with the server. Mirrored by hand in
+-- BalatroMultiplayerServer nakama/src/actions/registry.ts (DRAFTED_STAKE_KEY).
+PVP.LOBBY_METADATA = {
+	-- The stake the host drafted: what the server restarts a server-run game on.
+	-- The host clears it (empty string) when a new game starts.
+	DRAFTED_STAKE = "drafted_stake",
+}
+local NO_DRAFTED_STAKE = ""
+
 -- The host writes the drafted deck and stake over the queued ones in the lobby
 -- metadata. The metadata mirror (pvp_api/lobby_bridge.lua) copies it back into
 -- PVP.LOBBY on every metadata change, so a stale queued stake there would undo the
--- draft (and a Reseed would then start on it). `drafted_stake` is what the server
--- reads to restart a server-run game on the drafted stake.
+-- draft (and a Reseed would then start on it). LOBBY_METADATA.DRAFTED_STAKE is what
+-- the server reads to restart a server-run game on the drafted stake.
 function PVP.publish_drafted_loadout(lobby, back, stake)
 	local patch = {}
 	if back then
@@ -98,7 +107,7 @@ function PVP.publish_drafted_loadout(lobby, back, stake)
 	end
 	if stake then
 		patch.stake = tostring(stake)
-		patch.drafted_stake = tostring(stake)
+		patch[PVP.LOBBY_METADATA.DRAFTED_STAKE] = tostring(stake)
 	end
 	if next(patch) then
 		lobby:set_metadata(patch)
@@ -118,6 +127,12 @@ function PVP.on_game_start(params)
 
 	local lobby = MPAPI.get_current_lobby()
 	local meta = (lobby and lobby:get_metadata()) or {}
+	-- A draft belongs to one game: clear the last game's before this one starts, so a
+	-- start without a draft cannot restart later on an old drafted stake.
+	local drafted_stake_key = PVP.LOBBY_METADATA.DRAFTED_STAKE
+	if lobby and lobby.is_host and (meta[drafted_stake_key] or NO_DRAFTED_STAKE) ~= NO_DRAFTED_STAKE then
+		lobby:set_metadata({ [drafted_stake_key] = NO_DRAFTED_STAKE })
+	end
 	local gm_def = meta.queue_mode and MPAPI.GameModes[meta.queue_mode]
 
 	-- picked is a { key, stake } item (deck+stake draft), a plain deck key/name, or nil.

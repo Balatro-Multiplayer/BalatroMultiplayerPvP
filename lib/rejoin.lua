@@ -22,7 +22,7 @@ function PVP._launch_rejoin(active)
 
 	-- Merges the first match_manifest (schema_version) + first lobby_info
 	-- (gamemode/ruleset/sleeve/challenge) + first run_info (seed/deck/stake)
-	-- event, same as ui/replay/replay_browser.lua's find_bootstrap -- kept as
+	-- event, same as PVP.replay_bootstrap -- kept as
 	-- an inline loop here since `active.events` isn't a built timeline (no
 	-- player_id per entry; it's already this player's own single stream).
 	local bootstrap, found = {}, {}

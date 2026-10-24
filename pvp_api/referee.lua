@@ -79,6 +79,19 @@ local function ref_player(id)
 	return PVP.REF.players[id]
 end
 
+-- The starting hands each of `ids` reported when readying the blind, keyed by id
+-- (only those that reported one).
+local function starting_hands_by_id(ids)
+	local by_id = {}
+	for _, id in ipairs(ids) do
+		local hands = PVP.REF.players[id] and PVP.REF.players[id].starting_hands
+		if hands then
+			by_id[id] = hands
+		end
+	end
+	return by_id
+end
+
 -- The two participant ids (host is the local player when we are host).
 local function both_players()
 	local lobby = MPAPI.get_current_lobby()
@@ -558,10 +571,11 @@ end
 -- "every alive player has readied", via MPAPI.ReadyTracker()'s set/is_ready/reset
 -- primitives (checked against alive_ids() ourselves rather than its own all_ready(),
 -- which loops the full lobby roster and would stall on eliminated spectators).
-function PVP.referee_on_ready_blind(from)
+function PVP.referee_on_ready_blind(from, starting_hands)
 	if not is_host() then
 		return
 	end
+	ref_player(from).starting_hands = tonumber(starting_hands)
 
 	if #both_players() > 2 then
 		PVP.REF.ready_tracker = PVP.REF.ready_tracker or MPAPI.ReadyTracker()
@@ -582,7 +596,7 @@ function PVP.referee_on_ready_blind(from)
 				pl.hands_left = 4
 				pl.played_this_blind = false
 			end
-			broadcast("pvp_start_blind", { first_player = "" })
+			broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive) })
 			-- Show fresh (0) values on the live target board immediately, not stale
 			-- ones from the round that just ended.
 			broadcast_live_targets()
@@ -611,7 +625,10 @@ function PVP.referee_on_ready_blind(from)
 
 		-- firstPlayer is the id of whichever player readied first.
 		local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
-		broadcast("pvp_start_blind", { first_player = first_id or "" })
+		broadcast("pvp_start_blind", {
+			first_player = first_id or "",
+			starting_hands = starting_hands_by_id({ from, opp }),
+		})
 	end
 end
 

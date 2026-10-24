@@ -46,7 +46,7 @@ end
 local function lives_row(player_data)
 	local lives = PVP.lives_of(player_data.id, {
 		ref_players = PVP.REF and PVP.REF.players,
-		self_id = PVP._pvp_action_helpers.self_id(),
+		self_id = PVP.self_player_id(),
 		own_lives = PVP.GAME and PVP.GAME.lives,
 		cache = PVP._player_lives_cache,
 		starting_lives = PVP.LOBBY.config.starting_lives,

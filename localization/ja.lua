@@ -693,6 +693,15 @@ return {
 			loc_playing = "",
 		},
 		v_dictionary = {
+			k_end_player_jokers = {
+				"#1#'s Jokers",
+			},
+			k_end_player_left = {
+				"#1# -- left the match",
+			},
+			k_end_player_playing = {
+				"#1# -- still playing...",
+			},
 			a_mp_art = {
 				"イラスト #1#",
 			},
@@ -715,7 +724,7 @@ return {
 			k_no_banned_objs = "出現しない#1#はありません",
 			k_reworked_objs = "追加､修正された#1#",
 			k_no_reworked_objs = "追加､修正された#1#はありません",
-			k_ruleset_disabled_smods_version = "Needs Steamodded #1# or newer",
+			k_ruleset_disabled_smods_version = "Steammodded バージョン #1# が必須です。",
 			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "ロビーの入室に失敗しました #1#",
 			k_ante_number = "アンティ #1#",
