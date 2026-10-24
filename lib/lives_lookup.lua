@@ -16,3 +16,25 @@ function PVP.lives_of(player_id, sources)
 	end
 	return sources.starting_lives
 end
+
+-- The cache of pvp_player_lives broadcasts, after one more arrives. Pure: returns
+-- a new table. The host sends every change to every client, so the cache holds
+-- all players. A "*all*" broadcast is a match start: it replaces the cache, so a
+-- rematch in the same lobby does not show the last match's lives.
+function PVP.lives_cache_after(cache, params, player_ids)
+	local lives = tonumber(params.lives)
+	local updated = {}
+	if params.player_id == "*all*" then
+		for _, id in ipairs(player_ids) do
+			updated[id] = lives
+		end
+		return updated
+	end
+	for id, value in pairs(cache or {}) do
+		updated[id] = value
+	end
+	if params.player_id then
+		updated[params.player_id] = lives
+	end
+	return updated
+end
