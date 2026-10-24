@@ -78,6 +78,8 @@ function Card:init(X, Y, W, H, card, center, params)
 	PVP.UTILS.guarded_card_init(card_init_ref, self, X, Y, W, H, card, center, params)
 end
 
+PVP.UTILS.install_run_select_guard(PVP.UTILS.in_bmp_run_setup)
+
 PVP.DECK.MAX_STAKE = 0
 
 local stake_queue = {}
