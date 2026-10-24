@@ -205,12 +205,20 @@ local function mirror_players(lobby)
 	else
 		opp_name = opp_id and player_name(lobby, opp_id) or nil
 	end
+	-- An opponent who leaves mid-match drops out of the roster, so current_target_id() goes
+	-- nil and the slot would blank: the end screen then read "Your Nemesis ????". During a
+	-- run, keep the name last seen in this same lobby.
+	local previous = lobby.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
+	local opponent = opp_name and { username = opp_name, id = opp_id, lobby = lobby } or {}
+	if not opp_name and previous and previous.lobby == lobby and previous.username and G.STAGE == G.STAGES.RUN then
+		opponent = previous
+	end
 	PVP.LOBBY.is_host = lobby.is_host and true or false
 	if lobby.is_host then
 		PVP.LOBBY.host = { username = self_name, id = lobby.player_id }
-		PVP.LOBBY.guest = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.guest = opponent
 	else
-		PVP.LOBBY.host = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.host = opponent
 		PVP.LOBBY.guest = { username = self_name, id = lobby.player_id }
 	end
 end

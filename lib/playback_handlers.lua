@@ -149,6 +149,15 @@ local function leave_shop_for_blind_select()
 	end
 end
 
+-- The recorded Next Round click. The POV player's game leaves the shop exactly as the click
+-- did; for anyone else there is nothing on screen to change. Recordings made before this event
+-- existed rely on the select_blind and skip_blind handlers closing the shop instead.
+MPAPI.playback.register_handler('pvp', 'leave_shop', function(_args, ctx)
+	if ctx.is_pov then
+		leave_shop_for_blind_select()
+	end
+end)
+
 MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
 	if not ctx.is_pov then
 		return

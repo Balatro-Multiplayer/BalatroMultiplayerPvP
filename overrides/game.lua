@@ -45,6 +45,21 @@ function G.FUNCS.cash_out(e)
 	return cash_out_ref(e)
 end
 
+-- Leaving the shop (the Next Round button) is recorded as a `leave_shop` event, so a rejoin
+-- or replay of a player who left the shop and has not picked a blind yet lands on the Blind
+-- Select, not back in the shop. Older recordings have no such event: the select_blind and
+-- skip_blind handlers still close the shop themselves (a no-op when it is already closed).
+-- BalatroMultiplayerSpeed records the same event from its own toggle_shop hook whenever any
+-- replay is active; when that mod is installed its code object exists and records for us,
+-- so only record here when it does not (never twice).
+local toggle_shop_ref = G.FUNCS.toggle_shop
+function G.FUNCS.toggle_shop(...)
+	if G.STATE == G.STATES.SHOP and PVP.rlog_active() and not (MPAPI.RLOGCodes and MPAPI.RLOGCodes.leave_shop) then
+		PVP.RLOG.record("leave_shop", nil, "action:leaveShop")
+	end
+	return toggle_shop_ref(...)
+end
+
 local reroll_shop_ref = G.FUNCS.reroll_shop
 function G.FUNCS.reroll_shop(e)
 	-- RLOG's reroll opcode is now recorded once, generically, by
