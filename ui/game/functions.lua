@@ -227,23 +227,18 @@ function G.FUNCS:continue_in_singleplayer(e)
 	end
 	PVP.UI.update_connection_status()
 
-	-- Allow saving, save the run, and set up for continuation
-	G.F_NO_SAVING = false
+	-- Resume from the in-memory save of this run. The save file is written a
+	-- frame later and game over removes it, so it is never read back here.
 	G.SETTINGS.current_setup = "Continue"
 	G.FUNCS.wipe_on()
-	save_run()
+	local snapshot = PVP.take_run_snapshot(G, save_run)
 	G:delete_run()
 
-	-- Load the saved game and start a new run in singleplayer
 	G.E_MANAGER:add_event(Event({
 		trigger = "immediate",
 		no_delete = true,
 		func = function()
-			local profile = G.SETTINGS.profile
-			local save_path = profile .. "/save.jkr"
-			G.SAVED_GAME = get_compressed(save_path)
-			if G.SAVED_GAME ~= nil then G.SAVED_GAME = STR_UNPACK(G.SAVED_GAME) end
-			G:start_run({ savetext = G.SAVED_GAME })
+			G:start_run({ savetext = snapshot })
 			return true
 		end,
 	}))
