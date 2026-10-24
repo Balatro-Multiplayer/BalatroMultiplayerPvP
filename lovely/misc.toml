@@ -126,18 +126,6 @@ val.children.center.VT.x, val.children.center.VT.y = temp_x, temp_y
 match_indent = true
 times = 1
 
-# cocktail deck - compatibility with patchwork deck
-[[patches]]
-[patches.pattern]
-target = "game.lua"
-pattern = '''if (G.GAME.selected_back and G.GAME.selected_back.name == 'b_aij_patchwork') or (G.GAME.selected_sleeve and G.GAME.selected_sleeve == 'sleeve_aij_patchwork') then'''
-position = 'at'
-payload = '''
-if (G.GAME.selected_back and G.GAME.selected_back.name == 'b_aij_patchwork') or (G.GAME.selected_sleeve and G.GAME.selected_sleeve == 'sleeve_aij_patchwork') or G.GAME.modifiers.b_aij_patchwork then
-'''
-match_indent = true
-times = 1
-
 # fix magic trick suit+rank desync between PvP players; outside a PvP session the
 # shop rolls its playing cards as vanilla does.
 # this fix should become obsolete in a later steamodded version (currently 1620a)

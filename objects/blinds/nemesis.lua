@@ -93,7 +93,6 @@ MPAPI.Blind({
 		PVP.UI.ease_enemy_score(score)
 
 		-- Lives are not read here: pvp_player_lives (pvp_api/actions/outcomes.lua) owns them and plays the lives sound.
-		if d.blindStarted then PVP.OPPONENT_SIGNALS.play_blind_start() end
 		if PVP.GAME.enemy.skips < skips then
 			play_sound("negative", 0.865, 0.4)
 			play_sound("gong", 0.765, 0.4)

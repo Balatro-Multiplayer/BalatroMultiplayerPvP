@@ -83,7 +83,6 @@ function PVP._launch_replay(run_id)
 			})
 			driver:finish()
 			driver:play()
-			PVP.replay_hud.show(driver)
 		end)
 	end)
 end

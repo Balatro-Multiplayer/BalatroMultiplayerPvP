@@ -237,12 +237,13 @@ function G.FUNCS:continue_in_singleplayer(e)
 		if key == "bl_mp_nemesis" then fallback_boss = get_new_boss(); break end
 	end
 	local snapshot = PVP.take_run_snapshot(G, save_run)
-	-- The PvP blind (or the game over) is finished: resume at blind select.
+	-- The PvP blind (or the game over) counts as beaten: resume at the cash out.
 	if snapshot then
 		PVP.solo_resume_snapshot(snapshot, {
 			states = G.STATES,
 			nemesis_key = "bl_mp_nemesis",
 			fallback_boss = fallback_boss,
+			next_voucher_key = get_next_voucher_key,
 		})
 	end
 	G:delete_run()

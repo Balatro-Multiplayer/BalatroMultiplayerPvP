@@ -10,24 +10,7 @@ function PVP.take_run_snapshot(game, save_run_fn)
 	return game.ARGS.save_run
 end
 
-local NEXT_BLIND = { Small = "Big", Big = "Boss", Boss = "Small" }
 local VANILLA_BLIND = { Small = "bl_small", Big = "bl_big" }
-
-local function blank_blind()
-	return {
-		name = "",
-		dollars = 0,
-		debuff = {},
-		mult = 0,
-		disabled = false,
-		boss = false,
-		config_blind = "",
-		chips = 0,
-		chip_text = "",
-		hands = {},
-		triggered = false,
-	}
-end
 
 -- Moves the playing cards of the hand, play and discard areas back into the
 -- deck, so a run saved mid-blind resumes with a full deck at blind select.
@@ -46,13 +29,17 @@ local function return_cards_to_deck(card_areas)
 end
 
 -- Turns a save made at the end of a PvP match into a save a solo run can
--- resume. The PvP blind (or a game over) is treated as finished: the run
--- resumes at blind select of the next round of the same ante, with every PvP
--- blind replaced by a vanilla one. A save that is not in a PvP blind or game
--- over is returned unchanged.
---   ctx.states        { GAME_OVER = n, BLIND_SELECT = n } (G.STATES)
---   ctx.nemesis_key   key of the PvP blind
---   ctx.fallback_boss key of a vanilla boss for the Boss slot (optional)
+-- resume. The PvP blind (or a game over) counts as beaten: the run resumes at
+-- ROUND_EVAL, as vanilla saves it right after a blind is won, so vanilla shows
+-- the cash out and then the shop. After a Boss blind the ante goes up here,
+-- the way end_round() does it before ROUND_EVAL; vanilla's cash out then
+-- resets the blinds for the new ante. Every PvP blind choice is replaced by a
+-- vanilla one. A save that is not in a PvP blind or game over is returned
+-- unchanged.
+--   ctx.states           { GAME_OVER = n, ROUND_EVAL = n } (G.STATES)
+--   ctx.nemesis_key      key of the PvP blind
+--   ctx.fallback_boss    key of a vanilla boss for the Boss slot (optional)
+--   ctx.next_voucher_key function giving the voucher a Boss blind unlocks (optional)
 function PVP.solo_resume_snapshot(snap, ctx)
 	local game = snap.GAME
 	local in_pvp_blind = snap.BLIND and snap.BLIND.config_blind == ctx.nemesis_key
@@ -67,21 +54,21 @@ function PVP.solo_resume_snapshot(snap, ctx)
 	end
 	if not (in_pvp_blind or game_over) then return snap end
 
-	local states = game.round_resets.blind_states
-	local on_deck = game.blind_on_deck or "Small"
-	local next_on_deck = NEXT_BLIND[on_deck]
-	if next_on_deck == "Small" then
-		-- The boss was the PvP blind: start the same ante's blinds again.
-		states.Small, states.Big, states.Boss = "Select", "Upcoming", "Upcoming"
-	else
-		states[on_deck] = "Defeated"
-		states[next_on_deck] = "Select"
-	end
-	game.blind_on_deck = next_on_deck
-
-	snap.STATE = ctx.states.BLIND_SELECT
-	snap.ACTION = nil
-	snap.BLIND = blank_blind()
 	return_cards_to_deck(snap.cardAreas)
+	local on_deck = game.blind_on_deck or "Small"
+	game.round_resets.blind_states[on_deck] = "Defeated"
+	if on_deck == "Boss" then
+		game.round_resets.ante = game.round_resets.ante + 1
+		if ctx.next_voucher_key then game.current_round.voucher = ctx.next_voucher_key() end
+		for _, card in ipairs(snap.cardAreas.deck.cards) do
+			if type(card) == "table" and card.ability then card.ability.played_this_ante = nil end
+		end
+	end
+
+	-- Beaten, so the blind's reward is paid on the cash out screen.
+	local needed = snap.BLIND.chips or 0
+	if (game.chips or 0) < needed then game.chips = needed end
+	snap.STATE = ctx.states.ROUND_EVAL
+	snap.ACTION = nil
 	return snap
 end
