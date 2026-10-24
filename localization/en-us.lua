@@ -797,6 +797,20 @@ return {
 					"most chips wins",
 				},
 			},
+			bl_mp_manhunt_hunter = {
+				name = "The Hunters",
+				text = {
+					"Manhunt: the Runner faces",
+					"the Hunters in the PvP Blind",
+				},
+			},
+			bl_mp_manhunt_runner = {
+				name = "The Runner",
+				text = {
+					"Manhunt: the Hunters face",
+					"the Runner in the PvP Blind",
+				},
+			},
 		},
 		Edition = {
 			e_mp_phantom = {
