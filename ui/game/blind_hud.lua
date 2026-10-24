@@ -208,17 +208,9 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 		return
 	end
 
-	-- Mask the opponent's hands as "?" until the first enemyInfo arrives this
-	-- blind (same gating as the hidden score), otherwise mirror the real count.
-	if
-		PVP.LOBBY.config.hide_score_until_played
-		and PVP.is_pvp_boss()
-		and not PVP.GAME.enemy.info_received
-	then
-		PVP.GAME.enemy.hands_text = "?"
-	else
-		PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
-	end
+	-- Hands start at the shared starting count (set when the blind starts), so
+	-- there is nothing to hide.
+	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
 	-- a player can't watch the enemy score before committing their own hand.
