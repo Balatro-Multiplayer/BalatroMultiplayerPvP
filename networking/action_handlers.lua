@@ -344,6 +344,9 @@ local function action_start_game(p)
 	PVP.SP.practice = false
 
 	PVP.reset_game_states()
+	-- Snapshot who started this match: the end screen lists them even after they leave.
+	local start_lobby = MPAPI.get_current_lobby()
+	PVP._match_players = PVP.MATCH_PLAYERS.snapshot(start_lobby and start_lobby:get_players())
 	-- Stamp the run start (drives the pause menu's seed-change window) and clear any
 	-- pending seed-change votes from a previous run/reseed.
 	PVP._run_started_at = love.timer.getTime()
