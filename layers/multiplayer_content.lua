@@ -25,9 +25,17 @@ MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
 	included_consumables = { "c_mp_asteroid" },
 	-- Their in_pool predicates still restrict these to Manhunt.
 	included_vouchers = { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" },
+	-- TODO(mpapi): needed only because MPAPI.active_layer_chain can't resolve
+	-- PvP's chain: it reads the ruleset from lobby metadata with no session or
+	-- Practice check, and adds the prefixed ruleset key where PvP's layer uses the
+	-- short name. A consumer-registered active-ruleset resolver in MPAPI would
+	-- remove this, PVP.active_layer_chain and PVP.is_layer_active.
 	pool_enabled = PVP.multiplayer_content_enabled,
 })
 
+-- TODO(mpapi): modifiers can only add layers, so Off vetoes through the flag
+-- rather than removing the content layer. A modifier that removes layers from
+-- the chain would make layer membership the only signal.
 MPAPI.Layer(PVP.LayerKey.NO_MULTIPLAYER_CONTENT, { multiplayer_content = false })
 
 -- The Default/On/Off choice is at most one of the two layers above, added as a
@@ -39,6 +47,9 @@ function PVP.multiplayer_content_mode()
 end
 
 -- The serialized modifier list for a ruleset and content choice.
+-- TODO(mpapi): the ruleset-defaults-plus-extras part is generic; it belongs next
+-- to MPAPI.apply_default_modifiers as a function that returns the list instead of
+-- applying it.
 function PVP.modifier_layers_for(ruleset_key, mode)
 	local ruleset = ruleset_key and MPAPI.Rulesets[ruleset_key]
 	local names = {}
