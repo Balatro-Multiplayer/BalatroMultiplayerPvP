@@ -257,6 +257,8 @@ function PVP.reset_game_states()
 			-- the opponent's hands as "?" until we hear from them.
 			info_received = false,
 			location = localize("loc_selecting"),
+			-- " (catching up)" while the target is replaying its run after a crash, else "".
+			catching_up_text = "",
 			skips = 0,
 			lives = PVP.LOBBY.config.starting_lives,
 			sells = 0,

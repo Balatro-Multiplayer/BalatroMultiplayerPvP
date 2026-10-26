@@ -108,7 +108,7 @@ local ROUTES = {
 		-- recording after that point silently drops the decisive hand's own
 		-- result (confirmed live: END/CHK trailer landed right after this
 		-- hand's `play` opcode with no `hand_result` in between).
-		if PVP.RLOG then PVP.RLOG.record("hand_result", { tostring(msg.score), msg.handsLeft }) end
+		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { tostring(msg.score), msg.handsLeft }) end
 		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() })
 	end,
 	setAnte = function(msg)
@@ -124,7 +124,7 @@ local ROUTES = {
 		broadcast("pvp_skip", { skips = msg.skips, score = my_score_str(), handsLeft = my_hands(), lives = my_lives() }) -- referee (host-authoritative)
 		-- See playHand's hand_result comment above -- same rationale, for discards:
 		-- recorded BEFORE the relay so a match-ending skip still logs.
-		if PVP.RLOG then PVP.RLOG.record("hand_result", { my_score_str(), my_hands() }) end
+		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { my_score_str(), my_hands() }) end
 		relay_enemy_info({ score = my_score_str(), handsLeft = my_hands(), skips = msg.skips, lives = my_lives() })
 	end,
 	startAnteTimer = function(msg)

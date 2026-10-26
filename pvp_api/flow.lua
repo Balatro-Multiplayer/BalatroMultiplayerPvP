@@ -134,7 +134,7 @@ function PVP.pvp_start_match()
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
 	local gm_def = MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
-		lobby._gamemode_instance = gm_def:new_instance()
+		lobby:set_gamemode_instance(gm_def:new_instance())
 	end
 	if MPAPI.has_server_referee(lobby) then
 		-- The server checks who's ready and picks the seed; everyone starts off
