@@ -1,9 +1,7 @@
 -- Polymorph Spam: every blind, your jokers and consumables re-roll into other centers.
 MPAPI.Layer("polymorph_spam", {
 	calculate = function(self, context)
-		if context.apply_bans then
-			G.GAME.modifiers.mp_polymorph_spam = true
-		end
+		if context.apply_bans then G.GAME.modifiers.mp_polymorph_spam = true end
 	end,
 })
 
@@ -26,68 +24,57 @@ local function get_pos(card)
 end
 
 local function included(key)
-	if G.GAME.banned_keys[key] then
-		return false
-	end
+	if G.GAME.banned_keys[key] then return false end
 	return not MPAPI.should_exclude_from_pool(G.P_CENTERS[key])
 end
 
--- i should have separated this into 2 functions but this works i suppose
-local function get_transmutations_loc(card)
-	local done = false
-	local num = 0
-	local area = get_area(card)
-	local limit = area.config.card_limit
-	local pos = get_pos(card) or nil
-	local ret = {}
-	while not done do
-		for i, v in ipairs(G.P_CENTER_POOLS[card.config.center.set]) do
-			if included(v.key) then
-				if num > 0 then
-					ret[#ret + 1] = {
-						strings = {
-							localize({ type = "name_text", key = v.key, set = v.set }),
-						},
-						control = {
-							C = (num - 1) == (limit - (pos or -1)) and "attention" or nil,
-						},
-					}
-					if num == 1 then
-						done = true
-						break
-					end
-				end
-				if v == card.config.center then
-					num = limit
-				else
-					num = math.max(num - 1, 0)
-				end
-			end
+-- Build the eligible ring once. An owned card can be banned or absent from
+-- its pool; neither case may trap the game in a search for its own center.
+local function transmutations(card, count)
+	local pool = G.P_CENTER_POOLS[card.config.center.set] or {}
+	local start
+	for i, center in ipairs(pool) do
+		if center == card.config.center then
+			start = i
+			break
 		end
 	end
-	return ret
+	if not start then return {} end
+	local ring = {}
+	for offset = 1, #pool do
+		local center = pool[(start + offset - 1) % #pool + 1]
+		if included(center.key) then ring[#ring + 1] = center end
+	end
+	local result = {}
+	if #ring == 0 then return result end
+	for i = 1, count do
+		result[i] = ring[(i - 1) % #ring + 1]
+	end
+	return result
+end
+
+local function get_transmutations_loc(card)
+	local area, position = get_area(card), get_pos(card)
+	local result = {}
+	local count = math.min(area.config.card_limit, math.max(5, #area.cards))
+	for i, center in ipairs(transmutations(card, count)) do
+		result[#result + 1] = {
+			strings = { localize({ type = "name_text", key = center.key, set = center.set }) },
+			control = { C = i == position and "attention" or nil },
+		}
+	end
+	return result
 end
 
 local function mass_polymorph(area)
 	for _, card in ipairs(area) do
-		local done = false
-		local swap = 0
-		while not done do
-			for i, v in ipairs(G.P_CENTER_POOLS[card.config.center.set]) do
-				if included(v.key) then
-					if swap == 1 then
-						card:set_ability(v)
-						card:set_cost()
-						done = true
-						break
-					end
-					if v == card.config.center then
-						swap = get_pos(card)
-					else
-						swap = math.max(swap - 1, 0)
-					end
-				end
-			end
+		local position = get_pos(card)
+		local target = position and transmutations(card, position)[position]
+		if target then
+			card:remove_from_deck()
+			card:set_ability(target)
+			card:add_to_deck()
+			card:set_cost()
 		end
 	end
 end

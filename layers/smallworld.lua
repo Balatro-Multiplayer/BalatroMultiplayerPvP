@@ -1,8 +1,7 @@
 MPAPI.Layer("smallworld", {
 	calculate = function(self, context)
-		if not context.apply_bans then
-			return
-		end
+		if not context.apply_bans or G.GAME.pvp_smallworld_applied then return end
+		G.GAME.pvp_smallworld_applied = true
 		local tables = {}
 		local requires = {}
 		for k, v in pairs(G.P_CENTERS) do

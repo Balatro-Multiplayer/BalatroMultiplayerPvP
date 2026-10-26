@@ -1,4 +1,4 @@
--- A PvP session is a real lobby, a practice run or a replay playback. Its
+-- A PvP session is a real lobby, a practice/custom-solo run or replay playback. Its
 -- state (lobby config, ruleset, PVP.GAME's run flags, practice flags, PvP's
 -- MPAPI.MODIFIERS) means nothing once it ends, and left in place it leaks into
 -- whatever the player does next: a vanilla run, or another mod's game.
@@ -20,14 +20,13 @@ function PVP.end_session()
 	PVP._pvp_kind = nil
 	PVP._pvp_gamemode = nil
 	PVP.SP.practice = false
+	PVP.SP.singleplayer = false
 	PVP.SP.ruleset = nil
 	PVP.reset_lobby_config()
 	PVP.reset_game_states()
 	-- Only PvP fills MPAPI.MODIFIERS (lobby_bridge's apply_default_modifiers).
 	MPAPI.MODIFIERS = {}
-	if PVP.RECONNECT_TAIL then
-		PVP.RECONNECT_TAIL.forget()
-	end
+	if PVP.RECONNECT_TAIL then PVP.RECONNECT_TAIL.forget() end
 end
 
 -- A leave is asynchronous: by the time an old lobby is gone the player may
@@ -38,9 +37,7 @@ local function superseded_by_another_pvp_lobby(gone_lobby)
 end
 
 MPAPI.on_lobby_gone(PVP.id, function(lobby)
-	if superseded_by_another_pvp_lobby(lobby) then
-		return
-	end
+	if superseded_by_another_pvp_lobby(lobby) then return end
 	PVP.end_session()
 end)
 
@@ -48,8 +45,6 @@ end)
 -- ruleset stamped without a lobby (a ranked queue left before it matched).
 local session_go_to_menu_ref = G.FUNCS.go_to_menu
 G.FUNCS.go_to_menu = function(e)
-	if not MPAPI.get_current_lobby() and not MPAPI.get_busy_mod() then
-		PVP.end_session()
-	end
+	if not MPAPI.get_current_lobby() and not MPAPI.get_busy_mod() then PVP.end_session() end
 	return session_go_to_menu_ref(e)
 end

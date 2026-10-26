@@ -14,7 +14,11 @@ MPAPI.Layer("gambling_opportunity", {
 	},
 })
 
-
 MPAPI.Layer("no_uncommons", {
-    banned_jokers = {},
+	calculate = function(self, context)
+		if not context.apply_bans then return end
+		for key, center in pairs(G.P_CENTERS) do
+			if center.set == "Joker" and center.rarity == 2 then G.GAME.banned_keys[key] = true end
+		end
+	end,
 })

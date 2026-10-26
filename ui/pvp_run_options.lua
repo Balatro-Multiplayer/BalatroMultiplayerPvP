@@ -41,13 +41,22 @@ PVP.create_run_options = function()
 	-- close path (ESC or an explicit button here), so no unpause wiring is needed.
 	G.SETTINGS.paused = true
 
+	if PVP.is_singleplayer() then return create_UIBox_options() end
+
 	-- Each button is its own row inside one column so they stack vertically.
 	local rows = {}
 	local function add_row(node)
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.08 }, nodes = { node } }
 	end
 
-	add_row(UIBox_button({ button = "settings", label = { localize("b_settings") }, minw = 5, focus_args = { snap_to = true } }))
+	add_row(
+		UIBox_button({
+			button = "settings",
+			label = { localize("b_settings") },
+			minw = 5,
+			focus_args = { snap_to = true },
+		})
+	)
 
 	-- Seed Change visibility/enabled state:
 	--   * hidden entirely when the gamemode sets seed_change_allowed = false

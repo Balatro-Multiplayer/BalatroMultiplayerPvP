@@ -60,7 +60,7 @@ end
 local blind_set_blindref = Blind.set_blind
 function Blind:set_blind(blind, reset, silent)
 	blind_set_blindref(self, blind, reset, silent)
-	if G.GAME.round_resets and G.GAME.round_resets.pvp_blind_choices then 
+	if G.GAME.round_resets and G.GAME.round_resets.pvp_blind_choices then
 		G.GAME.blind.pvp = G.GAME.round_resets.pvp_blind_choices[G.GAME.blind_on_deck]
 	end
 end
@@ -179,9 +179,7 @@ function Game:update_hand_played(dt)
 		G.E_MANAGER:add_event(Event({
 			trigger = "immediate",
 			func = function()
-				if not practice then
-					PVP.ACTIONS.play_hand(G.GAME.chips, G.GAME.current_round.hands_left)
-				end
+				if not practice then PVP.ACTIONS.play_hand(G.GAME.chips, G.GAME.current_round.hands_left) end
 
 				if G.GAME.current_round.hands_left < 1 then
 					if practice then
@@ -274,9 +272,7 @@ function Game:update_selecting_hand(dt)
 			G.STATE_COMPLETE = false
 			G.STATE = G.STATES.NEW_ROUND
 		else
-			if not PVP.is_practice_mode() then
-				PVP.ACTIONS.play_hand(G.GAME.chips, 0)
-			end
+			if not PVP.is_practice_mode() then PVP.ACTIONS.play_hand(G.GAME.chips, 0) end
 			G.STATE_COMPLETE = false
 			G.STATE = G.STATES.HAND_PLAYED
 		end
@@ -342,11 +338,24 @@ end
 
 local start_run_ref = Game.start_run
 function Game:start_run(args)
+	local ok, err = PVP.SOLO.restore(args and args.savetext)
+	if not ok then
+		PVP.UI.UTILS.overlay_message(localize("k_solo_invalid_" .. err))
+		return
+	end
 	load_run_reworks()
 	-- prevent_eval only ever spans one PvP round; a run starts without it.
 	PVP.GAME.prevent_eval = nil
 
 	start_run_ref(self, args)
+
+	if PVP.is_singleplayer() and not G.GAME.pvp_solo then
+		G.GAME.pvp_solo = {
+			ruleset = PVP.SP.ruleset,
+			modifiers = copy_table(MPAPI.MODIFIERS),
+			stake = G.GAME.stake,
+		}
+	end
 
 	-- Not extended to practice: this UIBox-rebuild is only ever needed to show
 	-- lives (practice has no life system, see update_new_round's practice branch) and
@@ -363,23 +372,17 @@ end
 -- inside a lobby. A crash-rejoin rebuilds the run with no lobby and joins it
 -- afterwards, so the box is put in then, in place of the Round box.
 function PVP.UI.apply_timer_hud()
-	if not (G.HUD and lobby_hud_shown()) or G.HUD:get_UIE_by_ID("timer_UI_count") then
-		return
-	end
+	if not (G.HUD and lobby_hud_shown()) or G.HUD:get_UIE_by_ID("timer_UI_count") then return end
 	local definition = PVP.UI.timer_hud()
 	local hud_ante = G.HUD:get_UIE_by_ID("hud_ante")
 	local row = hud_ante and hud_ante.parent
-	if not (definition and row and #row.children >= 3) then
-		return
-	end
+	if not (definition and row and #row.children >= 3) then return end
 	-- The Round box is the row's last child (Ante box, spacer, Round box).
 	local round_box = row.children[#row.children]
 	round_box:remove()
 	row.children[#row.children] = nil
 	G.HUD:add_child(definition, row)
-	if G.hand_text_area then
-		G.hand_text_area.round = nil
-	end
+	if G.hand_text_area then G.hand_text_area.round = nil end
 end
 
 -- Lobby-only HUD pieces, for a run that was built before its lobby was joined.
@@ -392,9 +395,7 @@ function PVP.UI.apply_lobby_hud()
 		local parent = collection.parent
 		collection:remove()
 		for i = #parent.children, 1, -1 do
-			if parent.children[i] == collection then
-				table.remove(parent.children, i)
-			end
+			if parent.children[i] == collection then table.remove(parent.children, i) end
 		end
 		G.HUD:recalculate()
 	end
@@ -411,36 +412,34 @@ function PVP.UI.apply_lives_hud()
 	hud_ante.children[1].children[1].config.text = localize("k_lives")
 
 	-- Set lives number
-    local lives_container = hud_ante.children[2].children[1]
-    if  lives_container.config.object then
-        lives_container.config.object:remove()
-    end
-    lives_container.config.object = UIBox({
-        definition = {
-            n = G.UIT.ROOT,
-            config = { colour = G.C.CLEAR },
-            nodes = {
-                {
-                    n = G.UIT.R,
-                    config = { align = "cm", minw = 1.2, maxw = 1.2, minh = 0.664 },
-                    nodes = {
-                        {
-                            n = G.UIT.T,
-                            config = {
-                                ref_table = PVP.GAME,
-                                ref_value = "lives",
-                                scale = 2 * scale * 0.8,
-                                colour = G.C.IMPORTANT,
-                                shadow = true,
-                                maxw = 1.1,
-                            }
-                        },
-                    }
-                }
-            }
-        },
-        config = {},
-    })
+	local lives_container = hud_ante.children[2].children[1]
+	if lives_container.config.object then lives_container.config.object:remove() end
+	lives_container.config.object = UIBox({
+		definition = {
+			n = G.UIT.ROOT,
+			config = { colour = G.C.CLEAR },
+			nodes = {
+				{
+					n = G.UIT.R,
+					config = { align = "cm", minw = 1.2, maxw = 1.2, minh = 0.664 },
+					nodes = {
+						{
+							n = G.UIT.T,
+							config = {
+								ref_table = PVP.GAME,
+								ref_value = "lives",
+								scale = 2 * scale * 0.8,
+								colour = G.C.IMPORTANT,
+								shadow = true,
+								maxw = 1.1,
+							},
+						},
+					},
+				},
+			},
+		},
+		config = {},
+	})
 
 	-- Remove unnecessary HUD elements from ante counter
 	hud_ante.children[2].children[2] = nil
@@ -468,10 +467,7 @@ end
 -- Allows opponent to advance after playing anything, and eases a life from the person who discarded their deck.
 function PVP.handle_deck_out()
 	if PVP.is_mp_or_practice() then
-		if
-			G.GAME.current_round.hands_played == 0
-			and G.GAME.current_round.discards_used > 0
-		then
+		if G.GAME.current_round.hands_played == 0 and G.GAME.current_round.discards_used > 0 then
 			if PVP.is_pvp_boss() then PVP.ACTIONS.play_hand(0, 0) end
 			PVP.ACTIONS.fail_round(1)
 		end
@@ -635,7 +631,12 @@ local practice_collection_hint_shown = false
 local your_collection_ref = G.FUNCS.your_collection
 function G.FUNCS.your_collection(e)
 	your_collection_ref(e)
-	if PVP.is_practice_mode() and G.STAGE == G.STAGES.RUN and not PVP.LOBBY.code and not practice_collection_hint_shown then
+	if
+		PVP.is_practice_mode()
+		and G.STAGE == G.STAGES.RUN
+		and not PVP.LOBBY.code
+		and not practice_collection_hint_shown
+	then
 		practice_collection_hint_shown = true
 		practice_collection_jimbo = true
 		PVP.UI.create_jimbo(2, localize("k_practice_collection_hint"))

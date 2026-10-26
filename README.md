@@ -44,6 +44,21 @@ The old `Multiplayer` mod conflicts with this one; remove it before installing. 
 
 This mod does NOT use AI for art or other assets. This mod uses generative AI in it's development as a tool for writing code.
 
+## Custom Solo prototype
+
+Choose **CUSTOM SOLO** below the vanilla main-menu buttons. Pick a base ruleset,
+deck, stake, optional seed and manual house rules.
+
+- Normal bosses, win/loss conditions and saving; not Practice's no-fail mode.
+- No Steam sign-in, server, opponent or ratings required.
+- Purple cells are selected; grey cells are inherited from the base.
+- House rules last the whole run. Random Chaos Clock scheduling is not enabled.
+- The **Balance** column offers Kind Wraith and Dice Patch. Dice Patch changes
+  Oops! All 6s to X1.75, Lucky's $20 chance to 1 in 10, and 8 Ball / Space Joker
+  to 1 in 3.
+- Custom runs do not earn vanilla unlocks. Opponent-dependent cards still need
+  multiplayer to perform their multiplayer interactions.
+
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.

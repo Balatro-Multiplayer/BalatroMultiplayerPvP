@@ -15,13 +15,22 @@ pack.tuning = {
 
 local function recipe(key, label, kind, at, lasts, effect, options)
 	options = options or {}
-	local def = { key = key, label = label, kind = kind, tiers = {}, grant = options.grant,
-		roll_scope = options.roll_scope, replay = options.replay }
+	local def = {
+		key = key,
+		label = label,
+		kind = kind,
+		tiers = {},
+		grant = options.grant,
+		roll_scope = options.roll_scope,
+		replay = options.replay,
+	}
 	local layer, claims
 	if type(effect) == "table" then
 		layer, claims = "clock_taste_" .. key, {}
 		for field, values in pairs(effect) do
-			for name in pairs(values) do claims[#claims + 1] = field .. "." .. name end
+			for name in pairs(values) do
+				claims[#claims + 1] = field .. "." .. name
+			end
 		end
 		table.sort(claims)
 		MPAPI.Layer(layer, effect)
@@ -29,9 +38,17 @@ local function recipe(key, label, kind, at, lasts, effect, options)
 	for i, preset in ipairs(presets) do
 		local override = (options.profiles or {})[preset]
 		if override ~= false then
-			local entry = { at = at, lasts = lasts, layer = layer, claims = claims,
-				run = type(effect) == "function" and effect or nil, pending = effect == nil }
-			for field, value in pairs(override or {}) do entry[field] = value end
+			local entry = {
+				at = at,
+				lasts = lasts,
+				layer = layer,
+				claims = claims,
+				run = type(effect) == "function" and effect or nil,
+				pending = effect == nil,
+			}
+			for field, value in pairs(override or {}) do
+				entry[field] = value
+			end
 			def.tiers[i] = entry
 		end
 	end
@@ -47,45 +64,121 @@ end
 
 local normal_up = { calm = false }
 local mayhem_only = { calm = false, normal = false }
-local function cash(amount) return function() ease_dollars(amount) end end
+local function cash(amount)
+	return function()
+		ease_dollars(amount)
+	end
+end
 local function selected(rng, coord, amount, apply)
-	for _, card in ipairs(rng:pick(G.hand.cards, amount, "clock_taste", coord)) do apply(card) end
+	for _, card in ipairs(rng:pick(G.hand.cards, amount, "clock_taste", coord)) do
+		apply(card)
+	end
 end
 local function seal(key)
 	return function(rng, coord)
-		selected(rng, coord, 1, function(card) card:set_seal(key, nil, true) end)
+		selected(rng, coord, 1, function(card)
+			card:set_seal(key, nil, true)
+		end)
 	end
 end
 
 -- Fixed cores. Mayhem changes exposure/identity, not every numeric parameter.
-recipe("second_wind", "Second Wind", "buff", "blind", "blind", { round_deltas = { hands = 1 } },
-	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } })
+recipe(
+	"second_wind",
+	"Second Wind",
+	"buff",
+	"blind",
+	"blind",
+	{ round_deltas = { hands = 1 } },
+	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } }
+)
 recipe("fresh_start", "Fresh Start", "buff", "blind", "blind", { round_deltas = { discards = 1 } })
 -- Same family as the original wall's frugal effect: never draw both separately.
-recipe("waste_not", "Waste Not", "buff", "shop", "next_blind", { game_modifiers = { money_per_discard = 1 } },
-	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } })
+recipe(
+	"waste_not",
+	"Waste Not",
+	"buff",
+	"blind_entry",
+	"blind",
+	{ game_modifiers = { money_per_discard = 1 } },
+	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } }
+)
 recipe("shop_subsidy", "Shop Subsidy", "buff", "shop", "instant", cash(5))
 recipe("pocket_change", "Pocket Change", "buff", "first_hand", "instant", cash(3))
 recipe("gold_rush", "Gold Rush", "buff", "first_hand", "instant", seal("Gold"))
-recipe("all_in", "All In", "tradeoff", "blind", "blind", { round_deltas = { hands = 1, discards = -1 } },
-	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } })
-recipe("paid_overtime", "Paid Overtime", "tradeoff", "first_hand", "blind",
-	{ round_deltas = { hands = 1 }, game_modifiers = { no_extra_hand_money = true } })
-recipe("discard_dividend", "Discard Dividend", "tradeoff", "shop", "next_blind",
+recipe(
+	"all_in",
+	"All In",
+	"tradeoff",
+	"blind",
+	"blind",
+	{ round_deltas = { hands = 1, discards = -1 } },
+	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } }
+)
+recipe(
+	"paid_overtime",
+	"Paid Overtime",
+	"tradeoff",
+	"first_hand",
+	"blind",
+	{ round_deltas = { hands = 1 }, game_modifiers = { no_extra_hand_money = true } }
+)
+recipe(
+	"discard_dividend",
+	"Discard Dividend",
+	"tradeoff",
+	"blind_entry",
+	"blind",
 	{ round_deltas = { discards = 1 }, game_modifiers = { discard_cost = 1, money_per_discard = 2 } },
-	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } })
-recipe("working_capital", "Working Capital", "tradeoff", "ante", "ante",
-	{ round_deltas = { hands = 1 }, game_modifiers = { no_interest = true } }, { profiles = normal_up })
+	{ profiles = { mayhem = { at = "ante", lasts = "ante" } } }
+)
+recipe(
+	"working_capital",
+	"Working Capital",
+	"tradeoff",
+	"ante",
+	"ante",
+	{ round_deltas = { hands = 1 }, game_modifiers = { no_interest = true } },
+	{ profiles = normal_up }
+)
 
 -- Explicit lasting versions enter the ante slot's lasting pool, not a bonus roll.
-recipe("fresh_start_lasting", "Fresh Start", "buff", "ante", "run",
-	{ round_deltas = { discards = 1 } }, { profiles = normal_up })
-recipe("second_wind_lasting", "Second Wind", "buff", "ante", "run",
-	{ round_deltas = { hands = 1 } }, { profiles = mayhem_only })
-recipe("waste_not_lasting", "Waste Not", "buff", "ante", "run",
-	{ game_modifiers = { money_per_discard = 1 } }, { profiles = normal_up })
-recipe("working_capital_lasting", "Working Capital", "tradeoff", "ante", "run",
-	{ round_deltas = { hands = 1 }, game_modifiers = { no_interest = true } }, { profiles = mayhem_only })
+recipe(
+	"fresh_start_lasting",
+	"Fresh Start",
+	"buff",
+	"ante",
+	"run",
+	{ round_deltas = { discards = 1 } },
+	{ profiles = normal_up }
+)
+recipe(
+	"second_wind_lasting",
+	"Second Wind",
+	"buff",
+	"ante",
+	"run",
+	{ round_deltas = { hands = 1 } },
+	{ profiles = mayhem_only }
+)
+recipe(
+	"waste_not_lasting",
+	"Waste Not",
+	"buff",
+	"ante",
+	"run",
+	{ game_modifiers = { money_per_discard = 1 } },
+	{ profiles = normal_up }
+)
+recipe(
+	"working_capital_lasting",
+	"Working Capital",
+	"tradeoff",
+	"ante",
+	"run",
+	{ round_deltas = { hands = 1 }, game_modifiers = { no_interest = true } },
+	{ profiles = mayhem_only }
+)
 -- Tentative corruption candidate: pending until balance is confirmed.
 recipe("no_interest_lasting", "No Interest", "hostile", "ante", "run", nil, { profiles = mayhem_only })
 
@@ -93,7 +186,9 @@ recipe("no_interest_lasting", "No Interest", "hostile", "ante", "run", nil, { pr
 local function suit_change(amount)
 	return function(rng, coord)
 		local suit = rng:element({ "Spades", "Hearts", "Clubs", "Diamonds" }, "suit_drift", coord)
-		selected(rng, coord, amount or #G.hand.cards, function(card) SMODS.change_base(card, suit) end)
+		selected(rng, coord, amount or #G.hand.cards, function(card)
+			SMODS.change_base(card, suit)
+		end)
 	end
 end
 recipe("suit_drift", "Suit Drift", "weird", "first_hand", "instant", suit_change(1))
@@ -107,23 +202,45 @@ recipe("polymorph", "Polymorph", "wildcard", "first_hand", "instant", function(r
 	for i, card in ipairs(rng:pick(G.jokers.cards, 1, "polymorph_cards", coord)) do
 		local pool = {}
 		for _, center in ipairs(G.P_CENTER_POOLS.Joker) do
-			if center ~= card.config.center and center.rarity == card.config.center.rarity
-				and not G.GAME.banned_keys[center.key] and not MPAPI.should_exclude_from_pool(center) then
+			if
+				center ~= card.config.center
+				and center.rarity == card.config.center.rarity
+				and not G.GAME.banned_keys[center.key]
+				and not MPAPI.should_exclude_from_pool(center)
+			then
 				pool[#pool + 1] = center
 			end
 		end
-		table.sort(pool, function(a, b) return a.key < b.key end)
+		table.sort(pool, function(a, b)
+			return a.key < b.key
+		end)
 		local center = rng:element(pool, "polymorph_center", coord, i)
-		if center then card:remove_from_deck(); card:set_ability(center); card:add_to_deck(); card:set_cost() end
+		if center then
+			card:remove_from_deck()
+			card:set_ability(center)
+			card:add_to_deck()
+			card:set_cost()
+		end
 	end
 end, { profiles = { calm = false, normal = false, mayhem = { absolute_chance = 0.01 } } })
+
+-- Approved concepts, not working layers. See effect-shortlist.md for contracts.
+-- nil keeps these pending; never select a stub as an active effect.
+-- Preset coverage is provisional except Bonfire (Normal/Mayhem).
+recipe("loaded_dice", "Loaded Dice", "weird", "blind", "blind", nil)
+recipe("everybody_counts", "Everybody Counts", "buff", "blind", "blind", nil)
+recipe("clearance_sale", "Clearance Sale", "tradeoff", "shop", "shop", nil)
+recipe("bonfire", "Bonfire", "tradeoff", "blind", "blind", nil, { profiles = normal_up })
 
 -- Grant stubs: delivery/capacity and recorded MP interactions are not implemented.
 -- pending entries MUST be excluded from selection; never count a silent no-op.
 recipe("fool", "A Fool Appears", "buff", "first_hand", "instant", nil, {
 	grant = { key = "c_fool", amount = 1 }, -- no prior-card requirement
-	profiles = { calm = { absolute_chance = 0.02 }, normal = { absolute_chance = 0.03 },
-		mayhem = { absolute_chance = 0.04 } },
+	profiles = {
+		calm = { absolute_chance = 0.02 },
+		normal = { absolute_chance = 0.03 },
+		mayhem = { absolute_chance = 0.04 },
+	},
 })
 recipe("fistful_of_fools", "Fistful of Fools", "wildcard", "first_hand", "instant", nil, {
 	grant = { key = "c_fool", amount = 3 },
@@ -135,6 +252,7 @@ recipe("negative_death", "Negative Death", "wildcard", "first_hand", "instant", 
 })
 recipe("negative_magnet", "Animal Magnetism", "wildcard", "first_hand", "instant", nil, {
 	grant = { key = "j_mp_magnet_sandbox", edition = "e_negative", amount = 1 },
-	roll_scope = "multiplayer", replay = "recorded_multiplayer",
+	roll_scope = "multiplayer",
+	replay = "recorded_multiplayer",
 	profiles = { calm = false, normal = false, mayhem = { absolute_chance = 0.005 } },
 })

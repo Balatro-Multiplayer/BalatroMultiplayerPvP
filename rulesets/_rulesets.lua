@@ -26,12 +26,7 @@ end
 
 function PVP.is_ruleset_active(ruleset_name)
 	local key = "ruleset_mp_" .. ruleset_name
-	if PVP.LOBBY.code then
-		return PVP.LOBBY.config.ruleset == key
-	elseif PVP.is_practice_mode() then
-		return PVP.SP.ruleset == key
-	end
-	return false
+	return PVP.get_active_ruleset() == key
 end
 
 -- "Active" meaning both a live lobby and the configuration-in-progress phase.
@@ -39,9 +34,7 @@ end
 -- included), so outside a PvP session it says nothing: no ruleset is active,
 -- and none of PvP's layers may run in a vanilla run or another mod's game.
 function PVP.get_active_ruleset()
-	if not PVP.in_session() then
-		return nil
-	end
+	if not PVP.in_session() then return nil end
 	if PVP.LOBBY.config.ruleset then
 		return PVP.LOBBY.config.ruleset
 	elseif PVP.is_practice_mode() then

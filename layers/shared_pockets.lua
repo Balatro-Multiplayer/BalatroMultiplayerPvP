@@ -1,13 +1,28 @@
 -- Shared Pockets: hand, jokers and consumables share one pool of slots.
-function PVP.setup_shared_pockets()
+function PVP.setup_shared_pockets(areas_ready)
 	if G.GAME.mp_shared_pockets then return end
 	G.GAME.modifiers.mp_shared_pockets = true
-	-- we're gonna do some hardcoded jank on the backend because slots are weird
-	-- so handling this like a reasonable person is riskier
-	G.GAME.starting_params.joker_slots = (G.GAME.starting_params.joker_slots or 0) + 1e5
-	G.GAME.starting_params.consumable_slots = (G.GAME.starting_params.consumable_slots or 0) + 1e5
-	G.GAME.starting_params.hand_size = (G.GAME.starting_params.hand_size or 0) + 7
-	G.GAME.mp_shared_pockets = { count = 0, slots = 15 }
+	local shared = { count = 0 }
+	if areas_ready then
+		-- MPAPI applies layers after area creation; challenges apply before it.
+		-- SMODS change_size takes effect on a later update, so capture the
+		-- intended limits rather than reading the still-old card_limit back.
+		shared.joker_limit = G.jokers.config.card_limit + 1e5
+		shared.consumable_limit = G.consumeables.config.card_limit + 1e5
+		G.jokers:change_size(1e5)
+		G.consumeables:change_size(1e5)
+		G.hand:change_size(7)
+		G.jokers:handle_card_limit()
+		G.consumeables:handle_card_limit()
+	else
+		local params = G.GAME.starting_params
+		params.joker_slots = params.joker_slots + 1e5
+		params.consumable_slots = params.consumable_slots + 1e5
+		params.hand_size = params.hand_size + 7
+		shared.joker_limit = params.joker_slots
+		shared.consumable_limit = params.consumable_slots
+	end
+	G.GAME.mp_shared_pockets = shared
 end
 
 MPAPI.Layer("shared_pockets", {
@@ -15,9 +30,7 @@ MPAPI.Layer("shared_pockets", {
 		"j_stencil",
 	},
 	calculate = function(self, context)
-		if context.apply_bans then
-			PVP.setup_shared_pockets()
-		end
+		if context.apply_bans then PVP.setup_shared_pockets(true) end
 	end,
 })
 
@@ -27,9 +40,13 @@ function CardArea:update(dt)
 	if self == G.hand then
 		if G.GAME.modifiers.mp_shared_pockets then
 			self.config.mp_last_size = self.config.mp_last_size or 0
-			local slots = (G.jokers.config.card_count - (G.jokers.config.card_limit - 100005))
-				+ (G.consumeables.config.card_count - (G.consumeables.config.card_limit - 100002))
-			if slots ~= self.config.last_poll_size then
+			local shared = G.GAME.mp_shared_pockets
+			local slots = (G.jokers.config.card_count - (G.jokers.config.card_limit - (shared.joker_limit or 100005)))
+				+ (
+					G.consumeables.config.card_count
+					- (G.consumeables.config.card_limit - (shared.consumable_limit or 100002))
+				)
+			if slots ~= self.config.mp_last_size then
 				self:change_size(self.config.mp_last_size - slots)
 				self.config.mp_last_size = slots
 			end

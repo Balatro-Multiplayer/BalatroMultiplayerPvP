@@ -46,9 +46,9 @@ function PVP._start_practice(ruleset_key)
 	-- Same queue gate as PVP._start_playback (lib/playback_launch.lua): without it
 	-- the start_run guard blocks only after PVP.SP.practice and a local lobby are
 	-- already set up, leaking practice state into the match the queue then forms.
-	if MPAPI.matchmaking.guard_queued(function() return PVP._start_practice(ruleset_key) end) then
-		return
-	end
+	if MPAPI.matchmaking.guard_queued(function()
+		return PVP._start_practice(ruleset_key)
+	end) then return end
 
 	-- Clean slate: don't inherit deck/stake/ruleset leftovers from whatever the player
 	-- was doing before entering practice (e.g. a private lobby with different_decks set).
@@ -94,25 +94,21 @@ end
 -- New Run buttons never left the practice session: the next plain singleplayer run was
 -- still a practice run of the old ruleset (Lobby Info button, ruleset pool rules, modifiers).
 -- Leaving here, at the two vanilla exits, puts the player back in plain singleplayer.
-local function leave_practice()
-	if not PVP.is_practice_mode() or PVP.LOBBY.code then
-		return
-	end
+local function leave_local_session()
+	if not (PVP.is_practice_mode() or PVP.is_singleplayer()) or PVP.LOBBY.code then return end
 	local lobby = MPAPI.get_current_lobby()
-	if lobby then
-		lobby:leave()
-	end
+	if lobby then lobby:leave() end
 	PVP.end_session()
 end
 
 local go_to_menu_ref = G.FUNCS.go_to_menu
 G.FUNCS.go_to_menu = function(e)
-	leave_practice()
+	leave_local_session()
 	return go_to_menu_ref(e)
 end
 
 local start_setup_run_ref = G.FUNCS.start_setup_run
 G.FUNCS.start_setup_run = function(e)
-	leave_practice()
+	leave_local_session()
 	return start_setup_run_ref(e)
 end

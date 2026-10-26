@@ -1,5 +1,3 @@
--- TODO barely anything here is properly wired up now, just stubbed
-
 -- Shop prices climb +$1 per purchase, compounding across the run.
 -- (card.lua: `if G.GAME.modifiers.inflation then G.GAME.inflation = ... + 1`)
 

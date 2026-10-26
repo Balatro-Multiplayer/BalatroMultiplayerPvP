@@ -43,7 +43,7 @@
 -- before a real match. is_mp_or_practice() (practice_mode.lua) is the existing helper for
 -- exactly "real match or practice", already used by is_layer_active's own chain for this.
 MPAPI.register_mod_isolation(PVP.id, function()
-	return PVP.is_mp_or_practice() and PVP.LOBBY.config.multiplayer_jokers and PVP.current_ruleset().multiplayer_content
+	return PVP.in_session() and PVP.LOBBY.config.multiplayer_jokers and PVP.current_ruleset().multiplayer_content
 end)
 
 -- ----------------------------------------------------------------------------

@@ -90,16 +90,59 @@ function PVP.SANDBOX.get_vanilla_bans()
 	return bans
 end
 
---- Centralized allowlist check for sandbox jokers
---- @param joker_key string The key of the joker to check (e.g., "j_mp_mail_sandbox")
---- @return boolean true if the joker is allowed in the sandbox ruleset and in a multiplayer lobby
-function PVP.SANDBOX.is_joker_allowed(joker_key)
-	if not PVP.is_layer_active(PVP.LayerKey.SANDBOX) then return false end
+PVP.SANDBOX.GROUP_LAYERS = {
+	rotation = "sandbox_rotation",
+	retired = "sandbox_retired",
+	extra_credit = "sandbox_extra_credit",
+}
+PVP.SANDBOX.IDOLS = { zealot = "j_mp_idol_sandbox_zealot", collector = "j_mp_idol_sandbox_collector" }
 
+function PVP.SANDBOX.group_of(mapping)
+	if mapping.vanilla == "j_idol" then return "idol" end
+	if mapping.group == "extra_credit" then return "extra_credit" end
+	return mapping.active and "rotation" or "retired"
+end
+
+function PVP.SANDBOX.mappings_in(group)
+	local result = {}
 	for _, mapping in ipairs(PVP.SANDBOX.joker_mappings) do
-		if mapping.active and mapping.sandbox == joker_key then return true end
+		if PVP.SANDBOX.group_of(mapping) == group then result[#result + 1] = mapping end
 	end
+	return result
+end
 
+function PVP.SANDBOX.vanilla_bans_for(group)
+	local result, seen = {}, {}
+	for _, mapping in ipairs(PVP.SANDBOX.mappings_in(group)) do
+		if mapping.vanilla and not seen[mapping.vanilla] then
+			result[#result + 1] = mapping.vanilla
+			seen[mapping.vanilla] = true
+		end
+	end
+	return result
+end
+
+function PVP.SANDBOX.idol_override()
+	for _, variant in ipairs({ "none", "both", "zealot", "collector" }) do
+		if PVP.is_layer_active("idol_" .. variant) then return variant end
+	end
+end
+
+function PVP.SANDBOX.is_joker_allowed(joker_key)
+	for _, mapping in ipairs(PVP.SANDBOX.joker_mappings) do
+		if mapping.sandbox == joker_key then
+			local group = PVP.SANDBOX.group_of(mapping)
+			if group == "idol" then
+				local variant = PVP.SANDBOX.idol_override()
+				if variant then return variant == "both" or joker_key == PVP.SANDBOX.IDOLS[variant] end
+			elseif group == "extra_credit" and SMODS.Mods["extracredit"] and SMODS.Mods["extracredit"].can_load then
+				return false
+			elseif PVP.is_layer_active(PVP.SANDBOX.GROUP_LAYERS[group]) then
+				return true
+			end
+			return mapping.active and PVP.is_layer_active(PVP.LayerKey.SANDBOX)
+		end
+	end
 	return false
 end
 
@@ -173,10 +216,11 @@ MPAPI.Layer(PVP.LayerKey.SANDBOX, {
 	reworked_enhancements = { "m_glass" },
 	reworked_tags = { "tag_mp_gambling_sandbox", "tag_mp_juggle_sandbox", "tag_mp_investment_sandbox" },
 	calculate = function(self, context)
-		if not context.apply_bans then
-			return
+		if not context.apply_bans then return end
+		if not PVP.SANDBOX.idol_override() and not G.GAME.pvp_sandbox_idol_selected then
+			select_random_idol()
+			G.GAME.pvp_sandbox_idol_selected = true
 		end
-		select_random_idol()
 
 		if SMODS.Mods["extracredit"] and SMODS.Mods["extracredit"].can_load then
 			print("Banning sandbox jokers")

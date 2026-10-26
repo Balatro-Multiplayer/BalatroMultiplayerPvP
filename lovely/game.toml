@@ -8,8 +8,8 @@ priority = 2147483600
 target = "game.lua"
 pattern = '''function Game:update_round_eval\(dt\)(?<pre>[\s\S]+?)if not G.STATE_COMPLETE then'''
 position = 'at'
-payload = '''function Game:update_round_eval(dt)$pre if not G.STATE_COMPLETE and not (PVP.in_session() and PVP.GAME.prevent_eval) then
-        PVP.GAME.prevent_eval = PVP.in_session() or nil'''
+payload = '''function Game:update_round_eval(dt)$pre if not G.STATE_COMPLETE and not (PVP.is_mp_or_practice() and PVP.GAME.prevent_eval) then
+        PVP.GAME.prevent_eval = PVP.is_mp_or_practice() or nil'''
 times = 1
 
 [[patches]]

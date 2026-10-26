@@ -1,5 +1,5 @@
 MPAPI.Layer("flipped_cards", {
-	game_modifiers = { flipped_cards = true },
+	game_modifiers = { flipped_cards = 1 },
 })
 
 MPAPI.Layer("debuff_played_cards", {

@@ -72,16 +72,21 @@ Expire on leaving that shop.
 
 Examples: Bigger Shop, local Inflation, a free first reroll.
 
-### Shop-prepared encounter
+### Unforecasted blind rule
 
-Announce and activate at shop entry. Let the player shop around the coming rule.
-Continue through the immediately following named blind, including its round payouts.
-Expire before the following shop. Skipping that blind also ends the rule.
+Reveal and activate on entering the chosen blind, before its first hand is drawn.
+Keep it through that blind's end-of-round payouts, then expire before the shop.
+At blind selection, show `???` when that named slot has an unforecasted rule:
+the player knows an encounter rule is coming, but not which one. Empty encounter
+slots show no mystery marker; first-hand incidents remain unannounced.
+Skipping consumes that named slot without activating its rule or transferring
+it to another blind.
 
 Examples: Waste Not, Discard Dividend.
 
-Before the first shop exists, these effects are not eligible. Do not grant an
-extra encounter draw just because the player reaches another shop.
+These rules need no shop preparation and can occur on the first blind.
+They share the encounter budget with forecasted rules, not an extra surprise roll.
+Rules whose consequences require informed commitment remain forecasted.
 
 ### Whole-ante theme
 
@@ -128,8 +133,9 @@ These are **starting playtest values**, not final balance promises:
 | Run-start identity package | 0% | 0% | 10% |
 
 - At most **one whole-ante theme** at a time.
-- At most **one encounter rule per blind**. Forecasted and shop-origin rules share
-  this budget; a starting split is 60% forecasted / 40% shop-origin when both qualify.
+- At most **one encounter rule per blind**. Forecasted and unforecasted rules share
+  this budget. Their selection split remains a playtest decision; the old
+  shop-origin split is not a separate event budget.
 - At most **one first-hand incident** per played blind, with plenty of blanks.
 - An incident that creates an encounter rule cannot add a second encounter rule.
   If that slot is occupied, exclude such incidents rather than replacing the forecast.
@@ -161,7 +167,7 @@ It does not remove the player's manual wall option.
 +| Inflation | One shop: each purchase raises prices by $1 within that shop. Leaving restores the prior price baseline, without refunding urchases. |
 +| No Interest | Normal: one announced ante without interest. Mayhem: same temporary rule; run-long corruption remains a tentative andidate. |
 | Discard Tax | Normal: forecasted blind, $1 per discard. Initial Mayhem candidate: $2 per discard for one blind; no permanent version. |
-+| Frugal / Waste Not | One family, not two draws. $1 per unused discard. Prepared encounter; Mayhem can use an ante or light lasting ariant. |
++| Frugal / Waste Not | One family, not two draws. $1 per unused discard. Unforecasted blind rule; Mayhem can use an ante or light lasting variant. |
 | Kind Wraith | Run identity: replace Wraith with the existing Kind Wraith content. Not a temporary pool hot-swap. |
 | Bigger Shop | This shop, before stock generation. +1 slot; Mayhem chooses +1 or +2. |
 | Spartan | Normal/Mayhem forecasted Small or Big Blind with no blind payout. Never remove the boss payout by surprise. |
@@ -214,12 +220,12 @@ These are fixed cores. Additional duration choices must be explicit, not inferre
 |---|---|---|
 | Second Wind | +1 hand | Calm/Normal blind; Mayhem whole ante. Separate Mayhem lasting +1 variant. |
 | Fresh Start | +1 discard | One blind. Separate Normal/Mayhem lasting +1 variant. |
-+| Waste Not | $1 per unused discard | Same family as Frugal. Prepared encounter; Mayhem ante theme; separate Normal/Mayhem lasting ariant. |
++| Waste Not | $1 per unused discard | Same family as Frugal. Unforecasted blind rule; Mayhem ante theme; separate Normal/Mayhem lasting variant. |
 | Shop Subsidy | Gain $5 | Shop-entry instant; same amount on every preset. |
 | Pocket Change | Gain $3 | First-hand incident; same amount on every preset. |
 | All In | +1 hand, −1 discard; preserve floors | Calm/Normal forecasted blind; Mayhem whole ante. |
 +| Paid Overtime | +1 hand, no unused-hand payout | First draw through this blind's payout, all presets. Never surprise for the rest of the nte. |
-| Discard Dividend | +1 discard; $1 per use; $2 per unused discard | Calm/Normal prepared encounter; Mayhem whole ante. |
+| Discard Dividend | +1 discard; $1 per use; $2 per unused discard | Calm/Normal unforecasted blind rule; Mayhem whole ante. |
 | Working Capital | +1 hand each round, no interest | Normal/Mayhem whole ante; separate Mayhem lasting variant. |
 | Free first reroll | One free reroll | Just this shop, all presets. Implementation pending. |
 | Gold Rush | Gold Seal on one drawn card | First-hand incident, all presets. |
