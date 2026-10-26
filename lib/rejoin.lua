@@ -41,7 +41,10 @@ MPAPI.playback.register_rejoin_hooks(PVP.id, {
 		PVP._start_playback(bootstrap, on_ready)
 	end,
 	attach = attach,
+	-- The seat was lost before the run went live (the 3 min catch-up limit, a forfeit, a closed
+	-- lobby): what is left is the local catch-up run, which nobody can play on. Leave it.
 	aborted = function()
 		PVP._drop_playback_waiters()
+		G.FUNCS.go_to_menu()
 	end,
 })
