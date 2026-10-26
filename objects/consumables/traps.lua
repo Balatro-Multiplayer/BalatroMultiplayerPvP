@@ -38,6 +38,9 @@ local TRAPS = {
 	-- Spectral pack to open.
 	{
 		key = "trap_glyph_of_warding",
+		idea = "Virtualized",
+		art = "OvertLeaf4",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.using_consumeable and context.consumeable.config.center.set == "Spectral" then
 				PVP.TRAP.reveal_and_consume(card)
@@ -65,6 +68,9 @@ local TRAPS = {
 	-- Symbol: when the holder plays a flush, convert all scored cards to random suits.
 	{
 		key = "trap_symbol",
+		idea = "Virtualized",
+		art = "OvertLeaf4",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Flush"]) then
 				PVP.TRAP.reveal_and_consume(card)
@@ -85,6 +91,9 @@ local TRAPS = {
 	-- Alarm: when the holder rerolls their shop, the drafter gains 2 free rerolls.
 	{
 		key = "trap_alarm",
+		idea = "Virtualized",
+		art = "Zwei",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.reroll_shop then
 				PVP.TRAP.reveal_and_consume(card)
@@ -103,10 +112,16 @@ local TRAPS = {
 	-- that hand are guaranteed to break. Deferred: forcing a glass break bypasses SMODS's own
 	-- probability roll and needs its own destroy_card-context hook (see plan's Phase 3 notes);
 	-- not yet implemented.
-	{ key = "trap_explosive_runes" },
+	{ key = "trap_explosive_runes",
+		idea = "Virtualized",
+		art = "shai1n",
+		code = "Nobody, actually", },
 	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
 	{
 		key = "trap_sepia_snake_sigil",
+		idea = "Virtualized",
+		art = "DottyKitty",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if
 				context.buying_card
@@ -133,6 +148,9 @@ local TRAPS = {
 	-- cards by 1.
 	{
 		key = "trap_fire_trap",
+		idea = "Virtualized",
+		art = "Ganpan140",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Pair"]) then
 				PVP.TRAP.reveal_and_consume(card)
@@ -153,6 +171,9 @@ local TRAPS = {
 	-- to their deck.
 	{
 		key = "trap_guards_and_wards",
+		idea = "Virtualized",
+		art = "Nas4xou",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.playing_card_added then
 				PVP.TRAP.reveal_and_consume(card)
@@ -175,10 +196,16 @@ local TRAPS = {
 	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
 	-- Deferred: seal triggers resolve via direct per-card method calls (Card:calculate_seal /
 	-- Card:get_end_of_round_effect), never a broadcast calculate context -- needs its own hook.
-	{ key = "trap_magic_mouth" },
+	{ key = "trap_magic_mouth",
+		idea = "Virtualized",
+		art = "TypeFate",
+		code = "Nobody, actually",},
 	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
 	{
 		key = "trap_snare",
+		idea = "Virtualized",
+		art = "Ganpan140",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.skip_blind then
 				local skipped_tag = G.GAME.tags[#G.GAME.tags]
@@ -200,15 +227,24 @@ local TRAPS = {
 	-- they get trapped instead. Deferred: needs a "another trap just fired" signal, which isn't
 	-- a natural calculate-context flag -- would need PVP.TRAP.reveal_and_consume itself to fire a
 	-- custom local context so a co-resident Arcane Lock can intercept. Not yet implemented.
-	{ key = "trap_arcane_lock" },
+	{ key = "trap_arcane_lock",
+		idea = "Virtualized",
+		art = "shai1n",
+		code = "Nobody, actually",},
 	-- Programmed Illusion: when the holder opens a booster pack, add a fake card to it.
 	-- Deferred: Card:open builds its pack_cards list in a function-local table with no exposed
 	-- extension point for injecting an extra card -- needs a direct hook/override, not a
 	-- calculate-context check. Not yet implemented.
-	{ key = "trap_programmed_illusion" },
+	{ key = "trap_programmed_illusion",
+		idea = "Virtualized",
+		art = "TypeFate",
+		code = "Nobody, actually",},
 	-- Web: when the holder uses any consumable, the drafter gains a negative copy of it.
 	{
 		key = "trap_web",
+		idea = "Virtualized",
+		art = "Ganpan140",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.using_consumeable then
 				PVP.TRAP.reveal_and_consume(card)
@@ -232,11 +268,17 @@ local TRAPS = {
 	-- Deferred: the draw loop (G.FUNCS.draw_from_deck_to_hand) has no exposed "flip after
 	-- draw" hook -- needs a new override on the draw path, not a calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_forbiddance" },
+	{ key = "trap_forbiddance",
+		idea = "Virtualized",
+		art = "shai1n",
+		code = "Nobody, actually",},
 	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
 	-- poker hand.
 	{
 		key = "trap_faithful_hound",
+		idea = "Virtualized",
+		art = "StaticTyr",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.using_consumeable and context.consumeable.config.center.set == "Planet" then
 				local hand_type = context.consumeable.ability.consumeable and context.consumeable.ability.consumeable.hand_type
@@ -260,6 +302,9 @@ local TRAPS = {
 	-- their hand.
 	{
 		key = "trap_phase_door",
+		idea = "Virtualized",
+		art = "Ganpan140",
+		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.before and context.scoring_hand then
 				local gold_count = 0
@@ -286,7 +331,10 @@ local TRAPS = {
 	-- 2 Wheel of Fortunes. Deferred: needs new state-tracking (record Wheel of Fortune
 	-- appearances per shop visit, checked at ending_shop) -- not a pure calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_mental_prison" },
+	{ key = "trap_mental_prison",
+		idea = "Virtualized",
+		art = "Ganpan140",
+		code = "Nobody, actually",},
 }
 
 -- One shared "Trap" sheet holds every trap's art in a single row, in TRAPS order: a trap's
@@ -322,5 +370,10 @@ for index, def in ipairs(TRAPS) do
 		end,
 		calculate = def.calculate,
 		receive = def.receive,
+		mp_credits = {
+			idea = { def.idea } or nil,
+			art = { def.art } or nil,
+			code = { def.code } or nil,
+		},
 	})
 end

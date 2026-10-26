@@ -68,7 +68,7 @@ MPAPI.Joker({
 	end,
 	mp_credits = {
 		idea = { "Zwei" },
-		art = { "Kittyknight" },
+		art = { "DottyKitty" },
 		code = { "Virtualized" },
 	},
 })

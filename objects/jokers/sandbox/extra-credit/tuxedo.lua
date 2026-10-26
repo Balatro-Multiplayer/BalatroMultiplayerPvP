@@ -46,7 +46,7 @@ SMODS.Joker({
 
 	mp_credits = {
 		code = { "CampfireCollective" },
-		art = { "dottykitty" },
+		art = { "DottyKitty" },
 	},
 	mp_include = function(self)
 		return PVP.SANDBOX.is_joker_allowed(self.key)
