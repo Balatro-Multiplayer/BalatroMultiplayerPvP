@@ -102,6 +102,13 @@ local function build_chip_sprite()
 	return Sprite(0, 0, 1.1, 1.1, G.ANIMATION_ATLAS["mp_player_blind_chip"], { x = PLACEHOLDER_CHIP_ROW, y = 0 })
 end
 
+-- A ruleset's art, shared by the Ranked pillars and the Ruleset vote's tiles
+-- (pvp_api/setup.lua) so both change together when per-ruleset art exists.
+function PVP.ruleset_chip_sprite(_ruleset_key, size)
+	size = size or 1.1
+	return Sprite(0, 0, size, size, G.ANIMATION_ATLAS["mp_player_blind_chip"], { x = PLACEHOLDER_CHIP_ROW, y = 0 })
+end
+
 -- Every currently-built pillar's SELECT button, keyed by mode.key -- reset at the start of each
 -- build_items call (a fresh page build, e.g. a Ranked<->Casual tab switch) and refreshed live by
 -- PVP._refresh_find_game_queue_ui (called from pvp_api/queue.lua's PVP._show_searching any time
@@ -326,7 +333,7 @@ local function build_items(modes, group)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = build_chip_sprite(),
+			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or build_chip_sprite(),
 			select = group and build_group_select(mode) or build_select(mode),
 			name_plate = MPAPI.ui_pillar_name_plate({
 				lines = mode.name,
