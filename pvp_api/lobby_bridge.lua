@@ -24,13 +24,9 @@ PVP.DISPLAY_NAMES = {
 -- The single opponent in a 1v1 PvP lobby (nil until a second player is present).
 function PVP.get_opponent_id()
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
+	if not lobby then return nil end
 	for _, p in ipairs(lobby:get_players()) do
-		if p.id ~= lobby.player_id then
-			return p.id
-		end
+		if p.id ~= lobby.player_id then return p.id end
 	end
 	return nil
 end
@@ -57,30 +53,20 @@ end
 --    target is the adjacent player with the next-higher score (what they need to
 --    beat). See PVP.referee_rank_royale/broadcast_royale_targets.
 function PVP.current_target_id()
-	if PVP.LOBBY.config.nemesis_pairing then
-		return PVP.GAME.nemesis_partner_id
-	end
+	if PVP.LOBBY.config.nemesis_pairing then return PVP.GAME.nemesis_partner_id end
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
-	if #lobby:get_players() == 2 then
-		return PVP.get_opponent_id()
-	end
+	if not lobby then return nil end
+	if #lobby:get_players() == 2 then return PVP.get_opponent_id() end
 	if PVP.LOBBY.config.manhunt then
 		if PVP.LOBBY.team_id == "HUNTER" then
 			for id, role in pairs(PVP.LOBBY.roster or {}) do
-				if role == "RUNNER" then
-					return id
-				end
+				if role == "RUNNER" then return id end
 			end
 			return nil
 		end
 		return PVP.GAME.manhunt_target_id
 	end
-	if PVP.LOBBY.config.team_based then
-		return PVP.GAME.team_card_target_id
-	end
+	if PVP.LOBBY.config.team_based then return PVP.GAME.team_card_target_id end
 	return PVP.GAME.royale_target_id
 end
 
@@ -103,8 +89,7 @@ function PVP.pvp_blind_opponent_name()
 		return opponent.username or "????"
 	end
 	if PVP.LOBBY.config.manhunt then
-		return PVP.LOBBY.team_id == "RUNNER" and PVP.DISPLAY_NAMES.manhunt_hunters
-			or PVP.DISPLAY_NAMES.manhunt_runner
+		return PVP.LOBBY.team_id == "RUNNER" and PVP.DISPLAY_NAMES.manhunt_hunters or PVP.DISPLAY_NAMES.manhunt_runner
 	end
 	if PVP.LOBBY.config.team_based then
 		local opposing = (PVP.LOBBY.team_id == "A") and "B" or "A"
@@ -125,9 +110,7 @@ end
 
 local function player_name(lobby, player_id)
 	for _, p in ipairs(lobby:get_players()) do
-		if p.id == player_id then
-			return p.displayName or p.id
-		end
+		if p.id == player_id then return p.displayName or p.id end
 	end
 	return nil
 end
@@ -146,9 +129,7 @@ local function mirror_metadata(lobby)
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
 		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
-			PVP.LOBBY.config[k] = v
-		end
+		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then PVP.LOBBY.config[k] = v end
 	end
 	-- nemesis_pairing isn't part of the shared metadata schema, so it can't ride the
 	-- generic loop above -- but every client (not just the host, who's the only one
@@ -161,20 +142,13 @@ local function mirror_metadata(lobby)
 	-- lobby-options picker, since none of them ride the generic per-key loop above.
 	PVP.LOBBY.config.manhunt = (def and def.manhunt) or nil
 	PVP.LOBBY.config.team_based = (def and def.team_based) or nil
-	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
-	-- layers on top of it for the whole lobby. Every client derives them from the
-	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
-	-- without a metadata field of their own. Nothing else adds modifiers.
+	-- Native modifier choices are shared metadata. Older lobbies without that
+	-- field derive defaults from the ruleset, then import any legacy MP switch.
 	if PVP.LOBBY.config.ruleset then
-		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
-		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+		PVP.restore_modifier_layers(PVP.LOBBY.config.ruleset, meta.modifier_layers, meta.multiplayer_jokers)
 	end
-	if meta.deck then
-		PVP.LOBBY.deck.back = meta.deck
-	end
-	if meta.stake then
-		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
-	end
+	if meta.deck then PVP.LOBBY.deck.back = meta.deck end
+	if meta.stake then PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake end
 end
 
 -- Reflect roster/host state into the PVP.LOBBY.host / .guest identity slots that PVP's
@@ -224,9 +198,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- not its code: a join by code has no code until its first snapshot.
 	if PVP.CURRENT_LOBBY ~= lobby then
 		PVP._player_lives_cache = nil
-		if PVP.REF then
-			PVP.REF.players = {}
-		end
+		if PVP.REF then PVP.REF.players = {} end
 	end
 	PVP.CURRENT_LOBBY = lobby
 	PVP.LOBBY.code = lobby.code
@@ -249,17 +221,13 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.lobby.buttons_initialized = false
 		PVP.lobby.local_ready = false
 		PVP.lobby.start_broadcasted = false
-		if PVP.lobby.ready then
-			PVP.lobby.ready:reset()
-		end
+		if PVP.lobby.ready then PVP.lobby.ready:reset() end
 	end
 	mirror_metadata(lobby)
 	mirror_players(lobby)
 
 	local function refresh()
-		if PVP.UI and PVP.UI.update_connection_status then
-			pcall(PVP.UI.update_connection_status)
-		end
+		if PVP.UI and PVP.UI.update_connection_status then pcall(PVP.UI.update_connection_status) end
 		-- Rebuild the lobby view so roster/host/ready changes are reflected (e.g. the
 		-- host's Start button appearing once the guest joins). No-op outside the menu.
 		pcall(MPAPI.refresh_current_view)
@@ -276,15 +244,11 @@ PVP.setup_lobby_mirror = function(lobby)
 		-- team_based for the whole match, while the host played the real one.
 		-- Skipped while the metadata is still empty (a fresh lobby's host,
 		-- whose own metadata write follows in flow.lua).
-		if next(lobby:get_metadata() or {}) ~= nil then
-			mirror_metadata(lobby)
-		end
+		if next(lobby:get_metadata() or {}) ~= nil then mirror_metadata(lobby) end
 		mirror_players(lobby)
 		-- A crash-rejoin resumes a run that was rebuilt with no lobby, so its
 		-- HUD has no Lives or Timer box until the lobby is back.
-		if G.STAGE == G.STAGES.RUN and PVP.UI and PVP.UI.apply_lobby_hud then
-			pcall(PVP.UI.apply_lobby_hud)
-		end
+		if G.STAGE == G.STAGES.RUN and PVP.UI and PVP.UI.apply_lobby_hud then pcall(PVP.UI.apply_lobby_hud) end
 		refresh()
 	end)
 
@@ -294,15 +258,9 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)
-		if PVP.lobby and PVP.lobby.ready then
-			PVP.lobby.ready:remove(player_id)
-		end
-		if PVP.lobby and PVP.lobby.seed_votes then
-			PVP.lobby.seed_votes:remove(player_id)
-		end
-		if PVP.lobby and PVP.lobby.draw_votes then
-			PVP.lobby.draw_votes:remove(player_id)
-		end
+		if PVP.lobby and PVP.lobby.ready then PVP.lobby.ready:remove(player_id) end
+		if PVP.lobby and PVP.lobby.seed_votes then PVP.lobby.seed_votes:remove(player_id) end
+		if PVP.lobby and PVP.lobby.draw_votes then PVP.lobby.draw_votes:remove(player_id) end
 		mirror_players(lobby)
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
@@ -335,9 +293,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP._pvp_action_helpers.forget_host(lobby)
 		if G.STAGE ~= G.STAGES.RUN then return end
 		local opponent_id = PVP.get_opponent_id()
-		if opponent_id then
-			PVP.RECONNECT_TAIL.catch_up(opponent_id)
-		end
+		if opponent_id then PVP.RECONNECT_TAIL.catch_up(opponent_id) end
 	end)
 
 	-- The same catch-up on a Nakama lobby: the tail comes with the rejoin
@@ -346,9 +302,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.RECONNECT_TAIL.receive_pushed_tails(tails)
 		if G.STAGE ~= G.STAGES.RUN then return end
 		local opponent_id = PVP.get_opponent_id()
-		if opponent_id then
-			PVP.RECONNECT_TAIL.catch_up(opponent_id)
-		end
+		if opponent_id then PVP.RECONNECT_TAIL.catch_up(opponent_id) end
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
@@ -363,17 +317,13 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- a game is on: a rejoin's playback starts from the main menu, and a
 	-- rebuild under it replays its first actions twice.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_STANDING_CHANGED, function(_, standing, before)
-		if MPAPI.matchmaking.group.changes_refusal(before, standing) and not lobby:is_game_started() then
-			refresh()
-		end
+		if MPAPI.matchmaking.group.changes_refusal(before, standing) and not lobby:is_game_started() then refresh() end
 	end)
 
 	-- The group queue panel (ui/lobby/group_panel.lua) follows the queue.
-	if MPAPI.LobbyEvent.GROUP_QUEUE then
-		lobby:on(MPAPI.LobbyEvent.GROUP_QUEUE, function()
-			refresh()
-		end)
-	end
+	if MPAPI.LobbyEvent.GROUP_QUEUE then lobby:on(MPAPI.LobbyEvent.GROUP_QUEUE, function()
+		refresh()
+	end) end
 
 	lobby:on(MPAPI.LobbyEvent.HOST_CHANGED, function(host_id)
 		-- Host-only actions are taken from this player now (pvp_api/actions/_helpers.lua).
@@ -381,9 +331,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		mirror_players(lobby)
 		-- The host left mid-run (a crash, a dropped connection) and the server
 		-- made us host: the referee is ours now.
-		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then
-			PVP.referee_take_over()
-		end
+		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then PVP.referee_take_over() end
 		MPAPI.refresh_current_view()
 	end)
 
@@ -395,9 +343,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.ui_ref = nil
 			PVP.lobby.buttons_initialized = false
 		end
-		if PVP.stop_ready_resync then
-			PVP.stop_ready_resync()
-		end
+		if PVP.stop_ready_resync then PVP.stop_ready_resync() end
 		-- Drop the matchmaking handle for a matchmade lobby. Its match_id keeps it lingering
 		-- in mm.handles until the game ends (MATCH_RESOLVED); leaving before that would
 		-- otherwise leak the handle (confused re-queue). Idempotent.
@@ -416,9 +362,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- Server-refereed lobbies: ready, start, restart and the end of a game come from
 	-- the server rather than from PVP's own actions (whose handlers do the same work).
 	lobby:on(MPAPI.LobbyEvent.PLAYER_READY_CHANGED, function(player_id, ready)
-		if MPAPI.has_server_referee(lobby) then
-			PVP.set_player_ready(player_id, ready)
-		end
+		if MPAPI.has_server_referee(lobby) then PVP.set_player_ready(player_id, ready) end
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_STARTED, function(started)
@@ -432,8 +376,6 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
-		if PVP.reset_ready_state then
-			PVP.reset_ready_state()
-		end
+		if PVP.reset_ready_state then PVP.reset_ready_state() end
 	end)
 end

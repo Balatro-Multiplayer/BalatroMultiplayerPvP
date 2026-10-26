@@ -86,9 +86,7 @@ if env_info then
 						val = false
 					end
 					PVP.ENV[key] = val
-					if PVP.EXPERIMENTAL[key] ~= nil then
-						PVP.EXPERIMENTAL[key] = val
-					end
+					if PVP.EXPERIMENTAL[key] ~= nil then PVP.EXPERIMENTAL[key] = val end
 				end
 			end
 		end
@@ -218,7 +216,7 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		stake = 1,
 		challenge = "",
 		cocktail = "",
-		multiplayer_jokers = true,
+		modifier_layers = nil,
 		timer = true,
 		timer_forgiveness = 0,
 		forced_config = false,
@@ -333,7 +331,9 @@ if not SMODS.current_mod.lovely then
 						)
 					)
 				else
-					print("[MultiplayerPvP] Your Multiplayer Mod is not loaded correctly, make sure the Multiplayer folder does not have an extra Multiplayer folder around it.")
+					print(
+						"[MultiplayerPvP] Your Multiplayer Mod is not loaded correctly, make sure the Multiplayer folder does not have an extra Multiplayer folder around it."
+					)
 				end
 				return true
 			end
@@ -388,8 +388,8 @@ PVP.load_mp_dir("objects/vouchers")
 -- Find Game / Leaderboard / Practice / Join / Create layout.
 MPAPI.on_loaded(function()
 	MPAPI.Page({
-		key = 'pvp_main_menu',
-		category = 'mod_menu',
+		key = "pvp_main_menu",
+		category = "mod_menu",
 		build = function(self)
 			return PVP.build_pre_lobby_ui()
 		end,
@@ -404,8 +404,8 @@ MPAPI.on_loaded(function()
 	})
 
 	MPAPI.Page({
-		key = 'pvp_lobby',
-		category = 'lobby_menu',
+		key = "pvp_lobby",
+		category = "lobby_menu",
 		build = function(self)
 			return PVP.build_in_lobby_ui()
 		end,
@@ -414,8 +414,8 @@ MPAPI.on_loaded(function()
 	-- Practice / Create Lobby pillar pages (ui/main_menu/game_select.lua), same page setup as
 	-- pvp_find_game below.
 	MPAPI.Page({
-		key = 'pvp_game_select',
-		category = 'game_select',
+		key = "pvp_game_select",
+		category = "game_select",
 		build = function(self)
 			self._pillar_row = PVP.build_game_select_ui(self.params and self.params.intent)
 			return self._pillar_row.definition
@@ -428,9 +428,7 @@ MPAPI.on_loaded(function()
 			MPAPI.set_logo_offset(-2.5, true)
 		end,
 		dispose = function(self)
-			if self._pillar_row then
-				self._pillar_row:dispose()
-			end
+			if self._pillar_row then self._pillar_row:dispose() end
 		end,
 	})
 
@@ -438,10 +436,11 @@ MPAPI.on_loaded(function()
 	-- spdrn_game_select page/pillar-row setup one-for-one -- see that file's own core.lua
 	-- registration for the on_enter offset-nudge/logo-position reasoning this copies.
 	MPAPI.Page({
-		key = 'pvp_find_game',
-		category = 'game_select',
+		key = "pvp_find_game",
+		category = "game_select",
 		build = function(self)
-			self._pillar_row = PVP.build_find_game_ui(self.params and self.params.category, self.params and self.params.group)
+			self._pillar_row =
+				PVP.build_find_game_ui(self.params and self.params.category, self.params and self.params.group)
 			return self._pillar_row.definition
 		end,
 		on_enter = function(self)
@@ -462,9 +461,7 @@ MPAPI.on_loaded(function()
 			PVP.start_find_game_polling()
 		end,
 		dispose = function(self)
-			if self._pillar_row then
-				self._pillar_row:dispose()
-			end
+			if self._pillar_row then self._pillar_row:dispose() end
 			PVP.stop_find_game_polling()
 		end,
 	})
@@ -473,8 +470,8 @@ MPAPI.on_loaded(function()
 		id = PVP.id,
 		name = "PvP",
 		colour = G.C.RED,
-		main_menu_ui = 'pvp_main_menu',
-		lobby_ui = 'pvp_lobby',
+		main_menu_ui = "pvp_main_menu",
+		lobby_ui = "pvp_lobby",
 		-- Custom in-run pause menu (Settings + Seed Change + Forfeit), built by the API's
 		-- options_builder hook instead of the vanilla options box (see ui/pvp_run_options.lua).
 		prevent_pause = true,
@@ -491,23 +488,19 @@ MPAPI.on_loaded(function()
 	-- Boot diagnostic: confirm the pvp_* ActionTypes actually registered.
 	local n = 0
 	for k in pairs(MPAPI.ActionTypes or {}) do
-		if tostring(k):match("^pvp_") then
-			n = n + 1
-		end
+		if tostring(k):match("^pvp_") then n = n + 1 end
 	end
 	sendDebugMessage(
-		"[pvp] boot: pvp ActionTypes registered=" .. n .. " pvp_player_ready="
+		"[pvp] boot: pvp ActionTypes registered="
+			.. n
+			.. " pvp_player_ready="
 			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil),
 		"MULTIPLAYER"
 	)
 
 	MPAPI.on_connection_state_change(function()
-		if PVP.UI and PVP.UI.update_connection_status then
-			pcall(PVP.UI.update_connection_status)
-		end
+		if PVP.UI and PVP.UI.update_connection_status then pcall(PVP.UI.update_connection_status) end
 		-- Refresh the reactive main-menu buttons so they enable once connected.
-		if PVP.update_main_menu_buttons then
-			pcall(PVP.update_main_menu_buttons)
-		end
+		if PVP.update_main_menu_buttons then pcall(PVP.update_main_menu_buttons) end
 	end)
 end)

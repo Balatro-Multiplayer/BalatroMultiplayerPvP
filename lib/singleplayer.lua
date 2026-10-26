@@ -18,6 +18,8 @@ function PVP.SOLO.validate(config)
 			not PVP.MUTATORS[key]
 			and key ~= "multiplayer_jokers"
 			and key ~= "no_multiplayer_jokers"
+			and key ~= "multiplayer_content"
+			and key ~= "no_multiplayer_content"
 			and key ~= "idol_zealot"
 			and key ~= "idol_collector"
 			and key ~= "idol_both"
@@ -47,7 +49,13 @@ function PVP.SOLO.establish(config)
 	PVP.LOBBY.config.ruleset = config.ruleset
 	PVP.LOBBY.config.gamemode = nil
 	PVP.LOBBY.config.timer = false
-	MPAPI.modifiers_parse(table.concat(config.modifiers, ","))
+	local modifiers = {}
+	for _, key in ipairs(config.modifiers) do
+		if key == "multiplayer_jokers" then key = PVP.LayerKey.MULTIPLAYER_CONTENT end
+		if key == "no_multiplayer_jokers" then key = PVP.LayerKey.NO_MULTIPLAYER_CONTENT end
+		modifiers[#modifiers + 1] = key
+	end
+	MPAPI.modifiers_parse(table.concat(modifiers, ","))
 	local lobby = MPAPI.create_local_lobby(PVP.id, {
 		max_players = 1,
 		metadata = { ruleset = config.ruleset, modifier_layers = MPAPI.modifiers_serialize() },

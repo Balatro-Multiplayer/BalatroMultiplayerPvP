@@ -54,21 +54,51 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- it's never wired to a real queue call (see this file's header WIP comment), so it can never be
 -- the active queue and is unconditionally disabled below.
 local RANKED_MODES = {
-	{ key = "pvp_ranked_vanilla", name = { "Vanilla", "Ranked" },
-		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = "ruleset_mp_vanilla", colour = G.C.GREEN },
-	{ key = "pvp_ranked_balanced", name = { "Balanced", "Ranked" },
-		desc = { "Minor balance", "changes for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = "ruleset_mp_balanced", colour = G.C.BLUE },
-	{ key = "pvp_ranked_expanded", name = { "Expanded", "Ranked" },
-		desc = { "Standardized and", "balanced for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = "ruleset_mp_expanded", colour = G.C.PURPLE },
-	{ key = "pvp_majorleague", name = { "MLBa", "Ranked" },
-		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = nil, ruleset_key = nil, colour = G.C.BLACK },
-	{ key = "pvp_smallworld_ranked", name = { "Smallworld", "Ranked" },
-		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = "ruleset_mp_smallworld", colour = G.C.RED },
+	{
+		key = "pvp_ranked_vanilla",
+		name = { "Vanilla", "Ranked" },
+		desc = { "Normal Balatro", "with PvP blinds" },
+		uses_order = false,
+		queue_button = "mp_pvp_queue_ranked_vanilla",
+		ruleset_key = "ruleset_mp_vanilla",
+		colour = G.C.GREEN,
+	},
+	{
+		key = "pvp_ranked_balanced",
+		name = { "Balanced", "Ranked" },
+		desc = { "Minor balance", "changes for MP" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_ranked_balanced",
+		ruleset_key = "ruleset_mp_balanced",
+		colour = G.C.BLUE,
+	},
+	{
+		key = "pvp_ranked_expanded",
+		name = { "Expanded", "Ranked" },
+		desc = { "Standardized and", "balanced for MP" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_ranked_expanded",
+		ruleset_key = "ruleset_mp_expanded",
+		colour = G.C.PURPLE,
+	},
+	{
+		key = "pvp_majorleague",
+		name = { "MLBa", "Ranked" },
+		desc = { "Follows the MLBa", "ruleset" },
+		uses_order = false,
+		queue_button = nil,
+		ruleset_key = nil,
+		colour = G.C.BLACK,
+	},
+	{
+		key = "pvp_smallworld_ranked",
+		name = { "Smallworld", "Ranked" },
+		desc = { "75% of cards are", "banned at random" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_ranked_smallworld",
+		ruleset_key = "ruleset_mp_smallworld",
+		colour = G.C.RED,
+	},
 }
 
 -- Casual: 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -82,18 +112,49 @@ local RANKED_MODES = {
 -- above (e.g. "pvp_smallworld_casual" vs. gamemode_key "pvp_smallworld") -- `key` is just this
 -- page's own UI item id, unrelated to the wire gamemode key.
 local CASUAL_MODES = {
-	{ key = "pvp_nemesis", name = "Nemesis",
-		desc = { "Face a different", "Nemesis every ante" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_nemesis", gamemode_key = "pvp_nemesis", colour = G.C.BLUE },
-	{ key = "pvp_royale", name = { "Battle", "Royale" },
-		desc = { "Free for all;", "bottom half lose" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_royale", gamemode_key = "pvp_royale", colour = G.C.PURPLE },
-	{ key = "pvp_teams", name = "Teams",
-		desc = { "Team vs team;", "best score wins" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour = G.C.GREEN },
-	{ key = "pvp_smallworld_casual", name = "Smallworld",
-		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour = G.C.RED },
+	{
+		key = "pvp_nemesis",
+		name = "Nemesis",
+		desc = { "Face a different", "Nemesis every ante" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_casual_nemesis",
+		gamemode_key = "pvp_nemesis",
+		colour = G.C.BLUE,
+	},
+	{
+		key = "pvp_royale",
+		name = { "Battle", "Royale" },
+		desc = { "Free for all;", "bottom half lose" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_casual_royale",
+		gamemode_key = "pvp_royale",
+		colour = G.C.PURPLE,
+	},
+	{
+		key = "pvp_teams",
+		name = "Teams",
+		desc = { "Team vs team;", "best score wins" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_casual_teams",
+		gamemode_key = "pvp_teams",
+		colour = G.C.GREEN,
+	},
+	{
+		key = "pvp_smallworld_casual",
+		name = "Smallworld",
+		desc = { "75% of cards are", "banned at random" },
+		uses_order = true,
+		queue_button = "mp_pvp_queue_casual_smallworld",
+		gamemode_key = "pvp_smallworld",
+		colour = G.C.RED,
+	},
+	{
+		key = "chaos_preview",
+		name = localize("k_chaos"),
+		desc = { localize("k_chaos_queue_description_1"), localize("k_chaos_queue_description_2") },
+		coming_soon = true,
+		colour = G.C.ORANGE,
+	},
 }
 
 -- Plain Sprite, not AnimatedSprite -- see SPDRN's game_select.lua build_chip_sprite for why
@@ -115,11 +176,9 @@ function PVP._refresh_find_game_queue_ui()
 end
 
 -- The pillars grey out by the account's standing, which the server can change at any time.
-if MPAPI.on_standing_changed then
-	MPAPI.on_standing_changed(function()
-		PVP._refresh_find_game_queue_ui()
-	end)
-end
+if MPAPI.on_standing_changed then MPAPI.on_standing_changed(function()
+	PVP._refresh_find_game_queue_ui()
+end) end
 
 -- The single handler behind every pillar's SELECT/CANCEL button. Whether this joins or cancels
 -- depends on ref_table.cancel's presence, not any state read here -- the button that was
@@ -128,9 +187,7 @@ end
 -- and handling. Mirrors SPDRN's spdrn_game_select_toggle_queue.
 G.FUNCS.mp_pvp_find_game_toggle_queue = function(e)
 	local rt = e.config.ref_table
-	if not rt then
-		return
-	end
+	if not rt then return end
 	-- Preserves the exact behavior of the old per-mode mp_pvp_queue_ranked_*/_casual_*
 	-- handlers this replaces (pvp_api/queue.lua), which all called this before queuing.
 	G.FUNCS.exit_overlay_menu()
@@ -147,9 +204,7 @@ end
 -- ui/mods_not_allowed_overlay.lua) instead of queueing.
 G.FUNCS.mp_pvp_find_game_standing_refused = function(e)
 	local rt = e.config.ref_table
-	if rt and rt.refusal then
-		MPAPI.show_standing_refusal(rt.refusal)
-	end
+	if rt and rt.refusal then MPAPI.show_standing_refusal(rt.refusal) end
 end
 
 -- The queue kind a pillar is (MPAPI.QueueKind): Ranked pillars carry a ruleset_key.
@@ -174,11 +229,13 @@ local function build_select(mode)
 		local other_active = PVP._is_queue_active() and not this_queued
 		local may_queue, refusal = MPAPI.can_queue(queue_kind(mode))
 		local standing_refused = not this_queued and not may_queue
-		local unavailable = mode.queue_button == nil
-			or other_active
-			or standing_refused
+		local unavailable = mode.queue_button == nil or other_active or standing_refused
 		local config = {
-			align = "cm", minh = 0.5, minw = 2.2, padding = 0.06, r = 0.1,
+			align = "cm",
+			minh = 0.5,
+			minw = 2.2,
+			padding = 0.06,
+			r = 0.1,
 			colour = unavailable and G.C.UI.BACKGROUND_INACTIVE or (this_queued and G.C.RED or G.C.ORANGE),
 		}
 		if standing_refused and mode.queue_button ~= nil and not other_active then
@@ -191,13 +248,29 @@ local function build_select(mode)
 			config.hover = true
 			config.one_press = true
 			config.button = "mp_pvp_find_game_toggle_queue"
-			config.ref_table = this_queued
-				and { cancel = true }
+			config.ref_table = this_queued and { cancel = true }
 				or { ruleset_key = mode.ruleset_key, gamemode_key = mode.gamemode_key }
 		end
-		return { nodes = { { n = G.UIT.R, config = config, nodes = {
-			{ n = G.UIT.T, config = { text = this_queued and "CANCEL" or "QUEUE", scale = 0.4, colour = unavailable and G.C.UI.TEXT_INACTIVE or G.C.UI.TEXT_LIGHT, shadow = not unavailable } },
-		} } } }
+		return {
+			nodes = {
+				{
+					n = G.UIT.R,
+					config = config,
+					nodes = {
+						{
+							n = G.UIT.T,
+							config = {
+								text = mode.coming_soon and localize("k_coming_soon")
+									or (this_queued and "CANCEL" or "QUEUE"),
+								scale = mode.coming_soon and 0.3 or 0.4,
+								colour = unavailable and G.C.UI.TEXT_INACTIVE or G.C.UI.TEXT_LIGHT,
+								shadow = not unavailable,
+							},
+						},
+					},
+				},
+			},
+		}
 	end)
 	_select_els[mode.key] = el
 	return el.node
@@ -208,11 +281,16 @@ end
 -- mode the lobby doesn't fit is greyed; one a member's standing refuses is greyed but still
 -- pressable, so the server's refusal says which mods.
 local function build_group_select(mode)
+	if not mode.gamemode_key then return build_select(mode) end
 	local el = MPAPI.ui_element(function()
 		local available, standing_refused = PVP.group_mode_available(MPAPI.get_current_lobby(), mode.gamemode_key)
 		local lit = available and not standing_refused
 		local config = {
-			align = "cm", minh = 0.5, minw = 2.2, padding = 0.06, r = 0.1,
+			align = "cm",
+			minh = 0.5,
+			minw = 2.2,
+			padding = 0.06,
+			r = 0.1,
 			colour = lit and G.C.ORANGE or G.C.UI.BACKGROUND_INACTIVE,
 		}
 		if available then
@@ -222,9 +300,25 @@ local function build_group_select(mode)
 			config.button = "mp_pvp_group_queue_mode"
 			config.ref_table = { gamemode_key = mode.gamemode_key }
 		end
-		return { nodes = { { n = G.UIT.R, config = config, nodes = {
-			{ n = G.UIT.T, config = { text = "QUEUE", scale = 0.4, colour = lit and G.C.UI.TEXT_LIGHT or G.C.UI.TEXT_INACTIVE, shadow = lit } },
-		} } } }
+		return {
+			nodes = {
+				{
+					n = G.UIT.R,
+					config = config,
+					nodes = {
+						{
+							n = G.UIT.T,
+							config = {
+								text = "QUEUE",
+								scale = 0.4,
+								colour = lit and G.C.UI.TEXT_LIGHT or G.C.UI.TEXT_INACTIVE,
+								shadow = lit,
+							},
+						},
+					},
+				},
+			},
+		}
 	end)
 	_select_els[mode.key] = el
 	return el.node
@@ -259,12 +353,16 @@ end
 function PVP.start_find_game_polling()
 	stop_poller_only()
 	_latest_counts = nil
-	_poller = MPAPI.matchmaking.create_queue_counts_poller(PVP.id, FIND_GAME_POLL_INTERVAL_SECONDS, function(err, game_modes)
-		_latest_counts = game_modes or {}
-		for _, el in pairs(_stat_els) do
-			el:update()
+	_poller = MPAPI.matchmaking.create_queue_counts_poller(
+		PVP.id,
+		FIND_GAME_POLL_INTERVAL_SECONDS,
+		function(err, game_modes)
+			_latest_counts = game_modes or {}
+			for _, el in pairs(_stat_els) do
+				el:update()
+			end
 		end
-	end)
+	)
 	_poller.start()
 end
 
@@ -275,25 +373,55 @@ end
 
 -- One half (In Queue or In Game): a label above a darker inset value, like the HUD's Ante box.
 local function build_count_half(label, value)
-	return { n = G.UIT.C, config = { align = "cm", padding = 0.02, minw = 1.0, minh = 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
-		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.T, config = { text = label, scale = 0.24, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-		} },
-		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.T, config = { text = tostring(value), scale = 0.5, colour = G.C.IMPORTANT, shadow = true } },
-		} },
-	} }
+	return {
+		n = G.UIT.C,
+		config = {
+			align = "cm",
+			padding = 0.02,
+			minw = 1.0,
+			minh = 0.85,
+			colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5),
+			emboss = 0.05,
+			r = 0.1,
+		},
+		nodes = {
+			{
+				n = G.UIT.R,
+				config = { align = "cm" },
+				nodes = {
+					{ n = G.UIT.T, config = { text = label, scale = 0.24, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+				},
+			},
+			{
+				n = G.UIT.R,
+				config = { align = "cm" },
+				nodes = {
+					{
+						n = G.UIT.T,
+						config = { text = tostring(value), scale = 0.5, colour = G.C.IMPORTANT, shadow = true },
+					},
+				},
+			},
+		},
+	}
 end
 
 local function build_stat_box(mode)
 	local key = count_key(mode)
 	local el = MPAPI.ui_element(function()
 		local counts = key and _latest_counts and _latest_counts[key]
-		return { nodes = { MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
-			build_count_half("In Queue", counts and counts.queued or 0),
-			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
-			build_count_half("In Game", counts and counts.inMatch or 0),
-		} }) } }
+		return {
+			nodes = {
+				MPAPI.ui_embossed_box({
+					minw = 2.4,
+					nodes = {
+						build_count_half("In Queue", counts and counts.queued or 0),
+						{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
+						build_count_half("In Game", counts and counts.inMatch or 0),
+					},
+				}),
+			},
+		}
 	end)
 	_stat_els[mode.key] = el
 	return el.node
@@ -302,21 +430,64 @@ end
 -- Mirrors SPDRN's game_select.lua build_order_card exactly (same the_order_open button,
 -- MPAPI's own G.FUNCS handler, ui/the_order.lua) -- reused as-is, not reimplemented.
 local function build_order_card()
-	return MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
-		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.C, config = {
-				align = "cm", minw = 2.2, minh = 0.6, padding = 0.06, r = 0.1,
-				colour = G.C.BLUE, shadow = true, hover = true, one_press = true, button = "the_order_open",
-			}, nodes = {
-				{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-					{ n = G.UIT.T, config = { text = "Uses", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-				} },
-				{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-					{ n = G.UIT.T, config = { text = "The Order", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-				} },
-			} },
-		} },
-	} })
+	return MPAPI.ui_embossed_box({
+		minw = 2.4,
+		nodes = {
+			{
+				n = G.UIT.R,
+				config = { align = "cm" },
+				nodes = {
+					{
+						n = G.UIT.C,
+						config = {
+							align = "cm",
+							minw = 2.2,
+							minh = 0.6,
+							padding = 0.06,
+							r = 0.1,
+							colour = G.C.BLUE,
+							shadow = true,
+							hover = true,
+							one_press = true,
+							button = "the_order_open",
+						},
+						nodes = {
+							{
+								n = G.UIT.R,
+								config = { align = "cm" },
+								nodes = {
+									{
+										n = G.UIT.T,
+										config = {
+											text = "Uses",
+											scale = 0.32,
+											colour = G.C.UI.TEXT_LIGHT,
+											shadow = true,
+										},
+									},
+								},
+							},
+							{
+								n = G.UIT.R,
+								config = { align = "cm" },
+								nodes = {
+									{
+										n = G.UIT.T,
+										config = {
+											text = "The Order",
+											scale = 0.32,
+											colour = G.C.UI.TEXT_LIGHT,
+											shadow = true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
 end
 
 local function build_items(modes, group)
@@ -339,7 +510,7 @@ local function build_items(modes, group)
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
-			stat_box = build_stat_box(mode),
+			stat_box = not mode.coming_soon and build_stat_box(mode) or nil,
 			extra = mode.uses_order and build_order_card() or nil,
 		}
 	end
@@ -355,31 +526,61 @@ local function build_tab_row(category)
 	local nodes = {}
 	for _, tab in ipairs(TABS) do
 		local is_active = tab.key == category
-		nodes[#nodes + 1] = { n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({
-				button = "mp_pvp_find_game_tab",
-				ref_table = { category = tab.key },
-				label = { tab.label },
-				colour = is_active and tab.colour or G.C.UI.BACKGROUND_INACTIVE,
-				minw = 3.0,
-				minh = 0.6,
-				scale = 0.4,
-			}),
-		} }
+		nodes[#nodes + 1] = {
+			n = G.UIT.C,
+			config = { align = "cm", padding = 0.08 },
+			nodes = {
+				UIBox_button({
+					button = "mp_pvp_find_game_tab",
+					ref_table = { category = tab.key },
+					label = { tab.label },
+					colour = is_active and tab.colour or G.C.UI.BACKGROUND_INACTIVE,
+					minw = 3.0,
+					minh = 0.6,
+					scale = 0.4,
+				}),
+			},
+		}
 	end
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = nodes }
 end
 
 -- Group mode's header: the way back to the lobby instead of the Ranked/Casual tabs.
 local function build_group_header()
-	return { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
-		{ n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({ button = "mp_pvp_group_queue_back", label = { localize("b_back") }, colour = G.C.ORANGE, minw = 2.4, minh = 0.6, scale = 0.4 }),
-		} },
-		{ n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({ button = "nil", label = { localize("k_group_queue") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
-		} },
-	} }
+	return {
+		n = G.UIT.R,
+		config = { align = "cm", padding = 0.1 },
+		nodes = {
+			{
+				n = G.UIT.C,
+				config = { align = "cm", padding = 0.08 },
+				nodes = {
+					UIBox_button({
+						button = "mp_pvp_group_queue_back",
+						label = { localize("b_back") },
+						colour = G.C.ORANGE,
+						minw = 2.4,
+						minh = 0.6,
+						scale = 0.4,
+					}),
+				},
+			},
+			{
+				n = G.UIT.C,
+				config = { align = "cm", padding = 0.08 },
+				nodes = {
+					UIBox_button({
+						button = "nil",
+						label = { localize("k_group_queue") },
+						colour = G.C.BLUE,
+						minw = 3.0,
+						minh = 0.6,
+						scale = 0.4,
+					}),
+				},
+			},
+		},
+	}
 end
 
 -- Re-navigates to this same page key with different params (category), same mechanism
@@ -392,9 +593,7 @@ end
 -- iterating, not a real bug in this code path.)
 G.FUNCS.mp_pvp_find_game_tab = function(e)
 	local rt = e.config.ref_table
-	if not rt or not rt.category then
-		return
-	end
+	if not rt or not rt.category then return end
 	MPAPI.pages.show("pvp_find_game", { category = rt.category })
 end
 
@@ -414,8 +613,11 @@ function PVP.build_find_game_ui(category, group)
 		config = { align = "tm", colour = G.C.CLEAR },
 		nodes = { group and build_group_header() or build_tab_row(category), pillar_row.row_node },
 	}
-	return { definition = definition, dispose = function(self)
-		pillar_row:dispose()
-		_select_els = {}
-	end }
+	return {
+		definition = definition,
+		dispose = function(self)
+			pillar_row:dispose()
+			_select_els = {}
+		end,
+	}
 end

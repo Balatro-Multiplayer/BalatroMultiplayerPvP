@@ -1,5 +1,23 @@
 # Manual mutators and Custom Solo
 
+## Explicit multiplayer content
+
+From the PvP root, point the content contracts at the matching MPAPI checkout:
+
+```sh
+lua tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
+luajit tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
+bash /path/to/BalatroMultiplayerAPI/scripts/run_scenario.sh MultiplayerPvP:multiplayer_content
+```
+
+The contracts load the real composition, pool gating, lobby callbacks and replay
+bootstrap with stubbed game/network boundaries. The live scenario starts local
+Expanded Practice and checks real Joker/Planet pools, not menu clicks, hand play
+or opponent interactions. It requires Steam registration and both installed Mods
+to point at the checkouts under test. The launcher does not retarget them.
+
+## Manual mutator checks
+
 Offline contracts (not a substitute for the real game):
 
 ```sh

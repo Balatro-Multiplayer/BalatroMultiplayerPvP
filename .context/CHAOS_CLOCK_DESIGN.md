@@ -212,6 +212,26 @@ The proposed Kars sell-Joker replacement package belongs with run identities.
 Verify its PR and exact membership first; preserve Let's Go Gambling as discussed.
 Do not invent six card definitions from the package description.
 
+### Curated Chaos queue content
+
+The public Chaos queue is a disabled "Coming Soon" preview until its gameplay is
+implemented. Its intended baseline is vanilla content with these exceptions:
+
+- Keep the existing Let's Go Gambling.
+- Keep PvP's reworked Hanging Chad in place of vanilla Hanging Chad.
+- Keep the X1.5 Mult Glass-card rework.
+- Add a separate Chaos SPEEDRUN variant: retain the existing trigger (reach a PvP
+  Blind within 30 seconds of your Nemesis), but create two Negative Fools instead
+  of a random Spectral. Negative edition allows delivery even when the ordinary
+  consumable tray is full; both cards must actually be delivered.
+- Exclude all other existing PvP Jokers and Joker reworks. Use vanilla counterparts
+  where applicable. Ordinary SPEEDRUN remains unchanged outside Chaos.
+
+This is a fixed queue identity, not a random Clock event or a global content
+change. Configure it before pool creation. Private lobbies retain their existing
+ruleset and modifier choices; the existing private Chaos ruleset is not evidence
+that this queue baseline has been implemented.
+
 ## 5. New recipes and authored variants
 
 These are fixed cores. Additional duration choices must be explicit, not inferred.

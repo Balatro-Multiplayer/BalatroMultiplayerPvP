@@ -287,9 +287,7 @@ local function get_random_back_pool()
 end
 
 local function scoped_random(seed, salt, max)
-	if seed then
-		math.randomseed(pseudohash(seed .. "_mp_random_" .. salt))
-	end
+	if seed then math.randomseed(pseudohash(seed .. "_mp_random_" .. salt)) end
 	return math.random(1, max)
 end
 
@@ -347,12 +345,8 @@ local function action_start_game(p)
 	-- Stamp the run start (drives the pause menu's seed-change window) and clear any
 	-- pending seed-change votes from a previous run/reseed.
 	PVP._run_started_at = love.timer.getTime()
-	if PVP.lobby and PVP.lobby.seed_votes then
-		PVP.lobby.seed_votes:reset()
-	end
-	if PVP.lobby and PVP.lobby.draw_votes then
-		PVP.lobby.draw_votes:reset()
-	end
+	if PVP.lobby and PVP.lobby.seed_votes then PVP.lobby.seed_votes:reset() end
+	if PVP.lobby and PVP.lobby.draw_votes then PVP.lobby.draw_votes:reset() end
 	local stake = tonumber(p.stake)
 	PVP.ACTIONS.set_ante(0)
 	if not PVP.LOBBY.config.different_seeds and PVP.LOBBY.config.custom_seed ~= "random" then
@@ -448,7 +442,7 @@ local function action_end_pvp(p)
 	local lost, pvpTimerLost = p.lost, p.pvpTimerLost
 	if lost and pvpTimerLost then
 		if G.GAME.current_round.hands_left > 0 then
-            stop_use()
+			stop_use()
 			SMODS.calculate_context({ mp_pvp_loss = true, mp_hands_left = G.GAME.current_round.hands_left })
 		end
 	end
@@ -459,7 +453,7 @@ local function action_end_pvp(p)
 	PVP.GAME.nemesis_timer_started = false
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
-    PVP.GAME.pvp_reached_first = false
+	PVP.GAME.pvp_reached_first = false
 	PVP.GAME.score = nil
 end
 
@@ -566,6 +560,7 @@ local function action_lobby_options(options)
 			PVP.modifiers_parse(v)
 			goto continue
 		end
+		if k == "multiplayer_jokers" then goto continue end
 
 		local parsed_v = v
 		if v == "true" then
@@ -588,6 +583,9 @@ local function action_lobby_options(options)
 		PVP.LOBBY.config[k] = parsed_v
 		if PVP.UI.update_lobby_option_toggle then PVP.UI.update_lobby_option_toggle(k) end
 		::continue::
+	end
+	if options.modifier_layers == nil and (options.multiplayer_jokers ~= nil or options.ruleset ~= nil) then
+		PVP.restore_modifier_layers(PVP.LOBBY.config.ruleset, nil, options.multiplayer_jokers)
 	end
 	if different_decks_before ~= PVP.LOBBY.config.different_decks then
 		G.FUNCS.exit_overlay_menu() -- throw out guest from any menu.
@@ -747,7 +745,9 @@ local function action_send_game_stats()
 end
 
 function G.FUNCS.load_nemesis_deck()
-	if not PVP.nemesis_deck_string or not PVP.nemesis_deck or not PVP.nemesis_cards or not PVP.LOBBY.code then return end
+	if not PVP.nemesis_deck_string or not PVP.nemesis_deck or not PVP.nemesis_cards or not PVP.LOBBY.code then
+		return
+	end
 
 	local card_strings = PVP.UTILS.string_split(PVP.nemesis_deck_string, ";")
 
@@ -1013,8 +1013,8 @@ function PVP.ACTIONS.play_hand(score, hands_left)
 	if PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer") then
 		if PVP.INSANE_INT.greater_than(insane_int_score, PVP.GAME.enemy.score) then
 			PVP.GAME.nemesis_timer_started = false
-        elseif PVP.INSANE_INT.equal(insane_int_score, PVP.GAME.enemy.score) and PVP.GAME.pvp_reached_first then
-            PVP.GAME.nemesis_timer_started = false
+		elseif PVP.INSANE_INT.equal(insane_int_score, PVP.GAME.enemy.score) and PVP.GAME.pvp_reached_first then
+			PVP.GAME.nemesis_timer_started = false
 		else
 			PVP.GAME.timer_started = false
 		end
@@ -1228,7 +1228,9 @@ end
 function PVP.register_action(name, cb)
 	if HANDLERS[name] then
 		sendWarnMessage(
-			"PVP.register_action: '" .. name .. "' already has a handler; refusing to register. Use PVP.register_mod_action if possible.",
+			"PVP.register_action: '"
+				.. name
+				.. "' already has a handler; refusing to register. Use PVP.register_mod_action if possible.",
 			"MULTIPLAYER"
 		)
 		return
@@ -1247,16 +1249,10 @@ local network_to_ui_channel = love.thread.getChannel("networkToUi")
 --   "ok", parsedAction         successfully decoded
 local function pull_next_network_message()
 	local msg = network_to_ui_channel:pop()
-	if not msg then
-		return nil
-	end
-	if string.sub(msg, 1, 1) == "a" then
-		return "legacy_server", msg
-	end
+	if not msg then return nil end
+	if string.sub(msg, 1, 1) == "a" then return "legacy_server", msg end
 	local ok, parsedAction = pcall(json.decode, msg)
-	if ok then
-		return "ok", parsedAction
-	end
+	if ok then return "ok", parsedAction end
 	return "invalid", msg
 end
 

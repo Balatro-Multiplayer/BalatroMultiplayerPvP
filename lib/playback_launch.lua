@@ -29,7 +29,12 @@ function PVP._start_playback(manifest, on_ready)
 	-- mid-match, so refusing here is a pure safety net, not a real-world
 	-- workflow this blocks.
 	if PVP.LOBBY and PVP.LOBBY.code then
-		sendWarnMessage("PVP._start_playback: refusing to start while connected to a real lobby (" .. tostring(PVP.LOBBY.code) .. ")", "MULTIPLAYER")
+		sendWarnMessage(
+			"PVP._start_playback: refusing to start while connected to a real lobby ("
+				.. tostring(PVP.LOBBY.code)
+				.. ")",
+			"MULTIPLAYER"
+		)
 		return
 	end
 
@@ -39,9 +44,9 @@ function PVP._start_playback(manifest, on_ready)
 	-- all left behind, so the waiter fired on the next BLIND_SELECT (the real
 	-- matched run's) and started the replay there. Gate before touching anything;
 	-- "Leave Queue & Continue" re-enters this whole function.
-	if MPAPI.matchmaking.guard_queued(function() return PVP._start_playback(manifest, on_ready) end) then
-		return
-	end
+	if MPAPI.matchmaking.guard_queued(function()
+		return PVP._start_playback(manifest, on_ready)
+	end) then return end
 
 	PVP._drop_playback_waiters()
 	PVP.reset_lobby_config()
@@ -68,6 +73,7 @@ function PVP._start_playback(manifest, on_ready)
 	PVP.LOBBY.deck.challenge = manifest.challenge
 	PVP.LOBBY.config.ruleset = manifest.ruleset
 	PVP.LOBBY.config.gamemode = manifest.gamemode
+	PVP.restore_modifier_layers(manifest.ruleset, manifest.modifier_layers, manifest.multiplayer_jokers)
 
 	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
 
@@ -117,9 +123,7 @@ function Game:update(dt)
 	local waiters = PVP._playback_waiters
 	for i = #waiters, 1, -1 do
 		-- A callback that started a fresh run or left this one dropped the rest.
-		if waiters ~= PVP._playback_waiters then
-			break
-		end
+		if waiters ~= PVP._playback_waiters then break end
 		local w = waiters[i]
 		if w.predicate() then
 			table.remove(waiters, i)

@@ -7,6 +7,11 @@ local function check(value, message)
 end
 
 PVP = { SP = {}, LOBBY = { config = {} }, id = "MultiplayerPvP", EXPERIMENTAL = {} }
+PVP.LayerKey = {
+	MULTIPLAYER_CONTENT = "multiplayer_content",
+	NO_MULTIPLAYER_CONTENT = "no_multiplayer_content",
+	SANDBOX = "sandbox",
+}
 MPAPI = { Layers = {}, MODIFIERS = {}, Rulesets = {} }
 G = { P_CENTERS = {}, P_CENTER_POOLS = { Stake = { {} } }, GAME = {}, FUNCS = {} }
 SMODS = { Mods = {} }
@@ -46,6 +51,7 @@ dofile("layers/glass_cannon.lua")
 dofile("layers/resource_mutators.lua")
 dofile("layers/ban_mutators.lua")
 dofile("layers/economy_mutators.lua")
+dofile("layers/multiplayer_content.lua")
 dofile("layers/sandbox.lua")
 dofile("layers/sandbox_mutators.lua")
 
@@ -228,9 +234,41 @@ check(#C.config().modifiers == 3, "inherited layer is not duplicated")
 C.draft.content, C.draft.idol = 3, 5
 selected = C.config()
 check(
-	selected.modifiers[4] == "no_multiplayer_jokers" and selected.modifiers[5] == "idol_none",
+	selected.modifiers[4] == "no_multiplayer_content" and selected.modifiers[5] == "idol_none",
 	"explicit Off and None survive config"
 )
 G.FUNCS.pvp_solo_reset()
 check(next(C.draft.selected) == nil and C.draft.content == 1 and C.draft.idol == 1, "reset clears rules and choices")
+
+local metadata
+MPAPI.get_current_lobby = function() end
+MPAPI.modifiers_parse = function(serialized)
+	MPAPI.MODIFIERS = {}
+	for key in serialized:gmatch("[^,]+") do
+		MPAPI.MODIFIERS[#MPAPI.MODIFIERS + 1] = key
+	end
+end
+MPAPI.modifiers_serialize = function()
+	return table.concat(MPAPI.MODIFIERS, ",")
+end
+MPAPI.create_local_lobby = function(_, options)
+	metadata = options.metadata
+	return {}
+end
+PVP.reset_lobby_config = function()
+	PVP.LOBBY.config = {}
+end
+PVP.reset_game_states = function() end
+for _, case in ipairs({
+	{ "multiplayer_content", "multiplayer_content" },
+	{ "no_multiplayer_content", "no_multiplayer_content" },
+	{ "multiplayer_jokers", "multiplayer_content" },
+	{ "no_multiplayer_jokers", "no_multiplayer_content" },
+}) do
+	check(
+		PVP.SOLO.establish({ ruleset = "ruleset_mp_vanilla", modifiers = { case[1] }, stake = 1 }),
+		"solo accepts content selection " .. case[1]
+	)
+	check(metadata.modifier_layers == case[2], "solo lobby uses canonical content layer for " .. case[1])
+end
 print(("Manual mutator contracts: %d checks passed"):format(passed))

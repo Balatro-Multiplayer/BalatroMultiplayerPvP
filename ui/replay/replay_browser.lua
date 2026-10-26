@@ -8,18 +8,18 @@
 -- The server's run statuses (nakama lobby/protocol.ts RunStatus) as players
 -- read them: agreed/partial both mean the game finished with a result.
 local STATUS_LABELS = {
-	agreed = 'Finished',
-	partial = 'Finished',
-	disputed = 'Disputed',
-	abandoned = 'Abandoned',
-	restarted = 'Restarted',
+	agreed = "Finished",
+	partial = "Finished",
+	disputed = "Disputed",
+	abandoned = "Abandoned",
+	restarted = "Restarted",
 }
 
 local function format_run_label(run)
-	local date = tostring(run.startedAt or ''):match('^(%d%d%d%d%-%d%d%-%d%d)') or '?'
-	local status = STATUS_LABELS[run.status] or tostring(run.status or '?')
-	local place = tonumber(run.place) and ('  #' .. run.place) or ''
-	return date .. '  ' .. tostring(run.lobbyCode or '??????') .. '  ' .. status .. place
+	local date = tostring(run.startedAt or ""):match("^(%d%d%d%d%-%d%d%-%d%d)") or "?"
+	local status = STATUS_LABELS[run.status] or tostring(run.status or "?")
+	local place = tonumber(run.place) and ("  #" .. run.place) or ""
+	return date .. "  " .. tostring(run.lobbyCode or "??????") .. "  " .. status .. place
 end
 
 -- Finds this player's own bootstrap data in an already-built timeline
@@ -38,17 +38,19 @@ local function find_bootstrap(timeline, player_id)
 	local found = {}
 	for _, entry in ipairs(timeline) do
 		if entry.player_id == player_id then
-			if not found.match_manifest and entry.opcode == 'match_manifest' then
+			if not found.match_manifest and entry.opcode == "match_manifest" then
 				found.match_manifest = true
 				bootstrap.schema_version = entry.args.schema_version
-			elseif not found.lobby_info and entry.opcode == 'lobby_info' then
+			elseif not found.lobby_info and entry.opcode == "lobby_info" then
 				found.lobby_info = true
 				bootstrap.gamemode = entry.args.gamemode
 				bootstrap.ruleset = entry.args.ruleset
 				local options = entry.args.options or {}
 				bootstrap.sleeve = options.sleeve
 				bootstrap.challenge = options.challenge
-			elseif not found.run_info and entry.opcode == 'run_info' then
+				bootstrap.modifier_layers = options.modifier_layers
+				bootstrap.multiplayer_jokers = options.multiplayer_jokers
+			elseif not found.run_info and entry.opcode == "run_info" then
 				found.run_info = true
 				bootstrap.seed = entry.args.seed
 				bootstrap.deck = entry.args.deck
@@ -64,7 +66,9 @@ end
 function PVP._launch_replay(run_id)
 	MPAPI.replay.get(run_id, function(err, data)
 		if err or not data or not data.logs then
-			MPAPI.sendWarnMessage('[replay] failed to load run ' .. tostring(run_id) .. ': ' .. tostring(err and err.message))
+			MPAPI.sendWarnMessage(
+				"[replay] failed to load run " .. tostring(run_id) .. ": " .. tostring(err and err.message)
+			)
 			return
 		end
 
@@ -72,20 +76,23 @@ function PVP._launch_replay(run_id)
 		local my_id = MPAPI.get_replay_player_id()
 		local bootstrap = find_bootstrap(timeline, my_id)
 		if not bootstrap then
-			MPAPI.sendWarnMessage('[replay] no bootstrap data found for our own player in run ' .. tostring(run_id))
+			MPAPI.sendWarnMessage("[replay] no bootstrap data found for our own player in run " .. tostring(run_id))
 			return
 		end
 		if not MPAPI.replay.is_schema_compatible(bootstrap.schema_version) then
 			MPAPI.sendWarnMessage(
-				'[replay] recording schema_version ' .. tostring(bootstrap.schema_version)
-				.. ' is newer than this client understands (' .. tostring(MPAPI.replay.SCHEMA_VERSION) .. '); refusing to play'
+				"[replay] recording schema_version "
+					.. tostring(bootstrap.schema_version)
+					.. " is newer than this client understands ("
+					.. tostring(MPAPI.replay.SCHEMA_VERSION)
+					.. "); refusing to play"
 			)
 			return
 		end
 
 		PVP._start_playback(bootstrap, function()
 			local driver = MPAPI.playback.new_driver(timeline, {
-				mod_id = 'pvp',
+				mod_id = "pvp",
 				pov_player_id = my_id,
 				schema_version = bootstrap.schema_version,
 				on_complete = function()
@@ -96,7 +103,7 @@ function PVP._launch_replay(run_id)
 					-- bare {align=...} table. `cover` is optional, so omitting
 					-- it entirely sidesteps that branch.
 					attention_text({
-						text = 'Replay finished',
+						text = "Replay finished",
 						scale = 1,
 						hold = 3,
 						pos = { x = 0, y = 0 },
@@ -145,28 +152,43 @@ end
 
 local function show_page(runs, has_older)
 	local rows = {
-		{ n = G.UIT.R, config = { align = 'cm', padding = 0.1 }, nodes = {
-			{ n = G.UIT.T, config = { text = 'My Replays', scale = 0.6, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-		} },
+		{
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.1 },
+			nodes = {
+				{
+					n = G.UIT.T,
+					config = { text = "My Replays", scale = 0.6, colour = G.C.UI.TEXT_LIGHT, shadow = true },
+				},
+			},
+		},
 	}
 
 	if #runs == 0 then
-		rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', minh = 2 }, nodes = {
-			{ n = G.UIT.T, config = { text = 'No replays yet.', scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
-		} }
+		rows[#rows + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", minh = 2 },
+			nodes = {
+				{ n = G.UIT.T, config = { text = "No replays yet.", scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
+			},
+		}
 	else
 		for _, run in ipairs(runs) do
-			rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
-				UIBox_button({
-					button = 'mp_pvp_replay_pick_' .. run.id,
-					label = { format_run_label(run) },
-					colour = G.C.BLUE,
-					minw = 5,
-					minh = 0.6,
-					scale = 0.35,
-				}),
-			} }
-			G.FUNCS['mp_pvp_replay_pick_' .. run.id] = function()
+			rows[#rows + 1] = {
+				n = G.UIT.R,
+				config = { align = "cm", padding = 0.05 },
+				nodes = {
+					UIBox_button({
+						button = "mp_pvp_replay_pick_" .. run.id,
+						label = { format_run_label(run) },
+						colour = G.C.BLUE,
+						minw = 5,
+						minh = 0.6,
+						scale = 0.35,
+					}),
+				},
+			}
+			G.FUNCS["mp_pvp_replay_pick_" .. run.id] = function()
 				G.FUNCS.exit_overlay_menu()
 				PVP._launch_replay(run.id)
 			end
@@ -175,14 +197,26 @@ local function show_page(runs, has_older)
 
 	local nav = {}
 	if browser.index > 1 then
-		nav[#nav + 1] = UIBox_button({ button = 'mp_pvp_replay_newer', label = { 'Newer' }, colour = G.C.ORANGE, minw = 2, minh = 0.6, scale = 0.35 })
+		nav[#nav + 1] = UIBox_button({
+			button = "mp_pvp_replay_newer",
+			label = { "Newer" },
+			colour = G.C.ORANGE,
+			minw = 2,
+			minh = 0.6,
+			scale = 0.35,
+		})
 	end
 	if has_older then
-		nav[#nav + 1] = UIBox_button({ button = 'mp_pvp_replay_older', label = { 'Older' }, colour = G.C.ORANGE, minw = 2, minh = 0.6, scale = 0.35 })
+		nav[#nav + 1] = UIBox_button({
+			button = "mp_pvp_replay_older",
+			label = { "Older" },
+			colour = G.C.ORANGE,
+			minw = 2,
+			minh = 0.6,
+			scale = 0.35,
+		})
 	end
-	if #nav > 0 then
-		rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.1 }, nodes = nav }
-	end
+	if #nav > 0 then rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = nav } end
 
 	G.FUNCS.overlay_menu({ definition = create_UIBox_generic_options({ contents = rows }) })
 end
@@ -190,7 +224,7 @@ end
 local function open_page(index)
 	fetch_pvp_page(browser.cursors[index], 0, function(err, runs, next_cursor)
 		if err then
-			MPAPI.sendWarnMessage('[replay] list_mine failed: ' .. tostring(err.message))
+			MPAPI.sendWarnMessage("[replay] list_mine failed: " .. tostring(err.message))
 			return
 		end
 		browser.index = index

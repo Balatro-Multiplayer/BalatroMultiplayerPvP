@@ -1,0 +1,71 @@
+CHAOS CLOCK — DESIGN DIRECTION
+
+Still head-to-head Balatro, but the run gradually becomes a little strange.
+Not Cryptid-lite, exponential Mult, or a new ladder of overpowered rarities.
+If Cryptid is Zalgo at maximum, this is Zalgo at minimum.
+Familiar game, frayed edges, something slightly off.
+Extraordinary things can happen; not everything becomes extraordinary.
+Money, slots, hand choice, and your existing build should still matter.
+Weirdness should change decisions, not just decorate the screen.
+The question for an effect: what does this make you want differently?
+
+# THE CLOCK
+
+The Clock introduces rules and opportunities during the run.
+A shop can behave differently, a blind can have a rule, an ante can have a theme.
+Some effects end with their window; some explicitly last the rest of the run.
+Temporary rules can leave permanent results: earned cards, levels, destruction.
+
+Some encounters are forecast so you can decide whether to play or skip.
+Others reveal when you enter; small incidents can arrive with the first hand.
+Once revealed, the effect tells you what changed and how long it lasts.
+
+Adding more effects should add variety, not make everything fire constantly.
+Quiet stretches matter. The Clock doesn’t owe you a reward every blind.
+
+A RUN BECOMES A DECK
+
+One direction: don’t choose a deck up front; acquire its identity as you play.
+Deck abilities become ingredients rather than locked starting packages.
+Some can visit for an ante; others become part of the run.
+Gradient is a good example: adjacent ranks also count for Joker effects.
+That changes which Jokers you want without rewriting poker-hand recognition.
+
+Starting gifts and deck transformations need different treatment from ongoing rules.
+Early lasting effects give you time to build around them.
+Later effects can reveal a new use for what you already own.
+The accumulated combination matters more than each bonus in isolation.
+
+THE KIND OF EFFECTS WE WANT
+
+Higher Calling: Judgement produces unusually good Jokers this ante.
+Now hunting Tarots or making room for a Joker becomes more tempting.
+
+Cross-Pollination: Planets also level a random different hand you’ve played.
+Now establishing a backup hand can have a future payoff.
+
+Breakage Insurance: Glass breaks more often, but actual breakage pays.
+For one blind it’s a cash-out opportunity; lasting, it could become an economy.
+
+Negative Space: shop Jokers are unusually likely to be Negative.
+
+(+tbd recycle sandbox effects...)
+
+These are candidate mechanics; numbers and durations still need testing.
+The attraction is what you might build, not a guaranteed correct purchase.
+
+MAYHEM, MYSTERY, AND TASTE
+
+Calm offers occasional openings; Normal changes the situation more often.
+Mayhem permits stranger combinations, lasting commitments, and some corruption.
+It isn’t simply every number multiplied or every effect made permanent.
+
+Not everything needs a downside; synergy and relief belong beside friction.
+Mystery means what arrives next, what you get, and what works together.
+
+It does not mean disguising Jokers or withholding their actual behavior.
+Keep costs, restrictions, duration, and permanent consequences clear.
+
+Write “unusually good Jokers,” not a spreadsheet of generation multipliers.
+Exact tuning can change; changelogs can carry the numerical detail.
+The Clock changes the situation. You decide what to make of it.

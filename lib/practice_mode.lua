@@ -59,6 +59,7 @@ function PVP._start_practice(ruleset_key)
 	-- a bare ruleset key).
 	PVP.LOBBY.config.ruleset = ruleset_key
 	PVP.LOBBY.config.gamemode = "gamemode_mp_attrition"
+	PVP.restore_modifier_layers(ruleset_key)
 
 	PVP.SP.practice = true
 	PVP.SP.ruleset = ruleset_key

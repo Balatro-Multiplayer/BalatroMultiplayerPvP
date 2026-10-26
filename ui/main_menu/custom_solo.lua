@@ -4,7 +4,7 @@ PVP.CUSTOM = {}
 local C = PVP.CUSTOM
 local BASES = { "vanilla", "expanded", "balanced", "sandbox", "experimental" }
 local CATEGORIES = PVP.MUTATOR_CATEGORIES
-local CONTENT = { false, "multiplayer_jokers", "no_multiplayer_jokers" }
+local CONTENT = { false, "multiplayer_content", "no_multiplayer_content" }
 local IDOLS = { false, "idol_zealot", "idol_collector", "idol_both", "idol_none" }
 
 function C.new_draft()

@@ -1,6 +1,6 @@
 PVP.Ruleset({
 	key = "experimental_legacy",
-	layers = { "classic" },
+	layers = { "classic", PVP.LayerKey.MULTIPLAYER_CONTENT },
 	forced_gamemode = "gamemode_mp_attrition",
 	-- Let PVP jokers through but ban everything but LGG
 	multiplayer_content = true,
@@ -21,7 +21,6 @@ PVP.Ruleset({
 	},
 	reworked_jokers = {
 		"j_mp_hanging_chad",
-		"j_mp_lets_go_gambling",
 	},
 	force_lobby_options = function(self)
 		PVP.LOBBY.config.the_order = true

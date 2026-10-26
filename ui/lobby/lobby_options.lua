@@ -1,7 +1,8 @@
 -- The lobby's options screen (previously a no-op placeholder, see ui/lobby/code.lua):
 -- a host-only ruleset picker (private lobbies only -- ranked/casual matchmaking
 -- already commits to a specific ruleset by which queue option was picked, see
--- pvp_api/queue.lua), plus Manhunt's Hunter/Runner or Teams' A/B role picker when
+-- pvp_api/queue.lua), an MP-content selector for private lobbies, and Manhunt's
+-- Hunter/Runner or Teams' A/B role picker when
 -- applicable (any lobby kind -- a casual matchmaking-formed Manhunt/Teams match
 -- still needs its players to pick a role before the match can start).
 --
@@ -11,12 +12,11 @@
 
 local RULESET_LABELS = { "Vanilla", "Balanced", "Expanded", "Small World" }
 local RULESET_KEYS = { "ruleset_mp_vanilla", "ruleset_mp_balanced", "ruleset_mp_expanded", "ruleset_mp_smallworld" }
+local CONTENT_MODES = { PVP.ContentMode.DEFAULT, PVP.ContentMode.ON, PVP.ContentMode.OFF }
 
 local function current_ruleset_option()
 	for i, key in ipairs(RULESET_KEYS) do
-		if PVP.LOBBY.config.ruleset == key then
-			return i
-		end
+		if PVP.LOBBY.config.ruleset == key then return i end
 	end
 	return 2 -- Balanced, the default every gamemode key creates a lobby on.
 end
@@ -40,6 +40,35 @@ function PVP.build_lobby_options()
 					scale = 0.6,
 					enabled = function()
 						return lobby and lobby.is_host
+					end,
+				}).node,
+			},
+		}
+	end
+
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		local current = 1
+		for i, mode in ipairs(CONTENT_MODES) do
+			if mode == PVP.multiplayer_content_mode() then current = i end
+		end
+		rows[#rows + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.1 },
+			nodes = {
+				MPAPI.disableable_option_cycle({
+					id = "mp_pvp_content_pick",
+					label = localize("k_opts_multiplayer_content"),
+					options = {
+						localize("k_content_default"),
+						localize("k_content_on"),
+						localize("k_content_off"),
+					},
+					current_option = current,
+					opt_callback = "mp_pvp_change_content",
+					w = 4,
+					scale = 0.6,
+					enabled = function()
+						return lobby and lobby.is_host and not lobby:is_game_started()
 					end,
 				}).node,
 			},
@@ -105,9 +134,27 @@ function PVP.build_lobby_options()
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)
-	PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then
+	if lobby and lobby.is_host and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and not lobby:is_game_started() then
+		local mode = PVP.multiplayer_content_mode()
+		PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
+		PVP.restore_modifier_layers(PVP.LOBBY.config.ruleset)
+		PVP.set_multiplayer_content_mode(mode)
+		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+	end
+end
+
+G.FUNCS.mp_pvp_change_content = function(e)
+	local lobby = MPAPI.get_current_lobby()
+	local mode = CONTENT_MODES[e.to_key]
+	if
+		mode
+		and lobby
+		and lobby.is_host
+		and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE
+		and not lobby:is_game_started()
+	then
+		PVP.set_multiplayer_content_mode(mode)
 		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
 	end
 end
@@ -123,7 +170,5 @@ end
 G.FUNCS.mp_pvp_change_manhunt_hunter_lives = function(e)
 	PVP.LOBBY.config.manhunt_hunter_lives = e.to_key + 6
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
-	end
+	if lobby and lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind)) end
 end

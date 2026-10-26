@@ -28,17 +28,19 @@ function PVP._launch_rejoin(active)
 	local bootstrap, found = {}, {}
 	local timeline = {}
 	for _, ev in ipairs(active.events or {}) do
-		if not found.match_manifest and ev.opcode == 'match_manifest' then
+		if not found.match_manifest and ev.opcode == "match_manifest" then
 			found.match_manifest = true
 			bootstrap.schema_version = ev.args.schema_version
-		elseif not found.lobby_info and ev.opcode == 'lobby_info' then
+		elseif not found.lobby_info and ev.opcode == "lobby_info" then
 			found.lobby_info = true
 			bootstrap.gamemode = ev.args.gamemode
 			bootstrap.ruleset = ev.args.ruleset
 			local options = ev.args.options or {}
 			bootstrap.sleeve = options.sleeve
 			bootstrap.challenge = options.challenge
-		elseif not found.run_info and ev.opcode == 'run_info' then
+			bootstrap.modifier_layers = options.modifier_layers
+			bootstrap.multiplayer_jokers = options.multiplayer_jokers
+		elseif not found.run_info and ev.opcode == "run_info" then
 			found.run_info = true
 			bootstrap.seed = ev.args.seed
 			bootstrap.deck = ev.args.deck
@@ -47,13 +49,16 @@ function PVP._launch_rejoin(active)
 		timeline[#timeline + 1] = { t = ev.t, player_id = my_id, opcode = ev.opcode, args = ev.args }
 	end
 	if not (found.lobby_info and found.run_info) then
-		MPAPI.sendWarnMessage('[rejoin] no bootstrap data in active run ' .. tostring(active.runId))
+		MPAPI.sendWarnMessage("[rejoin] no bootstrap data in active run " .. tostring(active.runId))
 		return
 	end
 	if not MPAPI.replay.is_schema_compatible(bootstrap.schema_version) then
 		MPAPI.sendWarnMessage(
-			'[rejoin] recording schema_version ' .. tostring(bootstrap.schema_version)
-			.. ' is newer than this client understands (' .. tostring(MPAPI.replay.SCHEMA_VERSION) .. '); refusing to rejoin'
+			"[rejoin] recording schema_version "
+				.. tostring(bootstrap.schema_version)
+				.. " is newer than this client understands ("
+				.. tostring(MPAPI.replay.SCHEMA_VERSION)
+				.. "); refusing to rejoin"
 		)
 		return
 	end
@@ -61,7 +66,7 @@ function PVP._launch_rejoin(active)
 	PVP._start_playback(bootstrap, function()
 		local driver
 		driver = MPAPI.playback.new_driver(timeline, {
-			mod_id = 'pvp',
+			mod_id = "pvp",
 			pov_player_id = my_id,
 			schema_version = bootstrap.schema_version,
 			on_complete = function()

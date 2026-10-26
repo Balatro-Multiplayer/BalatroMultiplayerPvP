@@ -21,12 +21,8 @@ PVP._active_queue_id = nil
 
 function PVP._show_searching(on)
 	PVP._searching = on and true or false
-	if PVP._show_searching_state then
-		PVP._show_searching_state(on)
-	end
-	if PVP._refresh_find_game_queue_ui then
-		PVP._refresh_find_game_queue_ui()
-	end
+	if PVP._show_searching_state then PVP._show_searching_state(on) end
+	if PVP._refresh_find_game_queue_ui then PVP._refresh_find_game_queue_ui() end
 end
 
 function PVP._is_searching()
@@ -52,7 +48,8 @@ function PVP._join_queue(kind, gamemode_key)
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max_key = (kind == PVP.LobbyAccess.RANKED) and "ranked" or "public"
 	local mm_max = (gm and gm.max_players and gm.max_players[mm_max_key]) or 2
-	local game_mode = (kind == PVP.LobbyAccess.RANKED) and (PVP.LobbyAccess.RANKED_PREFIX .. gamemode_key) or gamemode_key
+	local game_mode = (kind == PVP.LobbyAccess.RANKED) and (PVP.LobbyAccess.RANKED_PREFIX .. gamemode_key)
+		or gamemode_key
 
 	local handle = MPAPI.matchmaking.queue({
 		mod_id = PVP.id,
@@ -98,9 +95,7 @@ function PVP._join_queue(kind, gamemode_key)
 	handle:on("lobby_ready", function(lobby)
 		PVP._pvp_kind = kind
 		PVP.setup_lobby_mirror(lobby)
-		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, kind))
-		end
+		if lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, kind)) end
 		-- lobby_ready fires from inside the lobby's own 'connected' handler, so signal
 		-- ready now; the host auto-starts once every client has reported in (see
 		-- PVP.maybe_autostart). Re-announce a few times to cover the match-join race.
@@ -152,18 +147,14 @@ end
 -- the game started with. Once per game.
 function PVP.report_server_result(lobby, winner, opts)
 	local started = lobby._game.started
-	if not started or PVP._reported_run_id == started.run_id then
-		return
-	end
+	if not started or PVP._reported_run_id == started.run_id then return end
 	PVP._reported_run_id = started.run_id
 	local ids = {}
 	for _, p in ipairs(started.players or {}) do
 		ids[#ids + 1] = p.id
 	end
 	lobby:report_result(PVP.build_placements(ids, winner, opts), function(err)
-		if err then
-			sendWarnMessage("report_result error: " .. tostring(err), "MULTIPLAYER")
-		end
+		if err then sendWarnMessage("report_result error: " .. tostring(err), "MULTIPLAYER") end
 	end)
 end
 
@@ -182,6 +173,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	PVP._pvp_kind = PVP.LobbyAccess.RANKED
 	PVP.LOBBY.config.ruleset = ruleset_key
 	PVP.LOBBY.config.gamemode = "gamemode_mp_attrition"
+	PVP.restore_modifier_layers(ruleset_key)
 
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max = (gm and gm.max_players and gm.max_players.ranked) or 2
@@ -222,9 +214,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	handle:on("lobby_ready", function(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.RANKED
 		PVP.setup_lobby_mirror(lobby)
-		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED))
-		end
+		if lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED)) end
 		PVP.signal_ready(true)
 		PVP.start_ready_resync()
 		PVP._active_queue_id = nil

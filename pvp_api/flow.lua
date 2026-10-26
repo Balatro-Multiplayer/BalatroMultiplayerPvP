@@ -22,6 +22,7 @@ function PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
 	PVP.LOBBY.config.ruleset = def.ruleset
 	PVP.LOBBY.config.gamemode = def.gamemode
+	PVP.restore_modifier_layers(def.ruleset)
 end
 
 -- Host-authored shared lobby metadata. `gamemode`/`ruleset` are MPAPI's own content
@@ -35,6 +36,9 @@ end
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	if PVP.LOBBY.config.modifier_layers == nil then
+		PVP.restore_modifier_layers(PVP.LOBBY.config.ruleset or def.ruleset)
+	end
 	return {
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
 		ruleset = PVP.LOBBY.config.ruleset or def.ruleset,
@@ -45,6 +49,7 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		starting_lives = PVP.LOBBY.config.starting_lives or 4,
 		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
+		modifier_layers = PVP.LOBBY.config.modifier_layers or "",
 	}
 end
 
@@ -63,7 +68,10 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	-- zero PvP scoring/lives, indistinguishable from a working match until
 	-- someone noticed nothing PvP-shaped ever happened.
 	if not PVP.PVP_GAMEMODES[gamemode_key] then
-		sendWarnMessage("pvp_create_private_lobby: unknown gamemode key '" .. tostring(gamemode_key) .. "'", "MULTIPLAYER")
+		sendWarnMessage(
+			"pvp_create_private_lobby: unknown gamemode key '" .. tostring(gamemode_key) .. "'",
+			"MULTIPLAYER"
+		)
 		return
 	end
 	-- Block creating a lobby while in matchmaking. The replay re-enters THIS
@@ -71,11 +79,17 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	-- setup -- setup_lobby_mirror + the CONNECTED UI transition below. Replaying
 	-- the API primitive would allocate the lobby server-side but leave the client
 	-- stranded on the menu.
-	if MPAPI.matchmaking.guard_queued(function() return PVP.pvp_create_private_lobby(gamemode_key) end) then
+	if MPAPI.matchmaking.guard_queued(function()
+		return PVP.pvp_create_private_lobby(gamemode_key)
+	end) then
 		return
 	end
 	local gm = MPAPI.GameModes[gamemode_key]
-	local max_p = (gm and gm.get_max_players and gm:get_max_players(MPAPI.LobbyType and MPAPI.LobbyType.PRIVATE or "private")) or 2
+	local max_p = (
+		gm
+		and gm.get_max_players
+		and gm:get_max_players(MPAPI.LobbyType and MPAPI.LobbyType.PRIVATE or "private")
+	) or 2
 	local lobby = MPAPI.create_lobby(PVP.id, { max_players = max_p })
 	if not lobby then
 		sendWarnMessage("pvp_create_private_lobby: failed to create lobby", "MULTIPLAYER")
@@ -86,9 +100,7 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 	PVP.setup_lobby_mirror(lobby)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
-		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE))
-		end
+		if lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE)) end
 		if love and love.system and love.system.setClipboardText then
 			pcall(love.system.setClipboardText, lobby.code)
 		end
@@ -99,18 +111,16 @@ end
 -- (Ready system + lobby button handlers live in ui/pvp_lobby.lua.)
 
 function PVP.pvp_join_lobby(code)
-	if not code or code == "" then
-		return
-	end
+	if not code or code == "" then return end
 	code = tostring(code):gsub("%s", "")
 	-- Block joining while in matchmaking. The replay re-enters THIS function (not
 	-- MPAPI.join_lobby) so "Leave Queue & Continue" runs the full setup --
 	-- setup_lobby_mirror + its CONNECTED UI transition. Replaying the API
 	-- primitive would join server-side (the host sees you) but leave your client
 	-- stranded on the PvP menu.
-	if MPAPI.matchmaking.guard_queued(function() return PVP.pvp_join_lobby(code) end) then
-		return
-	end
+	if MPAPI.matchmaking.guard_queued(function()
+		return PVP.pvp_join_lobby(code)
+	end) then return end
 	local lobby = MPAPI.join_lobby(PVP.id, code)
 	if not lobby then
 		sendWarnMessage("pvp_join_lobby: failed to join " .. tostring(code), "MULTIPLAYER")
@@ -124,18 +134,14 @@ end
 -- inert blind hooks) then trigger PVP's run-start, which broadcasts pvp_start_game.
 function PVP.pvp_start_match()
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby or not lobby.is_host then
-		return
-	end
+	if not lobby or not lobby.is_host then return end
 	if #lobby:get_players() < 2 then
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
 	local gm_def = MPAPI.GameModes[queue_mode]
-	if gm_def and gm_def.new_instance then
-		lobby._gamemode_instance = gm_def:new_instance()
-	end
+	if gm_def and gm_def.new_instance then lobby._gamemode_instance = gm_def:new_instance() end
 	if MPAPI.has_server_referee(lobby) then
 		-- The server checks who's ready and picks the seed; everyone starts off
 		-- GAME_STARTED (pvp_api/lobby_bridge.lua), where referee_reset runs host-side.
@@ -143,9 +149,7 @@ function PVP.pvp_start_match()
 			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
 			options = { queue_mode = queue_mode },
 		}, function(err)
-			if err then
-				PVP.UI.UTILS.overlay_message("Start refused: " .. tostring(err))
-			end
+			if err then PVP.UI.UTILS.overlay_message("Start refused: " .. tostring(err)) end
 		end)
 		return
 	end
@@ -160,17 +164,11 @@ end
 -- shortcuts menu, the end screen, and the join-failure bailout.
 function PVP.pvp_leave_lobby()
 	local lobby = MPAPI.get_current_lobby()
-	if lobby then
-		lobby:leave()
-	end
+	if lobby then lobby:leave() end
 	PVP.end_session()
 	PVP._version_mismatch_shown = false
-	if G.STATE ~= G.STATES.MENU then
-		G.STATE = G.STATES.MENU
-	end
-	if PVP.UI and PVP.UI.update_connection_status then
-		PVP.UI.update_connection_status()
-	end
+	if G.STATE ~= G.STATES.MENU then G.STATE = G.STATES.MENU end
+	if PVP.UI and PVP.UI.update_connection_status then PVP.UI.update_connection_status() end
 end
 
 -- Create-lobby click (main menu) opens the gamemode picker; its buttons call
