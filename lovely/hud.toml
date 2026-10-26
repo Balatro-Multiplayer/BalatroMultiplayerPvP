@@ -17,23 +17,6 @@ position = 'at'
 payload = '''PVP.LOBBY.code and (not PVP.LOBBY.config.disable_live_and_timer_hud) and PVP.UI.timer_hud() or {n=G.UIT.C, config={align = "cm", padding = 0.05, minw = 1.45, minh = 1,'''
 times = 1
 
-# Practice mode: add collection button to HUD (after the Options button)
-[[patches]]
-[patches.pattern]
-target = "functions/UI_definitions.lua"
-pattern = '''{n=G.UIT.T, config={text = localize('b_options'), scale = scale, colour = G.C.UI.TEXT_LIGHT, shadow = true}}
-            }},
-          }}'''
-position = 'after'
-payload = ''',
-(PVP and PVP.is_practice_mode and PVP.is_practice_mode()) and {n=G.UIT.R, config={id = 'practice_collection_button', align = "cm", minh = 1.2, minw = 1.5, padding = 0.05, r = 0.1, hover = true, colour = G.C.SECONDARY_SET.Planet, button = "your_collection", shadow = true}, nodes={
-    {n=G.UIT.R, config={align = "cm", padding = 0, maxw = 1.4}, nodes={
-        {n=G.UIT.T, config={text = localize("k_collection"), scale = 0.9*scale, colour = G.C.UI.TEXT_LIGHT, shadow = true}}
-    }}
-}} or nil'''
-match_indent = true
-times = 1
-
 # Instant PvP blind change
 [[patches]]
 [patches.pattern]

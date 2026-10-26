@@ -386,18 +386,6 @@ end
 function PVP.UI.apply_lobby_hud()
 	PVP.UI.apply_timer_hud()
 	PVP.UI.apply_lives_hud()
-	-- The rebuild ran as practice, which adds a Collection button to the HUD.
-	local collection = G.HUD and lobby_hud_shown() and G.HUD:get_UIE_by_ID("practice_collection_button")
-	if collection then
-		local parent = collection.parent
-		collection:remove()
-		for i = #parent.children, 1, -1 do
-			if parent.children[i] == collection then
-				table.remove(parent.children, i)
-			end
-		end
-		G.HUD:recalculate()
-	end
 end
 
 -- The opponent lives in the Lives box (PVP.shown_opponent_lives). Read through
