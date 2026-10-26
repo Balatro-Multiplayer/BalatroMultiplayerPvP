@@ -17,7 +17,7 @@ PvP Balatro mod (manifest `MultiplayerPvP.json`: id `MultiplayerPvP`, prefix `mp
 - Rulesets and gamemodes take short keys; `PVP.Ruleset`/`PVP.Gamemode` add `ruleset_mp_`/`gamemode_mp_` and set `prefix_config.key = false`. Code everywhere else uses the full key.
 - ActionTypes keep the literal `pvp_*` key (`prefix_config.key = false`, see `pvp_api/actions/_helpers.lua`); otherwise SMODS makes it `mp_pvp_*` and every lookup misses.
 - Match-format keys in `PVP.PVP_GAMEMODES` (`pvp_nemesis`, `pvp_royale`, ...) and ranked tickets `pvp_ranked_<ruleset short>` are a contract with the server and web leaderboard. Change them only together with BalatroMultiplayerServer.
-- The lobby metadata key `drafted_stake` (`PVP.LOBBY_METADATA.DRAFTED_STAKE`) is a contract with the server: the host writes the drafted stake, and `mpapi_restart_game` restarts on it. The host clears it (empty string) when a new game starts. The server side is `DRAFTED_STAKE_KEY` in `nakama/src/actions/registry.ts`; change both together.
+- The Draft runs on the server as a Setup step (`MPAPI.Setup`, ADR 0003). The server keeps the drafted stake for a restart; PvP writes no metadata key for it. The Setup step ids (`ruleset`, `traps`, `draft`) live in `pvp_api/setup.lua`.
 
 ## Network model
 
