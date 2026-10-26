@@ -400,8 +400,30 @@ function PVP.UI.apply_lobby_hud()
 	end
 end
 
--- Turns the Ante box into the Lives box. Reads PVP.GAME by reference, so it is
--- built again whenever PVP.GAME is replaced (PVP.reset_game_states).
+-- The opponent lives in the Lives box (PVP.shown_opponent_lives). Read through
+-- __index so the text node reads it again every frame.
+local hud_opponent_lives = setmetatable({}, {
+	__index = function()
+		local lobby = MPAPI.get_current_lobby()
+		local player_ids = {}
+		for _, p in ipairs(lobby and lobby:get_players() or {}) do
+			player_ids[#player_ids + 1] = p.id
+		end
+		return PVP.shown_opponent_lives({
+			ref_players = PVP.REF and PVP.REF.players,
+			self_id = PVP.self_player_id(),
+			own_lives = PVP.GAME and PVP.GAME.lives,
+			cache = PVP._player_lives_cache,
+			starting_lives = PVP.LOBBY.config.starting_lives,
+			player_ids = player_ids,
+			nemesis_id = PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id or nil,
+		})
+	end,
+})
+
+-- Turns the Ante box into the Lives box: your lives "vs" the opponent's. Reads
+-- PVP.GAME by reference, so it is built again whenever PVP.GAME is replaced
+-- (PVP.reset_game_states).
 function PVP.UI.apply_lives_hud()
 	if not (G.HUD and lobby_hud_shown()) then return end
 
@@ -432,7 +454,29 @@ function PVP.UI.apply_lives_hud()
                                 scale = 2 * scale * 0.8,
                                 colour = G.C.IMPORTANT,
                                 shadow = true,
-                                maxw = 1.1,
+                                maxw = 0.5,
+                            }
+                        },
+                        { n = G.UIT.B, config = { w = 0.05, h = 0.05 } },
+                        {
+                            n = G.UIT.T,
+                            config = {
+                                text = "vs", -- not localized intentionally
+                                scale = scale * 0.8,
+                                colour = G.C.UI.TEXT_DARK,
+                                shadow = true,
+                            }
+                        },
+                        { n = G.UIT.B, config = { w = 0.05, h = 0.05 } },
+                        {
+                            n = G.UIT.T,
+                            config = {
+                                ref_table = hud_opponent_lives,
+                                ref_value = "lives",
+                                scale = 2 * scale * 0.8,
+                                colour = G.C.RED,
+                                shadow = true,
+                                maxw = 0.5,
                             }
                         },
                     }
