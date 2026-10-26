@@ -33,21 +33,30 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
         end
         name_element.config.object:update_text(true)
         name_element.states.visible = false
-        -- Setup enemy score text
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = PVP.GAME.enemy
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "score_text"
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.func = "multiplayer_blind_chip_UI_scale"
-        -- Setup labels
-        -- Casual balala UI experience right here
-        G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1].config.text =
-            localize("k_enemy_score")
-        G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[3].children[1].config.text =
-            localize("k_enemy_hands")
-        -- Setup enemy hands
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").parent.parent.states.visible = false
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object.config.string =
-            { { ref_table = PVP.GAME.enemy, ref_value = "hands_text" } }
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object:update_text()
+        -- A bye has no opponent: keep the normal boss text ("Score at least",
+        -- "Reward") with a 0 score requirement. The PvP round still ends only
+        -- after every hand is played (Game:update_hand_played), not at 0 chips.
+        local bye = PVP.is_announced_bye()
+        if bye then
+            G.GAME.blind.chips = 0
+            G.GAME.blind.chip_text = "0"
+        end
+        if not bye then
+            -- Setup enemy score text
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = PVP.GAME.enemy
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "score_text"
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.func = "multiplayer_blind_chip_UI_scale"
+            -- Setup labels
+            -- Casual balala UI experience right here
+            local labels = G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2]
+            labels.children[1].children[1].config.text = localize("k_enemy_score")
+            labels.children[3].children[1].config.text = localize("k_enemy_hands")
+            -- Setup enemy hands
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").parent.parent.states.visible = false
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object.config.string =
+                { { ref_table = PVP.GAME.enemy, ref_value = "hands_text" } }
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object:update_text()
+        end
 
         G.HUD_blind.alignment.offset.y = 0
         G.E_MANAGER:add_event(Event({
@@ -214,13 +223,6 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 	-- Hands start at the opponent's starting count (set when the blind starts), so
 	-- there is nothing to hide.
 	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
-
-	-- A bye has no opponent: its score is always 0. The player still plays out
-	-- every hand before the blind is won.
-	if PVP.is_announced_bye() and PVP.is_pvp_boss() then
-		PVP.GAME.enemy.score_text = "0"
-		return
-	end
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
 	-- a player can't watch the enemy score before committing their own hand.
