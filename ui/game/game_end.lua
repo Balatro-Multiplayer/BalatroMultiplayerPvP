@@ -68,10 +68,11 @@ local END_GAME_JOKERS_TEXT_KEY = {
 
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
-	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, result and result.jokers)
 	local lobby = MPAPI.get_current_lobby()
 	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
 	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
+	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
+	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
 	local name = player_name or "Player"
 	PVP.end_game_jokers_text = localize({ type = "variable", key = END_GAME_JOKERS_TEXT_KEY[state], vars = { name } })
 end

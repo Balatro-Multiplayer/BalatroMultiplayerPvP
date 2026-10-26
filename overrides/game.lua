@@ -52,6 +52,9 @@ function G.FUNCS.toggle_shop(...)
 	if G.STATE == G.STATES.SHOP and PVP.rlog_active() and not (MPAPI.RLOGCodes and MPAPI.RLOGCodes.leave_shop) then
 		PVP.RLOG.record("leave_shop", nil, "action:leaveShop")
 	end
+	if G.STATE == G.STATES.SHOP and PVP.in_session() then
+		PVP.report_roster_snapshot()
+	end
 	return toggle_shop_ref(...)
 end
 
