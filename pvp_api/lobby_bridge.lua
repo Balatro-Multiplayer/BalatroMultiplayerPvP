@@ -84,6 +84,18 @@ function PVP.current_target_id()
 	return PVP.GAME.royale_target_id
 end
 
+-- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
+-- set while the server says the target is replaying its run after a crash.
+function PVP.refresh_catching_up_badge()
+	if not (PVP.GAME and PVP.GAME.enemy) then
+		return
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local target_id = lobby and PVP.current_target_id()
+	local catching_up = target_id and lobby:is_player_catching_up(target_id)
+	PVP.GAME.enemy.catching_up_text = catching_up and (" (" .. localize("k_catching_up") .. ")") or ""
+end
+
 -- The name shown on the PvP boss blind (key "bl_mp_nemesis", the shared marker
 -- for every gamemode's PvP boss -- see gamemodes/attrition.lua) for the CURRENT
 -- gamemode. Mirrors current_target_id()'s own branch order/reasoning above:
@@ -294,6 +306,10 @@ PVP.setup_lobby_mirror = function(lobby)
 			pcall(PVP.UI.apply_lobby_hud)
 		end
 		refresh()
+	end)
+
+	lobby:on(MPAPI.LobbyEvent.PLAYER_CATCHING_UP, function()
+		PVP.refresh_catching_up_badge()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
