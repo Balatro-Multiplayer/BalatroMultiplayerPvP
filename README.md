@@ -1,4 +1,4 @@
-![ModIcon](assets/2x/modicon.png)
+![ModIcon](assets/2x/pvp_title.png)
 
 # Balatro Multiplayer PvP
 
