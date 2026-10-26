@@ -455,7 +455,7 @@ MPAPI.on_loaded(function()
 			-- (it's not part of G.MAIN_MENU_UI's own tree), so without this it renders behind
 			-- this page's tab row (2026-09-08 user feedback -- "about half cut off"). -2.5, not
 			-- SPDRN's -1: PvP's own title (ui/pvp_title.lua) is a single diagonal "PLAYER ..
-			-- (VS) .. PLAYER" composition -- pvp_title_base.png bakes BOTH words into one image,
+			-- (VS) .. PLAYER" composition -- pvp_title.png bakes BOTH words into one image,
 			-- second lower-right of the first -- not one word per sprite the way -1 (clearing
 			-- just the first word) was tuned for elsewhere. -1 fully cleared the first PLAYER
 			-- but left the second still sitting on the tab row; -2.5 (coincidentally the same
@@ -481,9 +481,9 @@ MPAPI.on_loaded(function()
 		-- options_builder hook instead of the vanilla options box (see ui/pvp_run_options.lua).
 		prevent_pause = true,
 		options_builder = PVP.create_run_options,
-		-- Custom title logo shown while PvP's menu is focused (atlases in ui/pvp_title.lua).
+		-- Custom title logo shown while PvP's menu is focused (atlas in ui/pvp_title.lua).
 		-- Prefixed with the mod prefix "mp" like every SMODS key.
-		title = { base = "mp_pvp_title_base", extra = "mp_pvp_title_extra" },
+		title = "mp_pvp_title",
 	})
 
 	-- Load API-side content (bridge GameModes now; ActionTypes in Phase 4) here so
