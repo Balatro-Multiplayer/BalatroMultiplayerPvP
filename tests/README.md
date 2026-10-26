@@ -11,8 +11,8 @@ The contract test loads the actual MPAPI composition/pool code and PvP content,
 rulesets and card definitions. SMODS registration and game state are stubbed.
 It checks explicit ownership, unchanged ruleset defaults, live/Practice contexts,
 Default/On/Off selection, Conjoined's layer-owned bans, bespoke exclusions and
-default-deny for unlisted content. It exercises the real lobby-option callbacks,
-shared-metadata mirroring and legacy-boolean import with a stub lobby.
+default-deny for unlisted content. It exercises the real lobby-option callbacks
+and shared-metadata mirroring with a stub lobby.
 It does not simulate gameplay, networking, saves or full replay.
 
 For real pool generation in a running game:
