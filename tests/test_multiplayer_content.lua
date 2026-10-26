@@ -199,8 +199,6 @@ check(PVP.current_ruleset().multiplayer_content == true, "standard retains its c
 check(MPAPI.should_exclude_from_pool(G.P_CENTERS.j_mp_pizza), "flag alone does not include content")
 check(MPAPI.should_exclude_from_pool(G.P_CENTERS.j_mp_conjoined_joker), "Conjoined uses the generated layer gate")
 expanded._layer_order = order
-PVP.LOBBY.config.multiplayer_jokers = false
-check(PVP.multiplayer_content_enabled(), "legacy boolean is no longer an independent pool veto")
 PVP.set_multiplayer_content_mode(PVP.ContentMode.OFF)
 for _, key in ipairs(content.included_jokers) do
 	check(MPAPI.should_exclude_from_pool(G.P_CENTERS[key]), "Off layer excludes " .. key)
@@ -253,7 +251,7 @@ for _, short in ipairs({ "vanilla", "expanded" }) do
 			end
 			local serialized = PVP.LOBBY.config.modifier_layers
 			MPAPI.MODIFIERS = {}
-			PVP.restore_modifier_layers(PVP.LOBBY.config.ruleset or PVP.SP.ruleset, serialized)
+			PVP.set_modifier_layers(serialized)
 			check(PVP.multiplayer_content_enabled() == enabled, "native selection survives serialization")
 		end
 	end
@@ -265,16 +263,13 @@ PVP.set_multiplayer_content_mode(PVP.ContentMode.OFF)
 check(not MPAPI.has_modifier(layer_key), "On and Off cannot remain selected together")
 PVP.set_multiplayer_content_mode(PVP.ContentMode.DEFAULT)
 check(#MPAPI.MODIFIERS == 0 and not PVP.multiplayer_content_enabled(), "Default restores Vanilla's empty pack")
-PVP.restore_modifier_layers("ruleset_mp_experimental")
-check(MPAPI.modifiers_serialize() == "pvp_timer,pressure_timer", "missing native metadata restores ruleset defaults")
-PVP.restore_modifier_layers("ruleset_mp_expanded", nil, false)
-check(PVP.multiplayer_content_mode() == PVP.ContentMode.OFF, "legacy false imports as an Off layer")
-PVP.restore_modifier_layers("ruleset_mp_vanilla", nil, "true")
-check(PVP.multiplayer_content_mode() == PVP.ContentMode.ON, "legacy true imports as an On layer")
-PVP.restore_modifier_layers("ruleset_mp_vanilla", "", true)
-check(PVP.multiplayer_content_mode() == PVP.ContentMode.DEFAULT, "native empty choice beats legacy boolean")
-PVP.restore_modifier_layers("ruleset_mp_expanded", "pvp_timer,no_multiplayer_content", true)
-check(MPAPI.modifiers_serialize() == "pvp_timer,no_multiplayer_content", "native order and Off beat legacy true")
+check(PVP.modifier_layers_for("ruleset_mp_experimental") == "pvp_timer,pressure_timer", "Default is the ruleset's own")
+check(
+	PVP.modifier_layers_for("ruleset_mp_experimental", PVP.ContentMode.OFF)
+		== "pvp_timer,pressure_timer,no_multiplayer_content",
+	"a content choice follows the ruleset's defaults"
+)
+check(PVP.modifier_layers_for(nil, PVP.ContentMode.ON) == layer_key, "no ruleset still carries the choice")
 
 -- Exercise actual option callbacks and metadata mirroring with a stub lobby.
 -- These are contract tests, not assertions about the rendered in-game controls.
@@ -428,8 +423,5 @@ PVP._launch_replay("test")
 check(captured.modifier_layers == "no_multiplayer_content", "replay bootstrap retains recorded Off")
 PVP._launch_rejoin({ events = events })
 check(captured.modifier_layers == "no_multiplayer_content", "rejoin bootstrap retains recorded Off")
-events[2].args.options = { multiplayer_jokers = false }
-PVP._launch_rejoin({ events = events })
-check(captured.multiplayer_jokers == false, "legacy recorded false survives bootstrap")
 
 print(("Multiplayer content contracts: %d checks passed"):format(checks))

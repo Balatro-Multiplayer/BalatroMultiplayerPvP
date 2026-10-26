@@ -1,4 +1,8 @@
 -- Original PvP content, independent of balance replacements and match format.
+PVP.ContentMode = { DEFAULT = "default", ON = "on", OFF = "off" }
+
+-- The layer owns the cards; the resolved multiplayer_content flag is the switch
+-- the Off layer turns off.
 function PVP.multiplayer_content_enabled()
 	return PVP.in_session()
 		and PVP.is_layer_active(PVP.LayerKey.MULTIPLAYER_CONTENT)
@@ -26,46 +30,36 @@ MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
 
 MPAPI.Layer(PVP.LayerKey.NO_MULTIPLAYER_CONTENT, { multiplayer_content = false })
 
-PVP.ContentMode = { DEFAULT = "default", ON = "on", OFF = "off" }
-
--- The selection is encoded in modifier layers, not a second pool-eligibility
--- boolean. A ruleset's inherited content flag remains the default.
+-- The Default/On/Off choice is at most one of the two layers above, added as a
+-- modifier on top of the ruleset's default_modifiers. No separate lobby field.
 function PVP.multiplayer_content_mode()
-	for i = #MPAPI.MODIFIERS, 1, -1 do
-		local name = MPAPI.MODIFIERS[i]
-		if name == PVP.LayerKey.MULTIPLAYER_CONTENT then return PVP.ContentMode.ON end
-		if name == PVP.LayerKey.NO_MULTIPLAYER_CONTENT then return PVP.ContentMode.OFF end
-	end
+	if MPAPI.has_modifier(PVP.LayerKey.NO_MULTIPLAYER_CONTENT) then return PVP.ContentMode.OFF end
+	if MPAPI.has_modifier(PVP.LayerKey.MULTIPLAYER_CONTENT) then return PVP.ContentMode.ON end
 	return PVP.ContentMode.DEFAULT
 end
 
-function PVP.set_multiplayer_content_mode(mode)
-	assert(
-		mode == PVP.ContentMode.DEFAULT or mode == PVP.ContentMode.ON or mode == PVP.ContentMode.OFF,
-		"Unknown multiplayer content mode: " .. tostring(mode)
-	)
-	MPAPI.remove_modifier(PVP.LayerKey.MULTIPLAYER_CONTENT)
-	MPAPI.remove_modifier(PVP.LayerKey.NO_MULTIPLAYER_CONTENT)
-	if mode == PVP.ContentMode.ON then
-		MPAPI.add_modifier(PVP.LayerKey.MULTIPLAYER_CONTENT)
-	elseif mode == PVP.ContentMode.OFF then
-		MPAPI.add_modifier(PVP.LayerKey.NO_MULTIPLAYER_CONTENT)
+-- The serialized modifier list for a ruleset and content choice.
+function PVP.modifier_layers_for(ruleset_key, mode)
+	local ruleset = ruleset_key and MPAPI.Rulesets[ruleset_key]
+	local names = {}
+	for i, name in ipairs(ruleset and ruleset.default_modifiers or {}) do
+		names[i] = name
 	end
+	if mode == PVP.ContentMode.ON then
+		names[#names + 1] = PVP.LayerKey.MULTIPLAYER_CONTENT
+	elseif mode == PVP.ContentMode.OFF then
+		names[#names + 1] = PVP.LayerKey.NO_MULTIPLAYER_CONTENT
+	end
+	return table.concat(names, ",")
+end
+
+-- The one writer of a session's modifiers. Keeps the copy that lobby metadata
+-- and replays carry in step with MPAPI.MODIFIERS.
+function PVP.set_modifier_layers(serialized)
+	MPAPI.modifiers_parse(serialized)
 	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 end
 
--- Import old lobby/replay booleans at the boundary only. Native layer choices
--- take precedence; absence means the ruleset's defaults, never implicit On.
-function PVP.restore_modifier_layers(ruleset_key, serialized, legacy_jokers)
-	if serialized ~= nil then
-		MPAPI.modifiers_parse(serialized)
-	else
-		MPAPI.apply_default_modifiers(ruleset_key)
-		if legacy_jokers == true or legacy_jokers == "true" then
-			PVP.set_multiplayer_content_mode(PVP.ContentMode.ON)
-		elseif legacy_jokers == false or legacy_jokers == "false" then
-			PVP.set_multiplayer_content_mode(PVP.ContentMode.OFF)
-		end
-	end
-	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+function PVP.set_multiplayer_content_mode(mode)
+	PVP.set_modifier_layers(PVP.modifier_layers_for(PVP.get_active_ruleset(), mode))
 end

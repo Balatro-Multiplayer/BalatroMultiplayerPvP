@@ -7,6 +7,8 @@ PVP.LayerKey = {
 	SANDBOX = "sandbox",
 }
 
+-- PvP's *_mp_* keys are already excluded without a gate; registering a closed
+-- one marks PvP as isolated, so MPAPI warns about content left out of a layer.
 MPAPI.register_mod_isolation(PVP.id, function()
 	return false
 end)
