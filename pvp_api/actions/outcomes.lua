@@ -38,7 +38,7 @@ A_host("pvp_player_lives", function(_at, _from, params)
 		-- each of them lost a life from the shared pool.
 		local lost = tonumber(params.lost)
 		if lost and lost > 0 and PVP.RLOG then
-			PVP.RLOG.record("life_lost", { lost = lost, lives = lives })
+			PVP.RLOG.record(MPAPI.OPCODE.LIFE_LOST, { lost = lost, lives = lives })
 		end
 		PVP.dispatch_action("playerInfo", { lives = lives })
 	elseif params.player_id == PVP.current_target_id() then

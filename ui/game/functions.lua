@@ -15,7 +15,7 @@ function G.FUNCS.mp_toggle_ready(e)
 	sendTraceMessage("Toggling Ready", "MULTIPLAYER")
 	PVP.GAME.ready_blind = not PVP.GAME.ready_blind
 	PVP.GAME.ready_blind_text = PVP.GAME.ready_blind and localize("b_unready") or localize("b_ready")
-	PVP.RLOG.record("ready_blind", PVP.GAME.ready_blind and 1 or 0)
+	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, PVP.GAME.ready_blind and 1 or 0)
 
     PVP.GAME.pvp_reached = true
 
@@ -73,7 +73,7 @@ function G.FUNCS.select_blind(e)
 		-- is now recorded once, generically, by
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
-		PVP.RLOG.record("set_ante_key", PVP.GAME.ante_key)
+		PVP.RLOG.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
 		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands)
 		PVP.ACTIONS.new_round()
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
