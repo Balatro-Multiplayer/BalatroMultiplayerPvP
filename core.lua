@@ -224,7 +224,7 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		stake = 1,
 		challenge = "",
 		cocktail = "",
-		multiplayer_jokers = true,
+		modifier_layers = nil,
 		timer = true,
 		timer_forgiveness = 0,
 		forced_config = false,

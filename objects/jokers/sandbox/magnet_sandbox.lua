@@ -117,6 +117,6 @@ MPAPI.Joker({
 		code = { "Virtualized" },
 	},
 	mp_include = function(self)
-		return PVP.SANDBOX.is_joker_allowed(self.key) and MPAPI.mod_isolation_active(PVP.id)
+		return PVP.SANDBOX.is_joker_allowed(self.key) and PVP.multiplayer_content_enabled()
 	end,
 })
