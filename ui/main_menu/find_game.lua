@@ -160,7 +160,7 @@ end
 -- Reactive SELECT button: QUEUE (orange) when idle or a different pillar is the active queue,
 -- CANCEL (red) while this exact pillar's own queue is PvP's one active queue
 -- (PVP._active_queue_matches, pvp_api/queue.lua). A pillar the account's standing refuses
--- (MPAPI.can_queue: Casual needs a valid or verified account, Ranked a launcher-verified one,
+-- (MPAPI.can_queue: Casual needs a valid or verified account, Ranked on the Official server a launcher-verified one,
 -- matching SPDRN's own gating in BalatroMultiplayerSpeed/ui/main_menu/game_select.lua) is
 -- greyed, and pressing it says why. Every OTHER pillar is also disabled while
 -- one queue is active: PvP tracks only a single matchmaking handle at a time
