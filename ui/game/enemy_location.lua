@@ -59,6 +59,16 @@ local function value_nodes(chip_ui_id)
 						maxw = 2.5,
 					},
 				},
+				{
+					n = G.UIT.T,
+					config = {
+						ref_table = PVP.GAME.enemy,
+						ref_value = "catching_up_text",
+						scale = 0.35,
+						colour = G.C.WHITE,
+						shadow = true,
+					},
+				},
 			},
 		},
 		{ n = G.UIT.B, config = { w = 0.1, h = 0.1 } },
