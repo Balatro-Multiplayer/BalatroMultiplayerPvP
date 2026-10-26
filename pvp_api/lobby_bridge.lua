@@ -175,7 +175,11 @@ local function mirror_metadata(lobby)
 	if meta.stake then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
+	-- The Casual votes' ruleset and Trap cards go over the queued ones
+	-- (pvp_api/setup.lua), after the modifier reset above.
+	PVP.SETUP.apply_results(lobby)
 end
+PVP.mirror_lobby_metadata = mirror_metadata
 
 -- Reflect roster/host state into the PVP.LOBBY.host / .guest identity slots that PVP's
 -- HUD and enemy tracking read. Every live caller of these slots (blind_hud, game_end,
@@ -353,6 +357,8 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
 		mirror_metadata(lobby)
+		-- Setup may wait for the host's write of the rolled ruleset.
+		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
 	end)
 
@@ -384,7 +390,14 @@ PVP.setup_lobby_mirror = function(lobby)
 		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then
 			PVP.referee_take_over()
 		end
+		-- Before the run: we open the next Setup step if one is due (the Draft
+		-- itself is opened by MPAPI.BanPick).
+		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
+	end)
+
+	lobby:on(MPAPI.LobbyEvent.SETUP_CHANGED, function()
+		PVP.SETUP.on_changed(lobby)
 	end)
 
 	-- The session state itself was already ended by the lobby's teardown
@@ -430,6 +443,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
+		PVP.SETUP.game = nil
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
 		if PVP.reset_ready_state then

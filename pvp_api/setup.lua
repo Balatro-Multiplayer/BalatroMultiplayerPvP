@@ -1,0 +1,399 @@
+-- PvP's Setup (ADR 0003): what a started game runs before its run. Casual
+-- Nemesis, Royale, Manhunt and Teams vote on the ruleset first, then on Trap
+-- cards when the ruleset is Balanced or Expanded. Matchmade games then run the
+-- Draft. The server holds every step (MPAPI.Setup); the current host opens
+-- the next step, and every client follows the results.
+
+PVP.SETUP = PVP.SETUP or {}
+local S = PVP.SETUP
+
+S.Step = { RULESET = "ruleset", TRAPS = "traps", DRAFT = "draft" }
+
+-- Ruleset vote options, in panel order: option key -> ruleset key.
+S.RULESET_OPTIONS = { "vanilla", "majorleague", "balanced", "expanded" }
+S.TRAP_OPTIONS = { "on", "off" }
+local TRAP_RULESETS = { balanced = true, expanded = true }
+local VOTE_FORMATS = { pvp_nemesis = true, pvp_royale = true, pvp_manhunt = true, pvp_teams = true }
+
+-- How long a vote result stays in the panel before the next step.
+local REVEAL_SECONDS = 3
+-- The first part of the reveal cycles through the options (the roll).
+S.ROLL_SECONDS = 1.2
+
+function S.ruleset_key(option)
+	return "ruleset_mp_" .. option
+end
+
+-- Which steps a game runs. Pure: queue_mode, is_casual and players (the
+-- started game's player count) in; { votes, draft } out.
+function S.plan(queue_mode, is_casual, is_matchmaking, players, ban_pick)
+	local draft_fits = ban_pick and (ban_pick.schedule and players == 2 or (not ban_pick.schedule and players >= 2))
+	return {
+		votes = is_casual and VOTE_FORMATS[queue_mode] == true,
+		draft = (is_matchmaking and draft_fits) and true or false,
+	}
+end
+
+-- The next step a game with `plan` runs after `results` (Setup results by
+-- step id), or nil when Setup is over. Pure.
+function S.next_step(plan, results)
+	if plan.votes then
+		local ruleset = results[S.Step.RULESET]
+		if not ruleset then
+			return { kind = "vote", id = S.Step.RULESET, options = S.RULESET_OPTIONS }
+		end
+		if TRAP_RULESETS[ruleset.option] and not results[S.Step.TRAPS] then
+			return { kind = "vote", id = S.Step.TRAPS, options = S.TRAP_OPTIONS }
+		end
+	end
+	if plan.draft then
+		return { kind = "draft", id = S.Step.DRAFT }
+	end
+	return nil
+end
+
+-- What the votes rolled: the ruleset key (nil without a Ruleset vote) and
+-- whether Trap cards are on. Pure.
+function S.rolled(results)
+	local ruleset = results and results[S.Step.RULESET]
+	if not ruleset then
+		return nil, false
+	end
+	local traps = results[S.Step.TRAPS]
+	return S.ruleset_key(ruleset.option), traps ~= nil and traps.option == "on"
+end
+
+-- MP decks join the Draft only on these rulesets.
+local MP_DECK_RULESETS = { ruleset_mp_expanded = true, ruleset_mp_smallworld = true }
+
+-- The deck keys a Draft on `ruleset` may offer. Pure: backs = { { key,
+-- mod_id }, ... } (mod_id nil for a vanilla deck); mp_mod_id is PvP's mod id.
+function S.draft_candidates(ruleset, backs, mp_mod_id)
+	local keys = {}
+	for _, back in ipairs(backs) do
+		if back.mod_id ~= mp_mod_id or MP_DECK_RULESETS[ruleset] then
+			keys[#keys + 1] = back.key
+		end
+	end
+	return keys
+end
+
+local function setup_results(lobby)
+	local setup = lobby and lobby._game and lobby._game.setup
+	return setup and setup.results or {}
+end
+
+-- Lays the votes' results over the mirrored lobby config (lobby_bridge.lua's
+-- mirror_metadata, which first resets the modifiers to the ruleset's own).
+function S.apply_results(lobby)
+	local ruleset, traps = S.rolled(setup_results(lobby))
+	if not ruleset then
+		return
+	end
+	PVP.LOBBY.config.ruleset = ruleset
+	MPAPI.apply_default_modifiers(ruleset)
+	if traps then
+		MPAPI.add_modifier("traps")
+	end
+	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+	local def = MPAPI.Rulesets[ruleset]
+	if def and def.force_lobby_options then
+		def:force_lobby_options()
+	end
+end
+
+-- MPAPI's bans and layers read the ruleset from the lobby metadata, so the
+-- host writes the rolled one there.
+local function publish_ruleset(lobby)
+	local ruleset = S.rolled(setup_results(lobby))
+	if ruleset and lobby.is_host and (lobby:get_metadata() or {}).ruleset ~= ruleset then
+		lobby:set_metadata({ ruleset = ruleset })
+	end
+end
+
+local function metadata_ready(lobby)
+	local ruleset = S.rolled(setup_results(lobby))
+	return not ruleset or (lobby:get_metadata() or {}).ruleset == ruleset
+end
+
+-----------------------------
+-- The game's Setup
+-----------------------------
+
+-- The game Setup is running for: { run_id, plan, on_done, revealed = { id = true },
+-- reveal = nil | { id, option, counts, at }, draft_started, finished, waiting }.
+S.game = nil
+
+local function refresh()
+	if PVP.lobby and PVP.lobby.refresh_mm_status then
+		PVP.lobby.refresh_mm_status()
+	end
+end
+
+local function finish(lobby, picked)
+	local g = S.game
+	if not g or g.finished then
+		return
+	end
+	-- The run starts on the rolled ruleset only once the metadata has it.
+	if not metadata_ready(lobby) then
+		publish_ruleset(lobby)
+		g.waiting = picked or false
+		return
+	end
+	g.finished = true
+	g.waiting = nil
+	g.on_done(picked)
+end
+
+function S.continue(lobby)
+	local g = S.game
+	if not lobby or not g or g.finished or g.reveal then
+		return
+	end
+	if g.waiting ~= nil then
+		finish(lobby, g.waiting or nil)
+		return
+	end
+	publish_ruleset(lobby)
+	local setup = MPAPI.Setup.state(lobby)
+	local step = S.next_step(g.plan, setup.results)
+	if not step then
+		finish(lobby, nil)
+	elseif step.kind == "vote" then
+		if lobby.is_host and not setup.open then
+			MPAPI.Setup.start_vote(lobby, { id = step.id, options = step.options }, function(err)
+				if err and err.kind == MPAPI.ErrorKind.SERVER_TOO_OLD then
+					sendWarnMessage(err.message, "MULTIPLAYER")
+				end
+			end)
+		end
+		refresh()
+	elseif not g.draft_started then
+		g.draft_started = true
+		g.start_draft(function(picked)
+			finish(lobby, picked)
+		end)
+	end
+end
+
+local function reveal(lobby, id, result)
+	local g = S.game
+	g.revealed[id] = true
+	g.reveal = { id = id, option = result.option, counts = result.counts or {}, at = love.timer.getTime() }
+	refresh()
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = REVEAL_SECONDS,
+		timer = "REAL",
+		blockable = false,
+		blocking = false,
+		func = function()
+			if S.game == g then
+				g.reveal = nil
+				refresh()
+				S.continue(lobby)
+			end
+			return true
+		end,
+	}))
+end
+
+-- Every Setup change: show a new vote result, else re-render.
+function S.on_changed(lobby)
+	local g = S.game
+	if not g or g.finished then
+		return
+	end
+	for id, result in pairs(setup_results(lobby)) do
+		if result.kind == "vote" and not g.revealed[id] then
+			PVP.mirror_lobby_metadata(lobby)
+			reveal(lobby, id, result)
+			return
+		end
+	end
+	refresh()
+end
+
+-- Starts Setup for the game just started. start_draft(on_picked) runs the
+-- Draft; on_done(picked) starts the run (picked is the drafted item, or nil
+-- without a Draft). A rejoin calls this again: results already in are not
+-- shown again.
+function S.begin(lobby, plan, start_draft, on_done)
+	local started = lobby._game and lobby._game.started
+	local revealed = {}
+	for id in pairs(setup_results(lobby)) do
+		revealed[id] = true
+	end
+	S.game = {
+		run_id = started and started.run_id,
+		plan = plan,
+		start_draft = start_draft,
+		on_done = on_done,
+		revealed = revealed,
+	}
+	S.continue(lobby)
+end
+
+function S.is_voting()
+	local g = S.game
+	if not g or g.finished then
+		return false
+	end
+	if g.reveal then
+		return true
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local open = lobby and MPAPI.Setup.open_step(lobby)
+	return open ~= nil and open.kind == "vote"
+end
+
+function S.cast(option)
+	local lobby = MPAPI.get_current_lobby()
+	if lobby and not MPAPI.Setup.has_voted(lobby) then
+		MPAPI.Setup.cast(lobby, option)
+	end
+end
+
+-----------------------------
+-- Vote panel
+-----------------------------
+
+local function player_name(lobby, id)
+	for _, p in ipairs(lobby:get_players()) do
+		if p.id == id then
+			return p.displayName or p.id
+		end
+	end
+	return id
+end
+
+local function option_label(id, option)
+	return localize("k_pvp_setup_" .. id .. "_" .. option)
+end
+
+local function text_row(text, scale, colour, extra)
+	local config = { align = "cm", padding = 0.04 }
+	for k, v in pairs(extra or {}) do
+		config[k] = v
+	end
+	return {
+		n = G.UIT.R,
+		config = config,
+		nodes = { { n = G.UIT.T, config = { text = text, scale = scale, colour = colour, shadow = true } } },
+	}
+end
+
+-- Live text the per-frame funcs below write.
+local _live = { time_text = "", roll_text = "" }
+
+local function open_vote_rows(lobby, open)
+	local rows = { text_row(localize("k_pvp_setup_title_" .. open.id), 0.55, G.C.UI.TEXT_LIGHT) }
+	local voted = MPAPI.Setup.has_voted(lobby)
+	local buttons = {}
+	for _, option in ipairs(open.options) do
+		buttons[#buttons + 1] = {
+			n = G.UIT.C,
+			config = { align = "cm", padding = 0.05 },
+			nodes = {
+				UIBox_button({
+					button = "pvp_setup_cast",
+					ref_table = { option = option },
+					label = { option_label(open.id, option) },
+					minw = 2.2,
+					minh = 0.6,
+					scale = 0.4,
+					colour = voted and G.C.UI.BACKGROUND_INACTIVE or G.C.BLUE,
+				}),
+			},
+		}
+	end
+	rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = buttons }
+	rows[#rows + 1] = {
+		n = G.UIT.R,
+		config = { align = "cm", padding = 0.03, func = "pvp_setup_clock" },
+		nodes = {
+			{ n = G.UIT.T, config = { text = localize("k_banpick_time_left") .. " ", scale = 0.32, colour = G.C.UI.TEXT_LIGHT } },
+			{ n = G.UIT.T, config = { ref_table = _live, ref_value = "time_text", scale = 0.32, colour = G.C.UI.TEXT_LIGHT } },
+		},
+	}
+	-- Who has voted (not what: the server keeps the votes hidden until the close).
+	local voted_set = {}
+	for _, id in ipairs(open.voted or {}) do
+		voted_set[id] = true
+	end
+	for _, id in ipairs(open.voters or {}) do
+		local done = voted_set[id]
+		rows[#rows + 1] = text_row(
+			player_name(lobby, id) .. "  " .. localize(done and "k_pvp_setup_voted" or "k_pvp_setup_not_voted"),
+			0.3,
+			done and G.C.GREEN or G.C.UI.TEXT_INACTIVE
+		)
+	end
+	return rows
+end
+
+local function reveal_rows(reveal)
+	local rows = { text_row(localize("k_pvp_setup_title_" .. reveal.id), 0.55, G.C.UI.TEXT_LIGHT) }
+	local options = reveal.id == S.Step.RULESET and S.RULESET_OPTIONS or S.TRAP_OPTIONS
+	local total = 0
+	for _, option in ipairs(options) do
+		total = total + (reveal.counts[option] or 0)
+	end
+	-- Each vote is one chance; with no votes every option has the same chance.
+	for _, option in ipairs(options) do
+		local count = reveal.counts[option] or 0
+		local chance = total > 0 and math.floor(count / total * 100 + 0.5) or math.floor(100 / #options + 0.5)
+		rows[#rows + 1] = text_row(
+			option_label(reveal.id, option) .. ": " .. count .. "  (" .. chance .. "%)",
+			0.32,
+			G.C.UI.TEXT_LIGHT
+		)
+	end
+	rows[#rows + 1] = {
+		n = G.UIT.R,
+		config = { align = "cm", padding = 0.08, func = "pvp_setup_roll" },
+		nodes = {
+			{ n = G.UIT.T, config = { ref_table = _live, ref_value = "roll_text", scale = 0.55, colour = G.C.GOLD, shadow = true } },
+		},
+	}
+	return rows
+end
+
+-- The status panel's contents while a vote is open or its result shows.
+function S.build_contents()
+	local lobby = MPAPI.get_current_lobby()
+	local g = S.game
+	if g and g.reveal then
+		return reveal_rows(g.reveal)
+	end
+	local open = lobby and MPAPI.Setup.open_step(lobby)
+	if open and open.kind == "vote" then
+		return open_vote_rows(lobby, open)
+	end
+	return { text_row(localize("k_pvp_setup_waiting"), 0.4, G.C.UI.TEXT_LIGHT) }
+end
+
+G.FUNCS.pvp_setup_cast = function(e)
+	S.cast(e.config.ref_table.option)
+end
+
+G.FUNCS.pvp_setup_clock = function(_e)
+	local lobby = MPAPI.get_current_lobby()
+	_live.time_text = lobby and tostring(math.ceil(MPAPI.Setup.seconds_left(lobby))) or ""
+end
+
+-- The roll: cycle through the options, then land on the result.
+G.FUNCS.pvp_setup_roll = function(_e)
+	local reveal = S.game and S.game.reveal
+	if not reveal then
+		return
+	end
+	local elapsed = love.timer.getTime() - reveal.at
+	local option = reveal.option
+	if elapsed < S.ROLL_SECONDS then
+		local options = reveal.id == S.Step.RULESET and S.RULESET_OPTIONS or S.TRAP_OPTIONS
+		option = options[math.floor(elapsed * 12) % #options + 1]
+	end
+	_live.roll_text = option_label(reveal.id, option)
+end

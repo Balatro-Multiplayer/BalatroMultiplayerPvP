@@ -1331,6 +1331,18 @@ return {
 			mp_sticker_draining = "Draining",
 		},
 		dictionary = {
+			-- Setup votes (pvp_api/setup.lua)
+			k_pvp_setup_title_ruleset = "Vote: Ruleset",
+			k_pvp_setup_title_traps = "Vote: Trap Cards",
+			k_pvp_setup_ruleset_vanilla = "Vanilla",
+			k_pvp_setup_ruleset_majorleague = "Major League",
+			k_pvp_setup_ruleset_balanced = "Balanced",
+			k_pvp_setup_ruleset_expanded = "Expanded",
+			k_pvp_setup_traps_on = "Traps On",
+			k_pvp_setup_traps_off = "Traps Off",
+			k_pvp_setup_voted = "voted",
+			k_pvp_setup_not_voted = "not voted",
+			k_pvp_setup_waiting = "Setting up the game...",
 			k_trap_pack = "Trap Pack",
 			b_singleplayer = "Singleplayer",
 			b_sp_with_ruleset = "Practice Mode",

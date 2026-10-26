@@ -68,10 +68,13 @@ local function build_private_controls()
 	}
 end
 
--- Reactive status panel: the deck ban-pick draft while one is active, otherwise the
--- waiting line. Held as one ui_element so the draft refreshes in place.
+-- Reactive status panel: a Setup vote or the deck Draft while one is active,
+-- otherwise the waiting line. Held as one ui_element so it refreshes in place.
 local _mm_status_el = nil
 local function build_mm_status()
+	if PVP.SETUP.is_voting() then
+		return { nodes = PVP.SETUP.build_contents() }
+	end
 	if MPAPI.BanPick.is_active() then
 		return { nodes = MPAPI.BanPick.build_contents() }
 	end
