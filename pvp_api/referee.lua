@@ -400,6 +400,18 @@ function PVP.referee_on_player_reconnected(player_id)
 			broadcast("pvp_team_lives", { team_id = team_id, lives = lives })
 		end
 	end
+	-- The rebuilt state also dropped the team roster (sent once, at the match start)
+	-- and the live target (sent on score updates). Without them a Manhunt Hunter has
+	-- no team and no Runner to target, and a Royale player has no target until the
+	-- next score update.
+	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
+		local roster = {}
+		for id, other in pairs(PVP.REF.players) do
+			roster[id] = other.team_id
+		end
+		broadcast("pvp_team_roster", { roster = roster })
+	end
+	broadcast_live_targets()
 end
 
 -- The team each player of a server team plan ({ {ids}, {ids} }, a matchmade
