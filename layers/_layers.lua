@@ -9,6 +9,9 @@ PVP.LayerKey = {
 
 -- PvP's *_mp_* keys are already excluded without a gate; registering a closed
 -- one marks PvP as isolated, so MPAPI warns about content left out of a layer.
+-- TODO(mpapi): make that opt-in explicit (e.g. register_mod_isolation(id) with
+-- no gate meaning "default-deny, warn on unlisted content") instead of a gate
+-- that is never open.
 MPAPI.register_mod_isolation(PVP.id, function()
 	return false
 end)
