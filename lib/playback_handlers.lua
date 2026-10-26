@@ -88,22 +88,22 @@ local function project_enemy_hand_result(args)
 	PVP.GAME.enemy.info_received = true
 end
 
-MPAPI.playback.register_handler('pvp', 'manifest', function(args, _ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.MANIFEST, function(args, _ctx)
 	-- Framing event -- PVP._start_playback (lib/playback_launch.lua) reads the
 	-- manifest directly from the timeline/run metadata before playback starts,
 	-- not through this dispatch path. No-op here.
 end)
 
-MPAPI.playback.register_handler('pvp', 'end', function(args, _ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.END, function(args, _ctx)
 	-- Framing event; the viewer's own on_complete (Driver opts) handles
 	-- end-of-playback UI, not this handler.
 end)
 
-MPAPI.playback.register_handler('pvp', 'chk', function(args, _ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CHK, function(args, _ctx)
 	-- Framing event (hash trailer) -- nothing to apply during playback.
 end)
 
-MPAPI.playback.register_handler('pvp', 'money_delta', function(_args, _ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.MONEY_DELTA, function(_args, _ctx)
 	-- Pure bookkeeping (see overrides/game.lua's ease_dollars hook) -- the
 	-- real dollar change already happens as a side effect of whatever action
 	-- caused it (buy/sell/etc, each already replayed by its own handler),
@@ -134,7 +134,7 @@ local function do_select_blind()
 	G.FUNCS.select_blind({ config = { ref_table = G.P_BLINDS[blind_key] }, UIBox = G.blind_select })
 end
 
-MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELECT_BLIND, function(_args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -144,7 +144,7 @@ MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
 	end, do_select_blind)
 end)
 
-MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, ctx)
 	if ctx.is_pov then
 		MPAPI.playback.leave_shop_if_needed()
 		-- Same real-UIBox technique as select_blind -- skip_blind's entire
@@ -178,7 +178,7 @@ end)
 -- separately reproduced against a PvP recording, but the exact same
 -- unconditional-call structure is unambiguously present, so ported the same
 -- guard rather than waiting for a PvP-specific crash to prove it.
-MPAPI.playback.register_handler('pvp', 'play', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PLAY, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -197,7 +197,7 @@ MPAPI.playback.register_handler('pvp', 'play', function(args, ctx)
 	G.FUNCS.play_cards_from_highlighted()
 end)
 
-MPAPI.playback.register_handler('pvp', 'discard', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.DISCARD, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -216,7 +216,7 @@ MPAPI.playback.register_handler('pvp', 'discard', function(args, ctx)
 	G.FUNCS.discard_cards_from_highlighted(nil, false)
 end)
 
-MPAPI.playback.register_handler('pvp', 'sell', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
 	if ctx.is_pov then
 		local area_id, idx = args and args[1], args and args[2]
 		local area = area_object(area_id)
@@ -247,11 +247,11 @@ local function replay_buy(args, ctx)
 		end
 	end)
 end
-MPAPI.playback.register_handler('pvp', 'buy', replay_buy)
-MPAPI.playback.register_handler('pvp', 'open_pack', replay_buy)
-MPAPI.playback.register_handler('pvp', 'voucher', replay_buy)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.BUY, replay_buy)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.OPEN_PACK, replay_buy)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.VOUCHER, replay_buy)
 
-MPAPI.playback.register_handler('pvp', 'use', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.USE, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -266,7 +266,7 @@ MPAPI.playback.register_handler('pvp', 'use', function(args, ctx)
 	G.FUNCS.use_card({ config = { ref_table = card } })
 end)
 
-MPAPI.playback.register_handler('pvp', 'pack_pick', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PACK_PICK, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -281,13 +281,13 @@ MPAPI.playback.register_handler('pvp', 'pack_pick', function(args, ctx)
 	G.FUNCS.use_card({ config = { ref_table = card } })
 end)
 
-MPAPI.playback.register_handler('pvp', 'pack_skip', function(_args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PACK_SKIP, function(_args, ctx)
 	if ctx.is_pov then
 		G.FUNCS.skip_booster({ config = {} })
 	end
 end)
 
-MPAPI.playback.register_handler('pvp', 'reroll', function(_args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.REROLL, function(_args, ctx)
 	if ctx.is_pov then
 		with_shop_ready(ctx, function()
 			G.FUNCS.reroll_shop({ config = {} })
@@ -301,7 +301,7 @@ end)
 -- table.sort(self.cards,...) with no drag simulation, confirmed via research
 -- against cardarea.lua) -- align_cards() re-derives visual position from
 -- array order on its own next frame, so no explicit animation is needed here.
-MPAPI.playback.register_handler('pvp', 'reorder', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.REORDER, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
@@ -330,7 +330,7 @@ MPAPI.playback.register_handler('pvp', 'reorder', function(args, ctx)
 	if area.set_ranks then area:set_ranks() end
 end)
 
-MPAPI.playback.register_handler('pvp', 'ready_blind', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.READY_BLIND, function(args, ctx)
 	if ctx.is_pov then
 		PVP.GAME.ready_blind = (args == 1)
 	end
@@ -338,7 +338,7 @@ MPAPI.playback.register_handler('pvp', 'ready_blind', function(args, ctx)
 	-- the HUD today (only via the lobby player-list, out of scope here).
 end)
 
-MPAPI.playback.register_handler('pvp', 'set_ante_key', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SET_ANTE_KEY, function(args, ctx)
 	if ctx.is_pov then
 		PVP.GAME.ante_key = args
 	end
@@ -353,7 +353,7 @@ end)
 -- a determinism assumption broke (wrong seed, mismatched mod/joker set --
 -- manifest.mod_hash/smods_version exist precisely to detect this, though
 -- surfacing that cleanly to the viewer isn't solved this pass).
-MPAPI.playback.register_handler('pvp', 'hand_result', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.HAND_RESULT, function(args, ctx)
 	if ctx.is_pov then
 		local score_str = args and args[1]
 		if score_str then
@@ -373,13 +373,13 @@ end)
 -- The live round-eval total (overrides/game.lua's cash_out wrapper), kept for
 -- the cashout that follows it.
 local recorded_round_dollars = nil
-MPAPI.playback.register_handler('pvp', 'round_dollars', function(args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.ROUND_DOLLARS, function(args, ctx)
 	if ctx.is_pov then
 		recorded_round_dollars = tonumber(type(args) == 'table' and args[1] or args)
 	end
 end)
 
-MPAPI.playback.register_handler('pvp', 'cashout', function(_args, ctx)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx)
 	if ctx.is_pov then
 		-- Pay what the live player was paid: playback runs as practice, with no
 		-- referee life loss, so its own round eval misses the comeback bonus
@@ -396,9 +396,9 @@ end)
 -- Mod-specific joker opcodes (Pizza/Magnet) -- best-effort/deferred, see
 -- AUTONOMOUS_DECISIONS.md. Bespoke per-joker handling, low priority vs. the
 -- vanilla core loop above.
-MPAPI.playback.register_handler('pvp', 'net_pizza', function(_args, _ctx) end)
-MPAPI.playback.register_handler('pvp', 'net_magnet', function(_args, _ctx) end)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_PIZZA, function(_args, _ctx) end)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_MAGNET, function(_args, _ctx) end)
 
 -- life_lost {lost, lives}: bookkeeping for the server's achievements (Mr Bones).
 -- The lives themselves replay through the referee's own events.
-MPAPI.playback.register_handler('pvp', 'life_lost', function(_args, _ctx) end)
+MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.LIFE_LOST, function(_args, _ctx) end)
