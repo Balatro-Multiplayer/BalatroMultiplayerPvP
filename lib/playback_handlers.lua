@@ -263,8 +263,9 @@ end)
 -- shop. Runs `fn` at once when the shop is up; otherwise pauses the driver, waits
 -- for the shop (bounded, like SPDRN's with_shop_ready), runs `fn` and resumes.
 local SHOP_READY_TIMEOUT_SECONDS = 10
+-- G.shop_jokers exists one frame before its starting cards do (MPAPI.playback.shop_is_built).
 local function shop_is_ready()
-	return G.shop_jokers ~= nil and G.shop_jokers.cards ~= nil
+	return MPAPI.playback.shop_is_built()
 end
 local function with_shop_ready(ctx, fn)
 	if shop_is_ready() then
