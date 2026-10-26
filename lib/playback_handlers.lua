@@ -134,14 +134,66 @@ local function do_select_blind()
 	G.FUNCS.select_blind({ config = { ref_table = G.P_BLINDS[blind_key] }, UIBox = G.blind_select })
 end
 
+-- The driver dispatches the next entry as soon as no blocking event is queued, and a fast-forward
+-- (the checkpoint index of a crash rejoin) dispatches many in one frame. A deferred blind action
+-- therefore pauses the driver until it has applied: else the recorded play after a select_blind
+-- runs before the hand is dealt, finds no card, and the whole catch-up desyncs. Both waits are
+-- bounded, so a replay that already moved past the screen cannot hang.
+local BLIND_WAIT_TIMEOUT_SECONDS = 10
+
+local function on_blind_select_screen()
+	return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
+end
+
+-- Pauses the driver, waits for the blind-select screen, runs `act`, then waits for `applied`
+-- (when given) before the driver plays on.
+local function blind_action(ctx, act, applied)
+	local driver = ctx.driver
+	if driver then
+		driver:pause()
+	end
+	local function resume()
+		if driver then
+			driver:play()
+		end
+	end
+	local deadline = love.timer.getTime() + BLIND_WAIT_TIMEOUT_SECONDS
+	PVP._playback_wait_for(function()
+		if on_blind_select_screen() then
+			return true
+		end
+		if love.timer.getTime() >= deadline then
+			MPAPI.sendWarnMessage('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			return true
+		end
+		return false
+	end, function()
+		if not on_blind_select_screen() then
+			resume()
+			return
+		end
+		act()
+		if not applied then
+			resume()
+			return
+		end
+		local applied_by = love.timer.getTime() + BLIND_WAIT_TIMEOUT_SECONDS
+		PVP._playback_wait_for(function()
+			return applied() or love.timer.getTime() >= applied_by
+		end, resume)
+	end)
+end
+
+local function hand_dealt()
+	return G.STATE == G.STATES.SELECTING_HAND and G.hand ~= nil and #G.hand.cards > 0
+end
+
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELECT_BLIND, function(_args, ctx)
 	if not ctx.is_pov then
 		return
 	end
 	MPAPI.playback.leave_shop_if_needed()
-	PVP._playback_wait_for(function()
-		return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
-	end, do_select_blind)
+	blind_action(ctx, do_select_blind, hand_dealt)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, ctx)
@@ -155,9 +207,9 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, c
 		-- "there's always a real UI on screen" reason as select_blind above.
 		-- Deferred for the same reason select_blind is: BLIND_SELECT's own
 		-- UIBox may not have finished (re)building yet when this dispatches.
-		PVP._playback_wait_for(function()
-			return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
-		end, function()
+		-- skip_blind moves blind_on_deck at once and queues a blocking event for the tags, so the
+		-- driver can play on right after the click.
+		blind_action(ctx, function()
 			G.FUNCS.skip_blind({ UIBox = MPAPI.playback.current_blind_panel() })
 		end)
 	else

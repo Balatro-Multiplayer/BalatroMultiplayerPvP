@@ -392,6 +392,16 @@ function PVP.referee_on_player_reconnected(player_id)
 	elseif PVP.LOBBY.config.team_based then
 		broadcast_team_card_target()
 	end
+	-- It also dropped the team roster (sent once, at the match start). A Manhunt
+	-- Hunter finds its target (the Runner) in the roster, so this goes before the
+	-- lives too, or the Hunter skips the Runner's lives.
+	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
+		local roster = {}
+		for id, other in pairs(PVP.REF.players) do
+			roster[id] = other.team_id
+		end
+		broadcast("pvp_team_roster", { roster = roster })
+	end
 	for id, other in pairs(PVP.REF.players) do
 		broadcast("pvp_player_lives", { player_id = id, lives = other.lives })
 	end
@@ -400,6 +410,9 @@ function PVP.referee_on_player_reconnected(player_id)
 			broadcast("pvp_team_lives", { team_id = team_id, lives = lives })
 		end
 	end
+	-- The rebuilt state also dropped the live target (sent on score updates): without
+	-- it a Royale player or the Manhunt Runner has no target until the next score update.
+	broadcast_live_targets()
 end
 
 -- The team each player of a server team plan ({ {ids}, {ids} }, a matchmade
