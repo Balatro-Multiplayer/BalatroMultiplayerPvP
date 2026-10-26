@@ -81,9 +81,7 @@ function PVP._start_playback(manifest, on_ready)
 		-- wrong event after this one returns: the queued delete_run (the new run then builds a
 		-- second blind HUD, and the SMODS blind HUD assert crashes the game) or the queued
 		-- G:start_run (the run never starts). Start the run from the next Game:update instead.
-		PVP._playback_wait_for(function()
-			return true
-		end, function()
+		PVP._playback_next_frame(function()
 			G.FUNCS.lobby_start_run(nil, { seed = manifest.seed })
 		end)
 	end)
@@ -102,6 +100,13 @@ PVP._playback_waiters = PVP._playback_waiters or {}
 
 function PVP._playback_wait_for(predicate, callback)
 	PVP._playback_waiters[#PVP._playback_waiters + 1] = { predicate = predicate, callback = callback }
+end
+
+-- Runs `callback` from the next Game:update, outside any event the queue is running.
+function PVP._playback_next_frame(callback)
+	PVP._playback_wait_for(function()
+		return true
+	end, callback)
 end
 
 -- A waiter belongs to the playback run it was made in: a fresh playback run,
