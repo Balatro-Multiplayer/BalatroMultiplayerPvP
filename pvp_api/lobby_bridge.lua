@@ -108,7 +108,11 @@ end
 --  - Teams (N>2): the blind shows the whole opposing team's aggregate score,
 --    not any one member -- show that team's fixed label.
 --  - Royale (N>2, no pairing): show the fixed "The Royale" label.
+-- A Nemesis player with no nemesis this ante (a bye) gets "Bye".
 function PVP.pvp_blind_opponent_name()
+	if PVP.is_announced_bye() then
+		return localize("k_bye")
+	end
 	local lobby = MPAPI.get_current_lobby()
 	if PVP.LOBBY.config.nemesis_pairing or not lobby or #lobby:get_players() == 2 then
 		local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
@@ -133,6 +137,12 @@ end
 -- the two cases.
 function PVP.is_byed()
 	return PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id == nil
+end
+
+-- True only for a bye the host has announced: is_byed() is also true before the
+-- first pairing arrives, when the opponent is not yet known ("????", not "Bye").
+function PVP.is_announced_bye()
+	return PVP.is_byed() and PVP.GAME.nemesis_pairing_received == true
 end
 
 local function player_name(lobby, player_id)

@@ -5,6 +5,9 @@
 -- rather than rendering a literal "nil".
 local hud_opponent_name = setmetatable({}, {
     __index = function()
+        if PVP.is_announced_bye() then
+            return PVP.pvp_blind_opponent_name()
+        end
         local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
         return (opponent and opponent.username) or PVP.pvp_blind_opponent_name()
     end,
@@ -211,6 +214,13 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 	-- Hands start at the opponent's starting count (set when the blind starts), so
 	-- there is nothing to hide.
 	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
+
+	-- A bye has no opponent: its score is always 0. The player still plays out
+	-- every hand before the blind is won.
+	if PVP.is_announced_bye() and PVP.is_pvp_boss() then
+		PVP.GAME.enemy.score_text = "0"
+		return
+	end
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
 	-- a player can't watch the enemy score before committing their own hand.

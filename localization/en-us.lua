@@ -1429,6 +1429,8 @@ return {
 			k_continue_singleplayer_tooltip = "This will overwrite your current singleplayer run",
 			k_enemy_score = "Current Enemy score",
 			k_enemy_hands = "Enemy hands left: ",
+			-- The PvP boss's name for a player with no nemesis this ante.
+			k_bye = "Bye",
 			k_coming_soon = "Coming Soon!",
 			k_wait_enemy = "Waiting for enemy to finish...",
 			k_lives = "Lives",
