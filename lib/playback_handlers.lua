@@ -134,32 +134,11 @@ local function do_select_blind()
 	G.FUNCS.select_blind({ config = { ref_table = G.P_BLINDS[blind_key] }, UIBox = G.blind_select })
 end
 
--- Older recordings have no leave_shop event: select_blind and skip_blind imply it, so both
--- close the shop themselves.
-local function leave_shop_for_blind_select()
-	if G.STATE == G.STATES.SHOP then
-		-- A bare nil e crashes if any installed mod injects a defensive
-		-- e.config.foo read into a function confirmed e-free in vanilla today
-		-- (research found exactly this for HandyBalatro's cash_out patch) --
-		-- always pass a non-nil e = {config = {}} instead.
-		G.FUNCS.toggle_shop({ config = {} })
-	end
-end
-
--- The recorded Next Round click. The POV player's game leaves the shop exactly as the click
--- did; for anyone else there is nothing on screen to change. Recordings made before this event
--- existed rely on the select_blind and skip_blind handlers closing the shop instead.
-MPAPI.playback.register_handler('pvp', 'leave_shop', function(_args, ctx)
-	if ctx.is_pov then
-		leave_shop_for_blind_select()
-	end
-end)
-
 MPAPI.playback.register_handler('pvp', 'select_blind', function(_args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	leave_shop_for_blind_select()
+	MPAPI.playback.leave_shop_if_needed()
 	PVP._playback_wait_for(function()
 		return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
 	end, do_select_blind)
@@ -167,7 +146,7 @@ end)
 
 MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
 	if ctx.is_pov then
-		leave_shop_for_blind_select()
+		MPAPI.playback.leave_shop_if_needed()
 		-- Same real-UIBox technique as select_blind -- skip_blind's entire
 		-- state-advance (blind_on_deck/blind_states) lives inside vanilla's own
 		-- `if _tag then ... end`, so a stubbed/absent UIBox would silently skip
@@ -179,10 +158,7 @@ MPAPI.playback.register_handler('pvp', 'skip_blind', function(args, ctx)
 		PVP._playback_wait_for(function()
 			return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil and G.blind_select.alignment.offset.x == 0
 		end, function()
-			-- Vanilla's skip button reads the tag from the per-blind panel; G.blind_select's
-			-- first tag_container is always the Small blind's.
-			local panel = G.blind_select_opts and G.blind_select_opts[string.lower(G.GAME.blind_on_deck or 'Small')]
-			G.FUNCS.skip_blind({ UIBox = panel or G.blind_select })
+			G.FUNCS.skip_blind({ UIBox = MPAPI.playback.current_blind_panel() })
 		end)
 	else
 		-- Direct projection, same reasoning as project_enemy_hand_result above
@@ -254,58 +230,10 @@ MPAPI.playback.register_handler('pvp', 'sell', function(args, ctx)
 	end
 end)
 
--- A shop action can be dispatched while the shop is still being built: cash_out
--- flips G.STATE at once, but G.shop_jokers (and the other shop areas) only exist
--- once a later queued event has run, and the driver dispatches again as soon as
--- the event queues are empty. A buy then found no area and bought nothing, and a
--- reroll crashed in vanilla's queued event (button_callbacks.lua, "attempt to
--- index field 'shop_jokers'"), which killed a rejoin whose recording ended in the
--- shop. Runs `fn` at once when the shop is up; otherwise pauses the driver, waits
--- for the shop (bounded, like SPDRN's with_shop_ready), runs `fn` and resumes.
-local SHOP_READY_TIMEOUT_SECONDS = 10
-local function shop_is_ready()
-	return G.shop_jokers ~= nil and G.shop_jokers.cards ~= nil
-end
 local function with_shop_ready(ctx, fn)
-	if shop_is_ready() then
-		fn()
-		return
-	end
-	local driver = ctx.driver
-	if driver then
-		driver:pause()
-	end
-	local deadline = love.timer.getTime() + SHOP_READY_TIMEOUT_SECONDS
-	PVP._playback_wait_for(function()
-		if shop_is_ready() then
-			return true
-		end
-		if love.timer.getTime() >= deadline then
-			MPAPI.sendWarnMessage('[replay] shop never became ready after ' .. SHOP_READY_TIMEOUT_SECONDS .. 's, skipping this action')
-			return true
-		end
-		return false
-	end, function()
-		if shop_is_ready() then
-			fn()
-		end
-		if driver then
-			driver:play()
-		end
-	end)
+	MPAPI.playback.with_shop_ready(ctx, fn, PVP._playback_wait_for)
 end
 
--- Vanilla's own G.FUNCS.buy_from_shop calls G.FUNCS.check_for_buy_space(c1)
--- unless e.config.id == 'buy_and_use' -- and that check only recognizes
--- Voucher/Enhanced/Default/Joker/consumeable cards. A Booster Pack is none of
--- those (card.ability.set == 'Booster'), so the check unconditionally fails
--- and buy_from_shop silently returns false -- no error, nothing bought --
--- unless buy_and_use is set, which is how the real "BUY" button on a pack
--- card is actually wired (functions/UI_definitions.lua). Same bug found and
--- fixed in SPDRN's own copy of this handler (BalatroMultiplayerSpeed/objects/
--- replay_log/playback_handlers.lua) and MPAPI's generic baseline (api/replay/
--- generic_codes.lua) -- every replayed open_pack here was silently buying
--- nothing.
 local function replay_buy(args, ctx)
 	if not ctx.is_pov then
 		return
@@ -315,10 +243,7 @@ local function replay_buy(args, ctx)
 		local area = area_object(area_id)
 		local card = area and area.cards and area.cards[idx]
 		if card then
-			-- args[5]: the player pressed "Buy & Use" (a consumable bought and used at once).
-			local bought_and_used = args and args[5] == true
-			local id = ((card.ability and card.ability.set == 'Booster') or bought_and_used) and 'buy_and_use' or nil
-			G.FUNCS.buy_from_shop({ config = { id = id, ref_table = card } })
+			G.FUNCS.buy_from_shop({ config = { id = MPAPI.playback.buy_button_id(card, args), ref_table = card } })
 		end
 	end)
 end

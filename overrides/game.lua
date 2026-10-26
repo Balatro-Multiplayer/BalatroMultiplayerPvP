@@ -45,13 +45,8 @@ function G.FUNCS.cash_out(e)
 	return cash_out_ref(e)
 end
 
--- Record leaving the shop so a rejoin lands on Blind Select. BalatroMultiplayerSpeed's hook
--- records it too when installed, so only record here without it (never twice).
 local toggle_shop_ref = G.FUNCS.toggle_shop
 function G.FUNCS.toggle_shop(...)
-	if G.STATE == G.STATES.SHOP and PVP.rlog_active() and not (MPAPI.RLOGCodes and MPAPI.RLOGCodes.leave_shop) then
-		PVP.RLOG.record("leave_shop", nil, "action:leaveShop")
-	end
 	if G.STATE == G.STATES.SHOP and PVP.in_session() then
 		PVP.report_roster_snapshot()
 	end
