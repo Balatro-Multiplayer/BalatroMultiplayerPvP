@@ -32,12 +32,8 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
 -- hand-picked guess: rulesets/majorleague.lua explicitly forces false; balanced's
 -- "ranked" layer (layers/ranked.lua) explicitly forces true (redundant with the default, but
--- explicit); expanded/smallworld have no override, so they inherit the true default.
--- KNOWN MISMATCH: rulesets/vanilla.lua has no force_lobby_options at all, so it also inherits
--- the true default -- Vanilla Ranked is listed here as false (no Order) per the content this
--- was requested with, but as of this commit the ruleset itself doesn't actually turn the_order
--- off. Flagged, not silently "fixed" -- changing vanilla.lua's actual lobby behavior wasn't
--- part of this visual pass.
+-- explicit); rulesets/vanilla.lua forces false; expanded/smallworld have no override, so
+-- they inherit the true default. The lobby mirror (pvp_api/lobby_bridge.lua) applies them.
 --
 -- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this. MLBa has
 -- no gamemode_key of its own in PVP.PVP_GAMEMODES yet (only a ruleset, rulesets/majorleague.lua),

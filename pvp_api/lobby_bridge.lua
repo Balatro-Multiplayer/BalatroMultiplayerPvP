@@ -190,6 +190,14 @@ local function mirror_metadata(lobby)
 	if PVP.LOBBY.config.ruleset then
 		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+		-- The ruleset's forced lobby options (Vanilla turns The Order off). The
+		-- Order starts from its default each time, so a ruleset change in Lobby
+		-- Options does not keep the last ruleset's value.
+		PVP.LOBBY.config.the_order = true
+		local ruleset_def = MPAPI.Rulesets[PVP.LOBBY.config.ruleset]
+		if ruleset_def and ruleset_def.force_lobby_options then
+			ruleset_def:force_lobby_options()
+		end
 	end
 	if meta.deck then
 		PVP.LOBBY.deck.back = meta.deck
