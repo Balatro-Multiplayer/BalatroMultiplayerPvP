@@ -29,7 +29,7 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
 -- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
 -- hand-picked guess: rulesets/majorleague.lua explicitly forces false; rulesets/vanilla.lua
--- forces false in a Ranked lobby; balanced's "ranked" layer (layers/ranked.lua) explicitly
+-- forces false; balanced's "ranked" layer (layers/ranked.lua) explicitly
 -- forces true (redundant with the default, but explicit); expanded/smallworld have no
 -- override, so they inherit the true default.
 --
