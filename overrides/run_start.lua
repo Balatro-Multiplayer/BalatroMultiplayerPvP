@@ -1,6 +1,11 @@
--- Callback for lobby-option inputs (the host broadcasts its config).
+-- The host publishes its config through the lobby metadata (the legacy lobbyOptions
+-- message is dropped by pvp_api/net.lua); every client's metadata mirror, and the lobby
+-- view refresh it triggers, pick it up from there.
 local function send_lobby_options()
-	PVP.ACTIONS.lobby_options()
+	local lobby = MPAPI.get_current_lobby()
+	if lobby and lobby.is_host then
+		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+	end
 end
 
 -- G.FUNCS.start_run wrapper — interprets mp_start (from lobby_start_run); for a
@@ -33,7 +38,7 @@ G.FUNCS.start_run = function(e, args)
 			PVP.LOBBY.deck.stake = chosen_stake
 			PVP.LOBBY.deck.sleeve = G.viewed_sleeve
 			PVP.LOBBY.deck.challenge = args.challenge and args.challenge.id or ""
-			PVP.ACTIONS.update_player_usernames()
+			MPAPI.refresh_current_view()
 		else
 			start_run_ref(e, {
 				challenge = args.challenge,

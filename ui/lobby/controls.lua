@@ -15,23 +15,31 @@ local function code_panel()
 	}
 end
 
--- Read-only deck box (host deck picker is a later addition), purple and button-sized like
--- SPDRN's lobby deck box (BalatroMultiplayerSpeed/ui/lobby/controls.lua) so it lines up
--- with the rest of the bar.
-local function deck_panel()
+-- Deck + stake box, purple and button-sized so it lines up with the rest of the bar.
+-- The host's opens the vanilla run setup screen (G.FUNCS.lobby_choose_deck, ui/lobby/code.lua);
+-- a guest's is the same box, display-only, since every player plays the host's deck.
+-- Built fresh on every controls build, which the metadata mirror triggers on any change.
+local function deck_button()
 	local lobby = PVP.lobby.ref
-	local meta = (lobby and lobby:get_metadata()) or {}
-	local rows = {}
-	for _, line in ipairs({ "Deck", meta.deck or "Red Deck" }) do
-		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", minw = 2.65, maxw = 2.45 }, nodes = {
-			{ n = G.UIT.T, config = { text = line, scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
-		} }
-	end
-	return { n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = {
-		{ n = G.UIT.C, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.C, config = { align = "cm", r = 0.1, colour = G.C.PURPLE, minh = 1.35, shadow = true }, nodes = rows },
-		} },
-	} }
+	local deck_name = PVP.LOBBY.deck.back or "Red Deck"
+	local stake = tonumber(PVP.LOBBY.deck.stake) or 1
+	local labels = {
+		localize({ type = "name_text", key = PVP.UTILS.get_deck_key_from_name(deck_name), set = "Back" }),
+		localize({ type = "name_text", key = SMODS.stake_from_index(stake), set = "Stake" }),
+	}
+	return MPAPI.disableable_button({
+		id = "mp_pvp_choose_deck",
+		button = "lobby_choose_deck",
+		colour = G.C.PURPLE,
+		minw = 2.65,
+		minh = 1.35,
+		label = labels,
+		scale = 0.5,
+		col = true,
+		enabled = function()
+			return lobby and lobby.is_host and not lobby.group_queue
+		end,
+	}).node
 end
 
 local function build_private_controls()
@@ -50,7 +58,7 @@ local function build_private_controls()
 			row_nodes[#row_nodes + 1] = b.lobby_options.node
 		end
 	end
-	row_nodes[#row_nodes + 1] = deck_panel()
+	row_nodes[#row_nodes + 1] = deck_button()
 	row_nodes[#row_nodes + 1] = code_panel()
 	row_nodes[#row_nodes + 1] = b.leave.node
 
