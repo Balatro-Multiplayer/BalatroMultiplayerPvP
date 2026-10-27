@@ -18,14 +18,16 @@ end
 -- Deck + stake box, purple and button-sized so it lines up with the rest of the bar.
 -- The host's opens the vanilla run setup screen (G.FUNCS.lobby_choose_deck, ui/lobby/code.lua);
 -- a guest's is the same box, display-only, since every player plays the host's deck.
--- Built fresh on every controls build, which the metadata mirror triggers on any change.
+-- Rebuilt with the rest of the controls whenever the lobby metadata changes.
 local function deck_button()
 	local lobby = PVP.lobby.ref
 	local deck_name = PVP.LOBBY.deck.back or "Red Deck"
-	local stake = tonumber(PVP.LOBBY.deck.stake) or 1
+	local deck_key = PVP.UTILS.get_deck_key_from_name(deck_name)
+	local stake_key = SMODS.stake_from_index(tonumber(PVP.LOBBY.deck.stake) or 1)
+	-- A name with no center (e.g. "Challenge Deck") is shown as is.
 	local labels = {
-		localize({ type = "name_text", key = PVP.UTILS.get_deck_key_from_name(deck_name), set = "Back" }),
-		localize({ type = "name_text", key = SMODS.stake_from_index(stake), set = "Stake" }),
+		deck_key and localize({ type = "name_text", key = deck_key, set = "Back" }) or deck_name,
+		stake_key and localize({ type = "name_text", key = stake_key, set = "Stake" }) or "",
 	}
 	return MPAPI.disableable_button({
 		id = "mp_pvp_choose_deck",
