@@ -50,6 +50,13 @@ function PVP.ACTIONS.set_blind_col(num)
 	PVP.LOBBY.blind_col = num or 1
 end
 
+-- Stops both ante timers and drops a held-back timer start.
+local function stop_timers()
+	PVP.GAME.timer_started = false
+	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
+end
+
 -- Reconnection state (persists across connections)
 local reconnectToken = nil
 local lastLobbyCode = nil
@@ -94,9 +101,7 @@ local function action_rejoinedLobby(p)
 	reconnectToken = token
 	lastLobbyCode = code
 	PVP.self_reconnect_countdown = nil
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
-	PVP.GAME.timer_threshold_pending = false
+	stop_timers()
 	PVP.ACTIONS.sync_client()
 	PVP.ACTIONS.lobby_info()
 	PVP.UI.update_connection_status()
@@ -148,9 +153,7 @@ local function action_enemyDisconnected(p)
 	local timeout = p.timeout or 60
 	sendWarnMessage("Opponent disconnected, waiting for reconnection...", "MULTIPLAYER")
 
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
-	PVP.GAME.timer_threshold_pending = false
+	stop_timers()
 
 	PVP.enemy_disconnect_countdown = {
 		end_time = love.timer.getTime() + timeout,
@@ -249,9 +252,7 @@ local function action_reconnecting()
 	-- Only show if we were in a lobby and don't already have a countdown running
 	if reconnectToken and lastLobbyCode and not PVP.self_reconnect_countdown then
 		PVP.LOBBY.connected = false
-		PVP.GAME.timer_started = false
-		PVP.GAME.nemesis_timer_started = false
-		PVP.GAME.timer_threshold_pending = false
+		stop_timers()
 		PVP.UI.update_connection_status()
 		sendWarnMessage("Connection lost, attempting to reconnect...", "MULTIPLAYER")
 
@@ -431,9 +432,7 @@ local function action_start_blind(p)
 	if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
-	PVP.GAME.timer_threshold_pending = false
+	stop_timers()
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer = PVP.UTILS.pvp_timer_base()
 	PVP.GAME.pvp_reached_first = (PVP.LOBBY.is_host and "host" or "guest") == first_player
@@ -465,9 +464,7 @@ local function action_end_pvp(p)
 	PVP.GAME.end_pvp = true
 	PVP.GAME.timer = PVP.UTILS.timer_base()
 	PVP.GAME.timer_consumed = false
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
-	PVP.GAME.timer_threshold_pending = false
+	stop_timers()
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
     PVP.GAME.pvp_reached_first = false
