@@ -287,6 +287,7 @@ function PVP.reset_game_states()
 		highest_pvp_score = PVP.INSANE_INT.empty(),
 		timer = PVP.UTILS.timer_base(),
 		timer_started = false,
+		timer_threshold_pending = false,
 		timer_consumed = false,
 		pvp_reached = false,
 		pvp_countdown = 0,

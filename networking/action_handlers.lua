@@ -96,6 +96,7 @@ local function action_rejoinedLobby(p)
 	PVP.self_reconnect_countdown = nil
 	PVP.GAME.timer_started = false
 	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
 	PVP.ACTIONS.sync_client()
 	PVP.ACTIONS.lobby_info()
 	PVP.UI.update_connection_status()
@@ -149,6 +150,7 @@ local function action_enemyDisconnected(p)
 
 	PVP.GAME.timer_started = false
 	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
 
 	PVP.enemy_disconnect_countdown = {
 		end_time = love.timer.getTime() + timeout,
@@ -249,6 +251,7 @@ local function action_reconnecting()
 		PVP.LOBBY.connected = false
 		PVP.GAME.timer_started = false
 		PVP.GAME.nemesis_timer_started = false
+		PVP.GAME.timer_threshold_pending = false
 		PVP.UI.update_connection_status()
 		sendWarnMessage("Connection lost, attempting to reconnect...", "MULTIPLAYER")
 
@@ -430,6 +433,7 @@ local function action_start_blind(p)
 	PVP.GAME.pvp_reached = false
 	PVP.GAME.timer_started = false
 	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer = PVP.UTILS.pvp_timer_base()
 	PVP.GAME.pvp_reached_first = (PVP.LOBBY.is_host and "host" or "guest") == first_player
@@ -463,6 +467,7 @@ local function action_end_pvp(p)
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer_started = false
 	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
     PVP.GAME.pvp_reached_first = false
@@ -1099,17 +1104,27 @@ function PVP.ACTIONS.request_nemesis_stats()
 	})
 end
 
-function PVP.ACTIONS.start_ante_timer()
+function PVP.ACTIONS.announce_ante_timer(time)
 	local is_pvp = PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer")
 	Client.send({
 		action = "startAnteTimer",
-		time = PVP.GAME.timer,
+		time = time,
 		isPvP = is_pvp or nil,
 	})
+end
+
+-- Above the ruleset's timer threshold the opponent is told only when the timer
+-- falls to it (ui/game/timer.lua's Game:update).
+function PVP.ACTIONS.start_ante_timer()
+	PVP.GAME.timer_threshold_pending = PVP.UTILS.timer_start_held_back(PVP.GAME.timer)
+	if not PVP.GAME.timer_threshold_pending then
+		PVP.ACTIONS.announce_ante_timer(PVP.GAME.timer)
+	end
 	action_start_ante_timer({ time = PVP.GAME.timer, fromNemesis = false })
 end
 
 function PVP.ACTIONS.pause_ante_timer()
+	PVP.GAME.timer_threshold_pending = false
 	Client.send({
 		action = "pauseAnteTimer",
 		time = PVP.GAME.timer,
