@@ -1,271 +1,314 @@
--- Multiplayer content contract: which rulesets and lobby choices put PvP's
--- original cards in a run's pools. Uses the real MPAPI layer/pool code and PvP
--- content; the game, SMODS and networking are stubbed (tests/support/harness.lua).
--- Does not simulate gameplay, real networking, saves or full replay.
+-- Multiplayer Cards: the Jokers, Planet card and Vouchers made for multiplayer.
+-- These checks pin down which rulesets use them, which of them each ruleset
+-- bans, and how the lobby's "Multiplayer Cards" setting (Default / On / Off)
+-- changes that.
 --
--- Run from PvP's root, against the matching MPAPI checkout, under both runtimes:
+-- "Appear" means the card can show up in the shop and in packs during a run.
+-- A banned card never appears, the same as a challenge's banned cards.
+--
+-- The real MPAPI and PvP code runs; the game itself is stubbed
+-- (tests/support/harness.lua). Shops are not rolled and no hands are played;
+-- tests/scenarios/multiplayer_content.lua checks real shops in-game.
+--
+-- Run from PvP's root, pointing at the matching MPAPI checkout:
 --   lua tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
 --   luajit tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
---
--- Real pool generation runs in-game: tests/scenarios/multiplayer_content.lua.
 local H = dofile("tests/support/harness.lua")
 local check, section = H.check, H.section
+local Setting = PVP.ContentMode
 
-local CONTENT = PVP.LayerKey.MULTIPLAYER_CONTENT
-local OFF = PVP.LayerKey.NO_MULTIPLAYER_CONTENT
-local layer = MPAPI.Layers[CONTENT]
-local Mode = PVP.ContentMode
+local NAMES = {
+	j_mp_speedrun = "SPEEDRUN",
+	j_mp_conjoined_joker = "Conjoined Joker",
+	j_mp_defensive_joker = "Defensive Joker",
+	j_mp_pizza = "Pizza",
+	j_mp_penny_pincher = "Penny Pincher",
+	j_mp_pacifist = "Pacifist",
+	j_mp_lets_go_gambling = "Let's Go Gambling",
+	j_mp_taxes = "Taxes",
+	j_mp_skip_off = "Skip-Off",
+	c_mp_asteroid = "Asteroid",
+	v_mp_hieroglyph_manhunt = "Hieroglyph (Manhunt)",
+	v_mp_petroglyph_manhunt = "Petroglyph (Manhunt)",
+}
+local SETTING_NAMES = { [Setting.DEFAULT] = "Default", [Setting.ON] = "On", [Setting.OFF] = "Off" }
 
--- Every card the content layer owns, across its included_* lists.
-local OWNED = {}
-for _, field in ipairs({ "included_jokers", "included_consumables", "included_vouchers" }) do
-	for _, key in ipairs(layer[field]) do
-		OWNED[#OWNED + 1] = key
+local list = MPAPI.Layers[PVP.LayerKey.MULTIPLAYER_CONTENT]
+
+-- The Jokers and Asteroid. The Manhunt Vouchers are left out here: they only
+-- ever appear in Manhunt, which has its own check below.
+local CARDS = { "c_mp_asteroid" }
+for _, key in ipairs(list.included_jokers) do
+	CARDS[#CARDS + 1] = key
+end
+
+local function is_banned(key)
+	local ruleset = PVP.current_ruleset()
+	for _, banned in ipairs(key:match("^j_") and ruleset.banned_jokers or ruleset.banned_consumables) do
+		if banned == key then return true end
+	end
+	return false
+end
+
+local function appears(card)
+	card = type(card) == "string" and G.P_CENTERS[card] or card
+	return not MPAPI.should_exclude_from_pool(card) and not is_banned(card.key)
+end
+
+-- Checks each Multiplayer Card in the current run: none appear when the run
+-- has no Multiplayer Cards; otherwise the banned ones are banned and the rest appear.
+local function expect_cards(where, has_cards, banned_names)
+	local banned = {}
+	for _, name in ipairs(banned_names or {}) do
+		banned[name] = true
+	end
+	for _, key in ipairs(CARDS) do
+		local name = NAMES[key]
+		if not has_cards then
+			check(not appears(key), ("%s: %s should not appear"):format(where, name))
+		elseif banned[name] then
+			check(is_banned(key), ("%s: %s should be banned"):format(where, name))
+		else
+			check(appears(key), ("%s: %s should be able to appear"):format(where, name))
+		end
 	end
 end
--- Manhunt vouchers are owned but also restricted to their format by in_pool.
-local POOLED = { "c_mp_asteroid" }
-for _, key in ipairs(layer.included_jokers) do
-	POOLED[#POOLED + 1] = key
-end
 
--- One check over every pooled card, naming the first in the wrong state.
-local function expect_pool(included, where)
-	local wrong
-	for _, key in ipairs(POOLED) do
-		wrong = wrong or (H.excluded(key) == included and key)
+print("Multiplayer Cards")
+
+section("The Multiplayer Cards are 9 Jokers, Asteroid and 2 Manhunt Vouchers", function()
+	local function names(keys)
+		local result = {}
+		for i, key in ipairs(keys or {}) do
+			result[i] = NAMES[key] or key
+		end
+		table.sort(result)
+		return table.concat(result, ", ")
 	end
-	check(not wrong, ("%s: %s should be %s"):format(where, tostring(wrong), included and "included" or "excluded"))
-end
-
-print("Multiplayer content")
-
-section("Layer owns 9 Jokers, Asteroid and 2 Manhunt vouchers; each is pool-gated", function()
-	check(#layer.included_jokers == 9, "expected 9 included Jokers, got " .. #layer.included_jokers)
-	check(layer.included_consumables[1] == "c_mp_asteroid", "Asteroid is not in included_consumables")
-	check(#layer.included_vouchers == 2, "expected 2 included vouchers")
-	check(layer.reworked_jokers == nil, "originals are listed as reworks")
-	for _, key in ipairs(OWNED) do
-		check(G.P_CENTERS[key], key .. " is not registered")
-		check(type(G.P_CENTERS[key].mp_include) == "function", key .. " has no generated pool gate")
+	local function expect_list(keys, expected, what)
+		check(names(keys) == names(expected), ("%s should be %s, not %s"):format(what, names(expected), names(keys)))
+	end
+	expect_list(list.included_jokers, {
+		"j_mp_speedrun",
+		"j_mp_conjoined_joker",
+		"j_mp_defensive_joker",
+		"j_mp_pizza",
+		"j_mp_penny_pincher",
+		"j_mp_pacifist",
+		"j_mp_lets_go_gambling",
+		"j_mp_taxes",
+		"j_mp_skip_off",
+	}, "the Jokers")
+	expect_list(list.included_consumables, { "c_mp_asteroid" }, "the Planet cards")
+	expect_list(list.included_vouchers, { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" }, "the Vouchers")
+	check(list.reworked_jokers == nil, "Multiplayer Cards should be new cards, not reworked base-game Jokers")
+	for key, name in pairs(NAMES) do
+		check(G.P_CENTERS[key], name .. " should exist in the game")
 	end
 end)
 
-section("Only layer membership admits PvP content (default-deny)", function()
-	H.enter("expanded", "live")
+section("Only cards on the Multiplayer Cards list can appear", function()
+	H.start_run("expanded", "lobby")
 	local unlisted = { key = "j_mp_unlisted", mod = { id = PVP.id } }
 	SMODS.Joker.register(unlisted)
-	check(H.excluded(unlisted), "an unlisted PvP Joker reached the pool")
+	check(not appears(unlisted), "a new multiplayer Joker missing from the list should not appear")
 
-	-- Expanded minus the content layer: the inherited flag stays true but
-	-- admits nothing.
+	-- Expanded with the Multiplayer Cards taken out of it.
 	local expanded = MPAPI.Rulesets.ruleset_mp_expanded
 	local order = expanded._layer_order
 	expanded._layer_order = { "standard" }
-	check(PVP.current_ruleset().multiplayer_content == true, "standard no longer sets the content flag")
-	local ok, err = pcall(expect_pool, false, "flag without layer")
+	local ok, err = pcall(expect_cards, "Expanded without Multiplayer Cards", false)
 	expanded._layer_order = order
 	if not ok then error(err, 0) end
 
-	PVP.Ruleset({ key = "content_only", multiplayer_content = true, layers = { CONTENT } }):inject()
-	H.enter("content_only", "live")
-	check(#PVP.current_ruleset().reworked_jokers == 0, "the content layer brought balance reworks with it")
-	expect_pool(true, "content layer alone")
+	-- A ruleset that is only the Multiplayer Cards, and nothing else.
+	PVP.Ruleset({ key = "cards_only", multiplayer_content = true, layers = { PVP.LayerKey.MULTIPLAYER_CONTENT } })
+		:inject()
+	H.start_run("cards_only", "lobby")
+	check(
+		#PVP.current_ruleset().reworked_jokers == 0,
+		"adding Multiplayer Cards should not rework any base-game Jokers"
+	)
+	expect_cards("a ruleset of only Multiplayer Cards", true)
 end)
 
+-- Which rulesets use the Multiplayer Cards, and which of those cards each one bans.
 -- stylua: ignore start
---  ruleset                composes  Conjoined banned
 local RULESETS = {
-	{ "balanced",            true,     true  },
-	{ "expanded",            true,     true  },
-	{ "smallworld",          true,     true  },
-	{ "speedlatro",          true,     true  },
-	{ "traditional",         true,     true  },
-	{ "sandbox",             true,     true  },
-	{ "chaos",               true,     true  },
-	{ "badlatro",            true,     false },
-	{ "experimental",        true,     false },
-	{ "experimental_legacy", true,     false },
-	{ "vanilla",             false },
-	{ "legacy_ranked",       false },
-	{ "majorleague",         false },
-	{ "minorleague",         false },
-	{ "wsob",                false },
+	--  ruleset                uses them  banned
+	{ "balanced",              true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "expanded",              true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "smallworld",            true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "speedlatro",            true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "traditional",           true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "chaos",                 true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
+	{ "sandbox",               true,      { "Conjoined Joker" } },
+	{ "badlatro",              true,      { "Defensive Joker" } },
+	{ "experimental",          true,      { "SPEEDRUN" } },
+	{ "experimental_legacy",   true,      { "Asteroid" } },
+	{ "vanilla",               false },
+	{ "legacy_ranked",         false },
+	{ "majorleague",           false },
+	{ "minorleague",           false },
+	{ "wsob",                  false },
 }
 -- stylua: ignore end
+local BANNED = {}
+for _, row in ipairs(RULESETS) do
+	BANNED[row[1]] = row[3]
+end
 
-section("Rulesets compose the content layer", function()
+section("Each ruleset uses or leaves out the Multiplayer Cards, and bans the right ones", function()
 	for _, row in ipairs(RULESETS) do
-		local short, composes, conjoined_banned = row[1], row[2], row[3]
-		for _, run in ipairs(H.CONTEXTS) do
-			local where = short .. " / " .. run
-			H.enter(short, run)
-			check(PVP.is_layer_active(CONTENT) == composes, where .. ": layer composition differs from the table")
-			check(PVP.multiplayer_content_enabled() == composes, where .. ": content enabled differs from the table")
-			expect_pool(composes, where)
-			if composes then
-				local banned = false
-				for _, key in ipairs(PVP.current_ruleset().banned_jokers) do
-					banned = banned or key == "j_mp_conjoined_joker"
-				end
-				check(banned == conjoined_banned, where .. ": Conjoined ban differs from the table")
-			end
+		local ruleset, uses_them, banned = row[1], row[2], row[3]
+		for _, kind in ipairs(H.RUN_KINDS) do
+			H.start_run(ruleset, kind)
+			expect_cards(("%s, %s run"):format(ruleset, kind), uses_them, banned)
 		end
 	end
-	return ("%d rulesets × live/Practice"):format(#RULESETS)
+	return ("%d rulesets, in lobby and Practice runs"):format(#RULESETS)
 end)
 
+-- The lobby's "Multiplayer Cards" setting. Default follows the ruleset, On adds
+-- the cards even to Vanilla, and Off removes them even from Expanded.
 -- stylua: ignore start
---  ruleset       Default  On     Off      (same in live and Practice)
-local CHOICES = {
-	{ "vanilla",  false,   true,  false },
-	{ "expanded", true,    true,  false },
+local SETTING = {
+	--  ruleset      Default  On     Off
+	{ "vanilla",     false,   true,  false },
+	{ "expanded",    true,    true,  false },
 }
 -- stylua: ignore end
 
-section("Lobby choice resolves per ruleset", function()
-	for _, row in ipairs(CHOICES) do
-		local short = row[1]
-		for i, mode in ipairs({ Mode.DEFAULT, Mode.ON, Mode.OFF }) do
-			local expected = row[i + 1]
-			for _, run in ipairs(H.CONTEXTS) do
-				local where = ("%s / %s / %s"):format(short, mode, run)
-				H.enter(short, run)
-				PVP.set_multiplayer_content_mode(mode)
-				check(PVP.multiplayer_content_mode() == mode, where .. ": choice not read back from modifiers")
-				check(
-					PVP.multiplayer_content_enabled() == expected,
-					where .. ": content enabled differs from the table"
-				)
-				expect_pool(expected, where)
+section("The Multiplayer Cards setting: Default, On and Off", function()
+	for _, row in ipairs(SETTING) do
+		local ruleset = row[1]
+		for i, setting in ipairs({ Setting.DEFAULT, Setting.ON, Setting.OFF }) do
+			for _, kind in ipairs(H.RUN_KINDS) do
+				local where = ("%s set to %s, %s run"):format(ruleset, SETTING_NAMES[setting], kind)
+				H.start_run(ruleset, kind)
+				PVP.set_multiplayer_content_mode(setting)
+				check(PVP.multiplayer_content_mode() == setting, where .. ": the setting should read back the same")
+				expect_cards(where, row[i + 1], BANNED[ruleset])
 			end
 		end
 	end
 
-	H.enter("vanilla", "live")
-	PVP.set_multiplayer_content_mode(Mode.ON)
-	check(MPAPI.Rulesets.ruleset_mp_vanilla.multiplayer_content == false, "On mutated the Vanilla ruleset")
-	PVP.set_multiplayer_content_mode(Mode.OFF)
-	check(not MPAPI.has_modifier(CONTENT), "On and Off are both selected")
-
-	-- Off works by resolving the flag false; any layer doing that vetoes content.
-	H.enter("expanded", "live")
-	MPAPI.Layer("content_off", { multiplayer_content = false })
-	MPAPI.add_modifier("content_off")
-	expect_pool(false, "expanded with a false-flag modifier")
-	return "2 rulesets × 3 choices × live/Practice"
+	H.start_run("vanilla", "lobby")
+	PVP.set_multiplayer_content_mode(Setting.ON)
+	check(
+		MPAPI.Rulesets.ruleset_mp_vanilla.multiplayer_content == false,
+		"turning the setting On in one lobby should not change the Vanilla ruleset itself"
+	)
+	return "Vanilla and Expanded, in lobby and Practice runs"
 end)
 
-section("Choices serialize to modifier layers", function()
-	local function expect(ruleset, mode, serialized)
-		local got = PVP.modifier_layers_for(ruleset, mode)
+section("Changing the setting keeps the ruleset's own timers", function()
+	for _, setting in ipairs({ Setting.DEFAULT, Setting.ON, Setting.OFF }) do
+		H.start_run("experimental", "lobby")
+		PVP.set_multiplayer_content_mode(setting)
+		local where = "Experimental set to " .. SETTING_NAMES[setting]
+		check(MPAPI.has_modifier("pvp_timer"), where .. ": should keep its PvP timer")
+		check(MPAPI.has_modifier("pressure_timer"), where .. ": should keep its pressure timer")
+	end
+end)
+
+section("A normal run after a multiplayer lobby has no Multiplayer Cards", function()
+	H.start_run("expanded", "lobby")
+	PVP.set_multiplayer_content_mode(Setting.ON)
+	H.start_run("expanded", "normal")
+	expect_cards("normal run after an Expanded lobby", false)
+	check(next(G.GAME.banned_keys) == nil, "deciding which cards appear should never add to the run's banned cards")
+end)
+
+section("Cards with their own rules", function()
+	H.start_run("expanded", "lobby")
+	local hieroglyph = G.P_CENTERS.v_mp_hieroglyph_manhunt
+	check(not hieroglyph:in_pool(), "Hieroglyph (Manhunt) should not appear outside Manhunt")
+	PVP.LOBBY.config.manhunt = true
+	check(hieroglyph:in_pool() and appears(hieroglyph), "Hieroglyph (Manhunt) should be able to appear in Manhunt")
+
+	H.start_run("experimental_legacy", "lobby")
+	for _, key in ipairs(PVP.current_ruleset().reworked_jokers) do
 		check(
-			got == serialized,
-			("%s / %s: expected %q, got %q"):format(tostring(ruleset), tostring(mode), serialized, got)
+			key ~= "j_mp_lets_go_gambling",
+			"Experimental Legacy should use the original Let's Go Gambling, not a reworked one"
 		)
 	end
-	expect("ruleset_mp_vanilla", Mode.DEFAULT, "")
-	expect("ruleset_mp_vanilla", Mode.ON, CONTENT)
-	expect("ruleset_mp_experimental", Mode.DEFAULT, "pvp_timer,pressure_timer")
-	expect("ruleset_mp_experimental", Mode.OFF, "pvp_timer,pressure_timer," .. OFF)
-	expect(nil, Mode.ON, CONTENT)
 
-	H.enter("expanded", "live")
-	PVP.set_multiplayer_content_mode(Mode.OFF)
-	local serialized = PVP.LOBBY.config.modifier_layers
-	MPAPI.MODIFIERS = {}
-	PVP.set_modifier_layers(serialized)
-	check(PVP.multiplayer_content_mode() == Mode.OFF, "Off did not survive a serialize/parse round trip")
-end)
-
-section("Content stays out of vanilla runs; no bans created", function()
-	H.enter("expanded", "live")
-	PVP.set_multiplayer_content_mode(Mode.ON)
-	H.enter("expanded", "vanilla")
-	expect_pool(false, "vanilla run after an Expanded lobby")
-	check(next(G.GAME.banned_keys) == nil, "a membership decision wrote to banned_keys")
-end)
-
-section("Format- and layer-specific cards", function()
-	H.enter("expanded", "live")
-	local hieroglyph = G.P_CENTERS.v_mp_hieroglyph_manhunt
-	check(not hieroglyph:in_pool(), "Manhunt voucher offered outside Manhunt")
-	PVP.LOBBY.config.manhunt = true
-	check(hieroglyph:in_pool(), "Manhunt voucher withheld in Manhunt")
-	check(not H.excluded(hieroglyph), "Manhunt voucher not admitted by the content layer")
-
-	H.enter("experimental_legacy", "live")
-	check(not H.excluded("j_mp_lets_go_gambling"), "legacy Experimental lost Let's Go Gambling")
-	check(
-		#MPAPI.Rulesets.ruleset_mp_experimental_legacy.reworked_jokers == 1,
-		"legacy Experimental lists an original as a rework"
-	)
-
-	H.enter("sandbox", "live")
+	H.start_run("sandbox", "lobby")
 	local magnet = G.P_CENTERS.j_mp_magnet_sandbox
-	local mapping
-	for _, candidate in ipairs(PVP.SANDBOX.joker_mappings) do
-		if candidate.sandbox == magnet.key then mapping = candidate end
+	local rotation
+	for _, joker in ipairs(PVP.SANDBOX.joker_mappings) do
+		if joker.sandbox == magnet.key then rotation = joker end
 	end
-	mapping.active = true
+	rotation.active = true
 	local ok, err = pcall(function()
-		check(not H.excluded(magnet), "Magnet excluded while in Sandbox rotation")
-		PVP.set_multiplayer_content_mode(Mode.OFF)
-		check(H.excluded(magnet), "Magnet ignores the Off choice")
+		check(appears(magnet), "Magnet should be able to appear in Sandbox while it is in rotation")
+		PVP.set_multiplayer_content_mode(Setting.OFF)
+		check(not appears(magnet), "Magnet should not appear in Sandbox with the setting Off")
 	end)
-	mapping.active = false
+	rotation.active = false
 	if not ok then error(err, 0) end
-	return "Manhunt vouchers, legacy LGG, Magnet"
+	return "Manhunt Vouchers, Let's Go Gambling, Magnet"
 end)
 
-section("Private-lobby host can edit; guest, started and ranked cannot", function()
+section("Only the host of a private lobby can change the setting, before the run starts", function()
 	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = "" })
 	local picker = H.picker("mp_pvp_content_pick")
-	check(picker and #picker.options == 3, "private lobby has no Default/On/Off picker")
-	check(picker.current_option == 1, "picker does not start on Default")
+	check(picker and #picker.options == 3, "a private lobby should offer Default, On and Off")
+	check(picker.current_option == 1, "the setting should start on Default")
 
 	G.FUNCS.mp_pvp_change_content({ to_key = 2 })
-	check(H.lobby.meta.modifier_layers == CONTENT, "On did not reach shared metadata")
-	check(PVP.multiplayer_content_enabled(), "On did not enable content for the host")
+	check(PVP.multiplayer_content_enabled(), "the host turning it On should add the cards")
 	G.FUNCS.mp_pvp_change_ruleset({ to_key = 3 })
-	check(PVP.multiplayer_content_mode() == Mode.ON, "changing ruleset dropped On")
+	check(PVP.multiplayer_content_mode() == Setting.ON, "switching ruleset should keep the setting On")
 	G.FUNCS.mp_pvp_change_content({ to_key = 3 })
-	check(not PVP.multiplayer_content_enabled(), "Off did not suppress Expanded's content")
+	check(not PVP.multiplayer_content_enabled(), "the host turning it Off should remove Expanded's cards")
 	G.FUNCS.mp_pvp_change_ruleset({ to_key = 1 })
-	check(PVP.multiplayer_content_mode() == Mode.OFF, "changing ruleset dropped Off")
+	check(PVP.multiplayer_content_mode() == Setting.OFF, "switching ruleset should keep the setting Off")
 	G.FUNCS.mp_pvp_change_content({ to_key = 1 })
-	check(H.lobby.meta.modifier_layers == "", "Default left a content layer in metadata")
 
-	local function refused(who)
+	local function cannot_change(who)
 		G.FUNCS.mp_pvp_change_content({ to_key = 2 })
-		check(PVP.multiplayer_content_mode() == Mode.DEFAULT, who .. " changed the content choice")
+		check(PVP.multiplayer_content_mode() == Setting.DEFAULT, who .. " should not be able to change the setting")
 	end
 	H.lobby.is_host = false
-	refused("guest")
+	cannot_change("a player who isn't the host")
 	H.lobby.is_host, H.lobby.started = true, true
-	refused("host mid-run")
+	cannot_change("the host, once the run has started,")
 	H.lobby.started, PVP._pvp_kind = false, PVP.LobbyAccess.RANKED
-	refused("ranked host")
+	cannot_change("the host of a ranked lobby")
 end)
 
-section("Metadata, replay and rejoin carry the choice", function()
-	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = CONTENT })
-	check(PVP.multiplayer_content_enabled(), "metadata On not applied on join")
+section("Other players, replays and reconnects get the same setting", function()
+	local OFF = PVP.LayerKey.NO_MULTIPLAYER_CONTENT
+
+	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = "" })
+	G.FUNCS.mp_pvp_change_content({ to_key = 2 })
+	local shared = H.lobby.meta.modifier_layers
+	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = shared })
+	check(PVP.multiplayer_content_mode() == Setting.ON, "a player joining should get the host's On")
 	H.lobby:set_metadata({ _ref = {} })
-	check(PVP.multiplayer_content_enabled(), "an unrelated metadata update reset the choice")
+	check(PVP.multiplayer_content_mode() == Setting.ON, "an unrelated lobby update should keep the setting")
 
 	H.receive_metadata({ ruleset = "ruleset_mp_expanded", modifier_layers = OFF })
-	check(not PVP.multiplayer_content_enabled(), "metadata Off not applied")
+	check(not PVP.multiplayer_content_enabled(), "a player should get the host's Off")
 	H.receive_metadata({ ruleset = "ruleset_mp_vanilla" })
-	check(PVP.multiplayer_content_mode() == Mode.DEFAULT, "metadata without a choice did not fall back to Default")
+	check(
+		PVP.multiplayer_content_mode() == Setting.DEFAULT,
+		"a lobby from a version without the setting should use Default"
+	)
 
-	PVP.set_multiplayer_content_mode(Mode.ON)
+	PVP.set_multiplayer_content_mode(Setting.ON)
 	PVP._join_ranked_ruleset("ruleset_mp_vanilla")
-	check(PVP.multiplayer_content_mode() == Mode.DEFAULT, "ranked entry kept a private lobby's On")
+	check(PVP.multiplayer_content_mode() == Setting.DEFAULT, "a ranked match should not keep a private lobby's On")
 
-	check(H.replay_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF, "replay dropped the recorded choice")
-	check(H.rejoin_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF, "rejoin dropped the recorded choice")
-	return "lobby metadata, ranked entry, replay, rejoin"
+	check(H.replay_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF, "a replay should keep the setting Off")
+	check(
+		H.rejoin_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF,
+		"a reconnect should keep the setting Off"
+	)
+	return "joining, lobby updates, ranked, replays, reconnects"
 end)
 
 H.finish()

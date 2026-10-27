@@ -189,21 +189,18 @@ dofile("lib/rejoin.lua")
 dofile("ui/replay/replay_browser.lua")
 
 -- ----------------------------------------------------------------------------
--- Run contexts
+-- Runs
 -- ----------------------------------------------------------------------------
--- "live" is a lobby run, "practice" a local Practice run, "vanilla" no PvP session.
-H.CONTEXTS = { "live", "practice" }
+-- "lobby" is a run in a multiplayer lobby, "practice" a Practice run, and
+-- "normal" a run outside multiplayer (the ruleset is left over, not in play).
+H.RUN_KINDS = { "lobby", "practice" }
 
-function H.enter(short, run)
-	session, practice = run ~= "vanilla", run == "practice"
-	PVP.SP.ruleset = practice and "ruleset_mp_" .. short or nil
-	PVP.LOBBY.code = run == "live" and "TEST" or nil
-	PVP.LOBBY.config = { ruleset = not practice and "ruleset_mp_" .. short or nil }
+function H.start_run(ruleset, kind)
+	session, practice = kind ~= "normal", kind == "practice"
+	PVP.SP.ruleset = practice and "ruleset_mp_" .. ruleset or nil
+	PVP.LOBBY.code = kind == "lobby" and "TEST" or nil
+	PVP.LOBBY.config = { ruleset = not practice and "ruleset_mp_" .. ruleset or nil }
 	MPAPI.MODIFIERS = {}
-end
-
-function H.excluded(key)
-	return MPAPI.should_exclude_from_pool(G.P_CENTERS[key] or key)
 end
 
 -- ----------------------------------------------------------------------------
@@ -241,7 +238,7 @@ MPAPI.get_current_lobby = function()
 end
 
 function H.open_private_lobby(meta)
-	H.enter("vanilla", "live")
+	H.start_run("vanilla", "lobby")
 	H.lobby.is_host, H.lobby.started, H.lobby.meta = true, false, meta
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = "pvp_nemesis"
@@ -302,10 +299,9 @@ end
 -- Sections: each prints one line; a failed check ends its section and the run
 -- continues with the next one.
 -- ----------------------------------------------------------------------------
-local failures, sections, checks = 0, 0, 0
+local failures, sections = 0, 0
 
 function H.check(condition, message)
-	checks = checks + 1
 	if not condition then error({ message = message }, 0) end
 end
 
@@ -321,8 +317,12 @@ function H.section(name, fn)
 end
 
 function H.finish()
-	print(("%d sections, %d checks, %d failures"):format(sections, checks, failures))
-	if failures > 0 then os.exit(1) end
+	if failures == 0 then
+		print(("All %d sections passed"):format(sections))
+	else
+		print(("%d of %d sections failed"):format(failures, sections))
+		os.exit(1)
+	end
 end
 
 return H
