@@ -113,7 +113,7 @@ function PVP.is_major_league_ruleset()
 end
 
 -- §20: register our own predicates through the API's generic extension points
--- (MPAPI.register_order_gate/register_voucher_queue_gate) rather than the_order.lua
+-- (MPAPI.register_order_gate/register_voucher_queue_gate/register_idol_gate) rather than the_order.lua
 -- reading PVP.* globals directly. Practice mode always uses the order; otherwise a
 -- lobby with the_order enabled does -- exactly the previous PVP-compat branch's logic.
 MPAPI.register_order_gate(function()
@@ -123,6 +123,10 @@ MPAPI.register_order_gate(function()
 end)
 
 MPAPI.register_voucher_queue_gate(function()
+	return PVP.is_major_league_ruleset() and true or false
+end)
+
+MPAPI.register_idol_gate(function()
 	return PVP.is_major_league_ruleset() and true or false
 end)
 
@@ -283,6 +287,7 @@ function PVP.reset_game_states()
 		highest_pvp_score = PVP.INSANE_INT.empty(),
 		timer = PVP.UTILS.timer_base(),
 		timer_started = false,
+		timer_threshold_pending = false,
 		timer_consumed = false,
 		pvp_reached = false,
 		pvp_countdown = 0,

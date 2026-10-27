@@ -82,13 +82,10 @@ function PVP.UI.timer_hud()
 											ref_table = setmetatable({}, {
 												__index = function()
 													if not PVP.GAME.timer then return 0 end
-													-- All numbers bigger then 10 - display as integer
-													-- Also accounting for rounding to prevent 10.0 to be displayed
-													if PVP.GAME.timer > 9.95 then
-														return string.format("%d", PVP.GAME.timer)
-													end
-													-- Less than 10 - display decimal part
-													return string.format("%.1f", PVP.GAME.timer)
+													return PVP.UTILS.timer_display_text(
+														PVP.GAME.timer,
+														PVP.GAME.timer_started or PVP.GAME.nemesis_timer_started
+													)
 												end,
 											}),
 											ref_value = "timer",
@@ -366,6 +363,11 @@ function Game:update(dt)
 	local speedup = is_pvp_timer and 1 or PVP.current_ruleset().timer_speedup_multiplier or 1
 	local tick_mult = PVP.GAME.nemesis_timer_started and speedup or 1
 	PVP.GAME.timer = math.max(0, PVP.GAME.timer - timer_dt * tick_mult)
+
+	if PVP.GAME.timer_threshold_pending and not PVP.UTILS.timer_start_held_back(PVP.GAME.timer) then
+		PVP.GAME.timer_threshold_pending = false
+		PVP.ACTIONS.announce_ante_timer(PVP.UTILS.timer_display_threshold())
+	end
 
 	if PVP.GAME.timer == 0 then
 		PVP.GAME.timer_consumed = true

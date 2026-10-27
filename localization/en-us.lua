@@ -1515,7 +1515,7 @@ return {
 			k_traditional = "Traditional",
 			k_traditional_description = "Multiplayer content without time pressure.\n\nIncludes Multiplayer jokers and balance changes,\nbut removes time-based mechanics for methodical play.\n\nTime-based jokers are banned.\nTimer is disabled.\n\n(See bans and reworks tabs for details)",
 			k_majorleague = "Major League",
-			k_majorleague_description = "Official Major League Balatro ruleset.\n\nVanilla cards with competitive settings:\n- 180 second timer\n- The Order disabled\n- First timeout forgiven\n- Attrition gamemode",
+			k_majorleague_description = "Official Major League Balatro ruleset.\n\nVanilla cards with competitive settings:\n- 180+60 second timer, but it is hidden above 180\n- No Enemy Locations\n- The Order disabled except for Vouchers, Bloodstone, and The Idol\n- Attrition gamemode",
 			k_minorleague = "Minor League",
 			k_minorleague_description = "Official Minor League Balatro ruleset.\n\nVanilla cards with competitive settings:\n- 210 second timer\n- The Order enabled\n- First timeout forgiven\n- Attrition gamemode",
 			k_wsob = "WSOB",

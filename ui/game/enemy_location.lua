@@ -109,6 +109,7 @@ PVP._enemy_location = MPAPI.enemy_location({
 })
 
 function PVP.UI.show_enemy_location()
+	if PVP.current_ruleset().enemy_location_disabled then return end
 	PVP._enemy_location.show()
 end
 
