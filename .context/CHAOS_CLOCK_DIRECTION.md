@@ -125,9 +125,9 @@ Deck effects become a source of Clock ingredients, including the lasting rules
 that gradually define this particular run. This is a mode proposal, not yet a
 change to deck selection or to other formats.
 
-The starting state needs an explicit neutral baseline. Recommendation: ordinary
-cards and base resources, without silently inheriting a selectable deck's bonus.
-Exact baseline and whether this is exclusive to a particular Clock preset remain open.
+Confirmed starting direction: ordinary cards and base resources, no deck picker
+and no opening identity lottery. Do not silently inherit a selectable deck's bonus.
+Which Clock presets use this mode remains open.
 
 This gives lasting rules a clearer purpose: not simply stronger temporary effects,
 but pieces of an emerging deck identity. Early arrival gives the player time to
@@ -149,7 +149,9 @@ Source: `objects/decks/BB_gradient.lua` and `localization/en-us.lua`.
 
 ### All deck effects are candidates, not interchangeable activation hooks
 
-Review the deck catalogue as design material. Do not make every existing deck's
+Every deck belongs in the adaptation inventory, not just a curated handful.
+This is scope for design work, not a claim that every adaptation is implemented
+or safe at every cadence. Do not make every existing deck's
 `apply` function callable mid-run and assume it will be reversible.
 
 | Kind of deck effect | Clock treatment to explore |
@@ -171,8 +173,80 @@ Tune lasting acquisitions as a combined deck, not isolated bonuses:
 - Surface the accumulated run identity together, while keeping temporary rules
   and persistent changes distinct.
 
-Open: should a deckless run receive an identity ingredient immediately, or begin
-neutral and acquire its first identity through the ordinary Clock schedule?
+Lasting-effect frequency remains undecided: routine identity-building versus
+mainly Mayhem acquisitions. Identify supported lifetimes first; the existing
+product-design rates remain provisional, not newly confirmed by this discussion.
+
+## Content baseline and Sandbox entrances
+
+Confirmed baseline direction: **vanilla + Let's Go Gambling enabled by default.**
+The six unspecified PvP cards from an old PR are candidates pending identification
+and review, not implicitly included. Stephen reports the dice and related work is
+already implemented in another thread; inspect that work rather than reinventing it.
+
+Run-start content packages fix which replacements and additions are available
+before pool creation. They do not grant those cards' abilities to the player.
+Balance reworks belong here unless a separate timed mechanic is explicitly authored.
+
+### Ante-based Sandbox replacements
+
+Stephen's intended event: for an ante, Sandbox Jokers replace their counterparts.
+Whether this changes only future offers or also owned Jokers is still unanswered.
+
+Recommended first version, not yet confirmed:
+
+- Reveal the selected replacement roster at the ante boundary.
+- New random Joker generation uses those replacements for the ante.
+- Owned Jokers and already-generated offers remain unchanged.
+- Acquired Sandbox Jokers remain owned and functional after expiry.
+- Ordinary counterparts return to future generation when the window ends.
+
+This is an acquisition window, not a temporary rental of the cards' abilities.
+Do not implement it by blindly toggling the current Sandbox layer: pool admission
+must be separable from owned-card behavior. Resolve bans, duplicate exclusions,
+save/replay, and exact generation sources before implementation.
+
+### Harvested Sandbox mechanics
+
+Separately, extract interactions that make sense without owning their source Joker.
+Stephen specifically supports exploring Lucky Cat's Lucky-to-Glass conversion.
+
+Candidate: “Lucky cards can turn to Glass when they trigger this ante.”
+No Lucky Cat ownership required; no free copy of its accumulating XMult.
+Expiry stops new conversions; converted cards stay Glass. Probability, trigger
+semantics, and interaction with an owned Lucky Cat still need definition.
+
+Keep stateful engines as actual cards when slot pressure, selling, upkeep, or
+accumulated card value is essential. Not every Sandbox card needs a Clock version.
+
+## Destruction
+
+Design under exploration; not an implemented or fully agreed contract.
+Stephen chose the direct name **Destruction**, then asked to include existing copies.
+
+Proposed rule:
+
+> Selling a Joker this ante destroys all copies held by either player and
+> permanently removes it from both players' pools.
+
+Proposed exposure: Mayhem-only, one ante. Sales stop triggering the rule at expiry;
+destruction and pool exclusions persist for the rest of the run.
+This creates mutual vulnerability: a duplicate of an opponent's engine can become
+something to acquire specifically to sell.
+
+Unresolved safeguards and semantics, not user-approved decisions:
+
+- Eternal handling; recommendation was to preserve its indestructibility.
+- Advance notice; recommendation was to forecast one ante before activation.
+- Exact identity versus replacement families, and edition/sticker treatment.
+- Treatment of already-generated offers, explicit copies, and other grant sources.
+- Sale-only triggering, avoiding recursive activation from resulting destruction.
+- Synchronisation across players at different antes and authoritative ordering
+  of sales, destruction, and generation. Speed can otherwise affect denial.
+- Destruction-hook interactions, replay/rejoin, and protected/empty pools.
+
+This needs shared match state, not a private local effect silently changing an
+opponent's board or pool.
 
 ## Five candidate ingredients
 
