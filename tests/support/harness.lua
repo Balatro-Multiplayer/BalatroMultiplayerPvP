@@ -1,10 +1,3 @@
--- Loads the real MPAPI layer/ruleset/pool code and PvP's content, rulesets,
--- lobby flow and replay bootstrap, with the game, SMODS and networking stubbed.
--- Returns the helpers the contract tests are written against.
---
--- TODO(mpapi): the SMODS/registration stubs below duplicate the ones in MPAPI's
--- tests/test_layer_content.lua. MPAPI could ship them as a test-support module
--- that consumer mods dofile, so both suites stub registration the same way.
 local H = {}
 
 local api_root = assert(arg[1], "Pass the MultiplayerAPI checkout to test")
@@ -12,9 +5,6 @@ local function api(path)
 	return dofile(api_root .. "/" .. path)
 end
 
--- ----------------------------------------------------------------------------
--- Game and SMODS
--- ----------------------------------------------------------------------------
 G = {
 	P_CENTERS = {},
 	P_CENTER_POOLS = {},
@@ -48,9 +38,6 @@ create_UIBox_generic_options = function(options)
 end
 sendWarnMessage = function() end
 
--- ----------------------------------------------------------------------------
--- MPAPI: real layer/ruleset/pool code, stubbed lobby and replay services
--- ----------------------------------------------------------------------------
 MPAPI = { sendDebugMessage = function() end, get_current_lobby = function() end }
 api("api/layers/registry.lua")
 api("api/layers/fields.lua")
@@ -89,9 +76,6 @@ MPAPI.replay = {
 	end,
 }
 
--- ----------------------------------------------------------------------------
--- PvP
--- ----------------------------------------------------------------------------
 local session, practice = false, false
 PVP = {
 	id = "MultiplayerPvP",
@@ -116,7 +100,6 @@ dofile("rulesets/_rulesets.lua")
 for _, name in ipairs({ "multiplayer_content", "standard", "classic", "badlatro", "sandbox", "experimental" }) do
 	dofile("layers/" .. name .. ".lua")
 end
--- These layers' gameplay hooks are outside the content-membership contract.
 for _, name in ipairs({ "ranked", "pvp_timer", "smallworld", "speedlatro_timer", "wsob" }) do
 	MPAPI.Layer(name, {})
 end
@@ -188,11 +171,6 @@ dofile("ui/lobby/lobby_options.lua")
 dofile("lib/rejoin.lua")
 dofile("ui/replay/replay_browser.lua")
 
--- ----------------------------------------------------------------------------
--- Runs
--- ----------------------------------------------------------------------------
--- "lobby" is a run in a multiplayer lobby, "practice" a Practice run, and
--- "normal" a run outside multiplayer (the ruleset is left over, not in play).
 H.RUN_KINDS = { "lobby", "practice" }
 
 function H.start_run(ruleset, kind)
@@ -203,10 +181,6 @@ function H.start_run(ruleset, kind)
 	MPAPI.MODIFIERS = {}
 end
 
--- ----------------------------------------------------------------------------
--- Stub lobby: set_metadata merges and fires METADATA_CHANGED synchronously,
--- standing in for the server's echo.
--- ----------------------------------------------------------------------------
 local handlers = {}
 H.lobby = {
 	is_host = true,
@@ -245,7 +219,6 @@ function H.open_private_lobby(meta)
 	PVP.setup_lobby_mirror(H.lobby)
 end
 
--- Delivers new host metadata, as the server would to every client.
 function H.receive_metadata(meta)
 	H.lobby.meta = meta
 	handlers.METADATA_CHANGED(meta)
@@ -258,10 +231,6 @@ function H.picker(id)
 	end
 end
 
--- ----------------------------------------------------------------------------
--- Replay and rejoin: a recorded timeline whose lobby_info carries `options`.
--- Returns the bootstrap each path would hand to playback.
--- ----------------------------------------------------------------------------
 local bootstrap
 PVP._start_playback = function(b)
 	bootstrap = b
@@ -295,10 +264,6 @@ function H.rejoin_bootstrap(options)
 	return bootstrap
 end
 
--- ----------------------------------------------------------------------------
--- Sections: each prints one line; a failed check ends its section and the run
--- continues with the next one.
--- ----------------------------------------------------------------------------
 local failures, sections = 0, 0
 
 function H.check(condition, message)
