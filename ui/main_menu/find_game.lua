@@ -13,10 +13,8 @@
 -- widget/mechanism of its own.
 --
 -- WIP: chip art is a single placeholder frame reused across every pillar (no per-mode art
--- exists yet), and MLBa Ranked has no matchmaking gamemode-key registered in PVP.PVP_GAMEMODES
--- yet, so its SELECT button is disabled rather than wired to a queue call that would fail.
--- Everything else routes straight to the existing mp_pvp_queue_ranked_*/mp_pvp_queue_casual_*
--- handlers (pvp_api/queue.lua), unchanged.
+-- exists yet). Every pillar routes straight to the existing mp_pvp_queue_ranked_*/
+-- mp_pvp_queue_casual_* handlers (pvp_api/queue.lua), unchanged.
 
 -- No new atlas registered here -- reuses objects/blinds/nemesis.lua's already-registered
 -- "player_blind_chip" (G.ANIMATION_ATLAS['mp_player_blind_chip'], SMODS auto-prefixes the key)
@@ -39,10 +37,7 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- off. Flagged, not silently "fixed" -- changing vanilla.lua's actual lobby behavior wasn't
 -- part of this visual pass.
 --
--- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this. MLBa has
--- no gamemode_key of its own in PVP.PVP_GAMEMODES yet (only a ruleset, rulesets/majorleague.lua),
--- so it has no queue_button -- build_select below disables its SELECT rather than wiring a
--- queue call that would silently misresolve.
+-- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this.
 -- desc lines are hand-wrapped to roughly Nemesis's own second line ("Nemesis every ante", 19
 -- chars) rather than left as whatever length the source description happened to be -- a couple
 -- (Battle Royale, Teams) were 25+ chars per line before this and visibly overran their card
@@ -50,9 +45,7 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- rewritten by hand to fit.
 -- ruleset_key is the exact string PVP._join_ranked_ruleset stamps onto PVP.LOBBY.config.ruleset
 -- and PVP._active_queue_id.key (pvp_api/queue.lua) -- build_select below compares against it to
--- decide whether this exact pillar's queue is the one currently active. MLBa has none (nil):
--- it's never wired to a real queue call (see this file's header WIP comment), so it can never be
--- the active queue and is unconditionally disabled below.
+-- decide whether this exact pillar's queue is the one currently active.
 local RANKED_MODES = {
 	{ key = "pvp_ranked_vanilla", name = { "Vanilla", "Ranked" },
 		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
@@ -63,9 +56,9 @@ local RANKED_MODES = {
 	{ key = "pvp_ranked_expanded", name = { "Expanded", "Ranked" },
 		desc = { "Standardized and", "balanced for MP" }, uses_order = true,
 		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = "ruleset_mp_expanded", colour = G.C.PURPLE },
-	{ key = "pvp_majorleague", name = { "MLBa", "Ranked" },
+	{ key = "pvp_ranked_majorleague", name = { "MLBa", "Ranked" },
 		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = nil, ruleset_key = nil, colour = G.C.BLACK },
+		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = "ruleset_mp_majorleague", colour = G.C.BLACK },
 	{ key = "pvp_smallworld_ranked", name = { "Smallworld", "Ranked" },
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
 		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = "ruleset_mp_smallworld", colour = G.C.RED },
@@ -240,10 +233,10 @@ local _latest_counts = nil
 local _stat_els = {}
 
 -- The key the server counts a pillar's players under: its queue ticket's game_mode, as
--- pvp_api/queue.lua builds it (and the matchmade lobby's label carries). MLBa has no queue.
+-- pvp_api/queue.lua builds it (and the matchmade lobby's label carries).
 local function count_key(mode)
 	if mode.ruleset_key then
-		return PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. mode.ruleset_key:gsub("^ruleset_mp_", "")
+		return PVP.ranked_ticket(mode.ruleset_key)
 	end
 	return mode.gamemode_key
 end

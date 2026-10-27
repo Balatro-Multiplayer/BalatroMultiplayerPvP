@@ -167,6 +167,12 @@ function PVP.report_server_result(lobby, winner, opts)
 	end)
 end
 
+-- A ranked ruleset's queue ticket, "ranked:pvp_ranked_<ruleset short>": the
+-- game mode the server counts it under and the key of its rating board.
+function PVP.ranked_ticket(ruleset_key)
+	return PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. ruleset_key:gsub("^ruleset_mp_", "")
+end
+
 -- Ranked-only entry point: ranked queues by RULESET directly now, not by a
 -- per-ruleset gamemode key (see pvp_api/gamemodes.lua's PVP.PVP_GAMEMODES
 -- header comment) -- ranked always plays Nemesis pairing regardless of which
@@ -175,7 +181,7 @@ end
 -- and stamps the ruleset straight onto PVP.LOBBY.config. The ticket string
 -- passed as `game_mode` is ruleset-scoped (e.g. "ranked:pvp_ranked_balanced";
 -- the server only treats a "ranked:"-prefixed game mode as ranked) so the
--- server's ELO ladder is per-ruleset, matching the 4 separate leaderboard tabs
+-- server's ELO ladder is per-ruleset, matching the separate leaderboard tabs
 -- (ui/pvp_leaderboard.lua).
 function PVP._join_ranked_ruleset(ruleset_key)
 	local gamemode_key = PVP.GamemodeKey.PVP_NEMESIS
@@ -185,7 +191,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max = (gm and gm.max_players and gm.max_players.ranked) or 2
-	local ticket = PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. ruleset_key:gsub("^ruleset_mp_", "")
+	local ticket = PVP.ranked_ticket(ruleset_key)
 
 	local handle = MPAPI.matchmaking.queue({
 		mod_id = PVP.id,
@@ -272,6 +278,10 @@ end
 G.FUNCS.mp_pvp_queue_ranked_vanilla = function()
 	G.FUNCS.exit_overlay_menu()
 	PVP._join_ranked_ruleset("ruleset_mp_vanilla")
+end
+G.FUNCS.mp_pvp_queue_ranked_majorleague = function()
+	G.FUNCS.exit_overlay_menu()
+	PVP._join_ranked_ruleset("ruleset_mp_majorleague")
 end
 G.FUNCS.mp_pvp_queue_ranked_smallworld = function()
 	G.FUNCS.exit_overlay_menu()

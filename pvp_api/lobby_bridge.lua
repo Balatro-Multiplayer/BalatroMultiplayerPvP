@@ -175,6 +175,9 @@ local function mirror_metadata(lobby)
 	if meta.stake then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
+	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
+	-- arrives, so the queued kind stands in for it.
+	PVP.force_ranked_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)
