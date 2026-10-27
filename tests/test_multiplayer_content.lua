@@ -100,7 +100,7 @@ section("The Multiplayer Cards are 9 Jokers, Asteroid and 2 Manhunt Vouchers", f
 		"j_mp_skip_off",
 	}, "the Jokers")
 	expect_list(list.included_consumables, { "c_mp_asteroid" }, "the Planet cards")
-	expect_list(list.included_vouchers, { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" }, "the Vouchers")
+	expect_list(list.reworked_vouchers, { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" }, "the Vouchers")
 	check(list.reworked_jokers == nil, "Multiplayer Cards should be new cards, not reworked base-game Jokers")
 	for key, name in pairs(NAMES) do
 		check(G.P_CENTERS[key], name .. " should exist in the game")
