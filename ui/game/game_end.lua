@@ -21,9 +21,7 @@ function G.FUNCS.mp_pvp_return_to_lobby()
 	G.SETTINGS.paused = false
 	G.FUNCS.go_to_menu()
 	PVP.reset_game_states()
-	if PVP.reset_ready_state then
-		PVP.reset_ready_state()
-	end
+	PVP.reset_ready_state()
 end
 
 function PVP.UI.create_UIBox_round_scores_row_nemesis()
@@ -154,8 +152,9 @@ function PVP.end_screen_buttons()
 		{ button = "continue_in_singleplayer", label = localize("b_continue_singleplayer"), colour = G.C.BLUE },
 	}
 	-- Only a private lobby is a room to come back to; a matchmade one is over with the match.
-	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and MPAPI.get_current_lobby() then
-		specs[#specs + 1] = { button = "mp_pvp_return_to_lobby", label = localize("b_return_lobby"), colour = G.C.GREEN }
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		specs[#specs + 1] =
+			{ button = "mp_pvp_return_to_lobby", label = localize("b_return_lobby"), colour = G.C.GREEN }
 	end
 	specs[#specs + 1] = { button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED }
 	return MPAPI.end_screen_buttons(specs)
