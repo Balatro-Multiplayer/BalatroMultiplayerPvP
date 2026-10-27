@@ -23,8 +23,9 @@ MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
 		"j_mp_skip_off",
 	},
 	included_consumables = { "c_mp_asteroid" },
-	-- Their in_pool predicates still restrict these to Manhunt.
-	included_vouchers = { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" },
+	-- Manhunt's replacements for the vanilla Hieroglyph/Petroglyph, which
+	-- Attrition bans. Their in_pool predicates still restrict these to Manhunt.
+	reworked_vouchers = { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" },
 	-- TODO(mpapi): needed only because MPAPI.active_layer_chain can't resolve
 	-- PvP's chain: it reads the ruleset from lobby metadata with no session or
 	-- Practice check, and adds the prefixed ruleset key where PvP's layer uses the
