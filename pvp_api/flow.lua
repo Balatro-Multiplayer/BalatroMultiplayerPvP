@@ -58,7 +58,7 @@ function PVP.force_ranked_lobby_options(kind, ruleset_key)
 	end
 	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
 	if def and def.force_lobby_options then
-		def:force_lobby_options()
+		def:force_lobby_options(kind)
 	end
 end
 
