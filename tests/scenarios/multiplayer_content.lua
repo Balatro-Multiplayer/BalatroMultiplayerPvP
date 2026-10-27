@@ -1,5 +1,3 @@
--- Real get_current_pool in local Practice. Requires Steam registration, not a
--- server or opponent. Starts through Practice's entry helper, not menu clicks.
 local function contains(pool, key)
 	for _, value in ipairs(pool) do
 		if value == key then return true end

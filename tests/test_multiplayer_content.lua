@@ -1,18 +1,3 @@
--- Multiplayer Cards: the Jokers, Planet card and Vouchers made for multiplayer.
--- These checks pin down which rulesets use them, which of them each ruleset
--- bans, and how the lobby's "Multiplayer Cards" setting (Default / On / Off)
--- changes that.
---
--- "Appear" means the card can show up in the shop and in packs during a run.
--- A banned card never appears, the same as a challenge's banned cards.
---
--- The real MPAPI and PvP code runs; the game itself is stubbed
--- (tests/support/harness.lua). Shops are not rolled and no hands are played;
--- tests/scenarios/multiplayer_content.lua checks real shops in-game.
---
--- Run from PvP's root, pointing at the matching MPAPI checkout:
---   lua tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
---   luajit tests/test_multiplayer_content.lua /path/to/BalatroMultiplayerAPI
 local H = dofile("tests/support/harness.lua")
 local check, section = H.check, H.section
 local Setting = PVP.ContentMode
@@ -35,8 +20,6 @@ local SETTING_NAMES = { [Setting.DEFAULT] = "Default", [Setting.ON] = "On", [Set
 
 local list = MPAPI.Layers[PVP.LayerKey.MULTIPLAYER_CONTENT]
 
--- The Jokers and Asteroid. The Manhunt Vouchers are left out here: they only
--- ever appear in Manhunt, which has its own check below.
 local CARDS = { "c_mp_asteroid" }
 for _, key in ipairs(list.included_jokers) do
 	CARDS[#CARDS + 1] = key
@@ -55,8 +38,6 @@ local function appears(card)
 	return not MPAPI.should_exclude_from_pool(card) and not is_banned(card.key)
 end
 
--- Checks each Multiplayer Card in the current run: none appear when the run
--- has no Multiplayer Cards; otherwise the banned ones are banned and the rest appear.
 local function expect_cards(where, has_cards, banned_names)
 	local banned = {}
 	for _, name in ipairs(banned_names or {}) do
@@ -113,7 +94,6 @@ section("Only cards on the Multiplayer Cards list can appear", function()
 	SMODS.Joker.register(unlisted)
 	check(not appears(unlisted), "a new multiplayer Joker missing from the list should not appear")
 
-	-- Expanded with the Multiplayer Cards taken out of it.
 	local expanded = MPAPI.Rulesets.ruleset_mp_expanded
 	local order = expanded._layer_order
 	expanded._layer_order = { "standard" }
@@ -121,7 +101,6 @@ section("Only cards on the Multiplayer Cards list can appear", function()
 	expanded._layer_order = order
 	if not ok then error(err, 0) end
 
-	-- A ruleset that is only the Multiplayer Cards, and nothing else.
 	PVP.Ruleset({ key = "cards_only", multiplayer_content = true, layers = { PVP.LayerKey.MULTIPLAYER_CONTENT } })
 		:inject()
 	H.start_run("cards_only", "lobby")
@@ -132,7 +111,6 @@ section("Only cards on the Multiplayer Cards list can appear", function()
 	expect_cards("a ruleset of only Multiplayer Cards", true)
 end)
 
--- Which rulesets use the Multiplayer Cards, and which of those cards each one bans.
 -- stylua: ignore start
 local RULESETS = {
 	--  ruleset                uses them  banned
@@ -169,8 +147,6 @@ section("Each ruleset uses or leaves out the Multiplayer Cards, and bans the rig
 	return ("%d rulesets, in lobby and Practice runs"):format(#RULESETS)
 end)
 
--- The lobby's "Multiplayer Cards" setting. Default follows the ruleset, On adds
--- the cards even to Vanilla, and Off removes them even from Expanded.
 -- stylua: ignore start
 local SETTING = {
 	--  ruleset      Default  On     Off
