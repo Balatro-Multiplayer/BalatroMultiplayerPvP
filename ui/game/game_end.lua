@@ -11,6 +11,21 @@ function G.FUNCS.mp_pvp_leave_from_game()
 	G.FUNCS.go_to_menu()
 end
 
+-- Back to the private lobby's waiting room from the end screen. Unlike the leave above, the
+-- lobby stays joined: go_to_menu rebuilds the menu as the lobby view (the lobby is still
+-- the current one). Each player returns on their own, so one can keep reading the end
+-- screen while the others are already back; a server-refereed lobby's game has ended by
+-- now, since every client reports its result when the match is decided.
+function G.FUNCS.mp_pvp_return_to_lobby()
+	G.FUNCS.exit_overlay_menu()
+	G.SETTINGS.paused = false
+	G.FUNCS.go_to_menu()
+	PVP.reset_game_states()
+	if PVP.reset_ready_state then
+		PVP.reset_ready_state()
+	end
+end
+
 function PVP.UI.create_UIBox_round_scores_row_nemesis()
     local label = localize({ type = "name_text", set = "Blind", key = "bl_mp_nemesis" })
     local score_tab = {}
@@ -135,10 +150,15 @@ end
 -- MPAPI.end_screen_buttons (matching SPDRN.end_screen_buttons's own
 -- per-situation button lists in BalatroMultiplayerSpeed/ui/lose_screen.lua).
 function PVP.end_screen_buttons()
-	return MPAPI.end_screen_buttons({
+	local specs = {
 		{ button = "continue_in_singleplayer", label = localize("b_continue_singleplayer"), colour = G.C.BLUE },
-		{ button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED },
-	})
+	}
+	-- Only a private lobby is a room to come back to; a matchmade one is over with the match.
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and MPAPI.get_current_lobby() then
+		specs[#specs + 1] = { button = "mp_pvp_return_to_lobby", label = localize("b_return_lobby"), colour = G.C.GREEN }
+	end
+	specs[#specs + 1] = { button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED }
+	return MPAPI.end_screen_buttons(specs)
 end
 
 -- The PvP end screen's body: the shared MPAPI.end_screen_body
