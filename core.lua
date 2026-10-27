@@ -122,13 +122,13 @@ MPAPI.register_order_gate(function()
 		or false
 end)
 
-MPAPI.register_voucher_queue_gate(function()
+-- MLBa plays without The Order, but its voucher queue and The Idol's card follow it.
+local function in_major_league_lobby()
 	return PVP.is_major_league_ruleset() and true or false
-end)
+end
 
-MPAPI.register_idol_gate(function()
-	return PVP.is_major_league_ruleset() and true or false
-end)
+MPAPI.register_voucher_queue_gate(in_major_league_lobby)
+MPAPI.register_idol_gate(in_major_league_lobby)
 
 -- Legacy PVP.* aliases for The Order queue helpers, kept because live content still calls
 -- them (objects/jokers/standard/bloodstone, objects/boosters/standard_giga, ui/game/blind_choice,
