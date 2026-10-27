@@ -50,8 +50,10 @@ end
 
 -- A Ranked lobby plays its ruleset's forced lobby options (MLBa: 180 s timer,
 -- no The Order, no preview). The lobby options do not cross the wire, so every
--- client applies them from the shared ruleset. The Casual votes apply them in
--- PVP.SETUP.apply_results; without this a Ranked lobby kept the defaults.
+-- client applies them from the shared ruleset. A Ranked lobby has no Setup
+-- vote, so this is where they apply; the Casual votes apply them in
+-- PVP.SETUP.apply_results. The ruleset gets the kind, so it can force an
+-- option for Ranked only (Vanilla: no The Order).
 function PVP.force_ranked_lobby_options(kind, ruleset_key)
 	if kind ~= PVP.LobbyAccess.RANKED then
 		return
