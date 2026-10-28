@@ -82,16 +82,24 @@ function Card:can_sell_card(context)
 	return can_sell_card_ref(self, context)
 end
 
--- Runs on the Nemesis's client (wherever the card physically, disguised, sits): flip face-up
--- with a reveal animation, then remove the spent card. The effect notification to the
--- Trapper happens via the card's own calculate return (PVP.TRAP.notify_owner), not here.
+-- Runs on the Nemesis's client (wherever the card physically, disguised, sits): move the trap to
+-- the middle of the screen, flip it face-up, then dissolve it, like a used Tarot. The effect
+-- notification to the Trapper happens via the card's own calculate return
+-- (PVP.TRAP.notify_owner), not here.
 function PVP.TRAP.reveal_and_consume(card)
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
 		delay = 0.1,
 		blockable = false,
 		func = function()
-			card.facing = "front"
+			-- Taken out of every area and placed by hand, as vanilla use_card does for a card used
+			-- from a pack: emplacing in G.play would let the end-of-hand sweep discard the trap into
+			-- the Nemesis's deck when it fires mid-hand.
+			G.consumeables:remove_card(card)
+			card.ability.mp_trap_hidden = nil
+			card.T.x = G.play.T.x + G.play.T.w / 2 - card.T.w / 2
+			card.T.y = G.play.T.y + G.play.T.h / 2 - card.T.h / 2
+			-- flip() turns a 'back' card to the front; facing is left 'back' from disguise().
 			card:flip()
 			card:juice_up(0.8, 0.5)
 			play_sound("tarot2")
@@ -103,8 +111,7 @@ function PVP.TRAP.reveal_and_consume(card)
 		delay = 0.9,
 		blockable = false,
 		func = function()
-			G.consumeables:remove_card(card)
-			card:remove()
+			card:start_dissolve()
 			return true
 		end,
 	}))
