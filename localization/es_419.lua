@@ -397,20 +397,6 @@ return {
 					"quien tenga más fichas gana",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 		Edition = {
 			e_mp_phantom = {
@@ -866,9 +852,6 @@ return {
 			loc_playing = "Jugando ",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Arte: #1#",
 			},
@@ -892,7 +875,6 @@ return {
 			k_reworked_objs = "#1# modificados",
 			k_no_reworked_objs = "Sin #1# modificados",
 			k_ruleset_disabled_smods_version = "Se requiere SMODS #1#",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "No se pudo unir a la sala: #1#",
 			k_ante_number = "Apuesta #1#",
 			k_ante_min = "Apuesta #1#+",

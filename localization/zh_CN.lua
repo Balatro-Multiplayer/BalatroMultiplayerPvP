@@ -151,20 +151,6 @@ return {
 					"最多筹码获胜",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 		Edition = {
 			e_mp_phantom = {
@@ -367,9 +353,6 @@ return {
 			loc_playing = "战斗", -- translates to "fighting" because the direct translation for playing sounds a bit funny in context
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Art: #1#",
 			},
@@ -393,7 +376,6 @@ return {
 			k_reworked_objs = "修改 #1#",
 			k_no_reworked_objs = "非修改 #1#",
 			k_ruleset_disabled_smods_version = "需求 SMODS 版本 #1#",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "加入房间失败: #1#",
 			k_ante_number = "底注 #1#",
 			k_ante_min = "底注 #1#+", -- For example, "Ante 2+"

@@ -800,20 +800,6 @@ return {
 					"больше фишек — победа",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 		Edition = {
 			e_mp_phantom = {
@@ -1332,7 +1318,6 @@ return {
 			k_sandbox_description = "26 новых джокеров из Extra Credit присоединяются к ростеру.\nИдол разделяется на два: Фанатика и Коллекционера. Выбираешь один, другой исчезает.\nНовые спектральные, переработанная компенсация, без предпросмотра счёта.\nМета открыта. Сделано с друзьями из Balatro University.\n",
 			k_vanilla = "Ванилла",
 			k_vanilla_description = "Оригинальный Balatro.\n\nНикаких джокеров мультиплеера, никаких изменений баланса.\nПросто базовая игра, как она была задумана.\n\nФункции мультиплеера, такие как таймер, всё ещё доступны,\nно могут быть отключены в настройках лобби.",
-			k_mp_ruleset_expanded = "Расширенный",
 			k_mp_ruleset_expanded_description = "Сбалансированные правила мультиплеера.\n\nВключает джокеров мультиплеера и изменения баланса\nс полным контролем настроек лобби.\n\n(Смотрите вкладки с банами и изменениями)",
 			k_experimental = "Экспериментальный",
 			k_traditional = "Традиционный",
@@ -1341,7 +1326,6 @@ return {
 			k_majorleague_description = "Официальные правила Major League Balatro.\n\nВанильные карты с соревновательными настройками:\n- Таймер 180 секунд\n- The Order отключён\n- Первый тайм-аут прощается\n- Режим игры: Истощение",
 			k_minorleague = "Minor League",
 			k_minorleague_description = "Официальные правила Minor League Balatro.\n\nВанильные карты с соревновательными настройками:\n- Таймер 210 секунд\n- The Order включён\n- Первый тайм-аут прощается\n- Режим игры: Истощение",
-			k_mp_ruleset_balanced = "Сбалансированный",
 			k_mp_ruleset_balanced_description = "Официальные соревновательные правила.\n\nСтандартные правила с заблокированными настройками:\n- Режим игры: Истощение\n- The Order включён\n- Требуется рекомендуемая версия Steamodded",
 			k_legacy_ranked = "Устаревший рейтинг",
 			k_legacy_ranked_description = "Минимальные соревновательные правила.\n\nБез карт мультиплеера или изменений баланса,\nкроме стекла. Заблокированные настройки:\n- Режим игры: Истощение\n- The Order включён\n- Требуется рекомендуемая версия Steamodded",
@@ -1432,9 +1416,6 @@ return {
 			loc_playing = "Играет",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Дизайн: #1#",
 			},

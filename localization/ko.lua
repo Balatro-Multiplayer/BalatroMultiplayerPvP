@@ -404,20 +404,6 @@ return {
 					"칩이 더 많은 쪽이 승리",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 
 		Edition = {
@@ -922,9 +908,6 @@ return {
 		},
 	},
 	v_dictionary = {
-		k_end_player_jokers = "#1#'s Jokers",
-		k_end_player_left = "#1# -- left the match",
-		k_end_player_playing = "#1# -- still playing...",
 		a_mp_art = {
 			"아트: #1#",
 		},
@@ -949,7 +932,6 @@ return {
 		k_reworked_objs = "리워크된 #1#",
 		k_no_reworked_objs = "리워크된 #1# 없음",
 		k_ruleset_disabled_smods_version = "SMODS 버전 #1# 필요",
-		k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 		k_failed_to_join_lobby = "로비 참가 실패: #1#",
 
 		k_ante_number = "앤티 #1#",

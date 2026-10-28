@@ -570,20 +570,6 @@ return {
 					"nhiều điểm nhất sẽ chiến thắng",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 			-- bl_precision = {
 			-- 	name = "Kẻ Chuẩn Xác",
 			-- 	text = {
@@ -983,7 +969,6 @@ return {
 			k_sandbox_description = "Như tiêu chuẩn nhưng mấy lá bài thích tám chuyện với nốc cà phê nhiều quá.",
 			k_vanilla = "Cơ Bản",
 			k_vanilla_description = "Thể thức này bỏ hết vật phẩm Chơi Mạng,\ncho phép bạn chơi game đúng theo thiết kế của nó.\n\nThể thức này vẫn bao gồm tính năng Chơi Mạng như đếm ngược.\n\n(Có thể tắt ở Tuỳ Chỉnh Phòng)",
-			k_mp_ruleset_expanded = "Mở Rộng",
 			k_mp_ruleset_expanded_description = "Thể thức cân bằng của Multiplayer,\nvới các lá Joker Multiplayer và các cân bằng\ncùng toàn quyền điểu khiển tùy chỉnh phòng của bạn\n\n(xem mục bị cấm và làm lại để biết thêm thông tin)",
 			k_traditional = "Truyền Thống",
 			k_traditional_description = "Thể thức này loại bỏ cơ chế Chơi Mạng dùng thời gian làm tài nguyên.\n\nThể thức này cho phép bạn chơi với vật phẩn Chơi Mạng,\ntrong khi vẫn giữ vững tính chiến thuật.\n\nMột só lá bài được cân bằng lại để phù hợp với meta Chơi mạng:\n- Làm lại Phiếu Đục Lỗ\n- Loại bỏ Công Lý\n- Làm lại Lá Kính\n\n(xem mục bị cấm và làm lại để biết thêm thông tin)",
@@ -991,7 +976,6 @@ return {
 			k_majorleague_description = "Đây là điều lệ chính thức cho Giải Chính Balatro.\n\nThể thức này giống thể thức Cơ Bản với một số ngoại lệ::\n- Bạn phải tắt Tích Hợp The Order\n- Thời gian đếm ngược la 180 giây\n- Lần đầu thời gian chạm mốc 0 giây sẽ không bị mất mạng",
 			k_minorleague = "Giải Phụ",
 			k_minorleague_description = "Đây là điều lệ chính thức cho Giải Phụ Balatro.\n\nThể thức này giống thể thức Cơ Bản với một số ngoại lệ::\n- You phải bật Tích Hợp The Order\n- Thời gian đếm ngược la 180 giây\n- Lần đầu thời gian chạm mốc 0 giây sẽ không bị mất mạng",
-			k_mp_ruleset_balanced = "Cân Bằng",
 			k_mp_ruleset_balanced_description = "Đây là điều lệ chính thức cho Xếp Hạng của Balatro Multiplayer.\n\nThể thức này giống thể thức Tiêu Chuẩn với một số ngoại lệ:\n- Bạn phải bật Tích Hợp The Order\n- Bạn phải dùng phiên bản Steamodded được khuyến nghị",
 			k_legacy_ranked = "Xếp Hạng Cổ Điển",
 			k_legacy_ranked_description = "Đây là điều lệ tranh đấu đã được tối giản.\n\nThể thức này không có sự thay đổi gì của Multiplayer\ntrừ Lá Kính cùng các tùy chỉnh cố định:\n- Chế độ Hao Mòn\n- Bạn phải bật Tích Hợp The Order\n- Bạn phải dùng phiên bản Steamodded được khuyến nghị",
@@ -1085,9 +1069,6 @@ return {
 			loc_playing = "Đang đánh",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Người vẽ: #1#",
 			},
@@ -1111,7 +1092,6 @@ return {
 			k_reworked_objs = "Đã Thêm/Sửa Lại #1#",
 			k_no_reworked_objs = "Không Thêm/Sửa Lại #1#",
 			k_ruleset_disabled_smods_version = "Yêu cần phiên bản SMODS #1#",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "Không thể tham gia phòng: #1#",
 			k_ante_number = "Ante #1#",
 			k_ante_min = "Ante #1#+", -- For example, "Ante 2+"
