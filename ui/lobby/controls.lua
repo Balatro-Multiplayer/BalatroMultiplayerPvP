@@ -61,13 +61,7 @@ local function build_private_controls()
 	}
 end
 
-local function waiting_for_host_panel()
-	return { n = G.UIT.C, config = { align = "cm", padding = 0.1, minw = 3.65, minh = 1.55 }, nodes = {
-		{ n = G.UIT.T, config = { text = localize("k_pvp_waiting_for_host"), scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-	} }
-end
-
--- A Party lobby (pvp_api/party_lobby.lua) has no lobby options and no deck: the host
+-- A Party lobby (MPAPI.Party) has no lobby options and no deck: the host
 -- has Find Game, every other player a Ready toggle. While the party queues, the
 -- group panel (ui/lobby/group_panel.lua) says where it is.
 local function build_party_controls()
@@ -78,7 +72,6 @@ local function build_party_controls()
 		row_nodes[#row_nodes + 1] = b.party_find_game.node
 	else
 		row_nodes[#row_nodes + 1] = b.ready.node
-		row_nodes[#row_nodes + 1] = waiting_for_host_panel()
 	end
 	row_nodes[#row_nodes + 1] = code_panel()
 	row_nodes[#row_nodes + 1] = b.leave.node
@@ -134,7 +127,6 @@ local function build_pending_controls()
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
 		nodes = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
-			waiting_for_host_panel(),
 			code_panel(),
 			b.leave.node,
 		} } },
@@ -146,10 +138,10 @@ function PVP.lobby.build_controls()
 		return build_matchmaking_controls()
 	end
 	local lobby = PVP.lobby.ref
-	if not PVP.lobby_kind_known(lobby) then
+	if not MPAPI.Party.kind_known(lobby) then
 		return build_pending_controls()
 	end
-	if PVP.is_party_lobby(lobby) then
+	if MPAPI.Party.is_party_lobby(lobby) then
 		return build_party_controls()
 	end
 	return build_private_controls()

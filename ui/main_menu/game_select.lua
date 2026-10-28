@@ -34,8 +34,8 @@ local function lobby_modes()
 			desc = { "Hunters team up", "to stop a Runner" }, button = "mp_pvp_create_lobby_manhunt", colour = G.C.RED },
 		{ key = "pvp_teams", name = "Teams",
 			desc = { "Team vs team;", "best score wins" }, button = "mp_pvp_create_lobby_teams", colour = G.C.GREEN },
-		{ key = PVP.LobbyAccess.PARTY, name_key = "k_pvp_party",
-			desc_keys = { "k_pvp_party_desc_1", "k_pvp_party_desc_2" }, button = "mp_pvp_create_lobby_party", colour = G.C.ORANGE },
+		{ key = PVP.LobbyAccess.PARTY, name_key = "k_party",
+			desc_keys = { "k_party_desc_1", "k_party_desc_2" }, button = "mp_pvp_create_lobby_party", colour = G.C.ORANGE },
 	}
 end
 

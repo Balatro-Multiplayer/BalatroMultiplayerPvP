@@ -384,7 +384,7 @@ local function build_group_header()
 			UIBox_button({ button = "mp_pvp_group_queue_back", label = { localize("b_back") }, colour = G.C.ORANGE, minw = 2.4, minh = 0.6, scale = 0.4 }),
 		} },
 		{ n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({ button = "nil", label = { localize("k_pvp_party_lobby") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
+			UIBox_button({ button = "nil", label = { localize("k_party_lobby") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
 		} },
 	} }
 end

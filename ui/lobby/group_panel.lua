@@ -20,7 +20,7 @@ function PVP.lobby.group_panel_rows(lobby)
 	if not view then
 		return nil
 	end
-	local rows = { text_row(localize("k_pvp_party_lobby"), 0.36, G.C.UI.TEXT_INACTIVE) }
+	local rows = { text_row(localize("k_party_lobby"), 0.36, G.C.UI.TEXT_INACTIVE) }
 	local line = Group.status_line(lobby)
 	rows[#rows + 1] = text_row((line and line.text or "") .. " " .. mode_display(view.mode), 0.36, G.C.GOLD)
 	if not lobby.is_host then

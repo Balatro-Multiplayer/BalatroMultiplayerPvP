@@ -39,7 +39,7 @@ function PVP.lobby.create_buttons()
 		label = { localize("b_find_game_cap") },
 		scale = 0.7,
 		enabled = function()
-			return PVP.party_find_game_enabled(PVP.party_find_game_facts(L.ref, L.ready))
+			return MPAPI.Party.find_game_enabled(MPAPI.Party.find_game_facts(L.ref, L.ready))
 		end,
 	})
 	b.ready_args = {
