@@ -160,7 +160,9 @@ function PVP.TRAP_ROW.refresh()
 	local stale = {}
 	for _, card in ipairs(area.cards) do
 		local key = card.ability.mp_trap_row_key
-		if card.ability.mp_trap_row_dissolving then
+		if not card.ability.mp_trap_display then
+			-- A Phantom joker in the shared Nemesis area: not part of the trap row.
+		elseif card.ability.mp_trap_row_dissolving then
 			-- Already on its way out after a fire.
 		elseif wanted_keys[key] and not shown[key] then
 			shown[key] = true

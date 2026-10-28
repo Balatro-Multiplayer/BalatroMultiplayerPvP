@@ -14,12 +14,16 @@ PVP.NEMESIS_SLOT_GAP = 0.25
 local function remove_nemesis_slots()
 	PVP.clear_ante_nemesis()
 	PVP.TRAP_ROW.reset()
+	local removed = {}
 	for _, key in ipairs({ "nemesis_jokers", "nemesis_jokers_hidden", "nemesis_consumeables" }) do
-		if PVP[key] then
+		-- In the Classic layout the joker and consumable keys name one shared area: remove it once.
+		if PVP[key] and not removed[PVP[key]] then
+			removed[PVP[key]] = true
 			PVP[key]:remove()
-			PVP[key] = nil
 		end
+		PVP[key] = nil
 	end
+	PVP.nemesis_area_shared = nil
 end
 
 local function new_nemesis_row(width, height)
@@ -36,8 +40,17 @@ end
 function PVP.create_nemesis_slots(card_area_sizes)
 	remove_nemesis_slots()
 	if not PVP.LOBBY.code then return end
-	PVP.nemesis_jokers = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
-	PVP.nemesis_consumeables = new_nemesis_row(card_area_sizes.consumeable_W, card_area_sizes.consumeable_H)
+	if PVP.get_nemesis_layout() == PVP.NEMESIS_LAYOUT.CLASSIC then
+		-- The Nemesis area: one row for the Phantom jokers and the face-down Trap cards. Both keys name it, so
+		-- the code that fills "the joker row" and "the trap row" needs no second path. The layout is read once
+		-- per run: a change of the setting applies from the next run.
+		PVP.nemesis_jokers = new_nemesis_row(card_area_sizes.consumeable_W / 2, card_area_sizes.consumeable_H)
+		PVP.nemesis_consumeables = PVP.nemesis_jokers
+		PVP.nemesis_area_shared = true
+	else
+		PVP.nemesis_jokers = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
+		PVP.nemesis_consumeables = new_nemesis_row(card_area_sizes.consumeable_W, card_area_sizes.consumeable_H)
+	end
 	-- Phantom jokers of players who are not the ante's Nemesis wait here: kept in memory, never drawn,
 	-- never in the joker calculation, and parked off-screen so the cursor cannot hit them.
 	PVP.nemesis_jokers_hidden = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
@@ -118,17 +131,38 @@ local function place_standard_layout()
 	end
 end
 
--- Mirrored and Classic show Standard until their own placement exists.
+-- Classic: the Nemesis area sits one row below the consumables, on their right half, at half their width.
+local function place_classic_layout()
+	local area = PVP.nemesis_jokers
+	if not area then return end
+	area.T.x = G.consumeables.T.x + G.consumeables.T.w / 2
+	area.T.y = G.consumeables.T.y + G.consumeables.T.h + 0.4
+	area:hard_set_T()
+end
+
+-- Mirrored shows Standard until its own placement exists.
 local NEMESIS_LAYOUT_PLACERS = {
 	[PVP.NEMESIS_LAYOUT.STANDARD] = place_standard_layout,
 	[PVP.NEMESIS_LAYOUT.MIRRORED] = place_standard_layout,
-	[PVP.NEMESIS_LAYOUT.CLASSIC] = place_standard_layout,
+	[PVP.NEMESIS_LAYOUT.CLASSIC] = place_classic_layout,
 }
 
 -- Called from set_screen_positions, and again when the setting changes. All placement of the Nemesis
 -- cards goes through here.
 function PVP.place_nemesis_slots()
-	NEMESIS_LAYOUT_PLACERS[PVP.get_nemesis_layout()]()
+	-- The areas of a run keep the shape they were made with, so the placement follows the area, not the setting.
+	if PVP.nemesis_area_shared then return place_classic_layout() end
+	local layout = PVP.get_nemesis_layout()
+	if layout == PVP.NEMESIS_LAYOUT.CLASSIC then layout = PVP.NEMESIS_LAYOUT.STANDARD end
+	NEMESIS_LAYOUT_PLACERS[layout]()
+end
+
+-- A Trap card in the shared Nemesis area is display only: it never calculates, even though the area is
+-- in the joker calculation for its Phantom jokers.
+local calculate_joker_ref = Card.calculate_joker
+function Card:calculate_joker(context)
+	if self.ability and self.ability.mp_trap_display then return nil end
+	return calculate_joker_ref(self, context)
 end
 
 -- Register the Nemesis joker row with the synced-object framework so `phantom = true`
