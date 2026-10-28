@@ -214,6 +214,9 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.skip_blind then
+				-- Vanilla G.FUNCS.skip_blind calls add_tag(skip tag) first, then queues the event that
+				-- sends skip_blind, so the Nemesis's skip tag is already the last entry of G.GAME.tags
+				-- here. A Double Tag copy has the same key, so the last entry is still the right one.
 				local skipped_tag = G.GAME.tags[#G.GAME.tags]
 				PVP.TRAP.reveal_and_consume(card)
 				return PVP.TRAP.notify_owner(card, { tag_key = skipped_tag and skipped_tag.key })
