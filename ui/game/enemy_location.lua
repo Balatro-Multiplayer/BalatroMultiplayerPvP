@@ -2,7 +2,7 @@
 -- BalatroMultiplayerAPI/ui/enemy_location.lua for the shared swap/hover
 -- mechanics and the id contract that keeps this crash-safe). PvP shows a
 -- single opposing nemesis: a blind icon + name in the main slot, and the
--- same content again in the hover popup.
+-- same location box alone in the hover popup.
 
 function PVP.UI.enemy_location_blind_render()
 	local blind_key, blind_object = PVP.GAME.enemy.location_blind, nil
@@ -55,7 +55,7 @@ local function value_nodes(chip_ui_id)
 	return {
 		{
 			n = G.UIT.C,
-			config = { minw = 2.2, maxw = 2.2, align = "cm" },
+			config = { maxw = 2.2, align = "cm" },
 			nodes = {
 				{
 					n = G.UIT.T,
@@ -66,7 +66,7 @@ local function value_nodes(chip_ui_id)
 						colour = G.C.WHITE,
 						id = chip_ui_id,
 						shadow = true,
-						maxw = 2.2,
+						maxw = 2.5,
 					},
 				},
 			},
@@ -82,29 +82,18 @@ local function value_nodes(chip_ui_id)
 	}
 end
 
+-- The hover popup holds only the location box: the HUD slot already says what it is.
 local function popup_rows()
-	return { MPAPI.enemy_location_row(
-		{
-			n = G.UIT.O,
-			config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false },
-		},
-		{
-			{ n = G.UIT.R, config = { align = "cm", padding = 0, maxw = 1.2 }, nodes = {
-				{ n = G.UIT.T, config = { text = localize("ml_enemy_loc")[1], scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-			} },
-			{ n = G.UIT.R, config = { align = "cm", padding = 0, maxw = 1.2 }, nodes = {
-				{ n = G.UIT.T, config = { text = localize("ml_enemy_loc")[2], scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-			} },
-		},
-		-- Fresh value_nodes() here (not the same table reused above) --
-		-- popup content is a separate live UIBox with its own nodes.
-		value_nodes("mp_enemy_location_popup_value"),
-		2.8
-	) }
+	return { { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = {
+		{ n = G.UIT.C, config = { align = "cm", minw = 2.8, minh = 0.7, r = 0.1, colour = G.C.DYN_UI.BOSS_DARK }, nodes = value_nodes("mp_enemy_location_popup_value") },
+	} } }
 end
 
 PVP._enemy_location = MPAPI.enemy_location({
-	label = { localize("ml_enemy_loc")[1], localize("ml_enemy_loc")[2] },
+	-- A function: this file loads before the localization does.
+	label = function()
+		return localize("ml_enemy_loc")
+	end,
 	build_value_nodes = value_nodes,
 	build_popup_rows = popup_rows,
 	swatch_minw = 2.8,
