@@ -68,12 +68,22 @@ end
 -- MP decks join the Draft only on these rulesets.
 local MP_DECK_RULESETS = { ruleset_mp_expanded = true, ruleset_mp_smallworld = true }
 
+-- MP decks never offered by a Draft, whatever the ruleset.
+local DRAFT_EXCLUDED_DECKS = {
+	b_mp_heidelberg = true,
+	b_mp_oracle = true,
+	b_mp_echodeck = true,
+	b_mp_cocktail = true,
+}
+
 -- The deck keys a Draft on `ruleset` may offer. Pure: backs = { { key,
 -- mod_id }, ... } (mod_id nil for a vanilla deck); mp_mod_id is PvP's mod id.
 function S.draft_candidates(ruleset, backs, mp_mod_id)
 	local keys = {}
 	for _, back in ipairs(backs) do
-		if back.mod_id ~= mp_mod_id or MP_DECK_RULESETS[ruleset] then
+		if DRAFT_EXCLUDED_DECKS[back.key] then
+			-- never drafted
+		elseif back.mod_id ~= mp_mod_id or MP_DECK_RULESETS[ruleset] then
 			keys[#keys + 1] = back.key
 		end
 	end
