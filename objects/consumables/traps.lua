@@ -112,10 +112,12 @@ local TRAPS = {
 	-- that hand are guaranteed to break. Deferred: forcing a glass break bypasses SMODS's own
 	-- probability roll and needs its own destroy_card-context hook (see plan's Phase 3 notes);
 	-- not yet implemented.
-	{ key = "trap_explosive_runes",
+	{
+		key = "trap_explosive_runes",
 		idea = "Virtualized",
 		art = "shai1n",
-		code = "Nobody, actually", },
+		code = "Virtualized",
+	},
 	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
 	{
 		key = "trap_sepia_snake_sigil",
@@ -196,10 +198,12 @@ local TRAPS = {
 	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
 	-- Deferred: seal triggers resolve via direct per-card method calls (Card:calculate_seal /
 	-- Card:get_end_of_round_effect), never a broadcast calculate context -- needs its own hook.
-	{ key = "trap_magic_mouth",
+	{
+		key = "trap_magic_mouth",
 		idea = "Virtualized",
 		art = "TypeFate",
-		code = "Nobody, actually",},
+		code = "Virtualized",
+	},
 	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
 	{
 		key = "trap_snare",
@@ -227,18 +231,22 @@ local TRAPS = {
 	-- they get trapped instead. Deferred: needs a "another trap just fired" signal, which isn't
 	-- a natural calculate-context flag -- would need PVP.TRAP.reveal_and_consume itself to fire a
 	-- custom local context so a co-resident Arcane Lock can intercept. Not yet implemented.
-	{ key = "trap_arcane_lock",
+	{
+		key = "trap_arcane_lock",
 		idea = "Virtualized",
 		art = "shai1n",
-		code = "Nobody, actually",},
+		code = "Virtualized",
+	},
 	-- Programmed Illusion: when the holder opens a booster pack, add a fake card to it.
 	-- Deferred: Card:open builds its pack_cards list in a function-local table with no exposed
 	-- extension point for injecting an extra card -- needs a direct hook/override, not a
 	-- calculate-context check. Not yet implemented.
-	{ key = "trap_programmed_illusion",
+	{
+		key = "trap_programmed_illusion",
 		idea = "Virtualized",
 		art = "TypeFate",
-		code = "Nobody, actually",},
+		code = "Virtualized",
+	},
 	-- Web: when the holder uses any consumable, the drafter gains a negative copy of it.
 	{
 		key = "trap_web",
@@ -268,10 +276,12 @@ local TRAPS = {
 	-- Deferred: the draw loop (G.FUNCS.draw_from_deck_to_hand) has no exposed "flip after
 	-- draw" hook -- needs a new override on the draw path, not a calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_forbiddance",
+	{
+		key = "trap_forbiddance",
 		idea = "Virtualized",
 		art = "shai1n",
-		code = "Nobody, actually",},
+		code = "Virtualized",
+	},
 	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
 	-- poker hand.
 	{
@@ -331,10 +341,12 @@ local TRAPS = {
 	-- 2 Wheel of Fortunes. Deferred: needs new state-tracking (record Wheel of Fortune
 	-- appearances per shop visit, checked at ending_shop) -- not a pure calculate-context check.
 	-- Not yet implemented.
-	{ key = "trap_mental_prison",
+	{
+		key = "trap_mental_prison",
 		idea = "Virtualized",
 		art = "Ganpan140",
-		code = "Nobody, actually",},
+		code = "Virtualized",
+	},
 }
 
 -- One shared "Trap" sheet holds every trap's art in a single row, in TRAPS order: a trap's
@@ -358,10 +370,10 @@ for index, def in ipairs(TRAPS) do
 		cost = 4,
 		unlocked = true,
 		discovered = true,
-		-- A trap is usable only while it sits in a booster pack: USE there plants it. Once
-		-- disguised in someone's inventory it is never clicked; it fires passively via calculate.
+		-- A trap is never manually clicked once disguised in someone's inventory -- it fires
+		-- passively via calculate. use() only exists for the draft-time interception below.
 		can_use = function(self, card)
-			return card.area == G.pack_cards
+			return false
 		end,
 		-- Fires exactly once: the moment this card is drafted from a Trap pack (see
 		-- lib/trap_utils.lua's PVP.TRAP.plant for why this is the sole, exact interception point).
