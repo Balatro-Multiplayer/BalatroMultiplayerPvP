@@ -152,15 +152,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "幻影",
-				text = {
-					"拥有{C:attention}永恒{}和{C:dark_edition}负片{}属性",
-					"由你的{X:purple,C:white}宿敌{}创建被并摧毁",
-				},
-			},
-		},
 		Other = {
 			current_nemesis = {
 				name = "宿敌",
@@ -172,9 +163,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "幻影",
-		},
 		dictionary = {
 			b_singleplayer = "单人游戏",
 			b_join_lobby = "加入房间",

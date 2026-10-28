@@ -125,15 +125,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Phantom",
-				text = {
-					"{C:attention}Ewig{} und {C:dark_edition}Negative{}",
-					"Erzeugt und zerstört bei deinen  {X:purple,C:white}Erzfeind{}",
-				},
-			},
-		},
 		Other = {
 			current_nemesis = {
 				name = "Erzfeind",
@@ -145,9 +136,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Phantom",
-		},
 		challenge_names = {
 			c_mp_standard = "Standard",
 			c_mp_badlatro = "Badlatro",

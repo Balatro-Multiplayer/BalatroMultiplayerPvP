@@ -819,16 +819,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Phantom",
-				text = {
-					"{C:attention}Eternal{} and {C:dark_edition}Negative{}",
-					"Created when your {X:purple,C:white}Nemesis{} has this Joker",
-					"Only affects your {X:purple,C:white}Nemesis{} and is destroyed by them.",
-				},
-			},
-		},
 		Enhanced = {},
 		Back = {
 			b_mp_cocktail = {
@@ -1330,7 +1320,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Phantom",
 			mp_sticker_balanced = "Balanced",
 			mp_sticker_extra_credit = "Extra Credit",
 			mp_sticker_persistent = "Persistent",

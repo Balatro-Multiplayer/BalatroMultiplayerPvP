@@ -42,7 +42,7 @@ MPAPI.Joker({
 			context.cardarea == G.jokers
 			and context.joker_main
 			and PVP.is_pvp_boss()
-			and (not card.edition or card.edition.type ~= "mp_phantom")
+			and not card.ability.mp_phantom
 		then
 			return {
 				x_mult = card.ability.extra.x_mult,

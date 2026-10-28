@@ -129,11 +129,7 @@ end
 function PVP.UTILS.get_phantom_joker(key)
 	if not PVP.shared or not PVP.shared.cards then return nil end
 	for i = 1, #PVP.shared.cards do
-		if
-			PVP.shared.cards[i].ability.name == key
-			and PVP.shared.cards[i].edition
-			and PVP.shared.cards[i].edition.type == "mp_phantom"
-		then
+		if PVP.shared.cards[i].ability.name == key and PVP.shared.cards[i].ability.mp_phantom then
 			return PVP.shared.cards[i]
 		end
 	end

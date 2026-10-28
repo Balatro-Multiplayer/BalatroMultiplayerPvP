@@ -124,15 +124,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Mariko",
-				text = {
-					"He {C:attention}Mutunga Kore{}, {C:dark_edition}Tōraro{} anō hoki",
-					"He mea hanga, urupatu hoki e tō {X:purple,C:white}Hoariri{}",
-				},
-			},
-		},
 		Other = {
 			current_nemesis = {
 				name = "Te Hoariri",
@@ -144,9 +135,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Mariko",
-		},
 		dictionary = {
 			b_singleplayer = "Takitahi",
 			b_join_lobby = "Kuhu i te Rūma",

@@ -126,16 +126,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Widmo",
-				text = {
-					"{C:attention}Wieczny{} oraz {C:dark_edition}Negatyw{}",
-					"Ta karta jest stworzona i może być zniszczona",
-					"przez twoiego {X:purple,C:white}Nemesis{}",
-				},
-			},
-		},
 		Back = {
 			b_mp_cocktail = {
 				name = "Koktajlowa talia",
@@ -243,9 +233,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Widmo",
-		},
 		dictionary = {
 			b_singleplayer = "Tryb Jednoosobowy",
 			b_join_lobby = "Dołącz do Lobby",

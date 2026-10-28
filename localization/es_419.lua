@@ -398,15 +398,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterno{} y {C:dark_edition}negativo{}",
-					"Creado y destruido por tu {X:purple,C:white}némesis{}",
-				},
-			},
-		},
 		Back = {
 			b_mp_cocktail = {
 				name = "Baraja Cóctel",
@@ -637,7 +628,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Fantasma",
 			mp_sticker_persistent = "Persistente",
 			mp_sticker_unreliable = "Inconsistente",
 			mp_sticker_draining = "Drenante",

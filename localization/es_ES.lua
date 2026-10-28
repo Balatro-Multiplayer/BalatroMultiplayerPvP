@@ -125,15 +125,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterno{} y {C:dark_edition}Negativo{}",
-					"Creado y destruido por tu {X:purple,C:white}Némesis{}",
-				},
-			},
-		},
 		Other = {
 			current_nemesis = {
 				name = "Némesis",
@@ -145,9 +136,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Fantasma",
-		},
 		dictionary = {
 			b_singleplayer = "Un jugador",
 			b_join_lobby = "Unirse a la Sala",
