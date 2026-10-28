@@ -1,8 +1,8 @@
 -- Shared plant/disguise/reveal plumbing for Trap consumables (objects/consumables/traps.lua).
--- A Trap card is drafted by one player but belongs, face-down, in their Nemesis's own
+-- A Trap card is taken by the Trapper but sits, face-down, in their Nemesis's own
 -- G.consumeables until its trigger condition fires -- these are the pieces every one of the
 -- 16 cards' use/calculate/receive triple reuses, so each card stays a small, uniform amount
--- of code. See the plan at the time of writing for the full design rationale.
+-- of code.
 PVP.TRAP = PVP.TRAP or {}
 
 local function self_id()
@@ -12,9 +12,9 @@ end
 PVP.TRAP.self_id = self_id
 
 -- Fires from a Trap card's own use() -- the ONLY moment use() ever runs, since a Trap can only
--- be obtained by drafting it from a Trap pack (Card:use_consumeable removes the card from
--- G.pack_cards and never adds it anywhere else). Sent directly to whoever the drafter's
--- current target resolves to right now -- NOT the per-object sync bus, since there is no
+-- be obtained by taking it from a Trap pack (Card:use_consumeable removes the card from
+-- G.pack_cards and never adds it anywhere else). Sent directly to whoever the Trapper's
+-- current Nemesis resolves to right now -- NOT the per-object sync bus, since there is no
 -- existing card instance on the receiving side yet for `receive` to key off of.
 function PVP.TRAP.plant(card)
 	local lobby = MPAPI.get_current_lobby()
@@ -27,7 +27,7 @@ function PVP.TRAP.plant(card)
 end
 
 -- Face-down and unsellable, so a planted trap always eventually fires -- it can't be
--- discarded away by the holder. Consumables normally CAN be sold in this game (G.consumeables'
+-- discarded away by the Nemesis. Consumables normally CAN be sold in this game (G.consumeables'
 -- CardArea uses the same config.type='joker' selling gate jokers do -- see the can_sell_card
 -- wrap below), so this needs an explicit block, not just a worthless sell_cost.
 function PVP.TRAP.disguise(card)
@@ -38,13 +38,13 @@ function PVP.TRAP.disguise(card)
 	-- this card fresh with the Card:init() default sprite_facing='front', so without
 	-- this line the trap silently keeps rendering its real front art (fully revealing
 	-- which trap it is, and that it's a trap at all) despite facing already reading
-	-- 'back' -- reproduced live over a real multiplayer connection: the holder's
-	-- client showed "TRAP" with the drafted card's actual icon in plain view. Set
+	-- 'back' -- reproduced live over a real multiplayer connection: the Nemesis's
+	-- client showed "TRAP" with the Trap card's actual icon in plain view. Set
 	-- directly rather than via card:flip(), which would toggle facing back to
 	-- 'front' (it inspects the already-'back' facing set above and flips the other
 	-- way) and play a visible reveal animation -- this needs to silently already BE
 	-- face-down the moment it lands, the same way Card:load()'ing a saved back-facing
-	-- card would look, not animate a flip that would itself tip off the holder.
+	-- card would look, not animate a flip that would itself tip off the Nemesis.
 	card.facing = "back"
 	card.sprite_facing = "back"
 	card.ability.mp_trap_hidden = true
@@ -58,9 +58,9 @@ function Card:can_sell_card(context)
 	return can_sell_card_ref(self, context)
 end
 
--- Runs on the HOLDER's client (wherever the card physically, disguised, sits): flip face-up
+-- Runs on the Nemesis's client (wherever the card physically, disguised, sits): flip face-up
 -- with a reveal animation, then remove the spent card. The effect notification to the
--- original owner happens via the card's own calculate return (PVP.TRAP.notify_owner), not here.
+-- Trapper happens via the card's own calculate return (PVP.TRAP.notify_owner), not here.
 function PVP.TRAP.reveal_and_consume(card)
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
@@ -98,8 +98,8 @@ end
 
 -- Every trap's calculate replies with this exact shape. `send` is the only thing that goes out
 -- on the wire (see BalatroMultiplayerAPI's synced_mixin.calculate). The owner id is carried
--- explicitly -- NOT resolved via PVP.current_target_id() at fire time, since a trap's rightful
--- owner was fixed at draft time and the drafter's live nemesis pairing may have since rotated
+-- explicitly -- NOT resolved via PVP.current_target_id() at fire time, since a trap's Trapper
+-- was fixed when the card was taken and that Trapper's Nemesis may have since rotated
 -- to someone else. Every trap's receive must gate on `context.data.owner == PVP.TRAP.self_id()`.
 function PVP.TRAP.notify_owner(card, data)
 	data = data or {}
@@ -107,8 +107,8 @@ function PVP.TRAP.notify_owner(card, data)
 	return { send = data }
 end
 
--- The "use" animation played on the ORIGINAL OWNER's own screen when their planted trap
--- fires remotely -- they never see the opponent's reveal directly, just this local flourish.
+-- The "use" animation played on the Trapper's own screen when their planted trap
+-- fires remotely -- they never see the Nemesis's reveal directly, just this local flourish.
 function PVP.UI.show_trap_fired_animation(name)
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
@@ -127,6 +127,24 @@ function PVP.UI.show_trap_fired_animation(name)
 			return true
 		end,
 	}))
+end
+
+-- A trap fires once: reveal_and_consume only removes the card after a short delay, so events in
+-- that gap would fire it again. Wrapping calculate here gives every trap the check.
+function PVP.TRAP.fire_once(calculate)
+	if not calculate then
+		return nil
+	end
+	return function(self, card, context)
+		if card.ability.mp_trap_fired then
+			return
+		end
+		local result = calculate(self, card, context)
+		if result then
+			card.ability.mp_trap_fired = true
+		end
+		return result
+	end
 end
 
 PVP.TRAP.plant_action = MPAPI.ActionType({

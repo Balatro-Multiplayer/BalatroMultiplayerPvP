@@ -380,7 +380,7 @@ for index, def in ipairs(TRAPS) do
 		use = function(self, card, area, copier)
 			PVP.TRAP.plant(card)
 		end,
-		calculate = def.calculate,
+		calculate = PVP.TRAP.fire_once(def.calculate),
 		receive = def.receive,
 		mp_credits = {
 			idea = { def.idea } or nil,
