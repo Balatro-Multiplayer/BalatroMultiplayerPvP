@@ -10,7 +10,7 @@ end
 
 -- True when the run setup screen belongs to a BMP lobby or Practice mode.
 function PVP.UTILS.in_bmp_run_setup()
-	return MPAPI.get_current_lobby() ~= nil or PVP.is_practice_mode()
+	return MPAPI.get_current_lobby() ~= nil or PVP.is_practice_mode() or PVP.practice_setup_ruleset() ~= nil
 end
 
 -- Returns whether the guard was installed.

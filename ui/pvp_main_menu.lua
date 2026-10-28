@@ -291,37 +291,32 @@ end
 -- ruleset_mp_vanilla + gamemode_mp_attrition as plain Vanilla and have no distinguishing
 -- mechanic with a single practice player (see PVP._start_practice's header comment), so
 -- they're intentionally not offered here.
--- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below.
+-- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below,
+-- which opens the run setup screen (deck, stake, seed) for that ruleset.
 G.FUNCS.mp_pvp_practice = function()
 	MPAPI.pages.show("pvp_game_select", { intent = "practice" })
 end
 
 G.FUNCS.mp_pvp_practice_balanced = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_balanced")
+	PVP.open_practice_setup("ruleset_mp_balanced")
 end
 
 G.FUNCS.mp_pvp_practice_expanded = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_expanded")
+	PVP.open_practice_setup("ruleset_mp_expanded")
 end
 
 G.FUNCS.mp_pvp_practice_vanilla = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_vanilla")
+	PVP.open_practice_setup("ruleset_mp_vanilla")
 end
 
 G.FUNCS.mp_pvp_practice_smallworld = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_smallworld")
+	PVP.open_practice_setup("ruleset_mp_smallworld")
 end
 
 G.FUNCS.mp_pvp_practice_experimental = function()
-	G.FUNCS.exit_overlay_menu()
-	-- PVP._start_practice now takes a ruleset key directly (see its own header
-	-- comment), not the pvp_experimental gamemode-table entry's key -- that entry
-	-- was never registered as an MPAPI.GameMode anyway (§17.6/§17.3).
-	PVP._start_practice("ruleset_mp_experimental")
+	-- A ruleset key, not the pvp_experimental gamemode-table entry's key: that entry
+	-- was never registered as an MPAPI.GameMode.
+	PVP.open_practice_setup("ruleset_mp_experimental")
 end
 
 -- ── Replay/Spectate overlay ───────────────────────────────────────────────
