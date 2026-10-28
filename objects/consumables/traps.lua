@@ -108,15 +108,34 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Alarm")
 		end,
 	},
-	-- Explosive Runes: when the holder plays a hand with a glass card, all glass cards in
-	-- that hand are guaranteed to break. Deferred: forcing a glass break bypasses SMODS's own
-	-- probability roll and needs its own destroy_card-context hook (see plan's Phase 3 notes);
-	-- not yet implemented.
+	-- Explosive Runes: when the holder plays a hand with a glass card, every scored glass card
+	-- breaks after it scores.
 	{
 		key = "trap_explosive_runes",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.before then
+				local armed = false
+				for _, scored in ipairs(context.scoring_hand or {}) do
+					if not scored.debuff and SMODS.has_enhancement(scored, "m_glass") then
+						scored.ability.mp_trap_break = true
+						armed = true
+					end
+				end
+				if armed then
+					PVP.TRAP.reveal_and_consume(card)
+					return PVP.TRAP.notify_owner(card, {})
+				end
+			end
+		end,
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Explosive Runes")
+		end,
 	},
 	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
 	{

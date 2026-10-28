@@ -1274,8 +1274,8 @@ return {
 				text = {
 					"When your {X:purple,C:white}Nemesis{} plays a",
 					"hand with a {C:attention}Glass{} card,",
-					"all Glass cards in the hand",
-					"are guaranteed to break",
+					"every scored Glass card",
+					"breaks after it scores",
 				},
 			},
 			c_mp_trap_sepia_snake_sigil = {
