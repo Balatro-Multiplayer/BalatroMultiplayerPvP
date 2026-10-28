@@ -9,6 +9,13 @@ return {
 					"{C:red}Rare Joker{}",
 				},
 			},
+			tag_mp_ward = {
+				name = "Ward Tag",
+				text = {
+					"Gives a free",
+					"{C:spectral}Jumbo Spectral Pack",
+				},
+			},
 			tag_mp_juggle_sandbox = {
 				name = "Juggle Tag",
 				text = {

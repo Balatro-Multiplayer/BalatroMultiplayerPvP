@@ -34,8 +34,8 @@ SMODS.ConsumableType({
 })
 
 local TRAPS = {
-	-- Glyph of Warding: when the holder uses a Spectral card, the drafter gets a Jumbo
-	-- Spectral pack to open.
+	-- Glyph of Warding: when the holder uses a Spectral card, the drafter gets a Ward Tag
+	-- (objects/tags/ward.lua), which opens a Jumbo Spectral pack at the next blind choice.
 	{
 		key = "trap_glyph_of_warding",
 		idea = "Virtualized",
@@ -51,17 +51,7 @@ local TRAPS = {
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
 			end
-			-- SMODS.add_card needs `set` explicitly -- it's passed straight through
-			-- to vanilla create_card's positional _type arg, never inferred from
-			-- the target center's own .set (confirmed by reading SMODS.create_card:
-			-- only `area` gets auto-derived from G.P_CENTERS[key], not `set`).
-			-- Omitting it crashes deep in create_card's rarity-pool code with
-			-- "attempt to concatenate local '_type' (a nil value)" -- found live via
-			-- cctl, not from reading this file in isolation.
-			local pack_card = SMODS.add_card({ key = "p_spectral_jumbo_1", set = "Booster", area = G.consumeables, skip_materialize = true })
-			if pack_card and pack_card.open then
-				pack_card:open()
-			end
+			add_tag(Tag("tag_mp_ward"))
 			PVP.UI.show_trap_fired_animation("Glyph of Warding")
 		end,
 	},
