@@ -8,9 +8,9 @@
 local PLACEHOLDER_CHIP_ROW = 0
 
 local PRACTICE_MODES = {
-	{ key = "ruleset_mp_balanced", name = "Balanced",
+	{ key = "ruleset_mp_balanced", name_key = "k_mp_ruleset_balanced",
 		desc = { "Minor balance", "changes for MP" }, button = "mp_pvp_practice_balanced", colour = G.C.BLUE },
-	{ key = "ruleset_mp_expanded", name = "Expanded",
+	{ key = "ruleset_mp_expanded", name_key = "k_mp_ruleset_expanded",
 		desc = { "Standardized and", "balanced for MP" }, button = "mp_pvp_practice_expanded", colour = G.C.PURPLE },
 	{ key = "ruleset_mp_vanilla", name = "Vanilla",
 		desc = { "Normal Balatro", "with PvP blinds" }, button = "mp_pvp_practice_vanilla", colour = G.C.GREEN },
@@ -66,7 +66,7 @@ local function build_items(intent)
 				button = mode.button,
 			}),
 			name_plate = MPAPI.ui_pillar_name_plate({
-				lines = mode.name,
+				lines = mode.name_key and localize(mode.name_key) or mode.name,
 				bg_colour = mix_colours(mode.colour, G.C.BLACK, 0.3),
 				outline_colour = mode.colour,
 			}),

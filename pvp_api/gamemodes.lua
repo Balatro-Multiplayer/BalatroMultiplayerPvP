@@ -43,7 +43,7 @@ PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 -- more); casual/private both go up to 16 (§17.4).
 --
 -- pvp_nemesis/pvp_smallworld are the only two ruleset-only entries left as
--- MPAPI.GameMode registrations. pvp_nemesis (the renamed former pvp_chocolate)
+-- MPAPI.GameMode registrations. pvp_nemesis (the renamed former ranked format)
 -- is the private-lobby/practice-mode fallback and casual Nemesis's queue key;
 -- ranked queues by ruleset directly (PVP._join_ranked_ruleset,
 -- pvp_api/queue.lua) rather than through this gamemode key. Every casual

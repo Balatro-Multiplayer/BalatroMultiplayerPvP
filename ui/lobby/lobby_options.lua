@@ -9,7 +9,9 @@
 -- ruleset-picker overlay's own style (ui/pvp_main_menu.lua) rather than inventing
 -- localization keys ahead of a later polish pass.
 
-local RULESET_LABELS = { "Vanilla", "Balanced", "Expanded", "Small World" }
+local function ruleset_labels()
+	return { "Vanilla", localize("k_mp_ruleset_balanced"), localize("k_mp_ruleset_expanded"), "Small World" }
+end
 local RULESET_KEYS = { "ruleset_mp_vanilla", "ruleset_mp_balanced", "ruleset_mp_expanded", "ruleset_mp_smallworld" }
 
 local function current_ruleset_option()
@@ -33,7 +35,7 @@ function PVP.build_lobby_options()
 				MPAPI.disableable_option_cycle({
 					id = "mp_pvp_ruleset_pick",
 					label = "Ruleset",
-					options = RULESET_LABELS,
+					options = ruleset_labels(),
 					current_option = current_ruleset_option(),
 					opt_callback = "mp_pvp_change_ruleset",
 					w = 4,
