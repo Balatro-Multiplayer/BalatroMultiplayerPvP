@@ -43,21 +43,21 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- and PVP._active_queue_id.key (pvp_api/queue.lua) -- build_select below compares against it to
 -- decide whether this exact pillar's queue is the one currently active.
 local RANKED_MODES = {
-	{ key = "pvp_ranked_vanilla", name = { "Vanilla", "Ranked" },
+	{ key = "pvp_ranked_vanilla",
 		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = "ruleset_mp_vanilla", colour = G.C.GREEN },
-	{ key = "pvp_ranked_balanced", name_key = "k_mp_ruleset_balanced", name_suffix = "Ranked",
+		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RulesetKey.VANILLA, colour = G.C.GREEN },
+	{ key = "pvp_ranked_balanced",
 		desc = { "Minor balance", "changes for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = "ruleset_mp_balanced", colour = G.C.BLUE },
-	{ key = "pvp_ranked_expanded", name_key = "k_mp_ruleset_expanded", name_suffix = "Ranked",
+		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RulesetKey.BALANCED, colour = G.C.BLUE },
+	{ key = "pvp_ranked_expanded",
 		desc = { "Standardized and", "balanced for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = "ruleset_mp_expanded", colour = G.C.PURPLE },
-	{ key = "pvp_ranked_majorleague", name = { "MLBa", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RulesetKey.EXPANDED, colour = G.C.PURPLE },
+	{ key = "pvp_ranked_majorleague", short_name = "MLBa",
 		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = "ruleset_mp_majorleague", colour = G.C.BLACK },
-	{ key = "pvp_smallworld_ranked", name = { "Smallworld", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = G.C.BLACK },
+	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = "ruleset_mp_smallworld", colour = G.C.RED },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = G.C.RED },
 }
 
 -- Casual: 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -80,7 +80,7 @@ local CASUAL_MODES = {
 	{ key = "pvp_teams", name = "Teams",
 		desc = { "Team vs team;", "best score wins" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour = G.C.GREEN },
-	{ key = "pvp_smallworld_casual", name = "Smallworld",
+	{ key = "pvp_smallworld_casual", display_ruleset = PVP.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour = G.C.RED },
 }
@@ -315,6 +315,17 @@ local function build_order_card()
 	} })
 end
 
+-- Ranked pillars read "<ruleset> / Ranked"; a Casual pillar may take its name from its ruleset.
+local function pillar_name(mode)
+	if mode.ruleset_key then
+		return { mode.short_name or PVP.ruleset_display_name(mode.ruleset_key), localize("k_pvp_ranked") }
+	end
+	if mode.display_ruleset then
+		return PVP.ruleset_display_name(mode.display_ruleset)
+	end
+	return mode.name
+end
+
 local function build_items(modes, group)
 	_select_els = {}
 	_stat_els = {}
@@ -325,7 +336,7 @@ local function build_items(modes, group)
 			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or build_chip_sprite(),
 			select = group and build_group_select(mode) or build_select(mode),
 			name_plate = MPAPI.ui_pillar_name_plate({
-				lines = mode.name_key and { localize(mode.name_key), mode.name_suffix } or mode.name,
+				lines = pillar_name(mode),
 				bg_colour = mix_colours(mode.colour, G.C.BLACK, 0.3),
 				outline_colour = mode.colour,
 			}),

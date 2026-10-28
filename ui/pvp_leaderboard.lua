@@ -14,11 +14,11 @@ local function get_leaderboard()
 	end
 	_leaderboard = MPAPI.ui_leaderboard({
 		tabs = {
-			{ key = "pvp_ranked_balanced", label = localize("k_mp_ruleset_balanced"), colour = G.C.RED },
-			{ key = "pvp_ranked_expanded", label = localize("k_mp_ruleset_expanded"), colour = G.C.ORANGE },
-			{ key = "pvp_ranked_vanilla", label = "Vanilla", colour = G.C.BLUE },
+			{ key = "pvp_ranked_balanced", label = PVP.ruleset_display_name(PVP.RulesetKey.BALANCED), colour = G.C.RED },
+			{ key = "pvp_ranked_expanded", label = PVP.ruleset_display_name(PVP.RulesetKey.EXPANDED), colour = G.C.ORANGE },
+			{ key = "pvp_ranked_vanilla", label = PVP.ruleset_display_name(PVP.RulesetKey.VANILLA), colour = G.C.BLUE },
 			{ key = "pvp_ranked_majorleague", label = "MLBa", colour = G.C.BLACK },
-			{ key = "pvp_ranked_smallworld", label = "Small World", colour = G.C.GREEN },
+			{ key = "pvp_ranked_smallworld", label = PVP.ruleset_display_name(PVP.RulesetKey.SMALLWORLD), colour = G.C.GREEN },
 		},
 		columns = {
 			{ header = function() return localize("k_rating_cap") end, colour = G.C.BLUE, width = 0.95, value = function(e) return tostring(e.rating or "?") end },

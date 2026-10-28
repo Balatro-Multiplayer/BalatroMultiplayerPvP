@@ -3,19 +3,20 @@
 -- come back to it after the game. The host's metadata says it is one
 -- (kind = party), so a joiner and a player back from the game see it too.
 
--- The lobby this client just created as a Party lobby, before the host's
--- metadata write comes back from the server.
-PVP._new_party_lobby = nil
+PVP.PartyLobby = {
+	-- The lobby this client just created as a Party lobby, before the host's
+	-- metadata write comes back from the server.
+	created = nil,
+}
 
 function PVP.is_party_lobby(lobby)
-	if not lobby then
-		return false
-	end
-	if lobby == PVP._new_party_lobby then
-		return true
-	end
-	local meta = lobby:get_metadata()
-	return type(meta) == "table" and meta.kind == PVP.LobbyAccess.PARTY
+	return lobby == PVP.PartyLobby.created or lobby:get_metadata().kind == PVP.LobbyAccess.PARTY
+end
+
+-- Whether this client knows what kind of lobby it is in. The host always does; a
+-- joiner learns it from the host's metadata, which lands just after the join.
+function PVP.lobby_kind_known(lobby)
+	return lobby.is_host or lobby:get_metadata().kind ~= nil
 end
 
 -- Whether the host may open Find Game: two players or more (no more than a
@@ -26,7 +27,7 @@ function PVP.party_find_game_enabled(facts)
 		return false
 	end
 	local Group = MPAPI.matchmaking.group
-	local ids = facts.player_ids or {}
+	local ids = facts.player_ids
 	if #ids < Group.MIN_SIZE or #ids > Group.MAX_SIZE then
 		return false
 	end
@@ -68,7 +69,7 @@ function PVP.pvp_create_party_lobby()
 		sendWarnMessage("pvp_create_party_lobby: failed to create lobby", "MULTIPLAYER")
 		return
 	end
-	PVP._new_party_lobby = lobby
+	PVP.PartyLobby.created = lobby
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = nil
 	PVP.setup_lobby_mirror(lobby)

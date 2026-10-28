@@ -36,6 +36,16 @@ function PVP.UI.enemy_location_blind_render()
 	return blind_object_render
 end
 
+-- The location and the " (catching up)" badge read as one text, so a long pair scales down
+-- together to fit the column instead of the badge overflowing it.
+local shown_location = setmetatable({}, {
+	__index = function(_, key)
+		if key == "text" then
+			return PVP.GAME.enemy.location .. PVP.GAME.enemy.catching_up_text
+		end
+	end,
+})
+
 -- The [text location][blind icon] pair shown both in the main HUD slot and
 -- in the hover popup -- the text node carries chip_ui_id per
 -- MPAPI.enemy_location's contract; the icon is a separate sibling node kept
@@ -50,23 +60,13 @@ local function value_nodes(chip_ui_id)
 				{
 					n = G.UIT.T,
 					config = {
-						ref_table = PVP.GAME.enemy,
-						ref_value = "location",
+						ref_table = shown_location,
+						ref_value = "text",
 						scale = 0.35,
 						colour = G.C.WHITE,
 						id = chip_ui_id,
 						shadow = true,
 						maxw = 2.2,
-					},
-				},
-				{
-					n = G.UIT.T,
-					config = {
-						ref_table = PVP.GAME.enemy,
-						ref_value = "catching_up_text",
-						scale = 0.35,
-						colour = G.C.WHITE,
-						shadow = true,
 					},
 				},
 			},

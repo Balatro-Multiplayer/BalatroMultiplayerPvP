@@ -16,8 +16,8 @@ end
 -- The panel's rows, or nil while the party does not queue. Reads only.
 function PVP.lobby.group_panel_rows(lobby)
 	local Group = MPAPI.matchmaking.group
-	local view = lobby and lobby.group_queue
-	if type(view) ~= "table" then
+	local view = lobby.group_queue
+	if not view then
 		return nil
 	end
 	local rows = { text_row(localize("k_pvp_party_lobby"), 0.36, G.C.UI.TEXT_INACTIVE) }
@@ -35,9 +35,6 @@ function PVP.lobby.group_panel_rows(lobby)
 end
 
 function PVP.lobby.build_group_panel(lobby)
-	if not (MPAPI.matchmaking and MPAPI.matchmaking.group and MPAPI.matchmaking.group.status_line) then
-		return nil
-	end
 	local rows = PVP.lobby.group_panel_rows(lobby)
 	if not rows then
 		return nil

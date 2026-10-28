@@ -1333,12 +1333,14 @@ return {
 		dictionary = {
 			-- Party lobby (pvp_api/party_lobby.lua)
 			k_pvp_party_lobby = "Party lobby",
+			k_pvp_party = "Party",
+			k_pvp_party_desc_1 = "Queue Casual",
+			k_pvp_party_desc_2 = "together",
+			k_pvp_ranked = "Ranked",
 			k_pvp_waiting_for_host = "Waiting for the host",
 			-- Setup votes (pvp_api/setup.lua)
 			k_pvp_setup_title_ruleset = "Vote: Ruleset",
 			k_pvp_setup_title_traps = "Vote: Trap Cards",
-			k_pvp_setup_ruleset_vanilla = "Vanilla",
-			k_pvp_setup_ruleset_majorleague = "Major League",
 			k_pvp_setup_traps_on = "Traps On",
 			k_pvp_setup_traps_off = "Traps Off",
 			k_pvp_setup_your_vote = "Your turn: vote",

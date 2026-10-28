@@ -274,8 +274,8 @@ local LOCKED_POS = { x = 8, y = 9 }
 local TILE_SCALE = 1 / 1.75
 
 local function option_label(id, option)
-	if id == S.Step.RULESET and (option == "balanced" or option == "expanded") then
-		return localize("k_mp_ruleset_" .. option)
+	if id == S.Step.RULESET then
+		return PVP.ruleset_display_name(S.ruleset_key(option))
 	end
 	return localize("k_pvp_setup_" .. id .. "_" .. option)
 end

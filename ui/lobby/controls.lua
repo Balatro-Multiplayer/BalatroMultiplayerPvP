@@ -74,7 +74,7 @@ local function build_party_controls()
 	local b = PVP.lobby.buttons
 	local lobby = PVP.lobby.ref
 	local row_nodes = {}
-	if lobby and lobby.is_host then
+	if lobby.is_host then
 		row_nodes[#row_nodes + 1] = b.party_find_game.node
 	else
 		row_nodes[#row_nodes + 1] = b.ready.node
@@ -127,11 +127,29 @@ function PVP.lobby.refresh_mm_status()
 	end
 end
 
+-- A joiner before the host's metadata arrives: only what every lobby kind has.
+local function build_pending_controls()
+	local b = PVP.lobby.buttons
+	return {
+		n = G.UIT.C,
+		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
+		nodes = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
+			waiting_for_host_panel(),
+			code_panel(),
+			b.leave.node,
+		} } },
+	}
+end
+
 function PVP.lobby.build_controls()
 	if PVP.is_matchmaking() then
 		return build_matchmaking_controls()
 	end
-	if PVP.is_party_lobby(PVP.lobby.ref) then
+	local lobby = PVP.lobby.ref
+	if not PVP.lobby_kind_known(lobby) then
+		return build_pending_controls()
+	end
+	if PVP.is_party_lobby(lobby) then
 		return build_party_controls()
 	end
 	return build_private_controls()

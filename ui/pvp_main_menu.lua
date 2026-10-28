@@ -303,25 +303,25 @@ G.FUNCS.mp_pvp_practice = function()
 end
 
 G.FUNCS.mp_pvp_practice_balanced = function()
-	PVP.open_practice_setup("ruleset_mp_balanced")
+	PVP.open_practice_setup(PVP.RulesetKey.BALANCED)
 end
 
 G.FUNCS.mp_pvp_practice_expanded = function()
-	PVP.open_practice_setup("ruleset_mp_expanded")
+	PVP.open_practice_setup(PVP.RulesetKey.EXPANDED)
 end
 
 G.FUNCS.mp_pvp_practice_vanilla = function()
-	PVP.open_practice_setup("ruleset_mp_vanilla")
+	PVP.open_practice_setup(PVP.RulesetKey.VANILLA)
 end
 
 G.FUNCS.mp_pvp_practice_smallworld = function()
-	PVP.open_practice_setup("ruleset_mp_smallworld")
+	PVP.open_practice_setup(PVP.RulesetKey.SMALLWORLD)
 end
 
 G.FUNCS.mp_pvp_practice_experimental = function()
 	-- A ruleset key, not the pvp_experimental gamemode-table entry's key: that entry
 	-- was never registered as an MPAPI.GameMode.
-	PVP.open_practice_setup("ruleset_mp_experimental")
+	PVP.open_practice_setup(PVP.RulesetKey.EXPERIMENTAL)
 end
 
 -- ── Replay/Spectate overlay ───────────────────────────────────────────────
