@@ -13,7 +13,7 @@ SMODS.ConsumableType({
 	loc_txt = {
 		["en-us"] = {
 			name = "Trap",
-			collection = "{} Trap Cards",
+			collection = "Trap Cards",
 			-- Must be a {name=..., text={...}} table, not a bare string: SMODS.ConsumableType's
 			-- process_loc_text writes this straight into G.localization.descriptions.Other, and
 			-- the base game's init_localization (functions/misc_functions.lua) unconditionally
