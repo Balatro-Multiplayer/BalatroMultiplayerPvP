@@ -377,15 +377,51 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Phase Door")
 		end,
 	},
-	-- Mental Prison: when the holder fails to use a Wheel of Fortune they saw in a shop, create
-	-- 2 Wheel of Fortunes. Deferred: needs new state-tracking (record Wheel of Fortune
-	-- appearances per shop visit, checked at ending_shop) -- not a pure calculate-context check.
-	-- Not yet implemented.
+	-- Mental Prison: when the holder leaves a Wheel of Fortune in the shop or a pack (skipped,
+	-- picks used up elsewhere, shop left or rerolled), the drafter gets 2 Wheel of Fortunes. Leaving
+	-- the shop is handled here; the pack and reroll cases are hooked in lib/trap_utils.lua.
 	{
 		key = "trap_mental_prison",
 		idea = "Virtualized",
 		art = "Ganpan140",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.ending_shop and PVP.TRAP.area_holds_wheel(G.shop_jokers) then
+				PVP.TRAP.reveal_and_consume(card)
+				return PVP.TRAP.notify_owner(card, {})
+			end
+		end,
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			for _ = 1, 2 do
+				-- Counts the buffer too, so cards still being made do not leave the area over its limit.
+				if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
+					G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+					G.E_MANAGER:add_event(Event({
+						trigger = "before",
+						delay = 0.0,
+						func = function()
+							-- Built directly: SMODS.add_card / create_card would poll shared pseudorandom streams.
+							local wheel = Card(
+								G.consumeables.T.x,
+								G.consumeables.T.y,
+								G.CARD_W,
+								G.CARD_H,
+								nil,
+								G.P_CENTERS.c_wheel_of_fortune
+							)
+							wheel:add_to_deck()
+							G.consumeables:emplace(wheel)
+							G.GAME.consumeable_buffer = math.max(0, G.GAME.consumeable_buffer - 1)
+							return true
+						end,
+					}))
+				end
+			end
+			PVP.UI.show_trap_fired_animation("Mental Prison")
+		end,
 	},
 }
 
