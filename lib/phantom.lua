@@ -158,7 +158,10 @@ local align_cards_ref = CardArea.align_cards
 function CardArea:align_cards()
 	align_cards_ref(self)
 	if (self ~= PVP.nemesis_jokers and self ~= PVP.nemesis_consumeables) or not self.cards then return end
-	if PVP.run_nemesis_layout ~= PVP.NEMESIS_LAYOUT.MIRRORED then return end
+	-- Turned cards follow the live setting, so a switch between Standard and Mirrored applies at once.
+	local mirrored = PVP.run_nemesis_layout ~= PVP.NEMESIS_LAYOUT.CLASSIC
+		and PVP.get_nemesis_layout() == PVP.NEMESIS_LAYOUT.MIRRORED
+	if not mirrored then return end
 	for _, card in ipairs(self.cards) do
 		if not card.states.drag.is and not card.disable_align then
 			card.T.x = 2 * self.T.x + self.T.w - card.T.x - card.T.w
