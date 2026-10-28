@@ -119,7 +119,8 @@ local function add_display_card(area, entry)
 	card.ability.mp_trap_owner_id = entry.owner
 	card.states.click.can = false
 	card.states.drag.can = false
-	area:emplace(card)
+	-- stay_flipped: emplace otherwise turns a face-down card face-up.
+	area:emplace(card, nil, true)
 end
 
 -- The Trapper's view of a fire: the card flips face-up and dissolves where it sits.
