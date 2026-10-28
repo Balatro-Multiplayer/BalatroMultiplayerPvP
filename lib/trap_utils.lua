@@ -30,15 +30,20 @@ function PVP.TRAP.plant(card)
 		return
 	end
 	local lobby = MPAPI.get_current_lobby()
-	local target = PVP.ante_nemesis_id()
-	if not (lobby and target) then
+	local targets = PVP.ante_nemesis_ids()
+	if not (lobby and #targets > 0) then
 		return
 	end
 	card.ability.mp_trap_owner_id = self_id() -- stamp before serializing; round-trips via card:save()/:load()
-	lobby:action(PVP.TRAP.plant_action):send(target, { card = MPAPI.serialize_card(card), owner = self_id() })
+	local params = { card = MPAPI.serialize_card(card), owner = self_id() }
+	-- A Manhunt runner has every hunter as a Nemesis: each one gets its own copy, which fires and pays on its own.
+	for _, target in ipairs(targets) do
+		lobby:action(PVP.TRAP.plant_action):send(target, params)
+	end
 end
 
 -- A planted trap of this center key that is still hidden and has not fired, in the player's own consumables.
+-- For a Manhunt runner these are the copies the hunters planted, so a hunter's lock still stops the runner's plant.
 function PVP.TRAP.find_planted(key)
 	for _, held in ipairs(G.consumeables and G.consumeables.cards or {}) do
 		if held.config.center.key == key and held.ability.mp_trap_hidden and not held.ability.mp_trap_fired then
