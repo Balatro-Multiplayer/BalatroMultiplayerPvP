@@ -8,6 +8,13 @@ function SMODS.get_card_areas(_type, _context)
 	return get_card_areas_ref(_type, _context)
 end
 
+-- The eternal sticker alone does not stop a sale: Steamodded ignores it on jokers that are not eternal-compatible.
+local can_sell_card_ref = Card.can_sell_card
+function Card:can_sell_card(context)
+	if PVP.is_phantom(self) then return false end
+	return can_sell_card_ref(self, context)
+end
+
 -- Gap between the bottom of the Nemesis slots and the top of the player's own rows, in game units.
 PVP.NEMESIS_SLOT_GAP = 0.25
 
