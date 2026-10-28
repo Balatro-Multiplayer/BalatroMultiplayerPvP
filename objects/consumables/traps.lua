@@ -1,9 +1,9 @@
 -- Trap: a consumable type that reacts to something your Nemesis does. A Trap can only be
--- drafted from a Trap booster pack (objects/boosters/traps.lua); drafting one plants it,
--- face-down, in the drafter's Nemesis's own consumables instead of the drafter's (see
+-- taken from a Trap booster pack (objects/boosters/traps.lua); taking one plants it,
+-- face-down, in the Trapper's Nemesis's own consumables instead of the Trapper's (see
 -- lib/trap_utils.lua's PVP.TRAP.plant/disguise). When the Nemesis's own action satisfies the
 -- trap's trigger, it reveals itself on their screen and its effect benefits the ORIGINAL
--- drafter -- who also gets a "use" animation on their own screen. See lib/trap_utils.lua for
+-- Trapper -- who also gets a "use" animation on their own screen. See lib/trap_utils.lua for
 -- the shared plant/disguise/reveal/notify_owner framework every card below reuses, and the
 -- layer that gates when these can spawn at all in layers/traps.lua.
 SMODS.ConsumableType({
@@ -34,7 +34,7 @@ SMODS.ConsumableType({
 })
 
 local TRAPS = {
-	-- Glyph of Warding: when the holder uses a Spectral card, the drafter gets a Ward Tag
+	-- Glyph of Warding: when the Nemesis uses a Spectral card, the Trapper gets a Ward Tag
 	-- (objects/tags/ward.lua), which opens a Jumbo Spectral pack at the next blind choice.
 	{
 		key = "trap_glyph_of_warding",
@@ -55,7 +55,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Glyph of Warding")
 		end,
 	},
-	-- Symbol: when the holder plays a flush, convert all scored cards to random suits.
+	-- Symbol: when the Nemesis plays a flush, convert all scored cards to random suits.
 	{
 		key = "trap_symbol",
 		idea = "Virtualized",
@@ -78,7 +78,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Symbol")
 		end,
 	},
-	-- Alarm: when the holder rerolls their shop, the drafter gains 2 free rerolls (now in a shop, else at the next shop).
+	-- Alarm: when the Nemesis rerolls their shop, the Trapper gains 2 free rerolls (now in a shop, else at the next shop).
 	{
 		key = "trap_alarm",
 		idea = "Virtualized",
@@ -98,7 +98,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Alarm")
 		end,
 	},
-	-- Explosive Runes: when the holder plays a hand with a glass card, every scored glass card
+	-- Explosive Runes: when the Nemesis plays a hand with a glass card, every scored glass card
 	-- breaks after it scores.
 	{
 		key = "trap_explosive_runes",
@@ -127,7 +127,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Explosive Runes")
 		end,
 	},
-	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
+	-- Sepia Snake Sigil: when the Nemesis buys a Rare Joker, the Trapper gains a copy of it.
 	{
 		key = "trap_sepia_snake_sigil",
 		idea = "Virtualized",
@@ -155,7 +155,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Sepia Snake Sigil")
 		end,
 	},
-	-- Fire Trap: when the holder plays a hand with a pair, decrease the rank of all scored
+	-- Fire Trap: when the Nemesis plays a hand with a pair, decrease the rank of all scored
 	-- cards by 1.
 	{
 		key = "trap_fire_trap",
@@ -178,7 +178,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Fire Trap")
 		end,
 	},
-	-- Guards and Wards: when the holder adds a playing card to their deck, add 2 Stone cards
+	-- Guards and Wards: when the Nemesis adds a playing card to their deck, add 2 Stone cards
 	-- to their deck.
 	{
 		key = "trap_guards_and_wards",
@@ -206,8 +206,8 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Guards and Wards")
 		end,
 	},
-	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
-	-- No calculate: the trigger is hooked in lib/trap_utils.lua, which sends the stolen card here.
+	-- Magic Mouth: when the Nemesis triggers a blue or purple seal, steal the consumable.
+	-- No calculate: the trigger is hooked in lib/trap_utils_magic_mouth.lua, which sends the stolen card here.
 	{
 		key = "trap_magic_mouth",
 		idea = "Virtualized",
@@ -225,7 +225,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Magic Mouth")
 		end,
 	},
-	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
+	-- Snare: when the Nemesis skips a blind, the Trapper gains a copy of the tag they got.
 	{
 		key = "trap_snare",
 		idea = "Virtualized",
@@ -233,12 +233,9 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.skip_blind then
-				-- Vanilla G.FUNCS.skip_blind calls add_tag(skip tag) first, then queues the event that
-				-- sends skip_blind, so the Nemesis's skip tag is already the last entry of G.GAME.tags
-				-- here. A Double Tag copy has the same key, so the last entry is still the right one.
-				local skipped_tag = G.GAME.tags[#G.GAME.tags]
+				-- Recorded by lib/trap_utils_snare.lua: other tags may be added before this context runs.
 				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { tag_key = skipped_tag and skipped_tag.key })
+				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key })
 			end
 		end,
 		receive = function(self, context)
@@ -251,7 +248,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Snare")
 		end,
 	},
-	-- Arcane Lock: the next Trap card the holder takes from a Trap pack goes face-down into their
+	-- Arcane Lock: the next Trap card the Nemesis takes from a Trap pack goes face-down into their
 	-- own consumables, and this card's Trapper becomes its Trapper. The bounce runs in
 	-- PVP.TRAP.plant, so there is no calculate.
 	{
@@ -266,8 +263,8 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Arcane Lock")
 		end,
 	},
-	-- Programmed Illusion: when the holder opens a booster pack, one extra card of the pack's type is added.
-	-- Picking it uses a pick, then it dissolves and gives nothing (lib/trap_utils.lua).
+	-- Programmed Illusion: when the Nemesis opens a booster pack, one extra card of the pack's type is added.
+	-- Picking it uses a pick, then it dissolves and gives nothing (lib/trap_utils_programmed_illusion.lua).
 	{
 		key = "trap_programmed_illusion",
 		idea = "Virtualized",
@@ -286,7 +283,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Programmed Illusion")
 		end,
 	},
-	-- Web: when the holder uses any consumable, the drafter gains a negative copy of it.
+	-- Web: when the Nemesis uses any consumable, the Trapper gains a negative copy of it.
 	{
 		key = "trap_web",
 		idea = "Virtualized",
@@ -311,13 +308,18 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Web")
 		end,
 	},
-	-- Forbiddance: when the holder discards, the cards drawn to refill their hand come in
-	-- face-down. It acts outside calculate (see lib/trap_utils.lua's draw hooks).
+	-- Forbiddance: when the Nemesis discards, the cards drawn to refill their hand come in
+	-- face-down. It acts outside calculate (see lib/trap_utils_forbiddance.lua).
 	{
 		key = "trap_forbiddance",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.setting_blind then
+				PVP.TRAP.disarm_forbiddance(card)
+			end
+		end,
 		receive = function(self, context)
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
@@ -325,7 +327,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Forbiddance")
 		end,
 	},
-	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
+	-- Faithful Hound: when the Nemesis uses a Planet card, the Trapper gains 3 levels of that
 	-- poker hand.
 	{
 		key = "trap_faithful_hound",
@@ -351,7 +353,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Faithful Hound")
 		end,
 	},
-	-- Phase Door: when the holder's held gold cards pay out at end of round, the drafter gains $4
+	-- Phase Door: when the Nemesis's held gold cards pay out at end of round, the Trapper gains $4
 	-- per gold card in their hand.
 	{
 		key = "trap_phase_door",
@@ -387,9 +389,9 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Phase Door")
 		end,
 	},
-	-- Mental Prison: when the holder leaves a Wheel of Fortune in the shop or a pack (skipped,
-	-- picks used up elsewhere, shop left or rerolled), the drafter gets 2 Wheel of Fortunes. Leaving
-	-- the shop is handled here; the pack and reroll cases are hooked in lib/trap_utils.lua.
+	-- Mental Prison: when the Nemesis leaves a Wheel of Fortune in the shop or a pack (skipped,
+	-- picks used up elsewhere, shop left or rerolled), the Trapper gets 2 Wheel of Fortunes. Leaving
+	-- the shop is handled here; the pack and reroll cases are hooked in lib/trap_utils_mental_prison.lua.
 	{
 		key = "trap_mental_prison",
 		idea = "Virtualized",
@@ -461,7 +463,7 @@ for index, def in ipairs(TRAPS) do
 		can_use = function(self, card)
 			return card.area == G.pack_cards
 		end,
-		-- Fires exactly once: the moment this card is drafted from a Trap pack (see
+		-- Fires exactly once: the moment this card is taken from a Trap pack (see
 		-- lib/trap_utils.lua's PVP.TRAP.plant for why this is the sole, exact interception point).
 		use = function(self, card, area, copier)
 			PVP.TRAP.plant(card)
