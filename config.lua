@@ -9,6 +9,7 @@ return {
 		["TheOrder"] = true,
 		["Preview"] = false,
 	},
+	["nemesis_layout"] = "standard",
 	["unlocked"] = true,
 	["preview"] = {},
 	["joker_stats"] = {},

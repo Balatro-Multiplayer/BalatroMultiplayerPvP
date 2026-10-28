@@ -73,8 +73,37 @@ function PVP.sort_phantoms_by_ante_nemesis()
 	move_phantoms(PVP.nemesis_jokers_hidden, PVP.nemesis_jokers, true)
 end
 
--- Called from set_screen_positions: each Nemesis row mirrors the x and width of the player's row below it.
-function PVP.place_nemesis_slots()
+-- The Nemesis layout values, in the order of the config option cycle. The setting is a display choice
+-- of this player only: it is saved in the PvP config and never sent to other players.
+PVP.NEMESIS_LAYOUT = {
+	STANDARD = "standard",
+	MIRRORED = "mirrored",
+	CLASSIC = "classic",
+}
+PVP.NEMESIS_LAYOUT_ORDER = {
+	PVP.NEMESIS_LAYOUT.STANDARD,
+	PVP.NEMESIS_LAYOUT.MIRRORED,
+	PVP.NEMESIS_LAYOUT.CLASSIC,
+}
+
+-- The chosen layout. An unknown or missing saved value reads as Standard.
+function PVP.get_nemesis_layout()
+	for _, layout in ipairs(PVP.NEMESIS_LAYOUT_ORDER) do
+		if PVP.config.nemesis_layout == layout then return layout end
+	end
+	return PVP.NEMESIS_LAYOUT.STANDARD
+end
+
+-- Position of the chosen layout in the option cycle.
+function PVP.nemesis_layout_index()
+	local layout = PVP.get_nemesis_layout()
+	for index, value in ipairs(PVP.NEMESIS_LAYOUT_ORDER) do
+		if value == layout then return index end
+	end
+end
+
+-- Standard: each Nemesis row mirrors the x and width of the player's row below it.
+local function place_standard_layout()
 	local rows_to_place = {
 		{ nemesis_row = PVP.nemesis_jokers, own_row = G.jokers },
 		{ nemesis_row = PVP.nemesis_consumeables, own_row = G.consumeables },
@@ -87,6 +116,19 @@ function PVP.place_nemesis_slots()
 			nemesis_row:hard_set_T()
 		end
 	end
+end
+
+-- Mirrored and Classic show Standard until their own placement exists.
+local NEMESIS_LAYOUT_PLACERS = {
+	[PVP.NEMESIS_LAYOUT.STANDARD] = place_standard_layout,
+	[PVP.NEMESIS_LAYOUT.MIRRORED] = place_standard_layout,
+	[PVP.NEMESIS_LAYOUT.CLASSIC] = place_standard_layout,
+}
+
+-- Called from set_screen_positions, and again when the setting changes. All placement of the Nemesis
+-- cards goes through here.
+function PVP.place_nemesis_slots()
+	NEMESIS_LAYOUT_PLACERS[PVP.get_nemesis_layout()]()
 end
 
 -- Register the Nemesis joker row with the synced-object framework so `phantom = true`

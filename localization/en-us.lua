@@ -1576,6 +1576,12 @@ return {
 			k_show_mp_content_anyway = "Show Multiplayer content anyway*",
 			k_applies_singleplayer_vanilla_rulesets = "*Applies in singleplayer and vanilla rulesets",
 			k_timer_sfx = "Timer Sound Effects",
+			k_nemesis_layout = "Nemesis layout",
+			ml_nemesis_layout_opt = {
+				"Standard",
+				"Mirrored",
+				"Classic",
+			},
 			ml_mp_kofi_message = {
 				"This game server is",
 				"funded by the community,",
