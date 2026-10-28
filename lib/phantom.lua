@@ -23,7 +23,13 @@ local function remove_nemesis_slots()
 		end
 		PVP[key] = nil
 	end
-	PVP.nemesis_area_shared = nil
+	PVP.run_nemesis_layout = nil
+end
+
+local function place_area(area, x, y)
+	area.T.x = x
+	area.T.y = y
+	area:hard_set_T()
 end
 
 local function new_nemesis_row(width, height)
@@ -40,13 +46,13 @@ end
 function PVP.create_nemesis_slots(card_area_sizes)
 	remove_nemesis_slots()
 	if not PVP.LOBBY.code then return end
-	if PVP.get_nemesis_layout() == PVP.NEMESIS_LAYOUT.CLASSIC then
-		-- The Nemesis area: one row for the Phantom jokers and the face-down Trap cards. Both keys name it, so
-		-- the code that fills "the joker row" and "the trap row" needs no second path. The layout is read once
-		-- per run: a change of the setting applies from the next run.
+	-- Fixed for the run: a change of the setting applies from the next run.
+	PVP.run_nemesis_layout = PVP.get_nemesis_layout()
+	if PVP.run_nemesis_layout == PVP.NEMESIS_LAYOUT.CLASSIC then
+		-- One row for the Phantom jokers and the face-down Trap cards. Both keys name it, so the code that
+		-- fills "the joker row" and "the trap row" needs no second path.
 		PVP.nemesis_jokers = new_nemesis_row(card_area_sizes.consumeable_W / 2, card_area_sizes.consumeable_H)
 		PVP.nemesis_consumeables = PVP.nemesis_jokers
-		PVP.nemesis_area_shared = true
 	else
 		PVP.nemesis_jokers = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
 		PVP.nemesis_consumeables = new_nemesis_row(card_area_sizes.consumeable_W, card_area_sizes.consumeable_H)
@@ -55,9 +61,7 @@ function PVP.create_nemesis_slots(card_area_sizes)
 	-- never in the joker calculation, and parked off-screen so the cursor cannot hit them.
 	PVP.nemesis_jokers_hidden = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
 	PVP.nemesis_jokers_hidden.states.visible = false
-	PVP.nemesis_jokers_hidden.T.x = -100
-	PVP.nemesis_jokers_hidden.T.y = -100
-	PVP.nemesis_jokers_hidden:hard_set_T()
+	place_area(PVP.nemesis_jokers_hidden, -100, -100)
 	PVP.init_ante_nemesis()
 end
 
@@ -80,7 +84,6 @@ local function move_phantoms(from_area, to_area, wants_visible)
 	end
 end
 
--- Show only the ante Nemesis's Phantom jokers; the rest wait in the hidden store.
 function PVP.sort_phantoms_by_ante_nemesis()
 	move_phantoms(PVP.nemesis_jokers, PVP.nemesis_jokers_hidden, false)
 	move_phantoms(PVP.nemesis_jokers_hidden, PVP.nemesis_jokers, true)
@@ -99,20 +102,16 @@ PVP.NEMESIS_LAYOUT_ORDER = {
 	PVP.NEMESIS_LAYOUT.CLASSIC,
 }
 
--- The chosen layout. An unknown or missing saved value reads as Standard.
-function PVP.get_nemesis_layout()
-	for _, layout in ipairs(PVP.NEMESIS_LAYOUT_ORDER) do
-		if PVP.config.nemesis_layout == layout then return layout end
+-- An unknown or missing saved value reads as Standard.
+function PVP.nemesis_layout_index()
+	for index, layout in ipairs(PVP.NEMESIS_LAYOUT_ORDER) do
+		if PVP.config.nemesis_layout == layout then return index end
 	end
-	return PVP.NEMESIS_LAYOUT.STANDARD
+	return 1
 end
 
--- Position of the chosen layout in the option cycle.
-function PVP.nemesis_layout_index()
-	local layout = PVP.get_nemesis_layout()
-	for index, value in ipairs(PVP.NEMESIS_LAYOUT_ORDER) do
-		if value == layout then return index end
-	end
+function PVP.get_nemesis_layout()
+	return PVP.NEMESIS_LAYOUT_ORDER[PVP.nemesis_layout_index()]
 end
 
 -- Standard: each Nemesis row mirrors the x and width of the player's row below it.
@@ -124,9 +123,7 @@ local function place_standard_layout()
 	for _, place in ipairs(rows_to_place) do
 		local nemesis_row, own_row = place.nemesis_row, place.own_row
 		if nemesis_row then
-			nemesis_row.T.x = own_row.T.x
-			nemesis_row.T.y = own_row.T.y - PVP.NEMESIS_SLOT_GAP - nemesis_row.T.h
-			nemesis_row:hard_set_T()
+			place_area(nemesis_row, own_row.T.x, own_row.T.y - PVP.NEMESIS_SLOT_GAP - nemesis_row.T.h)
 		end
 	end
 end
@@ -135,9 +132,7 @@ end
 local function place_classic_layout()
 	local area = PVP.nemesis_jokers
 	if not area then return end
-	area.T.x = G.consumeables.T.x + G.consumeables.T.w / 2
-	area.T.y = G.consumeables.T.y + G.consumeables.T.h + 0.4
-	area:hard_set_T()
+	place_area(area, G.consumeables.T.x + G.consumeables.T.w / 2, G.consumeables.T.y + G.consumeables.T.h + 0.4)
 end
 
 -- Mirrored: the rows swap places and keep their own widths. The Nemesis consumable row starts at the left
@@ -145,14 +140,14 @@ end
 local function place_mirrored_layout()
 	local jokers, consumeables = PVP.nemesis_jokers, PVP.nemesis_consumeables
 	if consumeables then
-		consumeables.T.x = G.jokers.T.x
-		consumeables.T.y = G.jokers.T.y - PVP.NEMESIS_SLOT_GAP - consumeables.T.h
-		consumeables:hard_set_T()
+		place_area(consumeables, G.jokers.T.x, G.jokers.T.y - PVP.NEMESIS_SLOT_GAP - consumeables.T.h)
 	end
 	if jokers then
-		jokers.T.x = G.consumeables.T.x + G.consumeables.T.w - jokers.T.w
-		jokers.T.y = G.consumeables.T.y - PVP.NEMESIS_SLOT_GAP - jokers.T.h
-		jokers:hard_set_T()
+		place_area(
+			jokers,
+			G.consumeables.T.x + G.consumeables.T.w - jokers.T.w,
+			G.consumeables.T.y - PVP.NEMESIS_SLOT_GAP - jokers.T.h
+		)
 	end
 end
 
@@ -163,7 +158,7 @@ local align_cards_ref = CardArea.align_cards
 function CardArea:align_cards()
 	align_cards_ref(self)
 	if (self ~= PVP.nemesis_jokers and self ~= PVP.nemesis_consumeables) or not self.cards then return end
-	if PVP.nemesis_area_shared or PVP.get_nemesis_layout() ~= PVP.NEMESIS_LAYOUT.MIRRORED then return end
+	if PVP.run_nemesis_layout ~= PVP.NEMESIS_LAYOUT.MIRRORED then return end
 	for _, card in ipairs(self.cards) do
 		if not card.states.drag.is and not card.disable_align then
 			card.T.x = 2 * self.T.x + self.T.w - card.T.x - card.T.w
@@ -175,14 +170,13 @@ end
 local NEMESIS_LAYOUT_PLACERS = {
 	[PVP.NEMESIS_LAYOUT.STANDARD] = place_standard_layout,
 	[PVP.NEMESIS_LAYOUT.MIRRORED] = place_mirrored_layout,
-	[PVP.NEMESIS_LAYOUT.CLASSIC] = place_classic_layout,
 }
 
 -- Called from set_screen_positions, and again when the setting changes. All placement of the Nemesis
 -- cards goes through here.
 function PVP.place_nemesis_slots()
-	-- The areas of a run keep the shape they were made with, so the placement follows the area, not the setting.
-	if PVP.nemesis_area_shared then return place_classic_layout() end
+	if PVP.run_nemesis_layout == PVP.NEMESIS_LAYOUT.CLASSIC then return place_classic_layout() end
+	-- A switch to Classic mid-run has no area built for it, so it shows as Standard until the next run.
 	local layout = PVP.get_nemesis_layout()
 	if layout == PVP.NEMESIS_LAYOUT.CLASSIC then layout = PVP.NEMESIS_LAYOUT.STANDARD end
 	NEMESIS_LAYOUT_PLACERS[layout]()
@@ -199,12 +193,13 @@ end
 -- Classic look: a Phantom joker in the shared Nemesis area draws the old phantom shader ("voucher") in
 -- place of the base shader. This is a look only: no edition, badge, sticker or sell value is involved.
 local function has_classic_phantom_look(card)
-	return PVP.nemesis_area_shared and card.area == PVP.nemesis_jokers and PVP.is_phantom(card)
+	return PVP.run_nemesis_layout == PVP.NEMESIS_LAYOUT.CLASSIC and card.area == PVP.nemesis_jokers and PVP.is_phantom(card)
 end
 
 local should_draw_base_shader_ref = Card.should_draw_base_shader
 function Card:should_draw_base_shader()
-	if has_classic_phantom_look(self) then return false end
+	-- The base shader also draws the dissolve, so a dissolving card keeps it.
+	if has_classic_phantom_look(self) and not (self.dissolve and self.dissolve > 0) then return false end
 	return should_draw_base_shader_ref(self)
 end
 
