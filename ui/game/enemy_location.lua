@@ -45,7 +45,7 @@ local function value_nodes(chip_ui_id)
 	return {
 		{
 			n = G.UIT.C,
-			config = { maxw = 2.2, align = "cm" },
+			config = { minw = 2.2, maxw = 2.2, align = "cm" },
 			nodes = {
 				{
 					n = G.UIT.T,
@@ -56,7 +56,7 @@ local function value_nodes(chip_ui_id)
 						colour = G.C.WHITE,
 						id = chip_ui_id,
 						shadow = true,
-						maxw = 2.5,
+						maxw = 2.2,
 					},
 				},
 				{
@@ -108,6 +108,9 @@ PVP._enemy_location = MPAPI.enemy_location({
 	build_value_nodes = value_nodes,
 	build_popup_rows = popup_rows,
 	swatch_minw = 2.8,
+	popup_disabled = function()
+		return PVP.current_ruleset().enemy_location_disabled and true or false
+	end,
 	-- Vietnamese reads more naturally with round/score swapped; vanilla
 	-- itself doesn't do this, it's a PvP-specific community fix.
 	round_score_labels = function()
