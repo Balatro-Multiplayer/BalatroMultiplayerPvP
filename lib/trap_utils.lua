@@ -180,6 +180,77 @@ function Game:update_shop(dt)
 	return update_shop_ref(self, dt)
 end
 
+-- Programmed Illusion. Card:open reads the pack size in a later event, so growing the opened pack's
+-- `extra` by one makes vanilla build the fake as the pack's last card, with the pack's own card
+-- generator. Only the Nemesis builds it, so the pseudorandom streams are saved before it is built and
+-- restored after: every other client's pack stays in sync.
+function PVP.TRAP.add_illusion_slot(booster)
+	local ability = booster and booster.ability
+	if not (ability and ability.extra) or ability.mp_illusion_index then
+		return false
+	end
+	local modifier = G.GAME.modifiers.booster_size_mod or 0
+	local size = math.max(1, ability.extra + modifier)
+	ability.extra = size + 1 - modifier
+	ability.mp_illusion_index = size + 1
+	return true
+end
+
+local illusion_rng_state
+local function save_pseudorandom()
+	illusion_rng_state = {}
+	for key, value in pairs(G.GAME.pseudorandom) do
+		illusion_rng_state[key] = value
+	end
+end
+
+local function restore_pseudorandom()
+	for key in pairs(G.GAME.pseudorandom) do
+		G.GAME.pseudorandom[key] = nil
+	end
+	for key, value in pairs(illusion_rng_state) do
+		G.GAME.pseudorandom[key] = value
+	end
+	illusion_rng_state = nil
+end
+
+local calculate_context_ref = SMODS.calculate_context
+function SMODS.calculate_context(context, return_table, no_resolve)
+	local booster = type(context) == "table" and context.booster
+	local is_fake_slot = booster and booster.ability and booster.ability.mp_illusion_index == context.index
+	if is_fake_slot and context.create_booster_card then
+		save_pseudorandom()
+	end
+	local result = calculate_context_ref(context, return_table, no_resolve)
+	if is_fake_slot and context.modify_booster_card and illusion_rng_state then
+		restore_pseudorandom()
+		context.card.ability.mp_illusion_fake = true
+		if G.pack_cards then
+			G.pack_cards.config.card_limit = math.max(G.pack_cards.config.card_limit, context.index)
+		end
+	end
+	return result
+end
+
+-- Picking the fake runs vanilla's pick bookkeeping (one pick spent, pack ends or stays) but hides the
+-- card's set and consumeable table so none of the add/use branches match, and SMODS_use_card stops the
+-- select-to-area branch. The card then dissolves like any used card.
+local use_card_ref = G.FUNCS.use_card
+function G.FUNCS.use_card(e, mute, nosave)
+	local card = e.config and e.config.ref_table
+	if not (card and card.ability and card.ability.mp_illusion_fake) then
+		return use_card_ref(e, mute, nosave)
+	end
+	local set, consumeable = card.ability.set, card.ability.consumeable
+	card.ability.set, card.ability.consumeable = "mp_illusion", nil
+	local smods_use_card = e.config.SMODS_use_card
+	e.config.SMODS_use_card = true
+	use_card_ref(e, mute, nosave)
+	card.ability.set, card.ability.consumeable = set, consumeable
+	e.config.SMODS_use_card = smods_use_card
+	G.hand:unhighlight_all()
+end
+
 PVP.TRAP.plant_action = MPAPI.ActionType({
 	key = "pvp_trap_plant",
 	-- Explicit prefix_config: "pvp_trap_plant" doesn't start with this mod's own

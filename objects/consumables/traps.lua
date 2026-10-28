@@ -251,15 +251,25 @@ local TRAPS = {
 		art = "shai1n",
 		code = "Virtualized",
 	},
-	-- Programmed Illusion: when the holder opens a booster pack, add a fake card to it.
-	-- Deferred: Card:open builds its pack_cards list in a function-local table with no exposed
-	-- extension point for injecting an extra card -- needs a direct hook/override, not a
-	-- calculate-context check. Not yet implemented.
+	-- Programmed Illusion: when the holder opens a booster pack, one extra card of the pack's type is added.
+	-- Picking it uses a pick, then it dissolves and gives nothing (lib/trap_utils.lua).
 	{
 		key = "trap_programmed_illusion",
 		idea = "Virtualized",
 		art = "TypeFate",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.open_booster and PVP.TRAP.add_illusion_slot(context.card) then
+				PVP.TRAP.reveal_and_consume(card)
+				return PVP.TRAP.notify_owner(card, {})
+			end
+		end,
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Programmed Illusion")
+		end,
 	},
 	-- Web: when the holder uses any consumable, the drafter gains a negative copy of it.
 	{
