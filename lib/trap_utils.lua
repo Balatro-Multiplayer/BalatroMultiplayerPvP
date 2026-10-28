@@ -69,6 +69,10 @@ function PVP.TRAP.disguise(card)
 	card.facing = "back"
 	card.sprite_facing = "back"
 	card.ability.mp_trap_hidden = true
+	-- Steamodded counts a card as #cards + sum(extra_slots_used) against the area's limit, so -1 cancels
+	-- this card's own slot. It lives in card.ability, so it round-trips through save and load, and the
+	-- area recounts without the card as soon as the card leaves it.
+	card.ability.extra_slots_used = -1
 end
 
 local can_sell_card_ref = Card.can_sell_card
