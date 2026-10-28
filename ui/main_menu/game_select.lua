@@ -17,8 +17,6 @@ local PRACTICE_MODES = {
 		desc = { "Normal Balatro", "with PvP blinds" }, button = "mp_pvp_practice_vanilla", colour = G.C.GREEN },
 	{ key = PVP.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, button = "mp_pvp_practice_smallworld", colour = G.C.RED },
-	{ key = PVP.RulesetKey.EXPERIMENTAL,
-		desc = { "Balance changes", "being trialed" }, button = "mp_pvp_practice_experimental", colour = G.C.ORANGE },
 }
 
 -- key is the gamemode key PVP.pvp_create_private_lobby takes (pvp_api/flow.lua). The Party
