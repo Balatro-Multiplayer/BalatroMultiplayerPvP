@@ -34,8 +34,8 @@ SMODS.ConsumableType({
 })
 
 local TRAPS = {
-	-- Glyph of Warding: when the holder uses a Spectral card, the drafter gets a Jumbo
-	-- Spectral pack to open.
+	-- Glyph of Warding: when the holder uses a Spectral card, the drafter gets a Ward Tag
+	-- (objects/tags/ward.lua), which opens a Jumbo Spectral pack at the next blind choice.
 	{
 		key = "trap_glyph_of_warding",
 		idea = "Virtualized",
@@ -51,17 +51,7 @@ local TRAPS = {
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
 			end
-			-- SMODS.add_card needs `set` explicitly -- it's passed straight through
-			-- to vanilla create_card's positional _type arg, never inferred from
-			-- the target center's own .set (confirmed by reading SMODS.create_card:
-			-- only `area` gets auto-derived from G.P_CENTERS[key], not `set`).
-			-- Omitting it crashes deep in create_card's rarity-pool code with
-			-- "attempt to concatenate local '_type' (a nil value)" -- found live via
-			-- cctl, not from reading this file in isolation.
-			local pack_card = SMODS.add_card({ key = "p_spectral_jumbo_1", set = "Booster", area = G.consumeables, skip_materialize = true })
-			if pack_card and pack_card.open then
-				pack_card:open()
-			end
+			add_tag(Tag("tag_mp_ward"))
 			PVP.UI.show_trap_fired_animation("Glyph of Warding")
 		end,
 	},
@@ -108,15 +98,34 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Alarm")
 		end,
 	},
-	-- Explosive Runes: when the holder plays a hand with a glass card, all glass cards in
-	-- that hand are guaranteed to break. Deferred: forcing a glass break bypasses SMODS's own
-	-- probability roll and needs its own destroy_card-context hook (see plan's Phase 3 notes);
-	-- not yet implemented.
+	-- Explosive Runes: when the holder plays a hand with a glass card, every scored glass card
+	-- breaks after it scores.
 	{
 		key = "trap_explosive_runes",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.before then
+				local armed = false
+				for _, scored in ipairs(context.scoring_hand or {}) do
+					if not scored.debuff and SMODS.has_enhancement(scored, "m_glass") then
+						scored.ability.mp_trap_break = true
+						armed = true
+					end
+				end
+				if armed then
+					PVP.TRAP.reveal_and_consume(card)
+					return PVP.TRAP.notify_owner(card, {})
+				end
+			end
+		end,
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Explosive Runes")
+		end,
 	},
 	-- Sepia Snake Sigil: when the holder buys a Rare Joker, the drafter gains a copy of it.
 	{
