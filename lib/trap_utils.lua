@@ -147,6 +147,29 @@ function PVP.TRAP.fire_once(calculate)
 	end
 end
 
+-- Vanilla refills current_round.free_rerolls from round_resets.free_rerolls when a round starts
+-- (new_round in functions/state_events.lua), so rerolls added outside a shop are wiped before the
+-- next shop opens. Rerolls granted out of a shop wait in G.GAME (saved with the run) and are added
+-- when that shop opens. round_resets is left alone: SMODS.change_free_rerolls would make them permanent.
+function PVP.TRAP.grant_free_rerolls(count)
+	if G.STATE == G.STATES.SHOP and G.shop then
+		G.GAME.current_round.free_rerolls = (G.GAME.current_round.free_rerolls or 0) + count
+		calculate_reroll_cost(true)
+	else
+		G.GAME.mp_pending_free_rerolls = (G.GAME.mp_pending_free_rerolls or 0) + count
+	end
+end
+
+local update_shop_ref = Game.update_shop
+function Game:update_shop(dt)
+	if not G.STATE_COMPLETE and (G.GAME.mp_pending_free_rerolls or 0) > 0 then
+		G.GAME.current_round.free_rerolls = (G.GAME.current_round.free_rerolls or 0) + G.GAME.mp_pending_free_rerolls
+		G.GAME.mp_pending_free_rerolls = nil
+		calculate_reroll_cost(true)
+	end
+	return update_shop_ref(self, dt)
+end
+
 PVP.TRAP.plant_action = MPAPI.ActionType({
 	key = "pvp_trap_plant",
 	-- Explicit prefix_config: "pvp_trap_plant" doesn't start with this mod's own
