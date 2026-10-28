@@ -60,7 +60,7 @@ local RANKED_MODES = {
 		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = G.C.RED },
 }
 
--- Casual: 2-16 players. Each pillar plays its gamemode key's own default ruleset
+-- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
 -- (PVP.reset_ruleset_to_gamemode_default, pvp_api/queue.lua). Manhunt has an existing
 -- casual queue handler (mp_pvp_queue_casual_manhunt) but wasn't in the requested pillar
 -- set, so it's left reachable only via Create Lobby for now, not duplicated here. None
@@ -72,7 +72,7 @@ local RANKED_MODES = {
 -- page's own UI item id, unrelated to the wire gamemode key.
 local CASUAL_MODES = {
 	{ key = "pvp_nemesis", name = "Nemesis",
-		desc = { "Face a different", "Nemesis every ante" }, uses_order = true,
+		desc = { "One Nemesis,", "head to head" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_nemesis", gamemode_key = "pvp_nemesis", colour = G.C.BLUE },
 	{ key = "pvp_royale", name = { "Battle", "Royale" },
 		desc = { "Free for all;", "bottom half lose" }, uses_order = true,
