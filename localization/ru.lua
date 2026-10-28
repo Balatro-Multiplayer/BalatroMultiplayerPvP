@@ -1173,7 +1173,6 @@ return {
 			b_singleplayer = "Одиночная Игра",
 			b_sp_with_ruleset = "Тренировка",
 			b_practice = "Тренировка",
-			k_practice_collection_hint = "Тсс... нажми на карту и она твоя. Без вопросов!",
 			k_unlimited_slots = "Безлимитные слоты",
 			k_edition_cycling = "Смена издания (Q)",
 			b_join_lobby = "Подключиться к лобби",

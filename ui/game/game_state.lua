@@ -660,29 +660,6 @@ function PVP.UI.jimbo_say(text)
 	}))
 end
 
--- Practice mode: spawn Jimbo when opening collection to hint at card spawning (once per boot)
-local practice_collection_jimbo = false
-local practice_collection_hint_shown = false
-
-local your_collection_ref = G.FUNCS.your_collection
-function G.FUNCS.your_collection(e)
-	your_collection_ref(e)
-	if PVP.is_practice_mode() and G.STAGE == G.STAGES.RUN and not PVP.LOBBY.code and not practice_collection_hint_shown then
-		practice_collection_hint_shown = true
-		practice_collection_jimbo = true
-		PVP.UI.create_jimbo(2, localize("k_practice_collection_hint"))
-	end
-end
-
-local exit_overlay_menu_ref_jimbo = G.FUNCS.exit_overlay_menu
-function G.FUNCS:exit_overlay_menu()
-	if practice_collection_jimbo then
-		practice_collection_jimbo = false
-		PVP.UI.remove_jimbo()
-	end
-	exit_overlay_menu_ref_jimbo(self)
-end
-
 function PVP.UI.remove_jimbo()
 	if not mp_jimbo then return end
 	local jimbo = mp_jimbo

@@ -1349,7 +1349,6 @@ return {
 			b_singleplayer = "Um Jogador",
 			b_sp_with_ruleset = "Modo Prática",
 			b_practice = "Prática",
-			k_practice_collection_hint = "Psst... clique em uma carta e ela é sua. Sem perguntas!",
 			k_unlimited_slots = "Espaços Ilimitados",
 			k_edition_cycling = "Alternar Edições (Q)",
 			k_practice_options = "Opções de Prática...",

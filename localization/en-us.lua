@@ -1349,7 +1349,6 @@ return {
 			b_singleplayer = "Singleplayer",
 			b_sp_with_ruleset = "Practice Mode",
 			b_practice = "Practice",
-			k_practice_collection_hint = "Psst... click a card and it's yours. No questions asked!",
 			k_unlimited_slots = "Unlimited Slots",
 			k_edition_cycling = "Edition Cycling (Q)",
 			k_practice_options = "Practice Options...",

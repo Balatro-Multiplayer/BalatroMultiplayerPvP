@@ -823,7 +823,6 @@ return {
 			b_sp_with_ruleset = "Luyện Tập",
 			b_join_lobby = "Vào Phòng",
 			b_join_lobby_clipboard = "Vào Từ Bộ Nhớ Đệm",
-			k_practice_collection_hint = "Suỵt... ngươi chọn gì ta cho nấy. Không hỏi nhiều!",
 			k_unlimited_slots = "Vô Hạn Ô Trống",
 			k_edition_cycling = "Thay Đổi Ấn Bản (Q)",
 			k_practice_options = "Tùy chọn Luyện Tập...",
