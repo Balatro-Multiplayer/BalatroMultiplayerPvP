@@ -9,7 +9,7 @@ function SMODS.get_card_areas(_type, _context)
 end
 
 -- Gap between the bottom of the Nemesis slots and the top of the player's own rows, in game units.
-PVP.NEMESIS_SLOT_GAP = 1
+PVP.NEMESIS_SLOT_GAP = 0.25
 
 local function remove_nemesis_slots()
 	PVP.clear_ante_nemesis()
