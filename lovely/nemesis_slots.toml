@@ -1,0 +1,23 @@
+[manifest]
+version = "1.0.0"
+dump_lua = true
+priority = 2147483600
+
+[[patches]]
+[patches.regex]
+target = 'game.lua'
+pattern = 'self\.jokers = CardArea'
+position = 'before'
+payload = '''PVP.create_nemesis_slots(CAI)
+'''
+times = 1
+
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = 'G.consumeables.T.y = 0'
+position = 'after'
+payload = '''PVP.place_nemesis_slots()
+'''
+match_indent = true
+times = 1
