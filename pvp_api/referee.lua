@@ -301,7 +301,7 @@ local function broadcast_nemesis_pairing()
 	for _, id in ipairs(alive_ids()) do
 		payload[id] = PVP.REF.nemesis_of[id] or ""
 	end
-	broadcast("pvp_nemesis_pairing", { pairing = payload })
+	broadcast("pvp_nemesis_pairing", { pairing = payload, ante = PVP.REF.nemesis_ante_computed_for })
 end
 
 -- Recomputes PVP.REF.team_card_target for the current ante: each alive player is
