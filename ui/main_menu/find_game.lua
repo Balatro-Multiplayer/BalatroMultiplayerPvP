@@ -199,7 +199,7 @@ local function build_select(mode)
 	return el.node
 end
 
--- In group mode (opened from a private lobby's Group Queue button, ui/lobby/group_panel.lua)
+-- In group mode (opened from a Party lobby's Find Game, pvp_api/party_lobby.lua)
 -- a pillar's QUEUE queues the whole lobby for its mode instead (pvp_api/group_queue.lua). A
 -- mode the lobby doesn't fit is greyed; one a member's standing refuses is greyed but still
 -- pressable, so the server's refusal says which mods.
@@ -373,7 +373,7 @@ local function build_group_header()
 			UIBox_button({ button = "mp_pvp_group_queue_back", label = { localize("b_back") }, colour = G.C.ORANGE, minw = 2.4, minh = 0.6, scale = 0.4 }),
 		} },
 		{ n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({ button = "nil", label = { localize("k_group_queue") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
+			UIBox_button({ button = "nil", label = { localize("k_pvp_party_lobby") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
 		} },
 	} }
 end
@@ -396,7 +396,7 @@ end
 
 -- Builds this page's full definition (tab row + pillar row) for the given category ("ranked" or
 -- "casual", default "ranked"). `group` builds the casual pillars for queueing the current
--- private lobby as a group, with a back-to-lobby header in place of the tabs. The caller (pvp_find_game's MPAPI.Page registration, core.lua)
+-- Party lobby as a group, with a back-to-lobby header in place of the tabs. The caller (pvp_find_game's MPAPI.Page registration, core.lua)
 -- owns the returned pillar_row controller for this page's lifetime: call :dispose() from the
 -- page's own dispose() hook so the tracked chip icons get :remove()'d -- see
 -- api/ui_pillar_row.lua's header comment for why that's required.

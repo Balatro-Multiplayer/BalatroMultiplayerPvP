@@ -230,6 +230,11 @@ G.FUNCS.mp_pvp_create_lobby_teams = function()
 	PVP.pvp_create_private_lobby("pvp_teams")
 end
 
+G.FUNCS.mp_pvp_create_lobby_party = function()
+	G.FUNCS.exit_overlay_menu()
+	PVP.pvp_create_party_lobby()
+end
+
 -- ── Join overlays (copied from Speed's join.lua) ─────────────────────────────
 -- CONFIRMED LIVE BUG, fixed by capturing this table directly: create_UIBox_generic_options
 -- wraps create_text_input's node in a way that leaves config.ref_table nil on the node

@@ -54,13 +54,40 @@ local function build_private_controls()
 	row_nodes[#row_nodes + 1] = code_panel()
 	row_nodes[#row_nodes + 1] = b.leave.node
 
+	return {
+		n = G.UIT.C,
+		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
+		nodes = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = row_nodes } },
+	}
+end
+
+local function waiting_for_host_panel()
+	return { n = G.UIT.C, config = { align = "cm", padding = 0.1, minw = 3.65, minh = 1.55 }, nodes = {
+		{ n = G.UIT.T, config = { text = localize("k_pvp_waiting_for_host"), scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+	} }
+end
+
+-- A Party lobby (pvp_api/party_lobby.lua) has no lobby options and no deck: the host
+-- has Find Game, every other player a Ready toggle. While the party queues, the
+-- group panel (ui/lobby/group_panel.lua) says where it is.
+local function build_party_controls()
+	local b = PVP.lobby.buttons
+	local lobby = PVP.lobby.ref
+	local row_nodes = {}
+	if lobby and lobby.is_host then
+		row_nodes[#row_nodes + 1] = b.party_find_game.node
+	else
+		row_nodes[#row_nodes + 1] = b.ready.node
+		row_nodes[#row_nodes + 1] = waiting_for_host_panel()
+	end
+	row_nodes[#row_nodes + 1] = code_panel()
+	row_nodes[#row_nodes + 1] = b.leave.node
+
 	local rows = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = row_nodes } }
-	-- Queue the whole lobby for a casual match (ui/lobby/group_panel.lua).
-	local group_panel = PVP.lobby.build_group_panel and PVP.lobby.build_group_panel()
+	local group_panel = PVP.lobby.build_group_panel(lobby)
 	if group_panel then
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { group_panel } }
 	end
-
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
@@ -103,6 +130,9 @@ end
 function PVP.lobby.build_controls()
 	if PVP.is_matchmaking() then
 		return build_matchmaking_controls()
+	end
+	if PVP.is_party_lobby(PVP.lobby.ref) then
+		return build_party_controls()
 	end
 	return build_private_controls()
 end

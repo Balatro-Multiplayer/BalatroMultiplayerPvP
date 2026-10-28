@@ -72,6 +72,9 @@ function PVP.reset_ready_state()
 	if b.start_game then
 		b.start_game:update()
 	end
+	if b.party_find_game then
+		b.party_find_game:update()
+	end
 end
 
 -- Host-only: record a player's ready state and react.
@@ -83,8 +86,13 @@ function PVP.set_player_ready(player_id, ready)
 	PVP.lobby.ready:set(player_id, ready)
 	if PVP.is_matchmaking() then
 		PVP.maybe_autostart()
-	elseif PVP.lobby.buttons.start_game then
-		PVP.lobby.buttons.start_game:update()
+	else
+		if PVP.lobby.buttons.start_game then
+			PVP.lobby.buttons.start_game:update()
+		end
+		if PVP.lobby.buttons.party_find_game then
+			PVP.lobby.buttons.party_find_game:update()
+		end
 	end
 end
 

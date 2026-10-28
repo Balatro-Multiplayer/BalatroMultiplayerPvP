@@ -1331,6 +1331,9 @@ return {
 			mp_sticker_draining = "Draining",
 		},
 		dictionary = {
+			-- Party lobby (pvp_api/party_lobby.lua)
+			k_pvp_party_lobby = "Party lobby",
+			k_pvp_waiting_for_host = "Waiting for the host",
 			-- Setup votes (pvp_api/setup.lua)
 			k_pvp_setup_title_ruleset = "Vote: Ruleset",
 			k_pvp_setup_title_traps = "Vote: Trap Cards",
