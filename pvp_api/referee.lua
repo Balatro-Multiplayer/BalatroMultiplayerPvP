@@ -383,6 +383,25 @@ function PVP.referee_on_player_reconnected(player_id)
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:set(player_id, false)
 	end
+	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
+	-- dropped who its opponent is: the pairing is only sent when an ante starts, so
+	-- without this it never learns it again, and every lives update about its opponent
+	-- (pvp_player_lives) is skipped as "not my target". Sent before the lives.
+	if PVP.LOBBY.config.nemesis_pairing then
+		broadcast_nemesis_pairing()
+	elseif PVP.LOBBY.config.team_based then
+		broadcast_team_card_target()
+	end
+	-- It also dropped the team roster (sent once, at the match start). A Manhunt
+	-- Hunter finds its target (the Runner) in the roster, so this goes before the
+	-- lives too, or the Hunter skips the Runner's lives.
+	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
+		local roster = {}
+		for id, other in pairs(PVP.REF.players) do
+			roster[id] = other.team_id
+		end
+		broadcast("pvp_team_roster", { roster = roster })
+	end
 	for id, other in pairs(PVP.REF.players) do
 		broadcast("pvp_player_lives", { player_id = id, lives = other.lives })
 	end
@@ -391,6 +410,9 @@ function PVP.referee_on_player_reconnected(player_id)
 			broadcast("pvp_team_lives", { team_id = team_id, lives = lives })
 		end
 	end
+	-- The rebuilt state also dropped the live target (sent on score updates): without
+	-- it a Royale player or the Manhunt Runner has no target until the next score update.
+	broadcast_live_targets()
 end
 
 -- The team each player of a server team plan ({ {ids}, {ids} }, a matchmade
@@ -1540,15 +1562,16 @@ function PVP.ensure_gamemode_instance(lobby)
 	if not lobby then
 		return nil
 	end
-	if lobby._gamemode_instance then
-		return lobby._gamemode_instance
+	local existing = lobby:get_gamemode_instance()
+	if existing then
+		return existing
 	end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode
 	local gm_def = queue_mode and MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
-		lobby._gamemode_instance = gm_def:new_instance()
+		lobby:set_gamemode_instance(gm_def:new_instance())
 	end
-	return lobby._gamemode_instance
+	return lobby:get_gamemode_instance()
 end
 
 -- Every entry point that changes the referee checkpoints after it runs.

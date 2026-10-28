@@ -49,6 +49,7 @@ MPAPI.ActionType({
 		local sid = self_id()
 		local partner = params.pairing and params.pairing[sid]
 		PVP.GAME.nemesis_partner_id = (partner and partner ~= "") and partner or nil
+		PVP.GAME.nemesis_pairing_received = true
 		if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 	end),
 })

@@ -40,9 +40,17 @@ function G.FUNCS.cash_out(e)
 	-- handler pays this instead (lib/playback_handlers.lua). Recorded here, the
 	-- outer wrapper, so it lands just before MPAPI's own `cashout` event.
 	if PVP.rlog_active() and G.GAME.current_round then
-		PVP.RLOG.record("round_dollars", G.GAME.current_round.dollars or 0)
+		PVP.RLOG.record(MPAPI.OPCODE.ROUND_DOLLARS, G.GAME.current_round.dollars or 0)
 	end
 	return cash_out_ref(e)
+end
+
+local toggle_shop_ref = G.FUNCS.toggle_shop
+function G.FUNCS.toggle_shop(...)
+	if G.STATE == G.STATES.SHOP and PVP.in_session() then
+		PVP.report_roster_snapshot()
+	end
+	return toggle_shop_ref(...)
 end
 
 local reroll_shop_ref = G.FUNCS.reroll_shop

@@ -84,6 +84,18 @@ function PVP.current_target_id()
 	return PVP.GAME.royale_target_id
 end
 
+-- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
+-- set while the server says the target is replaying its run after a crash.
+function PVP.refresh_catching_up_badge()
+	if not (PVP.GAME and PVP.GAME.enemy) then
+		return
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local target_id = lobby and PVP.current_target_id()
+	local catching_up = target_id and lobby:is_player_catching_up(target_id)
+	PVP.GAME.enemy.catching_up_text = catching_up and (" (" .. localize("k_catching_up") .. ")") or ""
+end
+
 -- The name shown on the PvP boss blind (key "bl_mp_nemesis", the shared marker
 -- for every gamemode's PvP boss -- see gamemodes/attrition.lua) for the CURRENT
 -- gamemode. Mirrors current_target_id()'s own branch order/reasoning above:
@@ -96,7 +108,11 @@ end
 --  - Teams (N>2): the blind shows the whole opposing team's aggregate score,
 --    not any one member -- show that team's fixed label.
 --  - Royale (N>2, no pairing): show the fixed "The Royale" label.
+-- A Nemesis player with no nemesis this ante (a bye) gets "Bye".
 function PVP.pvp_blind_opponent_name()
+	if PVP.is_announced_bye() then
+		return localize("k_bye")
+	end
 	local lobby = MPAPI.get_current_lobby()
 	if PVP.LOBBY.config.nemesis_pairing or not lobby or #lobby:get_players() == 2 then
 		local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
@@ -121,6 +137,12 @@ end
 -- the two cases.
 function PVP.is_byed()
 	return PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id == nil
+end
+
+-- True only for a bye the host has announced: is_byed() is also true before the
+-- first pairing arrives, when the opponent is not yet known ("????", not "Bye").
+function PVP.is_announced_bye()
+	return PVP.is_byed() and PVP.GAME.nemesis_pairing_received == true
 end
 
 local function player_name(lobby, player_id)
@@ -212,12 +234,20 @@ local function mirror_players(lobby)
 	else
 		opp_name = opp_id and player_name(lobby, opp_id) or nil
 	end
+	-- An opponent who leaves mid-match drops out of the roster, so current_target_id() goes
+	-- nil and the slot would blank: the end screen then read "Your Nemesis ????". During a
+	-- run, keep the name last seen in this same lobby.
+	local previous = lobby.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
+	local opponent = opp_name and { username = opp_name, id = opp_id, lobby = lobby } or {}
+	if not opp_name and previous and previous.lobby == lobby and previous.username and G.STAGE == G.STAGES.RUN then
+		opponent = previous
+	end
 	PVP.LOBBY.is_host = lobby.is_host and true or false
 	if lobby.is_host then
 		PVP.LOBBY.host = { username = self_name, id = lobby.player_id }
-		PVP.LOBBY.guest = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.guest = opponent
 	else
-		PVP.LOBBY.host = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.host = opponent
 		PVP.LOBBY.guest = { username = self_name, id = lobby.player_id }
 	end
 end
@@ -293,6 +323,10 @@ PVP.setup_lobby_mirror = function(lobby)
 			pcall(PVP.UI.apply_lobby_hud)
 		end
 		refresh()
+	end)
+
+	lobby:on(MPAPI.LobbyEvent.PLAYER_CATCHING_UP, function()
+		PVP.refresh_catching_up_badge()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)

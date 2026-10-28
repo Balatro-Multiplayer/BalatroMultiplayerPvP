@@ -1,3 +1,17 @@
+-- PvP's lobby kind for a lobby this client rejoined. Every other entry path sets
+-- PVP._pvp_kind from the button the player clicked (Create Private / Find Match / Ranked
+-- Queue); a rejoin has no such click to read, so it comes from the lobby's own server-reported
+-- type. MPAPI.LobbyType has no CASUAL value of its own (only PUBLIC/PRIVATE/RANKED): PvP's
+-- "casual" matchmaking queue is what a plain PUBLIC lobby type means here.
+function PVP.rejoined_lobby_kind(lobby)
+	if lobby.type == MPAPI.LobbyType.RANKED then
+		return PVP.LobbyAccess.RANKED
+	elseif lobby.type == MPAPI.LobbyType.PUBLIC then
+		return PVP.LobbyAccess.CASUAL
+	end
+	return PVP.LobbyAccess.PRIVATE
+end
+
 -- Crash-relaunch reconnect: called once the lobby object itself has already
 -- been recreated (MPAPI._internal.create_reconnected_lobby, driven by
 -- BalatroMultiplayerAPI's ui/reconnect_prompt.lua) and there's no active
@@ -5,20 +19,7 @@
 -- file's Reconnect handler -- this one only ever runs pre-match: waiting
 -- room or mid-ban-pick-draft).
 MPAPI.register_lobby_reconnect(PVP.id, function(lobby)
-	-- Mirrors pvp_api/flow.lua / queue.lua's own PVP._pvp_kind assignment --
-	-- every other entry path sets this from the button the player actually
-	-- clicked (Create Private / Find Match / Ranked Queue); a reconnect has
-	-- no such click to read, so it's derived from the lobby's own
-	-- server-reported type instead. MPAPI.LobbyType has no CASUAL value of
-	-- its own (only PUBLIC/PRIVATE/RANKED) -- PVP's own "casual" matchmaking
-	-- queue is what a plain PUBLIC lobby type means here.
-	if lobby.type == MPAPI.LobbyType.RANKED then
-		PVP._pvp_kind = PVP.LobbyAccess.RANKED
-	elseif lobby.type == MPAPI.LobbyType.PUBLIC then
-		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
-	else
-		PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
-	end
+	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
 
 	PVP.setup_lobby_mirror(lobby)
 

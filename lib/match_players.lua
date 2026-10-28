@@ -16,15 +16,21 @@ function PVP.MATCH_PLAYERS.snapshot(lobby_players)
 	return snap
 end
 
--- State.ROSTER: their jokers are known. State.LEFT: no roster and no longer in
--- the lobby (disconnected without sending). State.PLAYING: no roster yet, still
--- here. A roster that arrived before the player left wins over State.LEFT.
+-- State.ROSTER: their jokers are known (the final roster, or for a player who is
+-- gone, the last interim roster seen). State.LEFT: no roster and no longer in
+-- the lobby. State.PLAYING: still here, no final roster yet. A roster that arrived
+-- before the player left wins over State.LEFT. An interim roster (sent when the
+-- player left the shop) never marks a present player as done.
 function PVP.MATCH_PLAYERS.state(player_id, present_ids, result)
-	if result and result.jokers then
+	local has_jokers = result and result.jokers
+	if has_jokers and not result.interim then
 		return PVP.MATCH_PLAYERS.State.ROSTER
 	end
 	if present_ids and present_ids[player_id] then
 		return PVP.MATCH_PLAYERS.State.PLAYING
+	end
+	if has_jokers then
+		return PVP.MATCH_PLAYERS.State.ROSTER
 	end
 	return PVP.MATCH_PLAYERS.State.LEFT
 end
