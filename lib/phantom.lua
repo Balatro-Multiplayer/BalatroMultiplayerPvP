@@ -196,6 +196,28 @@ function Card:calculate_joker(context)
 	return calculate_joker_ref(self, context)
 end
 
+-- Classic look: a Phantom joker in the shared Nemesis area draws the old phantom shader ("voucher") in
+-- place of the base shader. This is a look only: no edition, badge, sticker or sell value is involved.
+local function has_classic_phantom_look(card)
+	return PVP.nemesis_area_shared and card.area == PVP.nemesis_jokers and PVP.is_phantom(card)
+end
+
+local should_draw_base_shader_ref = Card.should_draw_base_shader
+function Card:should_draw_base_shader()
+	if has_classic_phantom_look(self) then return false end
+	return should_draw_base_shader_ref(self)
+end
+
+SMODS.DrawStep({
+	key = "mp_classic_phantom_look",
+	order = 20,
+	func = function(self)
+		if not has_classic_phantom_look(self) then return end
+		self.children.center:draw_shader("voucher", nil, self.ARGS.send_to_shader)
+	end,
+	conditions = { vortex = false, facing = "front" },
+})
+
 -- Register the Nemesis joker row with the synced-object framework so `phantom = true`
 -- jokers spawn their display copies here, and install the masking patches
 -- (find_card / poll_edition / Card:remove) that hide phantom cards from real gameplay.
