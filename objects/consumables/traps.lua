@@ -308,25 +308,32 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Faithful Hound")
 		end,
 	},
-	-- Phase Door: when the holder scores a gold card, the drafter gains $4 per gold card in
-	-- their hand.
+	-- Phase Door: when the holder's held gold cards pay out at end of round, the drafter gains $4
+	-- per gold card in their hand.
 	{
 		key = "trap_phase_door",
 		idea = "Virtualized",
 		art = "Ganpan140",
 		code = "Virtualized",
 		calculate = function(self, card, context)
-			if context.before and context.scoring_hand then
+			-- The first held gold card's payout evaluation stands for the whole hand: the trap
+			-- fires once, so it counts every held gold card then.
+			if
+				context.end_of_round
+				and context.individual
+				and context.cardarea == G.hand
+				and context.other_card
+				and not context.other_card.debuff
+				and SMODS.has_enhancement(context.other_card, "m_gold")
+			then
 				local gold_count = 0
-				for _, scored in ipairs(context.scoring_hand) do
-					if SMODS.has_enhancement(scored, "m_gold") then
+				for _, held in ipairs(G.hand.cards) do
+					if not held.debuff and SMODS.has_enhancement(held, "m_gold") then
 						gold_count = gold_count + 1
 					end
 				end
-				if gold_count > 0 then
-					PVP.TRAP.reveal_and_consume(card)
-					return PVP.TRAP.notify_owner(card, { dollars = gold_count * 4 })
-				end
+				PVP.TRAP.reveal_and_consume(card)
+				return PVP.TRAP.notify_owner(card, { dollars = gold_count * 4 })
 			end
 		end,
 		receive = function(self, context)
