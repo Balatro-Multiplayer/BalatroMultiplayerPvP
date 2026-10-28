@@ -72,6 +72,14 @@ function PVP.create_nemesis_slots(card_area_sizes)
 	PVP.init_ante_nemesis()
 end
 
+-- Leaving a run frees every CardArea, so drop the Nemesis slots with it: the ante Nemesis refresh must not
+-- sort the cards of dead rows on the menu.
+local delete_run_ref = Game.delete_run
+function Game:delete_run()
+	remove_nemesis_slots()
+	return delete_run_ref(self)
+end
+
 -- Where a copy from this sender lives: the visible row for the ante's Nemesis, the hidden store for the rest.
 function PVP.nemesis_phantom_area(from)
 	if PVP.is_ante_nemesis(from) then return PVP.nemesis_jokers end
