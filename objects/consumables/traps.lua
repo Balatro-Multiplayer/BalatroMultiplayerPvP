@@ -222,15 +222,20 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Snare")
 		end,
 	},
-	-- Arcane Lock: when the holder uses (i.e. a different planted trap fires on) a Trap card,
-	-- they get trapped instead. Deferred: needs a "another trap just fired" signal, which isn't
-	-- a natural calculate-context flag -- would need PVP.TRAP.reveal_and_consume itself to fire a
-	-- custom local context so a co-resident Arcane Lock can intercept. Not yet implemented.
+	-- Arcane Lock: the next Trap card the holder takes from a Trap pack goes face-down into their
+	-- own consumables, and this card's Trapper becomes its Trapper. The bounce runs in
+	-- PVP.TRAP.plant, so there is no calculate.
 	{
 		key = "trap_arcane_lock",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Arcane Lock")
+		end,
 	},
 	-- Programmed Illusion: when the holder opens a booster pack, add a fake card to it.
 	-- Deferred: Card:open builds its pack_cards list in a function-local table with no exposed

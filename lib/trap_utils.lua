@@ -17,6 +17,11 @@ PVP.TRAP.self_id = self_id
 -- current Nemesis resolves to right now -- NOT the per-object sync bus, since there is no
 -- existing card instance on the receiving side yet for `receive` to key off of.
 function PVP.TRAP.plant(card)
+	local lock = PVP.TRAP.find_arcane_lock()
+	if lock then
+		PVP.TRAP.bounce_to_holder(card, lock)
+		return
+	end
 	local lobby = MPAPI.get_current_lobby()
 	local target = PVP.current_target_id()
 	if not (lobby and target) then
@@ -24,6 +29,34 @@ function PVP.TRAP.plant(card)
 	end
 	card.ability.mp_trap_owner_id = self_id() -- stamp before serializing; round-trips via card:save()/:load()
 	lobby:action(PVP.TRAP.plant_action):send(target, { card = MPAPI.serialize_card(card), owner = self_id() })
+end
+
+-- An unfired Arcane Lock sitting in the taker's own consumables.
+function PVP.TRAP.find_arcane_lock()
+	for _, held in ipairs(G.consumeables and G.consumeables.cards or {}) do
+		if
+			held.config.center.key == "c_mp_trap_arcane_lock"
+			and held.ability.mp_trap_hidden
+			and not held.ability.mp_trap_fired
+		then
+			return held
+		end
+	end
+end
+
+-- Arcane Lock: the Trap card goes face-down into the taker's own consumables and the lock's
+-- Trapper becomes its Trapper. The lock fires outside its calculate, so it sets the fired
+-- mark itself and sends its notice straight from the center.
+function PVP.TRAP.bounce_to_holder(card, lock)
+	local trapper = lock.ability.mp_trap_owner_id
+	lock.ability.mp_trap_fired = true
+	card.ability.mp_trap_owner_id = trapper
+	local bounced = MPAPI.rebuild_card(MPAPI.serialize_card(card), G.consumeables)
+	if bounced then
+		PVP.TRAP.disguise(bounced)
+	end
+	PVP.TRAP.reveal_and_consume(lock)
+	lock.config.center:sync(PVP.TRAP.notify_owner(lock, {}).send)
 end
 
 -- Face-down and unsellable, so a planted trap always eventually fires -- it can't be
