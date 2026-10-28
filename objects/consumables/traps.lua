@@ -301,15 +301,19 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Web")
 		end,
 	},
-	-- Forbiddance: when the holder discards, the cards drawn from their deck are flipped.
-	-- Deferred: the draw loop (G.FUNCS.draw_from_deck_to_hand) has no exposed "flip after
-	-- draw" hook -- needs a new override on the draw path, not a calculate-context check.
-	-- Not yet implemented.
+	-- Forbiddance: when the holder discards, the cards drawn to refill their hand come in
+	-- face-down. It acts outside calculate (see lib/trap_utils.lua's draw hooks).
 	{
 		key = "trap_forbiddance",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Forbiddance")
+		end,
 	},
 	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
 	-- poker hand.

@@ -258,6 +258,73 @@ end
 wrap_seal_method("get_end_of_round_effect")
 wrap_seal_method("calculate_seal")
 
+-- Forbiddance acts on the refill draw that follows a discard, which is a draw_card call with no
+-- calculate context to answer. A discard arms the trap, Blind:stay_flipped keeps the refill cards
+-- face-down (a face-down card flips up when played, as for a vanilla boss blind), and an event
+-- queued behind the refill draw disarms it and fires it, so later draws are face-up.
+local function find_forbiddance()
+	if not G.consumeables then
+		return nil
+	end
+	for _, held in ipairs(G.consumeables.cards) do
+		if
+			held.ability.mp_trap_hidden
+			and not held.ability.mp_trap_fired
+			and held.config.center.key == "c_mp_trap_forbiddance"
+		then
+			return held
+		end
+	end
+end
+
+local function armed_forbiddance()
+	local trap = find_forbiddance()
+	return trap and trap.ability.mp_forbiddance_armed and trap
+end
+
+local discard_cards_ref = G.FUNCS.discard_cards_from_highlighted
+function G.FUNCS.discard_cards_from_highlighted(e, is_hook_blind)
+	local trap = not is_hook_blind and #G.hand.highlighted > 0 and find_forbiddance()
+	discard_cards_ref(e, is_hook_blind)
+	-- A blind-forced discard sets no draw state, so only a player discard is followed by a refill.
+	if trap and G.STATE == G.STATES.DRAW_TO_HAND then
+		trap.ability.mp_forbiddance_armed = true
+		trap.ability.mp_forbiddance_flipped = 0
+	end
+end
+
+local stay_flipped_ref = Blind.stay_flipped
+function Blind:stay_flipped(to_area, card, from_area)
+	local trap = to_area == G.hand and from_area == G.deck and armed_forbiddance()
+	if trap then
+		trap.ability.mp_forbiddance_flipped = trap.ability.mp_forbiddance_flipped + 1
+		return true
+	end
+	return stay_flipped_ref(self, to_area, card, from_area)
+end
+
+local draw_from_deck_to_hand_ref = G.FUNCS.draw_from_deck_to_hand
+function G.FUNCS.draw_from_deck_to_hand(e)
+	local trap = armed_forbiddance()
+	local result = draw_from_deck_to_hand_ref(e)
+	if trap then
+		G.E_MANAGER:add_event(Event({
+			trigger = "immediate",
+			func = function()
+				trap.ability.mp_forbiddance_armed = nil
+				-- An empty deck refills nothing: the trap stays hidden for the next discard.
+				if trap.ability.mp_forbiddance_flipped > 0 and not trap.ability.mp_trap_fired then
+					trap.ability.mp_trap_fired = true
+					PVP.TRAP.reveal_and_consume(trap)
+					trap.config.center:sync(PVP.TRAP.notify_owner(trap, {}).send)
+				end
+				return true
+			end,
+		}))
+	end
+	return result
+end
+
 -- Vanilla refills current_round.free_rerolls from round_resets.free_rerolls when a round starts
 -- (new_round in functions/state_events.lua), so rerolls added outside a shop are wiped before the
 -- next shop opens. Rerolls granted out of a shop wait in G.GAME (saved with the run) and are added
