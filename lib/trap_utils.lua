@@ -147,6 +147,74 @@ function PVP.TRAP.fire_once(calculate)
 	end
 end
 
+-- Seal rewards are made by direct Card method calls, never a calculate context, so Magic Mouth
+-- hooks the two methods instead. A Blue or Purple Seal that fires always raises
+-- consumeable_buffer (it only fires with room), which is how a trigger is told from a miss.
+-- The reward card is made in a queued event; a later event queued here runs right after it,
+-- takes the new card away from the Nemesis, and sends it to the Trapper.
+local function find_magic_mouth()
+	if not G.consumeables then
+		return nil
+	end
+	for _, held in ipairs(G.consumeables.cards) do
+		if
+			held.ability.mp_trap_hidden
+			and not held.ability.mp_trap_fired
+			and held.config.center.key == "c_mp_trap_magic_mouth"
+		then
+			return held
+		end
+	end
+end
+
+local function steal_seal_reward(trap, cards_before)
+	G.E_MANAGER:add_event(Event({
+		trigger = "before",
+		delay = 0,
+		blockable = false,
+		func = function()
+			if trap.ability.mp_trap_fired then
+				return true
+			end
+			local known = {}
+			for _, held in ipairs(cards_before) do
+				known[held] = true
+			end
+			for _, held in ipairs(G.consumeables.cards) do
+				if not known[held] and held ~= trap then
+					trap.ability.mp_trap_fired = true
+					local data = PVP.TRAP.notify_owner(trap, { card = MPAPI.serialize_card(held) }).send
+					G.consumeables:remove_card(held)
+					held:remove()
+					PVP.TRAP.reveal_and_consume(trap)
+					trap.config.center:sync(data)
+					break
+				end
+			end
+			return true
+		end,
+	}))
+end
+
+local function wrap_seal_method(method_name)
+	local method_ref = Card[method_name]
+	Card[method_name] = function(self, context)
+		local trap = (self.seal == "Blue" or self.seal == "Purple") and find_magic_mouth()
+		if not trap then
+			return method_ref(self, context)
+		end
+		local cards_before = { unpack(G.consumeables.cards) }
+		local buffer_before = G.GAME.consumeable_buffer
+		local first, second = method_ref(self, context)
+		if G.GAME.consumeable_buffer > buffer_before then
+			steal_seal_reward(trap, cards_before)
+		end
+		return first, second
+	end
+end
+wrap_seal_method("get_end_of_round_effect")
+wrap_seal_method("calculate_seal")
+
 -- Vanilla refills current_round.free_rerolls from round_resets.free_rerolls when a round starts
 -- (new_round in functions/state_events.lua), so rerolls added outside a shop are wiped before the
 -- next shop opens. Rerolls granted out of a shop wait in G.GAME (saved with the run) and are added

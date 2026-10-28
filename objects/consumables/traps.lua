@@ -198,13 +198,23 @@ local TRAPS = {
 		end,
 	},
 	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
-	-- Deferred: seal triggers resolve via direct per-card method calls (Card:calculate_seal /
-	-- Card:get_end_of_round_effect), never a broadcast calculate context -- needs its own hook.
+	-- No calculate: the trigger is hooked in lib/trap_utils.lua, which sends the stolen card here.
 	{
 		key = "trap_magic_mouth",
 		idea = "Virtualized",
 		art = "TypeFate",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			-- Counts the buffer too, so a card still being made does not leave the area over its limit.
+			local has_room = #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit
+			if has_room then
+				MPAPI.rebuild_card(context.data.card, G.consumeables)
+			end
+			PVP.UI.show_trap_fired_animation("Magic Mouth")
+		end,
 	},
 	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
 	{
