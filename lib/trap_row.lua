@@ -4,7 +4,7 @@
 -- and draws only the ante Nemesis's list(s) in PVP.nemesis_consumeables.
 PVP.TRAP_ROW = PVP.TRAP_ROW or {}
 
-local state = { lists = {}, last_sent = nil, counter = 0 }
+local state = { lists = {}, fired = {}, fired_ids = {}, last_sent = nil, counter = 0 }
 
 local function self_id()
 	local lobby = MPAPI.get_current_lobby()
@@ -14,6 +14,8 @@ end
 -- Called when a client starts or leaves a run: nothing from the previous run carries over.
 function PVP.TRAP_ROW.reset()
 	state.lists = {}
+	state.fired = {}
+	state.fired_ids = {}
 	state.last_sent = nil
 end
 
@@ -48,6 +50,23 @@ local function signature(entries)
 	return table.concat(parts, "|")
 end
 
+-- Ids of this client's planted Trap cards that have fired, kept so every later message still names them.
+-- A card is flagged fired for a moment before it leaves the consumables, so the sender sees it here.
+local function fired_ids()
+	for _, card in ipairs(G.consumeables and G.consumeables.cards or {}) do
+		local ability = card.ability
+		if ability.mp_trap_hidden and ability.mp_trap_fired and ability.mp_trap_card_id then
+			state.fired_ids[ability.mp_trap_card_id] = true
+		end
+	end
+	local ids = {}
+	for id in pairs(state.fired_ids) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	return ids
+end
+
 -- The one place the held list goes out. `force` sends even when the list is unchanged (a join or a
 -- rejoin: the newcomer has none of the lists yet).
 function PVP.TRAP_ROW.send_held(force)
@@ -56,12 +75,13 @@ function PVP.TRAP_ROW.send_held(force)
 		return
 	end
 	local entries = held_entries()
-	local current = signature(entries)
+	local fired = fired_ids()
+	local current = signature(entries) .. "#" .. table.concat(fired, ",")
 	if not force and current == state.last_sent then
 		return
 	end
 	state.last_sent = current
-	lobby:action(PVP.TRAP_ROW.held_action):broadcast({ cards = entries })
+	lobby:action(PVP.TRAP_ROW.held_action):broadcast({ cards = entries, fired = fired })
 end
 
 local function row_key(sender, entry_id)
@@ -73,7 +93,13 @@ local function wanted_entries()
 	local wanted = {}
 	for _, sender in ipairs(PVP.ante_nemesis_ids()) do
 		for _, entry in ipairs(state.lists[sender] or {}) do
-			wanted[#wanted + 1] = { row_key = row_key(sender, entry.id), key = entry.key, owner = entry.owner }
+			wanted[#wanted + 1] = {
+				row_key = row_key(sender, entry.id),
+				sender = sender,
+				id = entry.id,
+				key = entry.key,
+				owner = entry.owner,
+			}
 		end
 	end
 	return wanted
@@ -86,10 +112,35 @@ local function add_display_card(area, entry)
 	card.sprite_facing = "back"
 	card.ability.mp_trap_display = true
 	card.ability.mp_trap_row_key = entry.row_key
+	card.ability.mp_trap_row_sender = entry.sender
+	card.ability.mp_trap_row_id = entry.id
 	card.ability.mp_trap_owner_id = entry.owner
 	card.states.click.can = false
 	card.states.drag.can = false
 	area:emplace(card)
+end
+
+-- The Trapper's view of a fire: the card flips face-up and dissolves where it sits.
+local function flip_and_dissolve(card)
+	card.ability.mp_trap_row_dissolving = true
+	card.states.hover.can = false
+	card:flip()
+	card:juice_up(0.8, 0.5)
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = 0.9,
+		blockable = false,
+		func = function()
+			card:start_dissolve()
+			return true
+		end,
+	}))
+end
+
+local function fired_in_row(card)
+	local ability = card.ability
+	local fired = state.fired[ability.mp_trap_row_sender]
+	return fired and fired[ability.mp_trap_row_id]
 end
 
 -- Make the row match the wanted entries. The cards are never added to the deck, so they neither
@@ -108,21 +159,37 @@ function PVP.TRAP_ROW.refresh()
 	local stale = {}
 	for _, card in ipairs(area.cards) do
 		local key = card.ability.mp_trap_row_key
-		if wanted_keys[key] and not shown[key] then
+		if card.ability.mp_trap_row_dissolving then
+			-- Already on its way out after a fire.
+		elseif wanted_keys[key] and not shown[key] then
 			shown[key] = true
 		else
 			stale[#stale + 1] = card
 		end
 	end
 	for _, card in ipairs(stale) do
-		area:remove_card(card)
-		card:remove()
+		if fired_in_row(card) then
+			flip_and_dissolve(card)
+		else
+			area:remove_card(card)
+			card:remove()
+		end
 	end
 	for _, entry in ipairs(wanted) do
 		if not shown[entry.row_key] then
 			add_display_card(area, entry)
 		end
 	end
+end
+
+local function sanitize_ids(ids)
+	local set = {}
+	for _, id in ipairs(type(ids) == "table" and ids or {}) do
+		if type(id) == "string" then
+			set[id] = true
+		end
+	end
+	return set
 end
 
 local function sanitize(cards)
@@ -139,12 +206,16 @@ end
 PVP.TRAP_ROW.held_action = MPAPI.ActionType({
 	key = "pvp_trap_held",
 	prefix_config = { key = false },
-	parameters = { { key = "cards", type = "table", required = false } },
+	parameters = {
+		{ key = "cards", type = "table", required = false },
+		{ key = "fired", type = "table", required = false },
+	},
 	on_receive = function(_at, from, params)
 		if from == self_id() then
 			return
 		end
 		state.lists[from] = sanitize(params.cards)
+		state.fired[from] = sanitize_ids(params.fired)
 		PVP.TRAP_ROW.refresh()
 	end,
 })
@@ -152,6 +223,7 @@ PVP.TRAP_ROW.held_action = MPAPI.ActionType({
 -- A player who left holds no cards any more.
 function PVP.TRAP_ROW.forget(player_id)
 	state.lists[player_id] = nil
+	state.fired[player_id] = nil
 	PVP.TRAP_ROW.refresh()
 end
 
