@@ -207,13 +207,23 @@ local TRAPS = {
 		end,
 	},
 	-- Magic Mouth: when the holder triggers a blue or purple seal, steal the consumable.
-	-- Deferred: seal triggers resolve via direct per-card method calls (Card:calculate_seal /
-	-- Card:get_end_of_round_effect), never a broadcast calculate context -- needs its own hook.
+	-- No calculate: the trigger is hooked in lib/trap_utils.lua, which sends the stolen card here.
 	{
 		key = "trap_magic_mouth",
 		idea = "Virtualized",
 		art = "TypeFate",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			-- Counts the buffer too, so a card still being made does not leave the area over its limit.
+			local has_room = #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit
+			if has_room then
+				MPAPI.rebuild_card(context.data.card, G.consumeables)
+			end
+			PVP.UI.show_trap_fired_animation("Magic Mouth")
+		end,
 	},
 	-- Snare: when the holder skips a blind, the drafter gains a copy of the tag they got.
 	{
@@ -241,15 +251,20 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Snare")
 		end,
 	},
-	-- Arcane Lock: when the holder uses (i.e. a different planted trap fires on) a Trap card,
-	-- they get trapped instead. Deferred: needs a "another trap just fired" signal, which isn't
-	-- a natural calculate-context flag -- would need PVP.TRAP.reveal_and_consume itself to fire a
-	-- custom local context so a co-resident Arcane Lock can intercept. Not yet implemented.
+	-- Arcane Lock: the next Trap card the holder takes from a Trap pack goes face-down into their
+	-- own consumables, and this card's Trapper becomes its Trapper. The bounce runs in
+	-- PVP.TRAP.plant, so there is no calculate.
 	{
 		key = "trap_arcane_lock",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Arcane Lock")
+		end,
 	},
 	-- Programmed Illusion: when the holder opens a booster pack, one extra card of the pack's type is added.
 	-- Picking it uses a pick, then it dissolves and gives nothing (lib/trap_utils.lua).
@@ -296,15 +311,19 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Web")
 		end,
 	},
-	-- Forbiddance: when the holder discards, the cards drawn from their deck are flipped.
-	-- Deferred: the draw loop (G.FUNCS.draw_from_deck_to_hand) has no exposed "flip after
-	-- draw" hook -- needs a new override on the draw path, not a calculate-context check.
-	-- Not yet implemented.
+	-- Forbiddance: when the holder discards, the cards drawn to refill their hand come in
+	-- face-down. It acts outside calculate (see lib/trap_utils.lua's draw hooks).
 	{
 		key = "trap_forbiddance",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			PVP.UI.show_trap_fired_animation("Forbiddance")
+		end,
 	},
 	-- Faithful Hound: when the holder uses a Planet card, the drafter gains 3 levels of that
 	-- poker hand.
@@ -368,15 +387,51 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Phase Door")
 		end,
 	},
-	-- Mental Prison: when the holder fails to use a Wheel of Fortune they saw in a shop, create
-	-- 2 Wheel of Fortunes. Deferred: needs new state-tracking (record Wheel of Fortune
-	-- appearances per shop visit, checked at ending_shop) -- not a pure calculate-context check.
-	-- Not yet implemented.
+	-- Mental Prison: when the holder leaves a Wheel of Fortune in the shop or a pack (skipped,
+	-- picks used up elsewhere, shop left or rerolled), the drafter gets 2 Wheel of Fortunes. Leaving
+	-- the shop is handled here; the pack and reroll cases are hooked in lib/trap_utils.lua.
 	{
 		key = "trap_mental_prison",
 		idea = "Virtualized",
 		art = "Ganpan140",
 		code = "Virtualized",
+		calculate = function(self, card, context)
+			if context.ending_shop and PVP.TRAP.area_holds_wheel(G.shop_jokers) then
+				PVP.TRAP.reveal_and_consume(card)
+				return PVP.TRAP.notify_owner(card, {})
+			end
+		end,
+		receive = function(self, context)
+			if context.data.owner ~= PVP.TRAP.self_id() then
+				return
+			end
+			for _ = 1, 2 do
+				-- Counts the buffer too, so cards still being made do not leave the area over its limit.
+				if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
+					G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+					G.E_MANAGER:add_event(Event({
+						trigger = "before",
+						delay = 0.0,
+						func = function()
+							-- Built directly: SMODS.add_card / create_card would poll shared pseudorandom streams.
+							local wheel = Card(
+								G.consumeables.T.x,
+								G.consumeables.T.y,
+								G.CARD_W,
+								G.CARD_H,
+								nil,
+								G.P_CENTERS.c_wheel_of_fortune
+							)
+							wheel:add_to_deck()
+							G.consumeables:emplace(wheel)
+							G.GAME.consumeable_buffer = math.max(0, G.GAME.consumeable_buffer - 1)
+							return true
+						end,
+					}))
+				end
+			end
+			PVP.UI.show_trap_fired_animation("Mental Prison")
+		end,
 	},
 }
 

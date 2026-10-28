@@ -1222,8 +1222,8 @@ return {
 				name = "Forbiddance",
 				text = {
 					"When your {X:purple,C:white}Nemesis{} discards,",
-					"the cards drawn from their",
-					"deck are {C:attention}flipped{}",
+					"the cards drawn to refill their",
+					"hand are {C:attention}face-down{}",
 				},
 			},
 			c_mp_trap_guards_and_wards = {
