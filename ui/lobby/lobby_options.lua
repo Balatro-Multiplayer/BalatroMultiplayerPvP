@@ -4,10 +4,6 @@
 -- pvp_api/queue.lua), plus Manhunt's Hunter/Runner or Teams' A/B role picker when
 -- applicable (any lobby kind -- a casual matchmaking-formed Manhunt/Teams match
 -- still needs its players to pick a role before the match can start).
---
--- Literal English strings (not localize() keys) match the existing "Practice"
--- ruleset-picker overlay's own style (ui/pvp_main_menu.lua) rather than inventing
--- localization keys ahead of a later polish pass.
 
 local RULESET_KEYS = {
 	PVP.RulesetKey.VANILLA,
