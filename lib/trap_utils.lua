@@ -20,8 +20,8 @@ PVP.TRAP.self_id = self_id
 
 -- Fires from a Trap card's own use() -- the ONLY moment use() ever runs, since a Trap can only
 -- be obtained by taking it from a Trap pack (Card:use_consumeable removes the card from
--- G.pack_cards and never adds it anywhere else). Sent directly to whoever the Trapper's
--- current Nemesis resolves to right now -- NOT the per-object sync bus, since there is no
+-- G.pack_cards and never adds it anywhere else). Sent directly to the ante's Nemesis,
+-- NOT the per-object sync bus, since there is no
 -- existing card instance on the receiving side yet for `receive` to key off of.
 function PVP.TRAP.plant(card)
 	local lock = PVP.TRAP.find_planted(PVP.TRAP.KEY.ARCANE_LOCK)
@@ -30,7 +30,7 @@ function PVP.TRAP.plant(card)
 		return
 	end
 	local lobby = MPAPI.get_current_lobby()
-	local target = PVP.current_target_id()
+	local target = PVP.ante_nemesis_id()
 	if not (lobby and target) then
 		return
 	end
@@ -73,6 +73,7 @@ function PVP.TRAP.disguise(card)
 	-- this card's own slot. It lives in card.ability, so it round-trips through save and load, and the
 	-- area recounts without the card as soon as the card leaves it.
 	card.ability.extra_slots_used = -1
+	card.ability.mp_trap_card_id = card.ability.mp_trap_card_id or PVP.TRAP_ROW.new_card_id()
 end
 
 local can_sell_card_ref = Card.can_sell_card

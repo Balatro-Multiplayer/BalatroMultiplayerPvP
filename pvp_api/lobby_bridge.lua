@@ -331,6 +331,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
+		PVP.TRAP_ROW.on_player_back(player_id)
 		refresh()
 	end)
 
@@ -345,6 +346,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.draw_votes:remove(player_id)
 		end
 		mirror_players(lobby)
+		PVP.TRAP_ROW.forget(player_id)
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
 		if gm and gm.on_player_forfeit and G.STAGE == G.STAGES.RUN then
@@ -366,6 +368,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		refresh()
+		PVP.TRAP_ROW.on_player_back(player_id)
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
 			return

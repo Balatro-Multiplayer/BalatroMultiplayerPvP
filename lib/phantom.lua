@@ -13,6 +13,7 @@ PVP.NEMESIS_SLOT_GAP = 1
 
 local function remove_nemesis_slots()
 	PVP.ante_nemesis = nil
+	PVP.TRAP_ROW.reset()
 	for _, key in ipairs({ "nemesis_jokers", "nemesis_jokers_hidden", "nemesis_consumeables" }) do
 		if PVP[key] then
 			PVP[key]:remove()
@@ -115,6 +116,7 @@ function PVP.refresh_ante_nemesis()
 	state.set = set
 	move_phantoms(PVP.nemesis_jokers, PVP.nemesis_jokers_hidden, false)
 	move_phantoms(PVP.nemesis_jokers_hidden, PVP.nemesis_jokers, true)
+	PVP.TRAP_ROW.refresh()
 end
 
 -- Detect the start of an ante (the local ante changed), and fill in a Nemesis that was still unknown
