@@ -1197,9 +1197,9 @@ return {
 			c_mp_trap_phase_door = {
 				name = "Phase Door",
 				text = {
-					"When your {X:purple,C:white}Nemesis{} triggers a",
-					"gold card, gain {C:money}$4{} for every",
-					"gold card in their hand",
+					"When your {X:purple,C:white}Nemesis{} is paid for",
+					"held gold cards, gain {C:money}$4{} for",
+					"every gold card in their hand",
 				},
 			},
 			c_mp_trap_fire_trap = {
