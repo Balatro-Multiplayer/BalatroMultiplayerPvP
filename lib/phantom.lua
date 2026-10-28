@@ -118,10 +118,42 @@ local function place_standard_layout()
 	end
 end
 
--- Mirrored and Classic show Standard until their own placement exists.
+-- Mirrored: the rows swap places and keep their own widths. The Nemesis consumable row starts at the left
+-- edge of the player's joker row, the Nemesis joker row ends at the right edge of the player's consumable row.
+local function place_mirrored_layout()
+	local jokers, consumeables = PVP.nemesis_jokers, PVP.nemesis_consumeables
+	if consumeables then
+		consumeables.T.x = G.jokers.T.x
+		consumeables.T.y = G.jokers.T.y - PVP.NEMESIS_SLOT_GAP - consumeables.T.h
+		consumeables:hard_set_T()
+	end
+	if jokers then
+		jokers.T.x = G.consumeables.T.x + G.consumeables.T.w - jokers.T.w
+		jokers.T.y = G.consumeables.T.y - PVP.NEMESIS_SLOT_GAP - jokers.T.h
+		jokers:hard_set_T()
+	end
+end
+
+-- Mirrored seen across a table: after the vanilla alignment, every card in a Nemesis row swaps to the
+-- opposite side of the row (the reverse display order, the stored order is untouched) and turns 180 degrees.
+-- Tooltips follow the card's position only, so they stay upright.
+local align_cards_ref = CardArea.align_cards
+function CardArea:align_cards()
+	align_cards_ref(self)
+	if (self ~= PVP.nemesis_jokers and self ~= PVP.nemesis_consumeables) or not self.cards then return end
+	if PVP.get_nemesis_layout() ~= PVP.NEMESIS_LAYOUT.MIRRORED then return end
+	for _, card in ipairs(self.cards) do
+		if not card.states.drag.is and not card.disable_align then
+			card.T.x = 2 * self.T.x + self.T.w - card.T.x - card.T.w
+			card.T.r = card.T.r + math.pi
+		end
+	end
+end
+
+-- Classic shows Standard until its own placement exists.
 local NEMESIS_LAYOUT_PLACERS = {
 	[PVP.NEMESIS_LAYOUT.STANDARD] = place_standard_layout,
-	[PVP.NEMESIS_LAYOUT.MIRRORED] = place_standard_layout,
+	[PVP.NEMESIS_LAYOUT.MIRRORED] = place_mirrored_layout,
 	[PVP.NEMESIS_LAYOUT.CLASSIC] = place_standard_layout,
 }
 
