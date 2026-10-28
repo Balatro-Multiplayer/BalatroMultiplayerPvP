@@ -179,18 +179,20 @@ local TRAPS = {
 		calculate = function(self, card, context)
 			if context.playing_card_added then
 				PVP.TRAP.reveal_and_consume(card)
+				-- Added here, on the Nemesis's client. create_playing_card sends no
+				-- playing_card_added context itself, so the Stone cards cannot re-trigger.
+				for _ = 1, 2 do
+					create_playing_card({
+						front = pseudorandom_element(G.P_CARDS, pseudoseed("mp_trap_guards")),
+						center = G.P_CENTERS.m_stone,
+					}, G.deck)
+				end
 				return PVP.TRAP.notify_owner(card, {})
 			end
 		end,
 		receive = function(self, context)
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
-			end
-			for _ = 1, 2 do
-				create_playing_card({
-					front = pseudorandom_element(G.P_CARDS, pseudoseed("mp_trap_guards")),
-					center = G.P_CENTERS.m_stone,
-				}, G.deck)
 			end
 			PVP.UI.show_trap_fired_animation("Guards and Wards")
 		end,
