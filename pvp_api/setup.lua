@@ -1,6 +1,6 @@
 -- PvP's Setup (ADR 0003): what a started game runs before its run. Casual
 -- Nemesis, Royale, Manhunt and Teams vote on the ruleset first, then on Trap
--- cards when the ruleset is Balanced or Expanded. Matchmade games then run the
+-- cards when the ruleset is in TRAP_RULESETS. Matchmade games then run the
 -- Draft. The server holds every step (MPAPI.Setup); the current host opens
 -- the next step, and every client follows the results.
 
@@ -12,7 +12,9 @@ S.Step = { RULESET = "ruleset", TRAPS = "traps", DRAFT = "draft" }
 -- Ruleset vote options, in panel order: option key -> ruleset key.
 S.RULESET_OPTIONS = { "vanilla", "majorleague", "balanced", "expanded" }
 S.TRAP_OPTIONS = { "on", "off" }
-local TRAP_RULESETS = { balanced = true, expanded = true }
+-- Trap cards are disabled: no ruleset runs the Trap vote, so the traps layer never turns on.
+-- Balanced and Expanded had it.
+local TRAP_RULESETS = {}
 local VOTE_FORMATS = { pvp_nemesis = true, pvp_royale = true, pvp_manhunt = true, pvp_teams = true }
 
 -- How long a vote result stays in the panel before the next step.
