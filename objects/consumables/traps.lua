@@ -358,10 +358,10 @@ for index, def in ipairs(TRAPS) do
 		cost = 4,
 		unlocked = true,
 		discovered = true,
-		-- A trap is never manually clicked once disguised in someone's inventory -- it fires
-		-- passively via calculate. use() only exists for the draft-time interception below.
+		-- A trap is usable only while it sits in a booster pack: USE there plants it. Once
+		-- disguised in someone's inventory it is never clicked; it fires passively via calculate.
 		can_use = function(self, card)
-			return false
+			return card.area == G.pack_cards
 		end,
 		-- Fires exactly once: the moment this card is drafted from a Trap pack (see
 		-- lib/trap_utils.lua's PVP.TRAP.plant for why this is the sole, exact interception point).
