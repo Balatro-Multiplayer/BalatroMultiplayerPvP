@@ -54,12 +54,7 @@ MPAPI.ActionType({
 		PVP.GAME.nemesis_partner_id = (partner and partner ~= "") and partner or nil
 		PVP.GAME.nemesis_pairing_received = true
 		if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
-		-- The Nemesis slots follow the pairing of the ante this client is in. A pairing for a later ante
-		-- (this client has not changed ante yet) waits for the local ante change.
-		local local_ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante
-		if not (params.ante and local_ante and params.ante > local_ante) and PVP.refresh_ante_nemesis then
-			PVP.refresh_ante_nemesis()
-		end
+		PVP.on_nemesis_pairing(params.ante)
 	end),
 })
 

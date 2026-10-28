@@ -126,12 +126,15 @@ function PVP.UTILS.reorder_permutation(old_ids, cards)
 	return perm
 end
 
+function PVP.is_phantom(card)
+	return card.ability ~= nil and card.ability.mp_phantom == true
+end
+
 function PVP.UTILS.get_phantom_joker(key)
 	if not PVP.nemesis_jokers or not PVP.nemesis_jokers.cards then return nil end
 	for i = 1, #PVP.nemesis_jokers.cards do
-		if PVP.nemesis_jokers.cards[i].ability.name == key and PVP.nemesis_jokers.cards[i].ability.mp_phantom then
-			return PVP.nemesis_jokers.cards[i]
-		end
+		local card = PVP.nemesis_jokers.cards[i]
+		if card.ability.name == key and PVP.is_phantom(card) then return card end
 	end
 	return nil
 end

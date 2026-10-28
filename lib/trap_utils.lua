@@ -21,8 +21,8 @@ PVP.TRAP.self_id = self_id
 -- Fires from a Trap card's own use() -- the ONLY moment use() ever runs, since a Trap can only
 -- be obtained by taking it from a Trap pack (Card:use_consumeable removes the card from
 -- G.pack_cards and never adds it anywhere else). Sent directly to the ante's Nemesis,
--- NOT the per-object sync bus, since there is no
--- existing card instance on the receiving side yet for `receive` to key off of.
+-- NOT the per-object sync bus, since there is no existing card instance on the receiving side yet
+-- for `receive` to key off of.
 function PVP.TRAP.plant(card)
 	local lock = PVP.TRAP.find_planted(PVP.TRAP.KEY.ARCANE_LOCK)
 	if lock then
@@ -76,8 +76,10 @@ function PVP.TRAP.disguise(card)
 	card.ability.mp_trap_hidden = true
 	-- Steamodded counts a card as #cards + sum(extra_slots_used) against the area's limit, so -1 cancels
 	-- this card's own slot. It lives in card.ability, so it round-trips through save and load, and the
-	-- area recounts without the card as soon as the card leaves it.
+	-- area recounts without the card as soon as the card leaves it. The card is already in its area when
+	-- this runs (rebuild_card emplaces it), so the area recounts now, not on its next update.
 	card.ability.extra_slots_used = -1
+	if card.area then card.area:handle_card_limit() end
 	card.ability.mp_trap_card_id = card.ability.mp_trap_card_id or PVP.TRAP_ROW.new_card_id()
 end
 

@@ -19,6 +19,11 @@ function PVP.TRAP_ROW.reset()
 	state.last_sent = nil
 end
 
+-- Forget the fired ids of the previous ante. Called when the ante's Nemesis is fixed.
+function PVP.TRAP_ROW.forget_fired()
+	state.fired_ids = {}
+end
+
 -- A planted Trap card carries an id in its ability (so it is saved with the card) that is unique
 -- among this client's cards. It lets a viewer name one specific card of a sender's list.
 function PVP.TRAP_ROW.new_card_id()
@@ -50,9 +55,10 @@ local function signature(entries)
 	return table.concat(parts, "|")
 end
 
--- Ids of this client's planted Trap cards that have fired, kept so every later message still names them.
--- A card is flagged fired for a moment before it leaves the consumables, so the sender sees it here.
-local function fired_ids()
+-- Records the planted Trap cards that have fired and returns every fired id kept so far, so later messages
+-- still name them. A card is flagged fired for a moment before it leaves the consumables, so the sender sees it
+-- here. The ids are dropped at the start of each ante: by then every receiver has shown the fire.
+local function collect_fired_ids()
 	for _, card in ipairs(G.consumeables and G.consumeables.cards or {}) do
 		local ability = card.ability
 		if ability.mp_trap_hidden and ability.mp_trap_fired and ability.mp_trap_card_id then
@@ -71,15 +77,11 @@ end
 -- rejoin: the newcomer has none of the lists yet).
 function PVP.TRAP_ROW.send_held(force)
 	local lobby = MPAPI.get_current_lobby()
-	if not (lobby and PVP.nemesis_consumeables and G.consumeables) then
-		return
-	end
+	if not (lobby and PVP.nemesis_consumeables and G.consumeables) then return end
 	local entries = held_entries()
-	local fired = fired_ids()
+	local fired = collect_fired_ids()
 	local current = signature(entries) .. "#" .. table.concat(fired, ",")
-	if not force and current == state.last_sent then
-		return
-	end
+	if not force and current == state.last_sent then return end
 	state.last_sent = current
 	lobby:action(PVP.TRAP_ROW.held_action):broadcast({ cards = entries, fired = fired })
 end
@@ -147,9 +149,7 @@ end
 -- calculate nor count for any effect.
 function PVP.TRAP_ROW.refresh()
 	local area = PVP.nemesis_consumeables
-	if not area then
-		return
-	end
+	if not area then return end
 	local wanted = wanted_entries()
 	local wanted_keys = {}
 	for _, entry in ipairs(wanted) do
@@ -168,7 +168,7 @@ function PVP.TRAP_ROW.refresh()
 		end
 	end
 	for _, card in ipairs(stale) do
-		if fired_in_row(card) then
+		if fired_in_row(card) and card.ability.mp_trap_owner_id == self_id() then
 			flip_and_dissolve(card)
 		else
 			area:remove_card(card)
@@ -211,9 +211,7 @@ PVP.TRAP_ROW.held_action = MPAPI.ActionType({
 		{ key = "fired", type = "table", required = false },
 	},
 	on_receive = function(_at, from, params)
-		if from == self_id() then
-			return
-		end
+		if from == self_id() then return end
 		state.lists[from] = sanitize(params.cards)
 		state.fired[from] = sanitize_ids(params.fired)
 		PVP.TRAP_ROW.refresh()

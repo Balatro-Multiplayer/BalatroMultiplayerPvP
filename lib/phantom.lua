@@ -12,7 +12,7 @@ end
 PVP.NEMESIS_SLOT_GAP = 1
 
 local function remove_nemesis_slots()
-	PVP.ante_nemesis = nil
+	PVP.clear_ante_nemesis()
 	PVP.TRAP_ROW.reset()
 	for _, key in ipairs({ "nemesis_jokers", "nemesis_jokers_hidden", "nemesis_consumeables" }) do
 		if PVP[key] then
@@ -45,41 +45,7 @@ function PVP.create_nemesis_slots(card_area_sizes)
 	PVP.nemesis_jokers_hidden.T.x = -100
 	PVP.nemesis_jokers_hidden.T.y = -100
 	PVP.nemesis_jokers_hidden:hard_set_T()
-	PVP.ante_nemesis = { ante = nil, ids = {}, set = {} }
-end
-
--- The ante's Nemesis, fixed once per ante and read by anything that targets "my Nemesis".
--- Read it through these two functions:
---   PVP.ante_nemesis_ids() -> array of player ids (empty before a Nemesis is known). One id in
---     every format, except a Manhunt runner: every hunter.
---   PVP.ante_nemesis_id() -> the first of those ids, or nil.
--- The value is fixed (see PVP.refresh_ante_nemesis) when the local ante changes, when the match
--- starts, and when the Nemesis pairing for the current ante arrives. A mid-ante change of
--- PVP.current_target_id() (new top hunter, new Royale neighbour) does not change it.
-function PVP.ante_nemesis_ids()
-	return PVP.ante_nemesis and PVP.ante_nemesis.ids or {}
-end
-
-function PVP.ante_nemesis_id()
-	return PVP.ante_nemesis_ids()[1]
-end
-
-function PVP.is_ante_nemesis(player_id)
-	return PVP.ante_nemesis ~= nil and PVP.ante_nemesis.set[player_id] == true
-end
-
--- A Manhunt runner's Nemesis is every hunter. Everyone else's is their current target.
-local function read_nemesis_ids()
-	if PVP.LOBBY.config.manhunt and PVP.LOBBY.team_id == "RUNNER" then
-		local ids = {}
-		for id, role in pairs(PVP.LOBBY.roster or {}) do
-			if role == "HUNTER" then ids[#ids + 1] = id end
-		end
-		table.sort(ids)
-		if #ids > 0 then return ids end
-	end
-	local target = PVP.current_target_id()
-	return target and { target } or {}
+	PVP.init_ante_nemesis()
 end
 
 -- Where a copy from this sender lives: the visible row for the ante's Nemesis, the hidden store for the rest.
@@ -91,8 +57,7 @@ end
 local function move_phantoms(from_area, to_area, wants_visible)
 	local moving = {}
 	for _, card in ipairs(from_area.cards) do
-		local ability = card.ability
-		if ability and ability.mp_phantom and PVP.is_ante_nemesis(ability.mp_phantom_from) == wants_visible then
+		if PVP.is_phantom(card) and PVP.is_ante_nemesis(card.ability.mp_phantom_from) == wants_visible then
 			moving[#moving + 1] = card
 		end
 	end
@@ -102,45 +67,20 @@ local function move_phantoms(from_area, to_area, wants_visible)
 	end
 end
 
--- Fix the ante's Nemesis from the current target, then show only that player's Phantom jokers.
-function PVP.refresh_ante_nemesis()
-	local state = PVP.ante_nemesis
-	if not (state and PVP.nemesis_jokers and PVP.nemesis_jokers_hidden) then return end
-	local ids = read_nemesis_ids()
-	local set = {}
-	for _, id in ipairs(ids) do
-		set[id] = true
-	end
-	state.ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante
-	state.ids = ids
-	state.set = set
+-- Show only the ante Nemesis's Phantom jokers; the rest wait in the hidden store.
+function PVP.sort_phantoms_by_ante_nemesis()
 	move_phantoms(PVP.nemesis_jokers, PVP.nemesis_jokers_hidden, false)
 	move_phantoms(PVP.nemesis_jokers_hidden, PVP.nemesis_jokers, true)
-	PVP.TRAP_ROW.refresh()
-end
-
--- Detect the start of an ante (the local ante changed), and fill in a Nemesis that was still unknown
--- at that point (a Royale target that arrives after the ante change).
-local game_update_ref = Game.update
-function Game:update(dt)
-	game_update_ref(self, dt)
-	local state = PVP.ante_nemesis
-	if not (state and G.GAME and G.GAME.round_resets and PVP.LOBBY and PVP.LOBBY.config) then return end
-	if state.ante ~= G.GAME.round_resets.ante then
-		PVP.refresh_ante_nemesis()
-	elseif #state.ids == 0 and #read_nemesis_ids() > 0 then
-		PVP.refresh_ante_nemesis()
-	end
 end
 
 -- Called from set_screen_positions: each Nemesis row mirrors the x and width of the player's row below it.
 function PVP.place_nemesis_slots()
-	local pairs_to_place = {
-		{ PVP.nemesis_jokers, G.jokers },
-		{ PVP.nemesis_consumeables, G.consumeables },
+	local rows_to_place = {
+		{ nemesis_row = PVP.nemesis_jokers, own_row = G.jokers },
+		{ nemesis_row = PVP.nemesis_consumeables, own_row = G.consumeables },
 	}
-	for _, pair in ipairs(pairs_to_place) do
-		local nemesis_row, own_row = pair[1], pair[2]
+	for _, place in ipairs(rows_to_place) do
+		local nemesis_row, own_row = place.nemesis_row, place.own_row
 		if nemesis_row then
 			nemesis_row.T.x = own_row.T.x
 			nemesis_row.T.y = own_row.T.y - PVP.NEMESIS_SLOT_GAP - nemesis_row.T.h

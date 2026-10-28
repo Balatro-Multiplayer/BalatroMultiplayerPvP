@@ -603,9 +603,6 @@ local function action_lobby_options(options)
 	PVP.ACTIONS.update_player_usernames() -- render new DECK button state
 end
 
--- (The phantom masking patches — Card:remove / SMODS.find_card / poll_edition — moved to the
--- synced-object framework; installed via MPAPI.configure_phantom in lib/phantom.lua.)
-
 local function action_speedrun()
 	SMODS.calculate_context({ mp_speedrun = true })
 end
