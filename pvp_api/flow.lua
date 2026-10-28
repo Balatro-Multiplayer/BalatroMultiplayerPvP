@@ -6,6 +6,8 @@ PVP.LobbyAccess = {
 	PRACTICE = "practice",
 	RANKED = "ranked",
 	CASUAL = "casual",
+	-- A Party lobby's metadata kind (pvp_api/party_lobby.lua). Its client kind stays PRIVATE.
+	PARTY = "party",
 	RANKED_PREFIX = "ranked:",
 }
 

@@ -358,10 +358,8 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- rejoins the match) -- only act when the reconnecting
 	-- player IS us; the opponent's own client needs no catch-up, it never
 	-- disconnected. See pvp_api/reconnect_tail.lua.
-	-- The group panel (ui/lobby/group_panel.lua) refuses while a player is
-	-- away, so it follows players dropping and coming back: a group member
-	-- back from a public match after its host left the host's panel saying
-	-- "every player must be connected".
+	-- A Party lobby's Find Game pillars (ui/main_menu/find_game.lua) refuse
+	-- while a player is away, so they follow players dropping and coming back.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function()
 		refresh()
 	end)
@@ -399,8 +397,8 @@ PVP.setup_lobby_mirror = function(lobby)
 		MPAPI.refresh_current_view()
 	end)
 
-	-- The group panel (the waiting room's) also names a player whose standing
-	-- refuses the group, so a change that moves that verdict rebuilds it.
+	-- A Party lobby's Find Game pillars grey a mode a player's standing
+	-- refuses, so a change that moves that verdict rebuilds them.
 	-- Only those: a joiner's first standing lands just after the join, and a
 	-- rebuild then would close an overlay the host had just opened. Not once
 	-- a game is on: a rejoin's playback starts from the main menu, and a

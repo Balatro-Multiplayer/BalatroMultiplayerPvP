@@ -20,7 +20,8 @@ local PRACTICE_MODES = {
 		desc = { "Balance changes", "being trialed" }, button = "mp_pvp_practice_experimental", colour = G.C.ORANGE },
 }
 
--- key is the gamemode key PVP.pvp_create_private_lobby takes (pvp_api/flow.lua).
+-- key is the gamemode key PVP.pvp_create_private_lobby takes (pvp_api/flow.lua). The Party
+-- pillar has no gamemode: party = true (pvp_api/party_lobby.lua).
 local LOBBY_MODES = {
 	{ key = "pvp_nemesis", name = "Nemesis",
 		desc = { "Face a different", "Nemesis every ante" }, button = "mp_pvp_create_lobby_nemesis", colour = G.C.BLUE },
@@ -30,6 +31,8 @@ local LOBBY_MODES = {
 		desc = { "Hunters team up", "to stop a Runner" }, button = "mp_pvp_create_lobby_manhunt", colour = G.C.RED },
 	{ key = "pvp_teams", name = "Teams",
 		desc = { "Team vs team;", "best score wins" }, button = "mp_pvp_create_lobby_teams", colour = G.C.GREEN },
+	{ key = "party", party = true, name = "Party",
+		desc = { "Queue Casual", "together" }, button = "mp_pvp_create_lobby_party", colour = G.C.ORANGE },
 }
 
 -- Plain Sprite, same placeholder chip as find_game.lua.
@@ -38,6 +41,10 @@ local function build_chip_sprite()
 end
 
 local function stat_box_for(mode, intent)
+	if intent == "create_lobby" and mode.party then
+		local Group = MPAPI.matchmaking.group
+		return MPAPI.ui_pillar_stat_box({ label = "Players", value = Group.MIN_SIZE .. "-" .. Group.MAX_SIZE, value_colour = G.C.MONEY })
+	end
 	if intent == "create_lobby" then
 		local gm = MPAPI.GameModes[mode.key]
 		local players = gm and (tostring(gm:get_min_players(MPAPI.LobbyType.PRIVATE)) .. "-" .. tostring(gm:get_max_players(MPAPI.LobbyType.PRIVATE))) or "?"
