@@ -78,7 +78,7 @@ local TRAPS = {
 			PVP.UI.show_trap_fired_animation("Symbol")
 		end,
 	},
-	-- Alarm: when the holder rerolls their shop, the drafter gains 2 free rerolls.
+	-- Alarm: when the holder rerolls their shop, the drafter gains 2 free rerolls (now in a shop, else at the next shop).
 	{
 		key = "trap_alarm",
 		idea = "Virtualized",
@@ -94,7 +94,7 @@ local TRAPS = {
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
 			end
-			G.GAME.current_round.free_rerolls = (G.GAME.current_round.free_rerolls or 0) + context.data.rerolls
+			PVP.TRAP.grant_free_rerolls(context.data.rerolls)
 			PVP.UI.show_trap_fired_animation("Alarm")
 		end,
 	},
