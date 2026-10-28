@@ -99,7 +99,7 @@ end
 G.C.MULTIPLAYER = HEX("AC3232")
 
 PVP.MIN_SMODS_VERSION = "1.0.0~BETA-1814a"
-PVP.MIN_LOVELY_VERSION = "0.9.0"
+PVP.MIN_LOVELY_VERSION = "0.10.0"
 
 -- The Order (deterministic/anti-desync RNG) engine now lives entirely in the API
 -- (BalatroMultiplayerAPI/api/the_order/). We delegate the gate + helpers to the
