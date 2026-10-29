@@ -1,7 +1,6 @@
 PVP.Ruleset({
 	key = "majorleague",
 	layers = { "majorleague" },
-	multiplayer_content = false,
 	forced_gamemode = "gamemode_mp_attrition",
 	forced_lobby_options = true,
 	is_disabled = function(self)

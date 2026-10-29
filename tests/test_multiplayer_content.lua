@@ -99,8 +99,7 @@ section("Only cards on the Multiplayer Cards list can appear", function()
 	expanded._layer_order = order
 	if not ok then error(err, 0) end
 
-	PVP.Ruleset({ key = "cards_only", multiplayer_content = true, layers = { PVP.LayerKey.MULTIPLAYER_CONTENT } })
-		:inject()
+	PVP.Ruleset({ key = "cards_only", layers = { PVP.LayerKey.MULTIPLAYER_CONTENT } }):inject()
 	H.start_run("cards_only", "lobby")
 	check(
 		#PVP.current_ruleset().reworked_jokers == 0,
