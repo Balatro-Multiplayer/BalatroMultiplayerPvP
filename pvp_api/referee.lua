@@ -1056,21 +1056,19 @@ end
 -- (PVP.referee_resolve_teams_round below) and the live pvp_team_score_board
 -- broadcast (broadcast_live_targets), so the summing rule can't drift between them.
 local function sum_team_scores(team_players)
-	local sum = PVP.INSANE_INT.empty()
-	for _, pl in ipairs(team_players) do
-		sum = PVP.INSANE_INT.add(sum, pl.score)
-	end
-	return sum
+	local scores = {}
+	for i, pl in ipairs(team_players) do scores[i] = pl.score end
+	return PVP.Score.sum(scores, #team_players)
 end
 
 -- Pure: sums each team's scores this round and returns the losing team ("A"/"B"),
 -- or equal=true on an exact tie (mirrors the 1v1/Royale "nobody loses on a tie" rule).
 function PVP.referee_resolve_teams_round(team_a, team_b)
 	local sum_a, sum_b = sum_team_scores(team_a), sum_team_scores(team_b)
-	if PVP.INSANE_INT.equal(sum_a, sum_b) then
+	if PVP.Score.equal(sum_a, sum_b) then
 		return { equal = true }
 	end
-	return { equal = false, loser_team = PVP.INSANE_INT.greater_than(sum_b, sum_a) and "A" or "B" }
+	return { equal = false, loser_team = PVP.Score.greater(sum_b, sum_a) and "A" or "B" }
 end
 
 -- Pure: ranks alive players by score ascending and returns the same "bottom
@@ -1238,8 +1236,8 @@ function broadcast_live_targets()
 		end
 		broadcast("pvp_team_score_board", {
 			team_scores = {
-				A = PVP.INSANE_INT.to_string(sum_team_scores(by_team.A)),
-				B = PVP.INSANE_INT.to_string(sum_team_scores(by_team.B)),
+				A = sum_team_scores(by_team.A),
+				B = sum_team_scores(by_team.B),
 			},
 		})
 	else

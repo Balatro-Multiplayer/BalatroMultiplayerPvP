@@ -93,7 +93,7 @@ MPAPI.ActionType({
 		if not raw then
 			return
 		end
-		local score = PVP.INSANE_INT.from_string(raw)
+		local score = PVP.Score.or_zero(raw)
 		PVP.UI.ease_enemy_score(score)
 		PVP.GAME.enemy.real_score = score
 		PVP.GAME.enemy.info_received = true

@@ -108,6 +108,43 @@ do
 	check("royale: the tower is safe", out.is_loser.x, nil)
 end
 
+-- Teams: the host sums each team's scores as score text.
+check("sum of plain scores", S.sum({ "5", "7" }), "12")
+check("sum of nothing is zero", S.sum({}), "0")
+check("sum skips a malformed score", S.sum({ "5", "banana", "2" }), "7")
+check("sum does not fall to text order", S.sum({ "9", "10" }), "19")
+check("no number mod: an exponent score stands in for the sum", S.sum({ "5", E100 }), E100)
+do
+	local function tm(a, b, a_hands, b_hands)
+		return PVP.referee_resolve_teams_round(a, b)
+	end
+	local r = tm({ { score = "5" }, { score = "4" } }, { { score = "10" } })
+	check("teams: 9 vs 10, team A loses", r.loser_team, "A")
+	check("teams: 9 vs 10 is not a tie", r.equal, false)
+	r = tm({ { score = "5" }, { score = "5" } }, { { score = "10" } })
+	check("teams: 10 vs 10 ties", r.equal, true)
+	r = tm({ { score = "2" } }, { { score = E100 }, { score = "3" } })
+	check("teams: an exponent team beats a plain team", r.loser_team, "A")
+	r = tm({ { score = TOWER } }, { { score = E100 } })
+	check("teams: a tower team beats an exponent team", r.loser_team, "B")
+	r = tm({ { score = E100 } }, { { score = E100 } })
+	check("teams: equal big teams tie", r.equal, true)
+end
+
+-- With a number mod, the sum goes through the mod's own add.
+do
+	local saved = to_big
+	local mt = {}
+	mt.__add = function(x, y) return setmetatable({ array = { x.array[1] + y.array[1], x.array[2] or y.array[2] }, sign = 1 }, mt) end
+	to_big = function(x)
+		if type(x) == "number" then return setmetatable({ array = { x }, sign = 1 }, mt) end
+		return setmetatable({ array = x.array, sign = 1 }, mt)
+	end
+	check("mod: sums with the mod's add", S.sum({ "5", "7" }), "12")
+	check("mod: sums exponent scores with the mod's add", S.sum({ "100,1", "100,1" }), "200,1")
+	to_big = saved
+end
+
 if failures > 0 then
 	print(failures .. " failure(s)")
 	os.exit(1)
