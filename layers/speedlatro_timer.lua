@@ -63,24 +63,9 @@ function Game:update(dt)
 			)
 		then
 			if not (G.CONTROLLER.locks.enter_pvp or PVP.GAME.ready_blind or PVP.speedlatro_timer.wait) then
-				-- ok look
-				-- insaneint is only intended for ui purposes
-				-- so we don't actually have the score as much as we have a representation of it...
-				-- uhm
-				-- we're just forced to do this anyway
-				local enemy_score = PVP.GAME.enemy.score
+				local self_score = PVP.Score.from_game_value(G.GAME.chips)
 
-				-- copypasted stuff from action_handlers
-				local fixed_score = tostring(to_big(G.GAME.chips))
-				if string.match(fixed_score, "[eE]") == nil and string.match(fixed_score, "[.]") then
-					-- Remove decimal from non-exponential numbers
-					fixed_score = string.sub(string.gsub(fixed_score, "%.", ","), 1, -3)
-				end
-				fixed_score = string.gsub(fixed_score, ",", "") -- Remove commas
-
-				local self_score = PVP.INSANE_INT.from_string(fixed_score)
-
-				if (not PVP.is_pvp_boss()) or PVP.INSANE_INT.greater_than(PVP.GAME.enemy.score, self_score) then
+				if (not PVP.is_pvp_boss()) or PVP.Score.greater(PVP.GAME.enemy.score, self_score) then
 					local speedup = PVP.current_ruleset().timer_speedup_multiplier or 2
 					local tick_mult = (PVP.GAME.nemesis_timer_started and not PVP.is_pvp_boss()) and speedup or 1
 					PVP.speedlatro_timer.real = PVP.speedlatro_timer.real - dt * tick_mult
