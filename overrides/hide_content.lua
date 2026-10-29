@@ -3,12 +3,13 @@
 -- Default-deny, consistent with the joker/consumable pool mechanism
 -- (MPAPI.should_exclude_from_pool): PvP's own Stakes/Decks/Challenges are hidden
 -- from the picker unless we're in a private lobby, in a real PvP lobby whose ruleset
--- uses MP content, or the player has explicitly opted into seeing them anyway.
+-- uses the multiplayer content layer, or the player has explicitly opted into
+-- seeing them anyway.
 function PVP.should_hide_mp_content()
 	return PVP.MpContentVisibility.should_hide(
 		PVP.LOBBY.code ~= nil,
 		PVP._pvp_kind,
-		PVP.current_ruleset().multiplayer_content,
+		PVP.multiplayer_content_enabled(),
 		PVP.config.show_mp_content_anyway
 	)
 end
