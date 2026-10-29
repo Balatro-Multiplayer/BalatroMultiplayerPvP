@@ -1250,7 +1250,7 @@ end
 
 -- The score-comparison round resolution (playHand path). Called after a player's
 -- score/hands are updated. Ends the round when the trailing player is out of hands
--- or both are, decided by InsaneInt score with exact-equality = draw.
+-- or both are, decided by PVP.Score score with exact-equality = draw.
 --
 -- Branches on total lobby size (both_players()), not alive count: a lobby that
 -- started at 2 always uses the pairwise rule below, untouched. A lobby that
@@ -1760,7 +1760,7 @@ end
 --
 -- The host stays the rules engine; the server only stores. Moving the rules
 -- themselves into the server (it is mod-agnostic, and the rules are
--- PvP's, with five modes and the InsaneInt scores) is the larger change this
+-- PvP's, with five modes and the PVP.Score scores) is the larger change this
 -- leaves open.
 
 local CHECKPOINT_KEY = "_pvp_ref"

@@ -94,8 +94,8 @@ end)
 -- rather than immediately re-firing. Deliberately does NOT touch
 -- PVP.GAME.score/call PVP.ACTIONS.play_hand -- score is untouched by a
 -- timeout, and re-reporting it here would risk a lossy round-trip through
--- play_hand's own to_big() conversion (PVP.GAME.score is an INSANE_INT, a
--- different big-number representation).
+-- play_hand's own to_big() conversion (PVP.GAME.score is score text read
+-- with PVP.Score).
 A_host("pvp_timer_hand_lost", function(_at, _from, params)
 	if not params or params.player_id ~= self_id() then
 		return
