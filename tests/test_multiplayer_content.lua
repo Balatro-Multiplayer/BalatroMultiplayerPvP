@@ -1,6 +1,5 @@
 local H = dofile("tests/support/harness.lua")
 local check, section = H.check, H.section
-local Setting = PVP.ContentMode
 
 local NAMES = {
 	j_mp_speedrun = "SPEEDRUN",
@@ -16,7 +15,6 @@ local NAMES = {
 	v_mp_hieroglyph_manhunt = "Hieroglyph (Manhunt)",
 	v_mp_petroglyph_manhunt = "Petroglyph (Manhunt)",
 }
-local SETTING_NAMES = { [Setting.DEFAULT] = "Default", [Setting.ON] = "On", [Setting.OFF] = "Off" }
 
 local list = MPAPI.Layers[PVP.LayerKey.MULTIPLAYER_CONTENT]
 
@@ -147,50 +145,8 @@ section("Each ruleset uses or leaves out the Multiplayer Cards, and bans the rig
 	return ("%d rulesets, in lobby and Practice runs"):format(#RULESETS)
 end)
 
--- stylua: ignore start
-local SETTING = {
-	--  ruleset      Default  On     Off
-	{ "vanilla",     false,   true,  false },
-	{ "expanded",    true,    true,  false },
-}
--- stylua: ignore end
-
-section("The Multiplayer Cards setting: Default, On and Off", function()
-	for _, row in ipairs(SETTING) do
-		local ruleset = row[1]
-		for i, setting in ipairs({ Setting.DEFAULT, Setting.ON, Setting.OFF }) do
-			for _, kind in ipairs(H.RUN_KINDS) do
-				local where = ("%s set to %s, %s run"):format(ruleset, SETTING_NAMES[setting], kind)
-				H.start_run(ruleset, kind)
-				PVP.set_multiplayer_content_mode(setting)
-				check(PVP.multiplayer_content_mode() == setting, where .. ": the setting should read back the same")
-				expect_cards(where, row[i + 1], BANNED[ruleset])
-			end
-		end
-	end
-
-	H.start_run("vanilla", "lobby")
-	PVP.set_multiplayer_content_mode(Setting.ON)
-	check(
-		MPAPI.Rulesets.ruleset_mp_vanilla.multiplayer_content == false,
-		"turning the setting On in one lobby should not change the Vanilla ruleset itself"
-	)
-	return "Vanilla and Expanded, in lobby and Practice runs"
-end)
-
-section("Changing the setting keeps the ruleset's own timers", function()
-	for _, setting in ipairs({ Setting.DEFAULT, Setting.ON, Setting.OFF }) do
-		H.start_run("experimental", "lobby")
-		PVP.set_multiplayer_content_mode(setting)
-		local where = "Experimental set to " .. SETTING_NAMES[setting]
-		check(MPAPI.has_modifier("pvp_timer"), where .. ": should keep its PvP timer")
-		check(MPAPI.has_modifier("pressure_timer"), where .. ": should keep its pressure timer")
-	end
-end)
-
 section("A normal run after a multiplayer lobby has no Multiplayer Cards", function()
 	H.start_run("expanded", "lobby")
-	PVP.set_multiplayer_content_mode(Setting.ON)
 	H.start_run("expanded", "normal")
 	expect_cards("normal run after an Expanded lobby", false)
 	check(next(G.GAME.banned_keys) == nil, "deciding which cards appear should never add to the run's banned cards")
@@ -217,74 +173,18 @@ section("Cards with their own rules", function()
 	for _, joker in ipairs(PVP.SANDBOX.joker_mappings) do
 		if joker.sandbox == magnet.key then rotation = joker end
 	end
+	local sandbox = MPAPI.Rulesets.ruleset_mp_sandbox
+	local order = sandbox._layer_order
 	rotation.active = true
 	local ok, err = pcall(function()
 		check(appears(magnet), "Magnet should be able to appear in Sandbox while it is in rotation")
-		PVP.set_multiplayer_content_mode(Setting.OFF)
-		check(not appears(magnet), "Magnet should not appear in Sandbox with the setting Off")
+		sandbox._layer_order = { PVP.LayerKey.SANDBOX }
+		check(not appears(magnet), "Magnet should not appear in Sandbox without the Multiplayer Cards")
 	end)
+	sandbox._layer_order = order
 	rotation.active = false
 	if not ok then error(err, 0) end
 	return "Manhunt Vouchers, Let's Go Gambling, Magnet"
-end)
-
-section("Only the host of a private lobby can change the setting, before the run starts", function()
-	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = "" })
-	local picker = H.picker("mp_pvp_content_pick")
-	check(picker and #picker.options == 3, "a private lobby should offer Default, On and Off")
-	check(picker.current_option == 1, "the setting should start on Default")
-
-	G.FUNCS.mp_pvp_change_content({ to_key = 2 })
-	check(PVP.multiplayer_content_enabled(), "the host turning it On should add the cards")
-	G.FUNCS.mp_pvp_change_ruleset({ to_key = 3 })
-	check(PVP.multiplayer_content_mode() == Setting.ON, "switching ruleset should keep the setting On")
-	G.FUNCS.mp_pvp_change_content({ to_key = 3 })
-	check(not PVP.multiplayer_content_enabled(), "the host turning it Off should remove Expanded's cards")
-	G.FUNCS.mp_pvp_change_ruleset({ to_key = 1 })
-	check(PVP.multiplayer_content_mode() == Setting.OFF, "switching ruleset should keep the setting Off")
-	G.FUNCS.mp_pvp_change_content({ to_key = 1 })
-
-	local function cannot_change(who)
-		G.FUNCS.mp_pvp_change_content({ to_key = 2 })
-		check(PVP.multiplayer_content_mode() == Setting.DEFAULT, who .. " should not be able to change the setting")
-	end
-	H.lobby.is_host = false
-	cannot_change("a player who isn't the host")
-	H.lobby.is_host, H.lobby.started = true, true
-	cannot_change("the host, once the run has started,")
-	H.lobby.started, PVP._pvp_kind = false, PVP.LobbyAccess.RANKED
-	cannot_change("the host of a ranked lobby")
-end)
-
-section("Other players, replays and reconnects get the same setting", function()
-	local OFF = PVP.LayerKey.NO_MULTIPLAYER_CONTENT
-
-	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = "" })
-	G.FUNCS.mp_pvp_change_content({ to_key = 2 })
-	local shared = H.lobby.meta.modifier_layers
-	H.open_private_lobby({ ruleset = "ruleset_mp_vanilla", modifier_layers = shared })
-	check(PVP.multiplayer_content_mode() == Setting.ON, "a player joining should get the host's On")
-	H.lobby:set_metadata({ _ref = {} })
-	check(PVP.multiplayer_content_mode() == Setting.ON, "an unrelated lobby update should keep the setting")
-
-	H.receive_metadata({ ruleset = "ruleset_mp_expanded", modifier_layers = OFF })
-	check(not PVP.multiplayer_content_enabled(), "a player should get the host's Off")
-	H.receive_metadata({ ruleset = "ruleset_mp_vanilla" })
-	check(
-		PVP.multiplayer_content_mode() == Setting.DEFAULT,
-		"a lobby from a version without the setting should use Default"
-	)
-
-	PVP.set_multiplayer_content_mode(Setting.ON)
-	PVP._join_ranked_ruleset("ruleset_mp_vanilla")
-	check(PVP.multiplayer_content_mode() == Setting.DEFAULT, "a ranked match should not keep a private lobby's On")
-
-	check(H.replay_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF, "a replay should keep the setting Off")
-	check(
-		H.rejoin_bootstrap({ modifier_layers = OFF }).modifier_layers == OFF,
-		"a reconnect should keep the setting Off"
-	)
-	return "joining, lobby updates, ranked, replays, reconnects"
 end)
 
 H.finish()

@@ -1,7 +1,6 @@
 -- Credit to @MathIsFun_ and the Balatro Multiplayer project for the layer system this is based on.
 PVP.LayerKey = {
 	MULTIPLAYER_CONTENT = "multiplayer_content",
-	NO_MULTIPLAYER_CONTENT = "no_multiplayer_content",
 	SANDBOX = "sandbox",
 }
 
