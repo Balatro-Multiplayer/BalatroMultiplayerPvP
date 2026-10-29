@@ -118,7 +118,6 @@ local function select_random_idol()
 end
 
 MPAPI.Layer(PVP.LayerKey.SANDBOX, {
-	multiplayer_content = true,
 	banned_jokers = { "j_hanging_chad", "j_mp_conjoined_joker" },
 	banned_silent = PVP.SANDBOX.get_vanilla_bans(),
 	banned_consumables = { "c_ouija", "c_ectoplasm" },
