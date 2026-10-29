@@ -1330,15 +1330,15 @@ return {
 			-- Find Game (ui/main_menu/find_game.lua)
 			k_pvp_ranked = "Ranked",
 			-- Pending death waiting screen (ui/game/pending_death.lua)
-			k_pvp_pending_death_title = "Out of lives",
+			k_pvp_pending_death_title = "OUT OF LIVES",
 			k_pvp_pending_death_result = "Your result is pending.",
-			k_pvp_pending_death_wait = "Your Nemesis must now beat the same blind. You may wait for the result.",
-			k_pvp_pending_death_wait_many = "The other players must now beat the same blind. You may wait for the result.",
-			k_pvp_pending_death_leave = "If you leave, this is not a forfeit. The result still counts.",
+			k_pvp_pending_death_wait = "Your Nemesis must beat the same blind.",
+			k_pvp_pending_death_wait_many = "The others must beat the same blind.",
+			k_pvp_pending_death_leave = "Leaving is not a forfeit. The result still counts.",
 			-- Forfeit or Contest modal (ui/contest_modal.lua)
 			k_pvp_contest_title = "Forfeit or Contest match?",
 			k_pvp_contest_pick_title = "Contest which player?",
-			k_pvp_contest_pick_text = "Pick the player who breaks the rules or stalls. You leave the match. The others play on.",
+			k_pvp_contest_pick_text = "Pick the player who breaks the rules or stalls.",
 			k_pvp_contest_warn_1 = "Contest only if your opponent is breaking the rules on purpose or stalling.",
 			k_pvp_contest_warn_2 = "A moderator will review the match.",
 			k_pvp_contest_warn_3 = "Contesting a fair match can result in punishment.",
