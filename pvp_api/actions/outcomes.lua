@@ -63,6 +63,7 @@ A_host("pvp_eliminated", function(_at, _from, params)
 		return
 	end
 	PVP.GAME.eliminated = true
+	PVP.end_pending_death()
 	PVP.dispatch_action("loseGame")
 end)
 
@@ -71,6 +72,15 @@ end)
 A_host("pvp_death_pending", function(_at, _from, params)
 	if PVP.GAME.won or PVP.GAME.draw then
 		return
+	end
+	if params.opponent_id == nil then
+		-- A match of 3 or more players: every client keeps who is pending, only the
+		-- dead player waits on the screen.
+		PVP.GAME.pending_deaths = PVP.GAME.pending_deaths or {}
+		PVP.GAME.pending_deaths[params.player_id] = params.blind_key
+		if params.player_id ~= self_id() then
+			return
+		end
 	end
 	PVP.GAME.pending_death = {
 		player_id = params.player_id,
@@ -90,6 +100,20 @@ A_host("pvp_win", function(_at, _from, params)
 	-- converge on the same drawGame dispatch/MMR-skip, see pvp_api/run_actions.lua's
 	-- PVP.register_draw_vote for why this reuses pvp_win instead of a separate action.
 	local refereed = MPAPI.has_server_referee(lobby)
+	if params.places then
+		-- A match of 3 or more players with pending deaths: the referee sent every
+		-- player's place, tied players share one.
+		local mine = params.places[self_id()]
+		local tied_first = params.draw == true
+		if not PVP.GAME.eliminated or mine == 1 then
+			PVP.dispatch_action((mine == 1 and (tied_first and "drawGame" or "winGame")) or "loseGame")
+		end
+		if refereed then
+			PVP.report_server_result(lobby, nil, { places = params.places })
+		end
+		PVP.release_held_result(lobby)
+		return
+	end
 	if params.draw then
 		PVP.dispatch_action("drawGame")
 		if refereed then

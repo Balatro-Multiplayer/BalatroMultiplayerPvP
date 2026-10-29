@@ -81,6 +81,101 @@ do
 	check("blind key separates ante and blind", PD.blind_key(1, "Small") ~= PD.blind_key(2, "Small"), true)
 end
 
+-- Matches of 3 or more players.
+local C = "player_c"
+local here3 = { present = true, lives = 2 }
+local gone = { present = false, lives = 2 }
+local out = { present = true, lives = 0 }
+
+do
+	local pd = { { player_id = A, blind_key = X } }
+	check("3p: nobody has a result: unresolved", PD.many_resolved(pd, {}, { [A] = out, [B] = here3, [C] = here3 }), false)
+
+	local results = {}
+	PD.record(results, B, X, true)
+	check("3p: one survivor still open: unresolved", PD.many_resolved(pd, results, { [A] = out, [B] = here3, [C] = here3 }), false)
+
+	PD.record(results, C, X, false)
+	check("3p: both reported: resolved", PD.many_resolved(pd, results, { [A] = out, [B] = here3, [C] = here3 }), true)
+
+	check("3p: one reported, one eliminated: resolved", PD.many_resolved(pd, results, { [A] = out, [B] = here3, [C] = out }), true)
+
+	local half = {}
+	PD.record(half, B, X, true)
+	check("3p: one reported, one left: resolved", PD.many_resolved(pd, half, { [A] = out, [B] = here3, [C] = gone }), true)
+end
+
+do
+	-- A died on X. B beat X and won. C failed X.
+	local pd = { { player_id = A, blind_key = X, out_before = {} } }
+	local results = {}
+	PD.record(results, B, X, true)
+	PD.record(results, C, X, false)
+	local places = PD.places({ A, B, C }, pd, results, { [A] = out, [B] = here3, [C] = out })
+	check("3p: beater wins", places[B], 1)
+	check("3p: failer ties with the dead player", places[C], places[A])
+	check("3p: dead player is below the winner", places[A], 2)
+end
+
+do
+	-- A died on X. C beat X then B (alive) beat X. C was eliminated by B later.
+	local pd = { { player_id = A, blind_key = X, out_before = {} } }
+	local results = {}
+	PD.record(results, B, X, true)
+	PD.record(results, C, X, true)
+	local places = PD.places({ A, B, C }, pd, results, { [A] = out, [B] = here3, [C] = out })
+	check("3p: both beat: winner first", places[B], 1)
+	check("3p: both beat: eliminated beater second", places[C], 2)
+	check("3p: both beat: dead player last", places[A], 3)
+end
+
+do
+	-- The last survivor fails X: ties with the dead player, the other beater is above.
+	local pd = { { player_id = A, blind_key = X, out_before = {} } }
+	local results = {}
+	PD.record(results, C, X, true)
+	PD.record(results, B, X, false)
+	local places = PD.places({ A, B, C }, pd, results, { [A] = out, [B] = here3, [C] = out })
+	check("3p: beater above a failing survivor", places[C], 1)
+	check("3p: failing survivor ties with the dead", places[B], 2)
+	check("3p: dead tied", places[A], 2)
+end
+
+do
+	-- C was eliminated before A died: C ranks below A.
+	local pd = { { player_id = A, blind_key = X, out_before = { [C] = true } } }
+	local results = {}
+	PD.record(results, B, X, true)
+	local places = PD.places({ A, B, C }, pd, results, { [A] = out, [B] = here3, [C] = out })
+	check("3p: earlier elimination ranks below the dead", places[C] > places[A], true)
+	check("3p: winner first", places[B], 1)
+end
+
+do
+	-- Two deaths on different blinds. A died on X, then C died on Y. B beat both.
+	local Y = PD.blind_key(4, "Small")
+	local pd = {
+		{ player_id = A, blind_key = X, out_before = {} },
+		{ player_id = C, blind_key = Y, out_before = { [A] = true } },
+	}
+	local results = {}
+	PD.record(results, B, X, true)
+	PD.record(results, B, Y, true)
+	PD.record(results, C, X, false)
+	local places = PD.places({ A, B, C }, pd, results, { [A] = out, [B] = here3, [C] = out })
+	check("two deaths: survivor wins", places[B], 1)
+	check("two deaths: the later death ranks above the earlier", places[C] < places[A], true)
+end
+
+do
+	check("many_resolved with no pending deaths", PD.many_resolved({}, {}, {}), true)
+	local list = PD.add_pending({}, A, X, { [C] = true })
+	check("add_pending adds once", #list, 1)
+	PD.add_pending(list, A, X, {})
+	check("add_pending ignores a repeat", #list, 1)
+	check("find_pending", PD.find_pending(list, A).blind_key, X)
+end
+
 if failures > 0 then
 	os.exit(1)
 end

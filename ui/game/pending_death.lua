@@ -1,5 +1,5 @@
 -- The dead player's waiting screen while a pending death waits for the opponent
--- (pvp_death_pending). Leave goes through mp_pvp_leave_from_game, which is not a
+-- (pvp_death_pending), in a match of any size. Leave goes through mp_pvp_leave_from_game, which is not a
 -- forfeit: the opponent plays on and the result is decided later.
 
 local function text_row(key, scale, colour)
@@ -19,7 +19,12 @@ function G.UIDEF.pending_death_waiting()
 				nodes = {
 					text_row("k_pvp_pending_death_title", 0.8, G.C.RED),
 					text_row("k_pvp_pending_death_result", 0.5),
-					text_row("k_pvp_pending_death_wait", 0.4),
+					text_row(
+						PVP.GAME.pending_death and PVP.GAME.pending_death.opponent_id == nil
+								and "k_pvp_pending_death_wait_many"
+							or "k_pvp_pending_death_wait",
+						0.4
+					),
 					text_row("k_pvp_pending_death_leave", 0.4),
 					UIBox_button({
 						button = "mp_pvp_leave_from_game",
