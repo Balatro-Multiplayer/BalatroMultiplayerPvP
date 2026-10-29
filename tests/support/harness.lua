@@ -33,9 +33,6 @@ end
 localize = function(key)
 	return key
 end
-create_UIBox_generic_options = function(options)
-	return options
-end
 sendWarnMessage = function() end
 
 MPAPI = { sendDebugMessage = function() end, get_current_lobby = function() end }
@@ -48,35 +45,6 @@ api("api/ruleset/active.lua")
 api("api/ruleset/constructor.lua")
 api("api/ruleset/current.lua")
 
-MPAPI.disableable_option_cycle = function(options)
-	return { node = options }
-end
-MPAPI.refresh_current_view = function() end
-MPAPI.LobbyEvent = setmetatable({}, {
-	__index = function(_, key)
-		return key
-	end,
-})
-MPAPI.GameModes = {}
-MPAPI.matchmaking = {
-	queue = function() end,
-}
-MPAPI.get_replay_player_id = function()
-	return "host"
-end
-MPAPI.playback = {
-	register_rejoin = function() end,
-	register_launcher = function() end,
-	build_timeline = function(logs)
-		return logs
-	end,
-}
-MPAPI.replay = {
-	is_schema_compatible = function()
-		return true
-	end,
-}
-
 local session, practice = false, false
 PVP = {
 	id = "MultiplayerPvP",
@@ -84,10 +52,6 @@ PVP = {
 	LOBBY = { config = {}, deck = {} },
 	SP = {},
 	GAME = {},
-	GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" },
-	PVP_GAMEMODES = { pvp_nemesis = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition" } },
-	REF_CHECKPOINT_KEY = "_ref",
-	reset_game_states = function() end,
 	in_session = function()
 		return session
 	end,
@@ -98,7 +62,7 @@ PVP = {
 
 dofile("layers/_layers.lua")
 dofile("rulesets/_rulesets.lua")
-for _, name in ipairs({ "multiplayer_content", "standard", "classic", "badlatro", "sandbox", "experimental" }) do
+for _, name in ipairs({ "multiplayer_content", "standard", "classic", "badlatro", "sandbox", "experimental", "majorleague" }) do
 	dofile("layers/" .. name .. ".lua")
 end
 for _, name in ipairs({ "ranked", "pvp_timer", "smallworld", "speedlatro_timer", "wsob" }) do
@@ -164,13 +128,6 @@ end
 dofile("objects/consumables/asteroid.lua")
 dofile("objects/vouchers/manhunt_vouchers.lua")
 dofile("objects/jokers/sandbox/magnet_sandbox.lua")
-
-dofile("pvp_api/flow.lua")
-dofile("pvp_api/lobby_bridge.lua")
-dofile("pvp_api/queue.lua")
-dofile("ui/lobby/lobby_options.lua")
-dofile("lib/rejoin.lua")
-dofile("ui/replay/replay_browser.lua")
 
 H.RUN_KINDS = { "lobby", "practice" }
 
