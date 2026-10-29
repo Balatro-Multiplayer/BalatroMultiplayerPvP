@@ -3,7 +3,6 @@ PVP.Ruleset({
 	layers = { "classic", PVP.LayerKey.MULTIPLAYER_CONTENT },
 	forced_gamemode = "gamemode_mp_attrition",
 	-- Let PVP jokers through but ban everything but LGG
-	multiplayer_content = true,
 	banned_silent = {
 		"j_mp_pizza",
 		"j_mp_penny_pincher",
