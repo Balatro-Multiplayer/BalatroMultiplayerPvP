@@ -51,29 +51,11 @@ function PVP.Score.small_number(text)
 	return nil
 end
 
--- True when a big-number mod is installed (the Talisman shim hands numbers back unchanged).
-local function has_number_mod()
-	if type(to_big) ~= "function" then return false end
-	local ok, value = pcall(to_big, 0)
-	return ok and type(value) ~= "number"
-end
-
--- The score as a game value: a double, or the installed mod's number. Nil when
--- the text is malformed, or when it is past the double range and no mod is installed.
+-- The score as a game value: a double, or the installed mod's number. Nil and a
+-- reason when the text is malformed, when it is past the double range and no mod
+-- is installed, or when the mod does not build the same score.
 function PVP.Score.to_game_value(text)
-	local canonical = PVP.Score.parse(text)
-	if not canonical then return nil end
-	local array = {}
-	for part in canonical:gmatch("[^,]+") do
-		array[#array + 1] = tonumber(part)
-	end
-	if has_number_mod() then
-		if #array == 1 then return to_big(array[1]) end
-		local ok, value = pcall(to_big, { array = array, sign = 1 })
-		return ok and value or nil
-	end
-	if #array == 1 then return array[1] end
-	return nil
+	return MPAPI.BigScore.to_game_value(text)
 end
 
 -- Score text of the sum of score texts. The sum uses the installed number type
@@ -86,11 +68,13 @@ function PVP.Score.sum(list)
 	for i = 1, #list do
 		texts[i] = PVP.Score.or_zero(list[i])
 	end
-	if has_number_mod() then
+	if MPAPI.BigScore.has_number_mod() then
 		local total = to_big(0)
 		local ok, err = pcall(function()
 			for _, text in ipairs(texts) do
-				total = total + PVP.Score.to_game_value(text)
+				local value, reason = PVP.Score.to_game_value(text)
+				if value == nil then error(reason, 0) end
+				total = total + value
 			end
 		end)
 		if ok then return PVP.Score.from_game_value(total) end

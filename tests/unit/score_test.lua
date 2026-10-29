@@ -137,19 +137,95 @@ do
 	check("teams: equal big teams tie", r.equal, true)
 end
 
+-- Fakes shaped like the two mods' constructors.
+-- Talisman: to_big(number) or to_big(array) builds {array, sign}; a table that wraps
+-- the array ({ array = ... }) has no array[1] and normalizes to 0.
+-- Amulet: to_big(number) or to_big(array, sign); the value hides its array behind
+-- get_array() (its .array is a shared empty table), and a wrapping table reads as 0.
+local function make_mod(kind, add)
+	local mt = { __add = add }
+	local function build(array, sign)
+		local held = { array[1] or 0, array[2] }
+		if kind == "amulet" then
+			return setmetatable({
+				array = {},
+				sign = sign,
+				get_array = function() return held end,
+			}, mt)
+		end
+		return setmetatable({ array = held, sign = sign }, mt)
+	end
+	return function(x, sign)
+		sign = sign or 1
+		if type(x) == "number" then return build({ x }, sign) end
+		return build(x, sign)
+	end
+end
+local function add_first_entries(x, y)
+	local function entries(v)
+		return v.get_array and v.get_array() or v.array
+	end
+	local a, b = entries(x), entries(y)
+	local sum = { a[1] + b[1], a[2] or b[2] }
+	local result = setmetatable({ array = sum, sign = 1 }, getmetatable(x))
+	if x.get_array then
+		result.get_array = function() return sum end
+	end
+	return result
+end
+
 -- With a number mod, the sum goes through the mod's own add.
+for _, kind in ipairs({ "talisman", "amulet" }) do
+	local saved = to_big
+	to_big = make_mod(kind, add_first_entries)
+	check(kind .. ": sums with the mod's add", S.sum({ "5", "7" }), "12")
+	check(kind .. ": sums exponent scores with the mod's add", S.sum({ "100,1", "100,1" }), "200,1")
+	check(kind .. ": an array score is not dropped from the sum", S.sum({ "400,1", "1000" }) ~= "1000", true)
+	check(kind .. ": to_game_value reads back", MPAPI.BigScore.from_game_value(S.to_game_value("1234.5,1")), "1234.5,1")
+	check(kind .. ": to_game_value of a plain score", MPAPI.BigScore.from_game_value(S.to_game_value("12345")), "12345")
+	check(kind .. ": to_game_value of a tower", MPAPI.BigScore.from_game_value(S.to_game_value("20,3")), "20,3")
+	check(kind .. ": to_game_value of malformed text", S.to_game_value("banana"), nil)
+	to_big = saved
+end
+
+-- A mod that returns 0 for an array score without an error (Amulet given a wrapping
+-- table): to_game_value refuses it, and the sum logs and falls back to doubles.
 do
 	local saved = to_big
-	local mt = {}
-	mt.__add = function(x, y)
-		return setmetatable({ array = { x.array[1] + y.array[1], x.array[2] or y.array[2] }, sign = 1 }, mt)
+	local real = make_mod("amulet", add_first_entries)
+	to_big = function(x, sign)
+		if type(x) == "table" and x.array then return real(0, sign) end
+		return real(x, sign)
 	end
-	to_big = function(x)
-		if type(x) == "number" then return setmetatable({ array = { x }, sign = 1 }, mt) end
-		return setmetatable({ array = x.array, sign = 1 }, mt)
+	check("zero from a wrapping table is built right now", MPAPI.BigScore.from_game_value(S.to_game_value("400,1")), "400,1")
+	to_big = function(x, sign)
+		if type(x) == "table" then return real(0, sign) end
+		return real(x, sign)
 	end
-	check("mod: sums with the mod's add", S.sum({ "5", "7" }), "12")
-	check("mod: sums exponent scores with the mod's add", S.sum({ "100,1", "100,1" }), "200,1")
+	local value, reason = S.to_game_value("400,1")
+	check("a zero for a nonzero array score is refused", value, nil)
+	check("the refusal says why", type(reason) == "string" and reason:find("different value", 1, true) ~= nil, true)
+	local warned
+	sendWarnMessage = function(message) warned = message end
+	check("a mod that builds zero: the sum takes the fallback", S.sum({ "400,1", "1000" }), "400,1")
+	check("a mod that builds zero: the sum logs it", warned ~= nil, true)
+	to_big = saved
+end
+
+-- First-entry rounding of 1 ulp from the mod's own log10 is accepted; a wrong score is not.
+do
+	local saved = to_big
+	local real = make_mod("talisman", add_first_entries)
+	local nudge = 1
+	to_big = function(x, sign)
+		local v = real(x, sign)
+		if type(x) == "table" then v.array[1] = v.array[1] * (1 + nudge) end
+		return v
+	end
+	nudge = 2e-16
+	check("1 ulp in the first entry is accepted", S.to_game_value("20.17609125905568,3") ~= nil, true)
+	nudge = 1e-3
+	check("a wrong first entry is refused", S.to_game_value("20.17609125905568,3"), nil)
 	to_big = saved
 end
 
@@ -160,15 +236,7 @@ do
 	sendWarnMessage = function(message)
 		warned = message
 	end
-	local mt = {
-		__add = function()
-			error("add exploded")
-		end,
-	}
-	to_big = function(x)
-		if type(x) == "number" then return setmetatable({ array = { x }, sign = 1 }, mt) end
-		return setmetatable({ array = x.array, sign = 1 }, mt)
-	end
+	to_big = make_mod("talisman", function() error("add exploded") end)
 	check("mod error: sum falls back to doubles", S.sum({ "5", "7" }), "12")
 	check("mod error: the error is logged", warned ~= nil and warned:find("add exploded", 1, true) ~= nil, true)
 	to_big = saved
