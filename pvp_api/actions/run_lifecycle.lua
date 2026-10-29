@@ -19,7 +19,11 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 				backs[#backs + 1] = { key = center.key, mod_id = center.mod and center.mod.id }
 			end
 			local candidates = {}
-			for i, key in ipairs(PVP.SETUP.draft_candidates(ruleset, backs, PVP.id)) do
+			for i, key in ipairs(PVP.SETUP.draft_candidates(
+				backs,
+				MPAPI.resolve_ruleset_field(ruleset, "allowed_backs"),
+				MPAPI.resolve_ruleset_field(ruleset, "banned_backs")
+			)) do
 				candidates[i] = { key = key }
 			end
 			return candidates

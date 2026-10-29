@@ -63,15 +63,28 @@ function S.rolled(results)
 	return S.ruleset_key(ruleset.option), traps ~= nil and traps.option == "on"
 end
 
--- MP decks join the Draft only on these rulesets.
-local MP_DECK_RULESETS = { ruleset_mp_expanded = true, ruleset_mp_smallworld = true }
+-- Vanilla's Challenge Deck is a Back but only ever played inside a challenge.
+local NON_DRAFT_BASE_DECKS = { b_challenge = true }
+
+local function key_set(list)
+	local set = {}
+	for _, key in ipairs(list or {}) do
+		set[key] = true
+	end
+	return set
+end
 
 -- The deck keys a Draft on `ruleset` may offer. Pure: backs = { { key,
--- mod_id }, ... } (mod_id nil for a vanilla deck); mp_mod_id is PvP's mod id.
-function S.draft_candidates(ruleset, backs, mp_mod_id)
+-- mod_id }, ... } (mod_id nil for a base-game deck); allowed/banned are the
+-- ruleset's resolved allowed_backs/banned_backs (nil when it declares none).
+-- Base-game decks are always offered; any other deck needs allowed_backs, and
+-- banned_backs beats it.
+function S.draft_candidates(backs, allowed, banned)
+	local allowed_set, banned_set = key_set(allowed), key_set(banned)
 	local keys = {}
 	for _, back in ipairs(backs) do
-		if back.mod_id ~= mp_mod_id or MP_DECK_RULESETS[ruleset] then
+		local base = back.mod_id == nil and not NON_DRAFT_BASE_DECKS[back.key]
+		if (base or allowed_set[back.key]) and not banned_set[back.key] then
 			keys[#keys + 1] = back.key
 		end
 	end
