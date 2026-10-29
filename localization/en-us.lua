@@ -1590,6 +1590,8 @@ return {
 			k_ruleset_disabled_the_order_required = "The Order is Required",
 			k_ruleset_disabled_the_order_banned = "The Order is Banned",
 			k_ruleset_not_found = "Unknown ruleset",
+			k_version_mismatch = "A player runs MultiplayerPvP #1#, you run #2#.\nEveryone in a game needs the same version.",
+			k_version_mismatch_refused = "Everyone in a game needs the same MultiplayerPvP version.\nUpdate the mod and try again.",
 			k_tutorial_not_complete = "You must complete the tutorial before you can play Multiplayer",
 			k_created_by = "Created by",
 			k_major_contributors = "Major contributions by",

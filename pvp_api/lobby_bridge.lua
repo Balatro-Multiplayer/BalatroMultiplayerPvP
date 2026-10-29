@@ -337,6 +337,11 @@ PVP.setup_lobby_mirror = function(lobby)
 		mirror_players(lobby)
 		PVP.TRAP_ROW.on_player_back(player_id)
 		refresh()
+		local mismatches = PVP.UTILS.version_mismatches()
+		if #mismatches > 0 and not PVP._version_mismatch_shown then
+			PVP._version_mismatch_shown = true
+			PVP.UI.UTILS.overlay_message(PVP.UTILS.version_mismatch_message(mismatches[1]))
+		end
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)

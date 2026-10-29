@@ -186,63 +186,19 @@ function PVP.UTILS.resolve_mod_name_and_version(mod_name, mod_version)
     return mod_name, mod_version
 end
 
--- "0.4.0~pre1-DEV" -> "0.4.0". nil if no leading numeric version.
-function PVP.UTILS.version_prefix(version)
-	if type(version) ~= "string" then return nil end
-	return version:match("^(%d+%.%d+%.%d+)") or version:match("^(%d+%.%d+)")
-end
-
--- Reads from hash_str, not the parsed Mods table: parse_modlist splits on the last dash
--- and would mangle versions that contain dashes (e.g. the -DEV suffix).
-function PVP.UTILS.player_mod_version(player, mod_name)
-	if not player or not player.hash_str then return nil end
-	return (";" .. player.hash_str):match(";" .. mod_name .. "%-([^;]+)")
-end
-
-function PVP.UTILS.mp_version_mismatch()
-	local other = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
-	local their_version = other and PVP.UTILS.player_mod_version(other, "Multiplayer")
-	if not their_version then return false end
-	local our_version = PVP.version
-	local our_prefix = PVP.UTILS.version_prefix(our_version)
-	local their_prefix = PVP.UTILS.version_prefix(their_version)
-	if our_prefix and their_prefix and our_prefix ~= their_prefix then
-		return true, our_version, their_version
-	end
-	return false
-end
-
--- Multiplayer compares on the X.Y.Z prefix (clean semver); Steamodded on the full string
--- (its ~BETA-<build> suffix makes any difference worth flagging).
-local VERSION_CHECKS = {
-	{ name = "Multiplayer", prefix = true },
-	{ name = "Steamodded", prefix = false },
-}
-
--- Returns { mod, our, their } for each checked mod whose version differs from the opponent's.
+-- Other players in the current lobby whose MultiplayerPvP X.Y.Z differs from ours
+-- (lib/version_gate.lua). Each is { player, our, their }.
 function PVP.UTILS.version_mismatches()
-	local other = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
-	if not other then return {} end
-
-	local results = {}
-	for _, check in ipairs(VERSION_CHECKS) do
-		local their_version = PVP.UTILS.player_mod_version(other, check.name)
-		local our_version = SMODS.Mods[check.name] and SMODS.Mods[check.name].version
-		if their_version and our_version then
-			local mismatch
-			if check.prefix then
-				local op = PVP.UTILS.version_prefix(our_version)
-				local tp = PVP.UTILS.version_prefix(their_version)
-				mismatch = op and tp and op ~= tp
-			else
-				mismatch = our_version ~= their_version
-			end
-			if mismatch then
-				table.insert(results, { mod = check.name, our = our_version, their = their_version })
-			end
-		end
+	local lobby = MPAPI.get_current_lobby()
+	if not lobby then
+		return {}
 	end
-	return results
+	return PVP.VersionGate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
+end
+
+-- The line shown for the first version mismatch, from our version and theirs.
+function PVP.UTILS.version_mismatch_message(mismatch)
+	return localize({ type = "variable", key = "k_version_mismatch", vars = { mismatch.their, mismatch.our } })
 end
 
 function PVP.UTILS.get_banned_mods(mods)

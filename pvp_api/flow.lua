@@ -154,6 +154,11 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
+	local mismatches = PVP.UTILS.version_mismatches()
+	if #mismatches > 0 then
+		PVP.UI.UTILS.overlay_message(PVP.UTILS.version_mismatch_message(mismatches[1]))
+		return
+	end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
 	local gm_def = MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
@@ -166,7 +171,9 @@ function PVP.pvp_start_match()
 			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
 			options = { queue_mode = queue_mode },
 		}, function(err)
-			if err then
+			if err and PVP.VersionGate.is_server_refusal(err) then
+				PVP.UI.UTILS.overlay_message(localize("k_version_mismatch_refused"))
+			elseif err then
 				PVP.UI.UTILS.overlay_message("Start refused: " .. tostring(err))
 			end
 		end)
