@@ -4,6 +4,9 @@
 PVP.Contest = {}
 local Contest = PVP.Contest
 
+-- The run status the server gives a contested run (GAME_ENDED).
+Contest.RunStatus = { CONTESTED = "contested" }
+
 -- Only a matchmade (Ranked or Casual) match of 2 players or more on a server
 -- referee offers a Contest. Every other match keeps the plain forfeit.
 function Contest.should_offer(kind, player_count, has_server_referee)

@@ -953,7 +953,7 @@ function PVP.ACTIONS.blind_result(beaten)
 	local ante = G.GAME.round_resets.ante
 	local blind = G.GAME.blind_on_deck
 	PVP.GAME.own_blind_results = PVP.GAME.own_blind_results or {}
-	PVP.PendingDeath.record(PVP.GAME.own_blind_results, "me", PVP.PendingDeath.blind_key(ante, blind), beaten)
+	PVP.PendingDeath.record(PVP.GAME.own_blind_results, PVP.PendingDeath.SELF, PVP.PendingDeath.blind_key(ante, blind), beaten)
 	if lobby then
 		Client.send({
 			action = "blindResult",

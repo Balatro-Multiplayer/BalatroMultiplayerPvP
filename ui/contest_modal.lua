@@ -1,9 +1,9 @@
 -- The Forfeit or Contest modal of a matchmade match, and the screen the players
 -- get once a Contest went through: both players in a match of 2, only the
--- contester in a larger one (who also picks the opponent to contest). The decision to show the modal
--- is lib/contest.lua. Contest is not a forfeit and not a result: it leaves the
--- pending flag alone and reports nothing, the server holds the run unrated for
--- a moderator.
+-- contester in a larger one (who also picks the opponent to contest). The
+-- decision to show the modal is lib/contest.lua. Contest is not a forfeit and
+-- not a result: it leaves the pending flag alone and reports nothing, the
+-- server holds the run unrated for a moderator.
 
 local function text_row(text, scale, colour)
 	return PVP.UI.UTILS.create_row({ align = "cm", padding = 0.04 }, {

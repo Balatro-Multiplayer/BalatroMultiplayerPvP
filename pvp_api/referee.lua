@@ -43,7 +43,7 @@ PVP.REF = PVP.REF
 		pending_death = nil,
 		blind_results = {},
 		-- Matches of 3 or more players: one entry per dead player (see
-		-- PVP.PendingDeath.add_pending). many_hold is nil, "asking", "held" or "none".
+		-- PVP.PendingDeath.add_pending). many_hold is nil or a PVP.ManyHold state.
 		pending_deaths = {},
 		many_hold = nil,
 		-- Manhunt (the Runner) or Teams (a team whose shared lives reached 0): { team_id,
@@ -311,6 +311,33 @@ local function resolve_pending_death()
 	return true
 end
 
+-- Asks the server to hold the run open for a pending death. is_current (optional)
+-- says whether the pending death is still the one asked about; a hold that answers
+-- after it settled is released at once. on_refused runs when the server cannot
+-- hold runs: the match then ends as it always did. on_held(held) runs otherwise.
+local function hold_run_open(is_current, on_refused, on_held)
+	local lobby = MPAPI.get_current_lobby()
+	PVP.hold_server_result(lobby, function(held, err)
+		if is_current and not is_current() then
+			if held then
+				PVP.release_server_result(lobby)
+			end
+			return
+		end
+		if PVP.is_not_authoritative(err) then
+			on_refused()
+			check_any_win()
+			PVP.referee_checkpoint()
+			return
+		end
+		if err then
+			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
+		end
+		PVP.GAME.result_held = held
+		on_held(held)
+	end)
+end
+
 -- A player lost their last life on a non-PvP blind. In a 2-player match this
 -- waits for the opponent to beat the same blind instead of ending the match.
 -- Returns true when it took over (a result or a pending death); false when the
@@ -326,27 +353,12 @@ local function begin_pending_death(dead)
 		return true
 	end
 	local pending = PVP.REF.pending_death
-	local lobby = MPAPI.get_current_lobby()
-	PVP.hold_server_result(lobby, function(held, err)
-		if PVP.REF.pending_death ~= pending then
-			-- Settled while the server was answering: nothing to hold.
-			if held then
-				PVP.release_server_result(lobby)
-			end
-			return
-		end
-		if PVP.is_not_authoritative(err) then
-			-- A server that cannot hold a run: end the match as it always did.
-			PVP.REF.pending_death = nil
-			check_any_win()
-			PVP.referee_checkpoint()
-			return
-		end
-		if err then
-			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
-		end
+	hold_run_open(function()
+		return PVP.REF.pending_death == pending
+	end, function()
+		PVP.REF.pending_death = nil
+	end, function(held)
 		pending.held = held and 1 or 0
-		PVP.GAME.result_held = held
 		broadcast("pvp_death_pending", {
 			player_id = pending.player_id,
 			opponent_id = pending.opponent_id,
@@ -414,27 +426,12 @@ local function begin_team_pending_death(dead)
 	if resolve_team_pending() then
 		return true
 	end
-	local lobby = MPAPI.get_current_lobby()
-	PVP.hold_server_result(lobby, function(held, err)
-		if PVP.REF.team_pending ~= pending then
-			-- Settled while the server was answering: nothing to hold.
-			if held then
-				PVP.release_server_result(lobby)
-			end
-			return
-		end
-		if PVP.is_not_authoritative(err) then
-			-- A server that cannot hold a run: end the match as it always did.
-			PVP.REF.team_pending = nil
-			check_any_win()
-			PVP.referee_checkpoint()
-			return
-		end
-		if err then
-			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
-		end
+	hold_run_open(function()
+		return PVP.REF.team_pending == pending
+	end, function()
+		PVP.REF.team_pending = nil
+	end, function(held)
 		pending.held = held and 1 or 0
-		PVP.GAME.result_held = held
 		broadcast("pvp_death_pending", { team_id = pending.team_id, blind_key = pending.blind_key })
 		PVP.referee_checkpoint()
 	end)
@@ -504,28 +501,18 @@ local function begin_many_pending_death(dead)
 		PVP.referee_checkpoint()
 	end
 	if PVP.REF.many_hold ~= nil then
-		if PVP.REF.many_hold ~= "asking" then
+		if PVP.REF.many_hold ~= PVP.ManyHold.ASKING then
 			announce()
 		end
 		-- While the first hold answer is out, its callback announces every pending death.
 		return true
 	end
-	PVP.REF.many_hold = "asking"
-	local lobby = MPAPI.get_current_lobby()
-	PVP.hold_server_result(lobby, function(held, err)
-		if PVP.is_not_authoritative(err) then
-			-- A server that cannot hold a run: end the match as it always did.
-			PVP.REF.pending_deaths = {}
-			PVP.REF.many_hold = "none"
-			check_any_win()
-			PVP.referee_checkpoint()
-			return
-		end
-		if err then
-			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
-		end
-		PVP.REF.many_hold = held and "held" or "none"
-		PVP.GAME.result_held = held
+	PVP.REF.many_hold = PVP.ManyHold.ASKING
+	hold_run_open(nil, function()
+		PVP.REF.pending_deaths = {}
+		PVP.REF.many_hold = PVP.ManyHold.NONE
+	end, function(held)
+		PVP.REF.many_hold = held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
 		for _, pending in ipairs(PVP.REF.pending_deaths) do
 			broadcast("pvp_death_pending", { player_id = pending.player_id, blind_key = pending.blind_key })
 		end
@@ -1905,7 +1892,7 @@ local function rebuild_from_local(lobby)
 	PVP.REF.many_hold = nil
 	for id, blind_key in pairs(PVP.GAME.pending_deaths or {}) do
 		PVP.PendingDeath.add_pending(PVP.REF.pending_deaths, id, blind_key, {})
-		PVP.REF.many_hold = PVP.GAME.result_held and "held" or "none"
+		PVP.REF.many_hold = PVP.GAME.result_held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
 	end
 	PVP.REF.team_pending = nil
 	if PVP.GAME.team_pending then
@@ -1999,12 +1986,12 @@ function PVP.referee_take_over()
 	end
 	PVP.ensure_gamemode_instance(lobby)
 	-- Blind results this client reported itself may have missed the old host.
-	for blind_key, result in pairs((PVP.GAME.own_blind_results or {}).me or {}) do
+	for blind_key, result in pairs((PVP.GAME.own_blind_results or {})[PVP.PendingDeath.SELF] or {}) do
 		local beaten = result == PVP.PendingDeath.BlindResult.BEATEN
 		PVP.PendingDeath.record(PVP.REF.blind_results, lobby.player_id, blind_key, beaten)
 	end
 	PVP.GAME.result_held = (PVP.REF.pending_death ~= nil and PVP.REF.pending_death.held == 1)
-		or PVP.REF.many_hold == "held"
+		or PVP.REF.many_hold == PVP.ManyHold.HELD
 		or (PVP.REF.team_pending ~= nil and PVP.REF.team_pending.held == 1)
 	sendDebugMessage("[pvp] took over the referee from " .. source, "MULTIPLAYER")
 	PVP._ref_takeover = { source = source, at = love.timer and love.timer.getTime() or os.time() }

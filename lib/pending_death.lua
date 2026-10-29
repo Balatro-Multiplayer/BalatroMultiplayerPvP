@@ -12,6 +12,9 @@ PVP.PendingDeath = {
 }
 local PD = PVP.PendingDeath
 
+-- The key under which a client files its own blind results (PVP.GAME.own_blind_results).
+PD.SELF = "me"
+
 -- One non-PvP blind: its ante and its slot ("Small", "Big" or "Boss").
 function PD.blind_key(ante, blind)
 	return tostring(ante) .. ":" .. tostring(blind)
@@ -49,7 +52,6 @@ end
 -- deaths can exist at once, one per dead player.
 -- pending = { player_id, blind_key, out_before } where out_before[id] is true for
 -- every player already out of lives when this one died.
-
 function PD.find_pending(pendings, player_id)
 	for _, pending in ipairs(pendings) do
 		if pending.player_id == player_id then

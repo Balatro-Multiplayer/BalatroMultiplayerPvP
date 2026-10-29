@@ -506,7 +506,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		-- Only a match of 2 ends on a contest; in a larger one the others already
 		-- have their own result and the contester their contested screen.
 		if
-			ended.status == "contested"
+			ended.status == PVP.Contest.RunStatus.CONTESTED
 			and PVP.Contest.scope(PVP._match_players and #PVP._match_players, nil, nil) == PVP.Contest.Scope.EVERYONE
 		then
 			PVP.show_contested_screen()
