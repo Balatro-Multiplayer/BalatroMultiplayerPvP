@@ -41,6 +41,11 @@ PVP.REF = PVP.REF
 		-- blind_key, held } while the dead player waits for the opponent, else nil.
 		-- blind_results[player_id][blind_key] is each player's result per non-PvP blind.
 		pending_death = nil,
+		-- 2-player only: the pvp_end_pvp / pvp_win the last round resolved to, { key, params },
+		-- kept until the next blind starts. A client whose socket dropped as the round ended
+		-- may have missed it; its resync report (referee_on_play_hand) gets it again, and
+		-- the round is never resolved twice.
+		resolved_outcome = nil,
 		blind_results = {},
 		-- Matches of 3 or more players: one entry per dead player (see
 		-- PVP.PendingDeath.add_pending). many_hold is nil or a PVP.ManyHold state.
@@ -67,6 +72,12 @@ local function broadcast(key, params)
 	if lobby and MPAPI.ActionTypes[key] then
 		lobby:action(MPAPI.ActionTypes[key]):broadcast(params or {})
 	end
+end
+
+-- Broadcasts the outcome of a resolved 2-player round and remembers it.
+local function announce_resolved(key, params)
+	PVP.REF.resolved_outcome = { key = key, params = params }
+	broadcast(key, params)
 end
 
 local function ref_player(id)
@@ -752,6 +763,7 @@ function PVP.referee_reset(starting_lives)
 		return
 	end
 	PVP.REF.players = {}
+	PVP.REF.resolved_outcome = nil
 	PVP.REF.first_ready_at = nil
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:reset()
@@ -940,6 +952,7 @@ function PVP.referee_on_ready_blind(from, starting_hands)
 				pl.hands_left = 4
 				pl.played_this_blind = false
 			end
+			PVP.REF.resolved_outcome = nil
 			broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive) })
 			-- Show fresh (0) values on the live target board immediately, not stale
 			-- ones from the round that just ended.
@@ -966,6 +979,7 @@ function PVP.referee_on_ready_blind(from, starting_hands)
 		enemy.hands_left = 4
 		me.played_this_blind = false
 		enemy.played_this_blind = false
+		PVP.REF.resolved_outcome = nil
 
 		-- firstPlayer is the id of whichever player readied first.
 		local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
@@ -1288,6 +1302,10 @@ local function try_resolve_round()
 	end
 
 	if #total == 2 then
+		-- Already resolved: a resent report (referee_on_play_hand) must not cost a second life.
+		if PVP.REF.resolved_outcome then
+			return
+		end
 		local a, b = ref_player(total[1]), ref_player(total[2])
 		local outcome = PVP.referee_resolve_2p_round(a, b)
 		if not outcome then
@@ -1301,14 +1319,14 @@ local function try_resolve_round()
 				local game_winner = (a.lives > b.lives) and a or b
 				winner.first_ready = false
 				loser.first_ready = false
-				broadcast("pvp_win", { winner_id = game_winner.id })
+				announce_resolved("pvp_win", { winner_id = game_winner.id })
 				return
 			end
 		end
 
 		winner.first_ready = false
 		loser.first_ready = false
-		broadcast("pvp_end_pvp", { loser_id = (not equal) and loser.id or "", pvp_timer_lost = false })
+		announce_resolved("pvp_end_pvp", { loser_id = (not equal) and loser.id or "", pvp_timer_lost = false })
 		return
 	end
 
@@ -1401,6 +1419,17 @@ function PVP.referee_on_play_hand(from, params)
 		pl.highest_score = pl.score
 	end
 	broadcast_live_targets()
+	-- A resync report (the sender's socket dropped and came back mid-blind): the round it is
+	-- still sitting in may have resolved while it was away, so it gets the outcome again.
+	-- Only on a resync: a late ordinary report is already followed by the broadcast itself.
+	local resolved = PVP.REF.resolved_outcome
+	if params.resync and resolved then
+		local lobby = MPAPI.get_current_lobby()
+		if lobby and MPAPI.ActionTypes[resolved.key] then
+			lobby:action(MPAPI.ActionTypes[resolved.key]):send(from, resolved.params)
+		end
+		return
+	end
 	try_resolve_round()
 end
 
