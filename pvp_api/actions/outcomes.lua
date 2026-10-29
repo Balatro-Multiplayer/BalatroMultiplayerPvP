@@ -59,7 +59,7 @@ end)
 -- referee.lua): the player gets its lose screen now instead of playing on.
 -- The match's own pvp_win still arrives later, and is then only reported.
 A_host("pvp_eliminated", function(_at, _from, params)
-	if params.player_id ~= self_id() or PVP.GAME.eliminated then
+	if params.player_id ~= self_id() or PVP.GAME.eliminated or PVP.GAME.contested then
 		return
 	end
 	PVP.GAME.eliminated = true

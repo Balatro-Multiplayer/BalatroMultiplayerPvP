@@ -486,16 +486,29 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
-	-- Either player contesting ends the match for both (ui/contest_modal.lua).
-	lobby:on(MPAPI.LobbyEvent.CONTESTED, function()
-		PVP.show_contested_screen()
+	-- A contest in a match of 2 ends it for both. In a larger match only the
+	-- contester leaves (their own client shows the screen once the server accepted
+	-- it); everyone else gets a chat line (ui/contest_modal.lua).
+	lobby:on(MPAPI.LobbyEvent.CONTESTED, function(contested)
+		local by = contested and contested.by
+		local scope = PVP.Contest.scope(PVP._match_players and #PVP._match_players, by, PVP.self_player_id())
+		if scope == PVP.Contest.Scope.EVERYONE then
+			PVP.show_contested_screen()
+		elseif scope == PVP.Contest.Scope.BYSTANDER then
+			PVP.note_contest_by(by)
+		end
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
-		if ended.status == "contested" then
+		-- Only a match of 2 ends on a contest; in a larger one the others already
+		-- have their own result and the contester their contested screen.
+		if
+			ended.status == "contested"
+			and PVP.Contest.scope(PVP._match_players and #PVP._match_players, nil, nil) == PVP.Contest.Scope.EVERYONE
+		then
 			PVP.show_contested_screen()
 		end
 		if PVP.reset_ready_state then

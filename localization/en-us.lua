@@ -1337,6 +1337,8 @@ return {
 			k_pvp_pending_death_leave = "If you leave, this is not a forfeit. The result still counts.",
 			-- Forfeit or Contest modal (ui/contest_modal.lua)
 			k_pvp_contest_title = "Forfeit or Contest match?",
+			k_pvp_contest_pick_title = "Contest which player?",
+			k_pvp_contest_pick_text = "Pick the player who breaks the rules or stalls. You leave the match. The others play on.",
 			k_pvp_contest_warn_1 = "Contest only if your opponent is breaking the rules on purpose or stalling.",
 			k_pvp_contest_warn_2 = "A moderator will review the match.",
 			k_pvp_contest_warn_3 = "Contesting a fair match can result in punishment.",
@@ -1633,6 +1635,7 @@ return {
 			loc_playing = "Playing",
 		},
 		v_dictionary = {
+			k_pvp_contest_by = "#1# contested the match with another player.",
 			k_end_player_jokers = "#1#'s Jokers",
 			k_end_player_left = "#1# -- left the match",
 			k_end_player_playing = "#1# -- still playing...",
