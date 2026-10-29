@@ -91,6 +91,23 @@ function S.draft_candidates(backs, allowed, banned)
 	return keys
 end
 
+-- The stake indices a Draft may roll: allowed_stakes is the ruleset's resolved
+-- list of stake keys, stake_keys the stake pool in index order, cap the highest
+-- playable stake. Pure. Nil means unrestricted: the server rolls 1..cap itself.
+function S.draft_stakes(allowed_stakes, stake_keys, cap)
+	if not allowed_stakes or #allowed_stakes == 0 then
+		return nil
+	end
+	local allowed_set = key_set(allowed_stakes)
+	local indices = {}
+	for index, key in ipairs(stake_keys) do
+		if index <= cap and allowed_set[key] then
+			indices[#indices + 1] = index
+		end
+	end
+	return #indices > 0 and indices or nil
+end
+
 local function setup_results(lobby)
 	local setup = lobby and lobby._game and lobby._game.setup
 	return setup and setup.results or {}
