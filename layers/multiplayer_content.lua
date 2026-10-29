@@ -18,13 +18,3 @@ MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
 	included_consumables = { "c_mp_asteroid" },
 	reworked_vouchers = { "v_mp_hieroglyph_manhunt", "v_mp_petroglyph_manhunt" },
 })
-
-function PVP.modifier_layers_for(ruleset_key)
-	local ruleset = ruleset_key and MPAPI.Rulesets[ruleset_key]
-	return table.concat(ruleset and ruleset.default_modifiers or {}, ",")
-end
-
-function PVP.set_modifier_layers(serialized)
-	MPAPI.modifiers_parse(serialized)
-	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
-end
