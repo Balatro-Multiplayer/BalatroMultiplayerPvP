@@ -1329,6 +1329,11 @@ return {
 		dictionary = {
 			-- Find Game (ui/main_menu/find_game.lua)
 			k_pvp_ranked = "Ranked",
+			-- Pending death waiting screen (ui/game/pending_death.lua)
+			k_pvp_pending_death_title = "Out of lives",
+			k_pvp_pending_death_result = "Your result is pending.",
+			k_pvp_pending_death_wait = "Your Nemesis must now beat the same blind. You may wait for the result.",
+			k_pvp_pending_death_leave = "If you leave, this is not a forfeit. The result still counts.",
 			-- Setup votes (pvp_api/setup.lua)
 			k_pvp_setup_title_ruleset = "Vote: Ruleset",
 			k_pvp_setup_title_traps = "Vote: Trap Cards",

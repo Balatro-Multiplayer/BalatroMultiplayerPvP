@@ -349,7 +349,13 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.TRAP_ROW.forget(player_id)
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
-		if gm and gm.on_player_forfeit and G.STAGE == G.STAGES.RUN then
+		-- A pending death decides it instead: leaving with one is not a forfeit.
+		if
+			gm
+			and gm.on_player_forfeit
+			and G.STAGE == G.STAGES.RUN
+			and not PVP.referee_pending_death_on_player_gone(player_id)
+		then
 			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
 		end
 		refresh()

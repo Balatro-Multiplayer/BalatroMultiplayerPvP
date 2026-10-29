@@ -90,6 +90,9 @@ local ROUTES = {
 	failTimer = function(_msg)
 		broadcast("pvp_fail_timer", {})
 	end,
+	blindResult = function(msg)
+		broadcast("pvp_blind_result", { ante = msg.ante, blind = msg.blind, beaten = msg.beaten })
+	end,
 	failPvPTimer = function(_msg)
 		broadcast("pvp_fail_pvp_timer", {})
 	end,

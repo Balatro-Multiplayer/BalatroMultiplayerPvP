@@ -37,6 +37,11 @@ PVP.REF = PVP.REF
 		-- eliminated[id] = true once that player has been told it is out (see
 		-- announce_eliminations), so each player is told exactly once.
 		eliminated = {},
+		-- 2-player pending death (lib/pending_death.lua): { player_id, opponent_id,
+		-- blind_key, held } while the dead player waits for the opponent, else nil.
+		-- blind_results[player_id][blind_key] is each player's result per non-PvP blind.
+		pending_death = nil,
+		blind_results = {},
 	}
 
 local function is_host()
@@ -204,6 +209,98 @@ local function check_any_win()
 		return check_team_win()
 	end
 	return check_alive_win()
+end
+
+-- A 2-player Nemesis/Royale match (not Manhunt or Teams) that started with two players.
+local function is_two_player_match()
+	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
+		return false
+	end
+	local started = 0
+	for _ in pairs(PVP.REF.players) do
+		started = started + 1
+	end
+	return started == 2
+end
+
+local function in_lobby(id)
+	for _, other in ipairs(both_players()) do
+		if other == id then
+			return true
+		end
+	end
+	return false
+end
+
+-- Settles the pending death when the opponent's blind results, lives or presence
+-- decide it: broadcasts the final result through pvp_win. Returns true when it did.
+local function resolve_pending_death()
+	local pending = PVP.REF.pending_death
+	if not pending then
+		return false
+	end
+	local outcome, winner_id = PVP.PendingDeath.decide(
+		pending,
+		pending.opponent_id,
+		PVP.REF.blind_results,
+		{ present = in_lobby(pending.opponent_id), lives = ref_player(pending.opponent_id).lives }
+	)
+	if outcome == PVP.PendingDeath.Outcome.PENDING then
+		return false
+	end
+	PVP.REF.pending_death = nil
+	if outcome == PVP.PendingDeath.Outcome.DRAW then
+		broadcast("pvp_win", { draw = true })
+	else
+		broadcast("pvp_win", { winner_id = winner_id })
+	end
+	return true
+end
+
+-- A player lost their last life on a non-PvP blind. In a 2-player match this
+-- waits for the opponent to beat the same blind instead of ending the match.
+-- Returns true when it took over (a result or a pending death); false when the
+-- caller should end the match as before.
+local function begin_pending_death(dead)
+	local blind_key = dead.failed_blind
+	local opponent_id = opponent_of(dead.id)
+	if not (is_two_player_match() and blind_key and opponent_id) or PVP.REF.pending_death then
+		return false
+	end
+	PVP.REF.pending_death = { player_id = dead.id, opponent_id = opponent_id, blind_key = blind_key, held = 0 }
+	if resolve_pending_death() then
+		return true
+	end
+	local pending = PVP.REF.pending_death
+	local lobby = MPAPI.get_current_lobby()
+	PVP.hold_server_result(lobby, function(held, err)
+		if PVP.REF.pending_death ~= pending then
+			-- Settled while the server was answering: nothing to hold.
+			if held then
+				PVP.release_server_result(lobby)
+			end
+			return
+		end
+		if PVP.is_not_authoritative(err) then
+			-- A server that cannot hold a run: end the match as it always did.
+			PVP.REF.pending_death = nil
+			check_any_win()
+			PVP.referee_checkpoint()
+			return
+		end
+		if err then
+			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
+		end
+		pending.held = held and 1 or 0
+		PVP.GAME.result_held = held
+		broadcast("pvp_death_pending", {
+			player_id = pending.player_id,
+			opponent_id = pending.opponent_id,
+			blind_key = pending.blind_key,
+		})
+		PVP.referee_checkpoint()
+	end)
+	return true
 end
 
 local function pair_key(a, b)
@@ -448,6 +545,8 @@ function PVP.referee_reset(starting_lives)
 	PVP.REF.team_card_target = {}
 	PVP.REF.team_card_ante_computed_for = 0
 	PVP.REF.eliminated = {}
+	PVP.REF.pending_death = nil
+	PVP.REF.blind_results = {}
 	local lives = starting_lives or PVP.LOBBY.config.starting_lives or 4
 	local total = both_players()
 	for _, id in ipairs(total) do
@@ -1187,8 +1286,12 @@ function PVP.referee_on_fail_round(from)
 	if PVP.LOBBY.config.death_on_round_loss then
 		team_lose_life(pl)
 	end
+	if PVP.REF.pending_death then
+		resolve_pending_death()
+		return
+	end
 	if pl.lives == 0 then
-		if check_any_win() then
+		if begin_pending_death(pl) or check_any_win() then
 			return
 		end
 	end
@@ -1207,7 +1310,11 @@ function PVP.referee_on_fail_timer(from)
 	end
 	local pl = ref_player(from)
 	team_lose_life(pl)
-	if pl.lives == 0 and check_any_win() then
+	if PVP.REF.pending_death then
+		resolve_pending_death()
+		return
+	end
+	if pl.lives == 0 and (begin_pending_death(pl) or check_any_win()) then
 		return
 	end
 	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based or #both_players() > 2 then
@@ -1215,6 +1322,37 @@ function PVP.referee_on_fail_timer(from)
 		broadcast_live_targets()
 		try_resolve_round()
 	end
+end
+
+-- A client's result for a non-PvP blind (pvp_blind_result): beaten or failed.
+-- Only a 2-player match uses it, to settle a pending death.
+function PVP.referee_on_blind_result(from, params)
+	if not is_host() or not is_two_player_match() then
+		return
+	end
+	local blind_key = PVP.PendingDeath.blind_key(params.ante, params.blind)
+	local beaten = params.beaten == true
+	PVP.PendingDeath.record(PVP.REF.blind_results, from, blind_key, beaten)
+	if not beaten then
+		ref_player(from).failed_blind = blind_key
+	end
+	resolve_pending_death()
+end
+
+-- A player left while a pending death waits (called on every client from
+-- PLAYER_LEFT and pvp_forfeit). The dead player leaving is not a forfeit. The
+-- opponent leaving before beating the blind makes the dead player the winner.
+-- Returns true when the leave belongs to the pending death, so the caller skips
+-- the gamemode's forfeit hook.
+function PVP.referee_pending_death_on_player_gone(player_id)
+	local pending = PVP.GAME.pending_death
+	if not pending or (player_id ~= pending.player_id and player_id ~= pending.opponent_id) then
+		return false
+	end
+	if is_host() then
+		resolve_pending_death()
+	end
+	return true
 end
 
 -- failPvPTimer: sender loses the PvP round on the timer (always a life; round or
@@ -1404,6 +1542,7 @@ local function snapshot()
 			first = flag(pl.first_ready),
 			blocker = flag(pl.lives_blocker),
 			team = pl.team_id,
+			failed_blind = pl.failed_blind,
 			tracked_ready = flag(PVP.REF.ready_tracker and PVP.REF.ready_tracker:is_ready(id)),
 		}
 	end
@@ -1419,6 +1558,8 @@ local function snapshot()
 		team_card_target = PVP.REF.team_card_target or {},
 		team_card_ante = PVP.REF.team_card_ante_computed_for or 0,
 		eliminated = PVP.REF.eliminated or {},
+		pending_death = PVP.REF.pending_death,
+		blind_results = PVP.REF.blind_results or {},
 	}
 end
 
@@ -1440,6 +1581,7 @@ local function restore(snap)
 			first_ready = s.first == 1,
 			lives_blocker = s.blocker == 1,
 			team_id = s.team,
+			failed_blind = s.failed_blind,
 		}
 		if s.tracked_ready == 1 then
 			PVP.REF.ready_tracker:set(id, true)
@@ -1454,6 +1596,8 @@ local function restore(snap)
 	PVP.REF.team_card_target = snap.team_card_target or {}
 	PVP.REF.team_card_ante_computed_for = tonumber(snap.team_card_ante) or 0
 	PVP.REF.eliminated = snap.eliminated or {}
+	PVP.REF.pending_death = type(snap.pending_death) == "table" and snap.pending_death or nil
+	PVP.REF.blind_results = snap.blind_results or {}
 end
 
 -- No checkpoint to take over (an old host on an older build, or one that
@@ -1465,6 +1609,17 @@ local function rebuild_from_local(lobby)
 	PVP.REF.players = {}
 	PVP.REF.ready_tracker = MPAPI.ReadyTracker()
 	PVP.REF.eliminated = {}
+	PVP.REF.blind_results = {}
+	local seen = PVP.GAME.pending_death
+	PVP.REF.pending_death = nil
+	if seen and seen.blind_key then
+		PVP.REF.pending_death = {
+			player_id = seen.player_id,
+			opponent_id = seen.opponent_id,
+			blind_key = seen.blind_key,
+			held = PVP.GAME.result_held and 1 or 0,
+		}
+	end
 	local target = PVP.current_target_id()
 	for _, p in ipairs(lobby:get_players()) do
 		local pl = ref_player(p.id)
@@ -1538,6 +1693,12 @@ function PVP.referee_take_over()
 		source = "local"
 	end
 	PVP.ensure_gamemode_instance(lobby)
+	-- Blind results this client reported itself may have missed the old host.
+	for blind_key, result in pairs((PVP.GAME.own_blind_results or {}).me or {}) do
+		local beaten = result == PVP.PendingDeath.BlindResult.BEATEN
+		PVP.PendingDeath.record(PVP.REF.blind_results, lobby.player_id, blind_key, beaten)
+	end
+	PVP.GAME.result_held = PVP.REF.pending_death ~= nil and PVP.REF.pending_death.held == 1
 	sendDebugMessage("[pvp] took over the referee from " .. source, "MULTIPLAYER")
 	PVP._ref_takeover = { source = source, at = love.timer and love.timer.getTime() or os.time() }
 	-- Everyone's Lives box reads the referee's record from here on.
@@ -1550,6 +1711,7 @@ function PVP.referee_take_over()
 		end
 	end
 	last_written = nil
+	resolve_pending_death()
 	PVP.referee_checkpoint()
 	return source
 end
@@ -1589,6 +1751,8 @@ for _, name in ipairs({
 	"referee_on_fail_round",
 	"referee_on_fail_timer",
 	"referee_on_fail_pvp_timer",
+	"referee_on_blind_result",
+	"referee_pending_death_on_player_gone",
 	"referee_n_player_forfeit",
 	"referee_manhunt_on_forfeit",
 	"referee_teams_on_forfeit",

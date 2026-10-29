@@ -946,9 +946,28 @@ function PVP.ACTIONS.stop_game()
 	})
 end
 
+-- Tells the referee how this client ended the current non-PvP blind. A failure
+-- is sent before failRound / failTimer so the referee knows which blind a death was on.
+function PVP.ACTIONS.blind_result(beaten)
+	local lobby = MPAPI.get_current_lobby()
+	local ante = G.GAME.round_resets.ante
+	local blind = G.GAME.blind_on_deck
+	PVP.GAME.own_blind_results = PVP.GAME.own_blind_results or {}
+	PVP.PendingDeath.record(PVP.GAME.own_blind_results, "me", PVP.PendingDeath.blind_key(ante, blind), beaten)
+	if lobby then
+		Client.send({
+			action = "blindResult",
+			ante = ante,
+			blind = blind,
+			beaten = beaten,
+		})
+	end
+end
+
 function PVP.ACTIONS.fail_round(hands_used)
 	if PVP.LOBBY.config.no_gold_on_round_loss then G.GAME.blind.dollars = 0 end
 	if hands_used == 0 then return end
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failRound",
 	})
@@ -1127,6 +1146,7 @@ function PVP.ACTIONS.pause_ante_timer()
 end
 
 function PVP.ACTIONS.fail_timer()
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failTimer",
 	})

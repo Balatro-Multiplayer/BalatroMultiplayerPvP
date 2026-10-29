@@ -238,6 +238,8 @@ function Game:update_new_round(dt)
 			else
 				PVP.ACTIONS.fail_round(G.GAME.current_round.hands_played)
 			end
+		elseif not practice and not PVP.is_pvp_boss() then
+			PVP.ACTIONS.blind_result(true)
 		end
 
 		if practice then

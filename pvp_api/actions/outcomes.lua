@@ -66,8 +66,25 @@ A_host("pvp_eliminated", function(_at, _from, params)
 	PVP.dispatch_action("loseGame")
 end)
 
+-- A player lost their last life on a non-PvP blind in a 2-player match. The
+-- referee waits for the opponent to beat the same blind before it decides.
+A_host("pvp_death_pending", function(_at, _from, params)
+	if PVP.GAME.won or PVP.GAME.draw then
+		return
+	end
+	PVP.GAME.pending_death = {
+		player_id = params.player_id,
+		opponent_id = params.opponent_id,
+		blind_key = params.blind_key,
+	}
+	if params.player_id == self_id() then
+		PVP.UI.show_pending_death_screen()
+	end
+end)
+
 A_host("pvp_win", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
+	PVP.end_pending_death()
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
 	-- eliminated at once) has no winner to resolve against -- both routes here
 	-- converge on the same drawGame dispatch/MMR-skip, see pvp_api/run_actions.lua's
@@ -78,6 +95,7 @@ A_host("pvp_win", function(_at, _from, params)
 		if refereed then
 			PVP.report_server_result(lobby, nil, { draw = true })
 		end
+		PVP.release_held_result(lobby)
 		return
 	end
 
@@ -100,6 +118,7 @@ A_host("pvp_win", function(_at, _from, params)
 	if refereed then
 		PVP.report_server_result(lobby, params.winner_team_id or params.winner_id, { team = params.winner_team_id ~= nil })
 	end
+	PVP.release_held_result(lobby)
 end)
 
 -- Opponent-forfeit win (broadcast from the gamemode's on_player_forfeit).
