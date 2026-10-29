@@ -111,7 +111,7 @@ local ROUTES = {
 		-- recording after that point silently drops the decisive hand's own
 		-- result (confirmed live: END/CHK trailer landed right after this
 		-- hand's `play` opcode with no `hand_result` in between).
-		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { tostring(msg.score), msg.handsLeft }) end
+		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { MPAPI.BigScore.from_game_value(msg.score), msg.handsLeft }) end
 		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() })
 	end,
 	setAnte = function(msg)
