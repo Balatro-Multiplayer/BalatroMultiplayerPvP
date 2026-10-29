@@ -1450,6 +1450,7 @@ return {
 			k_bye = "Bye",
 			k_coming_soon = "Coming Soon!",
 			k_wait_enemy = "Waiting for enemy to finish...",
+			k_pvp_sync_failed = "Round sync unconfirmed. Reconnect to retry.",
 			k_lives = "Lives",
 			k_skips = "Skips",
 			k_lost_life = "Lost a life",

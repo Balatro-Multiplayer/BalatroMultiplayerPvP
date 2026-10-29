@@ -49,42 +49,6 @@ local function relay_enemy_info(payload)
 	if nemesis then nemesis:sync(payload) end
 end
 
--- A message in flight when the socket drops is lost, and the rejoin snapshot carries no PvP
--- round state: a last hand reported (or a round's end announced) in that moment left the
--- blind open on one side for good. After a rejoin, a player still inside the PvP blind
--- re-reports its score and hands; the host resolves the round if it never heard, or sends the
--- outcome again if it had already resolved it (PVP.referee_on_play_hand).
-function PVP.resync_pvp_report()
-	local l = lobby()
-	if not (l and G.STAGE == G.STAGES.RUN and G.GAME and G.GAME.current_round) then return end
-	if not PVP.is_pvp_boss() or PVP.GAME.end_pvp or PVP.GAME.eliminated then return end
-	-- Mid-scoring the hand count is already down but the score is not yet in: the hand's own
-	-- report follows, and one sent now would end the round on a stale score.
-	if G.STATE == G.STATES.HAND_PLAYED then return end
-	sendDebugMessage(
-		"PvP resync after reconnect: host=" .. tostring(l.is_host) .. " hands=" .. tostring(my_hands()) .. " score=" .. my_score_str(),
-		"MULTIPLAYER"
-	)
-	broadcast("pvp_play_hand", { score = my_score_str(), handsLeft = my_hands(), skips = my_skips(), lives = my_lives(), resync = true })
-end
-
--- Resyncs shortly after a reconnect, twice: the socket may not yet carry messages when the
--- snapshot lands, and a resync is harmless to repeat.
-function PVP.schedule_pvp_resync()
-	for _, delay in ipairs({ 1.5, 5 }) do
-		G.E_MANAGER:add_event(Event({
-			trigger = "after",
-			delay = delay,
-			blocking = false,
-			blockable = false,
-			func = function()
-				PVP.resync_pvp_report()
-				return true
-			end,
-		}))
-	end
-end
-
 local function gen_seed()
 	local cfg = PVP.LOBBY.config
 	if cfg.custom_seed and cfg.custom_seed ~= "random" and cfg.custom_seed ~= "" then
@@ -115,7 +79,7 @@ local ROUTES = {
 		broadcast("pvp_stop_game", {})
 	end,
 	readyBlind = function(msg)
-		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands })
+		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands, round_protocol = 1 })
 	end,
 	unreadyBlind = function(_msg)
 		broadcast("pvp_unready_blind", {})
@@ -136,7 +100,10 @@ local ROUTES = {
 		broadcast("pvp_location", { location = msg.location })
 	end,
 	playHand = function(msg)
-		broadcast("pvp_play_hand", { score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() }) -- referee (host-authoritative)
+		local report = { score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() }
+		if not PVP.commit_round_report(report) then
+			broadcast("pvp_play_hand", report)
+		end
 		-- Score-bearing RLOG event: this is the only point in the codebase
 		-- where "my own score after playing" is already computed for the
 		-- legacy broadcast, so it doubles as the carbon-log source for this

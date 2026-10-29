@@ -111,6 +111,7 @@ A_host("pvp_win", function(_at, _from, params)
 	if PVP.GAME.contested then
 		return
 	end
+	PVP.GAME.round_sync = nil
 	PVP.end_pending_death()
 	PVP.GAME.team_pending = nil
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
@@ -170,6 +171,7 @@ A_host("pvp_player_won", function(_at, _from, params)
 	if PVP.GAME.contested then
 		return
 	end
+	PVP.GAME.round_sync = nil
 	local sid = self_id()
 	if params.player_id == sid then
 		PVP.dispatch_action("winGame")
