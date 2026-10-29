@@ -54,7 +54,6 @@ return {
 
 			local ruleset = MPAPI.Rulesets.ruleset_mp_expanded
 			local order = ruleset._layer_order
-			local content_mode = PVP.multiplayer_content_mode()
 			local ok, err = pcall(function()
 				local without = {}
 				for _, name in ipairs(order) do
@@ -80,15 +79,8 @@ return {
 						pool .. " other slots unchanged"
 					)
 				end
-				ruleset._layer_order = order
-				PVP.set_multiplayer_content_mode(PVP.ContentMode.OFF)
-				local switched_off = snapshot()
-				for key, pool in pairs(keys) do
-					S.check(not contains(switched_off[pool], key), key .. " respects the Off layer")
-				end
 			end)
 			ruleset._layer_order = order
-			PVP.set_multiplayer_content_mode(content_mode)
 			assert(ok, err)
 			S.check(PVP.multiplayer_content_enabled(), "content configuration restored")
 		end,

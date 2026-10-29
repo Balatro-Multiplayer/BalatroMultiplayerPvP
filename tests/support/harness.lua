@@ -44,6 +44,7 @@ api("api/layers/fields.lua")
 api("api/layers/modifiers.lua")
 api("api/layers/chain.lua")
 api("api/layers/pool_gating.lua")
+api("api/ruleset/active.lua")
 api("api/ruleset/constructor.lua")
 api("api/ruleset/current.lua")
 
@@ -179,89 +180,15 @@ function H.start_run(ruleset, kind)
 	PVP.LOBBY.code = kind == "lobby" and "TEST" or nil
 	PVP.LOBBY.config = { ruleset = not practice and "ruleset_mp_" .. ruleset or nil }
 	MPAPI.MODIFIERS = {}
-end
-
-local handlers = {}
-H.lobby = {
-	is_host = true,
-	player_id = "host",
-	code = "TEST",
-	started = false,
-	meta = {},
-	get_players = function()
-		return { { id = "host", displayName = "Host" } }
-	end,
-	get_metadata = function(self)
-		return self.meta
-	end,
-	is_game_started = function(self)
-		return self.started
-	end,
-	on = function(_, event, callback)
-		handlers[event] = callback
-	end,
-	set_metadata = function(self, update)
-		for key, value in pairs(update) do
-			self.meta[key] = value
-		end
-		if handlers.METADATA_CHANGED then handlers.METADATA_CHANGED(update) end
-	end,
-}
-MPAPI.get_current_lobby = function()
-	return H.lobby
-end
-
-function H.open_private_lobby(meta)
-	H.start_run("vanilla", "lobby")
-	H.lobby.is_host, H.lobby.started, H.lobby.meta = true, false, meta
-	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
-	PVP._pvp_gamemode = "pvp_nemesis"
-	PVP.setup_lobby_mirror(H.lobby)
-end
-
-function H.receive_metadata(meta)
-	H.lobby.meta = meta
-	handlers.METADATA_CHANGED(meta)
-end
-
-function H.picker(id)
-	for _, row in ipairs(PVP.build_lobby_options().contents) do
-		local node = row.nodes[1]
-		if node.id == id then return node end
+	-- Lobbies, Practice and playback all run in an MPAPI lobby carrying the ruleset.
+	local meta = session and { ruleset = "ruleset_mp_" .. ruleset } or nil
+	MPAPI.get_current_lobby = function()
+		return meta and {
+			get_metadata = function()
+				return meta
+			end,
+		}
 	end
-end
-
-local bootstrap
-PVP._start_playback = function(b)
-	bootstrap = b
-end
-
-local function timeline(options)
-	local events = {
-		{ opcode = "match_manifest", args = { schema_version = 1 } },
-		{
-			opcode = "lobby_info",
-			args = { gamemode = "pvp_nemesis", ruleset = "ruleset_mp_expanded", options = options },
-		},
-		{ opcode = "run_info", args = { seed = "LAYER", deck = "Red Deck", stake = 1 } },
-	}
-	for _, event in ipairs(events) do
-		event.player_id = "host"
-	end
-	return events
-end
-
-function H.replay_bootstrap(options)
-	MPAPI.replay.get = function(_, callback)
-		callback(nil, { logs = timeline(options) })
-	end
-	PVP._launch_replay("test")
-	return bootstrap
-end
-
-function H.rejoin_bootstrap(options)
-	PVP._launch_rejoin({ events = timeline(options) })
-	return bootstrap
 end
 
 local failures, sections = 0, 0
