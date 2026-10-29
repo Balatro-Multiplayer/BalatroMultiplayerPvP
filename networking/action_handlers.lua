@@ -417,7 +417,7 @@ local function action_start_blind(p)
 	PVP.GAME.enemy.score = PVP.Score.ZERO
 	PVP.GAME.enemy.score_ease = nil
 	PVP.GAME.enemy.real_score = PVP.Score.ZERO
-	PVP.GAME.enemy.score_text = "0"
+	PVP.GAME.enemy.score_text = PVP.Score.ZERO
 	-- Re-mask the opponent's score until the first enemyInfo of the new blind.
 	PVP.GAME.enemy.info_received = false
 	-- The opponent's own starting hands (they differ with vouchers and jokers); ours

@@ -156,7 +156,7 @@ function PVP.pvp_start_match()
 	end
 	local mismatches = PVP.UTILS.version_mismatches()
 	if #mismatches > 0 then
-		PVP.UI.UTILS.overlay_message(PVP.UTILS.version_mismatch_message(mismatches[1]))
+		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
 		return
 	end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
@@ -172,9 +172,9 @@ function PVP.pvp_start_match()
 			options = { queue_mode = queue_mode },
 		}, function(err)
 			if err and PVP.VersionGate.is_server_refusal(err) then
-				PVP.UI.UTILS.overlay_message(localize("k_version_mismatch_refused"))
+				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
 			elseif err then
-				PVP.UI.UTILS.overlay_message("Start refused: " .. tostring(err))
+				PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_start_refused", vars = { tostring(err) } }))
 			end
 		end)
 		return

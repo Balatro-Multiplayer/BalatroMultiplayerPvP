@@ -256,7 +256,7 @@ function PVP.reset_game_states()
 		enemy = {
 			score = PVP.Score.ZERO,
 			real_score = PVP.Score.ZERO,
-			score_text = "0",
+			score_text = PVP.Score.ZERO,
 			hands = 4,
 			hands_text = "4",
 			-- Whether an enemyInfo message has arrived this blind. Used to mask

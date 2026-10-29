@@ -52,3 +52,14 @@ end
 function Gate.is_server_refusal(err)
 	return tostring(err and err.message or err) == Gate.SERVER_REASON
 end
+
+-- The line for one mismatch from Gate.mismatches. A "variable" key lives in
+-- misc.v_dictionary, where localize fills in the versions.
+function Gate.message(mismatch)
+	return localize({ type = "variable", key = "k_version_mismatch", vars = { mismatch.their, mismatch.our } })
+end
+
+-- The line for a start the server refused over the version gate.
+function Gate.refused_message()
+	return localize("k_version_mismatch_refused")
+end

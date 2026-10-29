@@ -39,7 +39,7 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
         local bye = PVP.is_announced_bye()
         if bye then
             G.GAME.blind.chips = 0
-            G.GAME.blind.chip_text = "0"
+            G.GAME.blind.chip_text = PVP.Score.ZERO
         end
         if not bye then
             -- Setup enemy score text

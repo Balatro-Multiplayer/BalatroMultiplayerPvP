@@ -49,11 +49,17 @@ check("small_number of an exponent score", S.small_number(E100), nil)
 check("small_number of a score past the switch point", S.small_number("100000000000"), nil)
 
 check("from a double", S.from_game_value(1234), "1234")
-check("a big-number-mod value and a double agree", S.from_game_value({ array = { 1234 }, sign = 1 }), S.from_game_value(1234))
+check(
+	"a big-number-mod value and a double agree",
+	S.from_game_value({ array = { 1234 }, sign = 1 }),
+	S.from_game_value(1234)
+)
 check("an Amulet-style value past 1e308", S.from_game_value({ array = { 400, 1 }, sign = 1 }), "400,1")
 
 -- The referee: who loses a round, decided on score text.
-local function side(id, score, hands) return { id = id, score = score, hands_left = hands } end
+local function side(id, score, hands)
+	return { id = id, score = score, hands_left = hands }
+end
 local function resolve(a_score, b_score, a_hands, b_hands)
 	local a, b = side("a", a_score, a_hands), side("b", b_score, b_hands)
 	return PVP.referee_resolve_2p_round(a, b), a, b
@@ -135,7 +141,9 @@ end
 do
 	local saved = to_big
 	local mt = {}
-	mt.__add = function(x, y) return setmetatable({ array = { x.array[1] + y.array[1], x.array[2] or y.array[2] }, sign = 1 }, mt) end
+	mt.__add = function(x, y)
+		return setmetatable({ array = { x.array[1] + y.array[1], x.array[2] or y.array[2] }, sign = 1 }, mt)
+	end
 	to_big = function(x)
 		if type(x) == "number" then return setmetatable({ array = { x }, sign = 1 }, mt) end
 		return setmetatable({ array = x.array, sign = 1 }, mt)
@@ -145,23 +153,46 @@ do
 	to_big = saved
 end
 
--- The season best a player reports: score text, plus the old number.
-PVP.REF = { players = {
-	big = { score = "20,2", highest_score = "25.5,2" },
-	low = { score = "5", highest_score = "1234" },
-	cur = { score = "77" },
-	none = {},
-	huge = { score = "100,1" },
-} }
+-- A mod whose add raises an error: the error is logged, and the sum falls back to doubles.
+do
+	local saved = to_big
+	local warned
+	sendWarnMessage = function(message)
+		warned = message
+	end
+	local mt = {
+		__add = function()
+			error("add exploded")
+		end,
+	}
+	to_big = function(x)
+		if type(x) == "number" then return setmetatable({ array = { x }, sign = 1 }, mt) end
+		return setmetatable({ array = x.array, sign = 1 }, mt)
+	end
+	check("mod error: sum falls back to doubles", S.sum({ "5", "7" }), "12")
+	check("mod error: the error is logged", warned ~= nil and warned:find("add exploded", 1, true) ~= nil, true)
+	to_big = saved
+end
+
+-- The season best a player reports: score text, plus the number a score board is not fed.
+PVP.REF = {
+	players = {
+		big = { score = "20,2", highest_score = "25.5,2" },
+		low = { score = "5", highest_score = "1234" },
+		cur = { score = "77" },
+		none = {},
+		huge = { score = "100,1" },
+	},
+}
 check("season best text is the highest score", PVP.pvp_score_text("big"), "25.5,2")
 check("season best text keeps a whole number", PVP.pvp_score_text("low"), "1234")
 check("season best text falls back to the current score", PVP.pvp_score_text("cur"), "77")
 check("season best text of nobody is zero", PVP.pvp_score_text("ghost"), "0")
 check("season best text of a player with no score is zero", PVP.pvp_score_text("none"), "0")
-check("old number of a small score", PVP.pvp_score_metric("low"), 1234)
-check("old number caps at 1e15", PVP.pvp_score_metric("huge"), 1e15)
-check("old number of a tower caps at 1e15", PVP.pvp_score_metric("big"), 1e15)
-check("old number of nobody is zero", PVP.pvp_score_metric("ghost"), 0)
+check("plain number of a small score", PVP.pvp_score_metric("low"), 1234)
+check("plain number caps at 1e15", PVP.pvp_score_metric("huge"), 1e15)
+check("plain number of a tower caps at 1e15", PVP.pvp_score_metric("big"), 1e15)
+check("plain number of nobody is zero", PVP.pvp_score_metric("ghost"), 0)
 
 if failures > 0 then
 	print(failures .. " failure(s)")

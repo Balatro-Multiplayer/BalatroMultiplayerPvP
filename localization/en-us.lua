@@ -1590,7 +1590,6 @@ return {
 			k_ruleset_disabled_the_order_required = "The Order is Required",
 			k_ruleset_disabled_the_order_banned = "The Order is Banned",
 			k_ruleset_not_found = "Unknown ruleset",
-			k_version_mismatch = "A player runs MultiplayerPvP #1#, you run #2#.\nEveryone in a game needs the same version.",
 			k_version_mismatch_refused = "Everyone in a game needs the same MultiplayerPvP version.\nUpdate the mod and try again.",
 			k_tutorial_not_complete = "You must complete the tutorial before you can play Multiplayer",
 			k_created_by = "Created by",
@@ -1638,6 +1637,8 @@ return {
 			loc_playing = "Playing",
 		},
 		v_dictionary = {
+			k_start_refused = "Start refused: #1#",
+			k_version_mismatch = "A player runs MultiplayerPvP #1#, you run #2#.\nEveryone in a game needs the same version.",
 			k_pvp_contest_by = "#1# contested the match with another player.",
 			k_end_player_jokers = "#1#'s Jokers",
 			k_end_player_left = "#1# -- left the match",

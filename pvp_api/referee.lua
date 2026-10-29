@@ -664,9 +664,8 @@ function PVP.pvp_score_text(player_id)
 	return PVP.Score.or_zero(pl.highest_score or pl.score)
 end
 
--- The same best score as the old plain number (`metric`), which a score board
--- no longer reads. It stays for the report's shape: a whole number up to 1e15,
--- else 1e15.
+-- The best score as a plain number (`metric`) for the report's shape: a whole
+-- number up to 1e15, else 1e15. A score board reads the score text, not this.
 function PVP.pvp_score_metric(player_id)
 	local text = PVP.pvp_score_text(player_id)
 	local cap = 1e15
@@ -1056,8 +1055,8 @@ end
 -- broadcast (broadcast_live_targets), so the summing rule can't drift between them.
 local function sum_team_scores(team_players)
 	local scores = {}
-	for i, pl in ipairs(team_players) do scores[i] = pl.score end
-	return PVP.Score.sum(scores, #team_players)
+	for i, pl in ipairs(team_players) do scores[i] = PVP.Score.or_zero(pl.score) end
+	return PVP.Score.sum(scores)
 end
 
 -- Pure: sums each team's scores this round and returns the losing team ("A"/"B"),

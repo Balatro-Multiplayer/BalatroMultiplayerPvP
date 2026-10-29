@@ -297,6 +297,17 @@ PVP.setup_lobby_mirror = function(lobby)
 	mirror_metadata(lobby)
 	mirror_players(lobby)
 
+	-- Shows the version overlay once per run of mismatches; it re-arms when they clear.
+	local function check_version_mismatch()
+		local mismatches = PVP.UTILS.version_mismatches()
+		if #mismatches == 0 then
+			PVP._version_mismatch_shown = false
+		elseif not PVP._version_mismatch_shown then
+			PVP._version_mismatch_shown = true
+			PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
+		end
+	end
+
 	local function refresh()
 		if PVP.UI and PVP.UI.update_connection_status then
 			pcall(PVP.UI.update_connection_status)
@@ -337,11 +348,14 @@ PVP.setup_lobby_mirror = function(lobby)
 		mirror_players(lobby)
 		PVP.TRAP_ROW.on_player_back(player_id)
 		refresh()
-		local mismatches = PVP.UTILS.version_mismatches()
-		if #mismatches > 0 and not PVP._version_mismatch_shown then
-			PVP._version_mismatch_shown = true
-			PVP.UI.UTILS.overlay_message(PVP.UTILS.version_mismatch_message(mismatches[1]))
-		end
+		check_version_mismatch()
+	end)
+
+	-- A player's mod list reaches the lobby after they join (the server sends
+	-- it once their client reports its mods), so the join alone cannot judge
+	-- their version.
+	lobby:on(MPAPI.LobbyEvent.PLAYER_INFO, function()
+		check_version_mismatch()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)

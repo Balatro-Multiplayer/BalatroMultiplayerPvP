@@ -196,11 +196,6 @@ function PVP.UTILS.version_mismatches()
 	return PVP.VersionGate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
 end
 
--- The line shown for the first version mismatch, from our version and theirs.
-function PVP.UTILS.version_mismatch_message(mismatch)
-	return localize({ type = "variable", key = "k_version_mismatch", vars = { mismatch.their, mismatch.our } })
-end
-
 function PVP.UTILS.get_banned_mods(mods)
 	local banned_mods = {}
 	if not mods then return banned_mods end

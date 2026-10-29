@@ -27,8 +27,8 @@ local function broadcast(key, params)
 	end
 end
 
--- Local player's live game state, for payloads the old server used to fill in.
-local function my_score_str()
+-- Local player's live game state, for the payloads that carry it.
+local function my_score_text()
 	return PVP.Score.or_zero(PVP.GAME.score)
 end
 local function my_hands()
@@ -111,7 +111,9 @@ local ROUTES = {
 		-- recording after that point silently drops the decisive hand's own
 		-- result (confirmed live: END/CHK trailer landed right after this
 		-- hand's `play` opcode with no `hand_result` in between).
-		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { MPAPI.BigScore.from_game_value(msg.score), msg.handsLeft }) end
+		if PVP.RLOG then
+			PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { PVP.Score.from_game_value(msg.score), msg.handsLeft })
+		end
 		relay_enemy_info({ score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() })
 	end,
 	setAnte = function(msg)
@@ -124,11 +126,11 @@ local ROUTES = {
 		broadcast("pvp_set_furthest_blind", { furthestBlind = msg.furthestBlind })
 	end,
 	skip = function(msg)
-		broadcast("pvp_skip", { skips = msg.skips, score = my_score_str(), handsLeft = my_hands(), lives = my_lives() }) -- referee (host-authoritative)
+		broadcast("pvp_skip", { skips = msg.skips, score = my_score_text(), handsLeft = my_hands(), lives = my_lives() }) -- referee (host-authoritative)
 		-- See playHand's hand_result comment above -- same rationale, for discards:
 		-- recorded BEFORE the relay so a match-ending skip still logs.
-		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { my_score_str(), my_hands() }) end
-		relay_enemy_info({ score = my_score_str(), handsLeft = my_hands(), skips = msg.skips, lives = my_lives() })
+		if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { my_score_text(), my_hands() }) end
+		relay_enemy_info({ score = my_score_text(), handsLeft = my_hands(), skips = msg.skips, lives = my_lives() })
 	end,
 	startAnteTimer = function(msg)
 		broadcast("pvp_ante_timer", { time = msg.time, isPvP = msg.isPvP })
