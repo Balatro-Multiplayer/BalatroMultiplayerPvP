@@ -3,7 +3,6 @@ function PVP.multiplayer_content_enabled()
 end
 
 MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
-	multiplayer_content = true,
 	included_jokers = {
 		"j_mp_speedrun",
 		"j_mp_conjoined_joker",

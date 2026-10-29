@@ -60,7 +60,6 @@ return {
 					if name ~= PVP.LayerKey.MULTIPLAYER_CONTENT then without[#without + 1] = name end
 				end
 				ruleset._layer_order = without
-				S.check(PVP.current_ruleset().multiplayer_content == true, "removing layer leaves the flag unchanged")
 				local disabled = snapshot()
 				for key, pool in pairs(keys) do
 					S.check(not contains(disabled[pool], key), key .. " absent without the layer")
