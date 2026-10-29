@@ -176,6 +176,59 @@ do
 	check("find_pending", PD.find_pending(list, A).blind_key, X)
 end
 
+-- Manhunt and Teams: a whole side is pending. decide_team reads the other side's players.
+do
+	local H1, H2 = "hunter_1", "hunter_2"
+	local live = { present = true, lives = 1 }
+	local function team(results, roster)
+		return PD.decide_team(X, results, roster)
+	end
+
+	check("team: no hunter has a result: pending", (team({}, { [H1] = live, [H2] = live })), PD.Outcome.PENDING)
+
+	local beaten = {}
+	PD.record(beaten, H2, X, true)
+	check("team: one beats X, the other still plays: win", (team(beaten, { [H1] = live, [H2] = live })), PD.Outcome.WIN)
+
+	local failed = {}
+	PD.record(failed, H1, X, false)
+	check("team: one failed, one still plays: pending", (team(failed, { [H1] = live, [H2] = live })), PD.Outcome.PENDING)
+
+	local half_failed = {}
+	PD.record(half_failed, H1, X, false)
+	PD.record(failed, H2, X, false)
+	check("team: every player failed: draw", (team(failed, { [H1] = live, [H2] = live })), PD.Outcome.DRAW)
+
+	check(
+		"team: one failed, one eliminated: draw",
+		(team(half_failed, { [H1] = live, [H2] = { present = true, lives = 0 } })),
+		PD.Outcome.DRAW
+	)
+
+	local one_failed = {}
+	PD.record(one_failed, H1, X, false)
+	check(
+		"team: one failed, one left: draw",
+		(team(one_failed, { [H1] = live, [H2] = { present = false, lives = 1 } })),
+		PD.Outcome.DRAW
+	)
+
+	check("team: everyone left: draw", (team({}, { [H1] = { present = false, lives = 1 } })), PD.Outcome.DRAW)
+
+	local late = {}
+	PD.record(late, H1, X, true)
+	check("team: a player beat X then left: win", (team(late, { [H1] = { present = false, lives = 1 } })), PD.Outcome.WIN)
+
+	check("team: no one on the other side: draw", (team({}, {})), PD.Outcome.DRAW)
+
+	local other = {}
+	PD.record(other, H1, PD.blind_key(3, "Big"), true)
+	check("team: a different blind does not count", (team(other, { [H1] = live })), PD.Outcome.PENDING)
+
+	local _, winner = team(beaten, { [H2] = live })
+	check("team: a win has no single winner id", winner, nil)
+end
+
 if failures > 0 then
 	os.exit(1)
 end

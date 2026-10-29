@@ -126,3 +126,22 @@ function PD.places(ids, pendings, results, roster)
 	end
 	return places
 end
+
+-- Manhunt and Teams: a whole side is pending (the Runner, or a team whose shared
+-- lives reached 0) on blind_key. The players of the other side must beat the same
+-- blind. roster[id] = { present, lives } for the other side only. WIN means the
+-- other side wins: any one of its players beat the blind. DRAW means every one of
+-- them failed it, is out of lives or has left without beating it.
+function PD.decide_team(blind_key, results, roster)
+	local open_player = false
+	for id, state in pairs(roster) do
+		local result = results[id] and results[id][blind_key]
+		if result == PD.BlindResult.BEATEN then
+			return PD.Outcome.WIN, nil
+		end
+		if result == nil and state.present and state.lives > 0 then
+			open_player = true
+		end
+	end
+	return open_player and PD.Outcome.PENDING or PD.Outcome.DRAW, nil
+end
