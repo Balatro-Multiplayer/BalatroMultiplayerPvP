@@ -67,10 +67,23 @@ A_host("pvp_eliminated", function(_at, _from, params)
 	PVP.dispatch_action("loseGame")
 end)
 
--- A player lost their last life on a non-PvP blind in a 2-player match. The
+-- A player lost their last life on a non-PvP blind in a 2-player match (or a whole
+-- Manhunt/Teams side did: params.team_id). The
 -- referee waits for the opponent to beat the same blind before it decides.
 A_host("pvp_death_pending", function(_at, _from, params)
 	if PVP.GAME.won or PVP.GAME.draw then
+		return
+	end
+	if params.team_id then
+		-- Manhunt or Teams: a whole side is pending. Every client keeps it; the dead
+		-- side's players wait on the screen.
+		PVP.GAME.team_pending = { team_id = params.team_id, blind_key = params.blind_key }
+		local roster = PVP.LOBBY.roster
+		if not (roster and roster[self_id()] == params.team_id) then
+			return
+		end
+		PVP.GAME.pending_death = { player_id = self_id(), blind_key = params.blind_key }
+		PVP.UI.show_pending_death_screen()
 		return
 	end
 	if params.opponent_id == nil then
@@ -95,6 +108,7 @@ end)
 A_host("pvp_win", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
 	PVP.end_pending_death()
+	PVP.GAME.team_pending = nil
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
 	-- eliminated at once) has no winner to resolve against -- both routes here
 	-- converge on the same drawGame dispatch/MMR-skip, see pvp_api/run_actions.lua's
