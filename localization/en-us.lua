@@ -1362,6 +1362,7 @@ return {
 			k_pvp_setup_your_vote_tag = "Your vote",
 			k_pvp_setup_confirm_vote = "Confirm Vote",
 			k_pvp_setup_waiting = "Setting up the game...",
+			k_pvp_lobby_trap_cards = "Trap Cards",
 			k_trap_pack = "Trap Pack",
 			b_singleplayer = "Singleplayer",
 			b_sp_with_ruleset = "Practice Mode",

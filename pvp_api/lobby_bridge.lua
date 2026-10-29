@@ -186,9 +186,13 @@ local function mirror_metadata(lobby)
 	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
 	-- layers on top of it for the whole lobby. Every client derives them from the
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
-	-- without a metadata field of their own. Nothing else adds modifiers.
+	-- without a metadata field of their own. The only other modifier is Trap
+	-- cards: the private lobby host's switch here, the Casual vote below.
 	if PVP.LOBBY.config.ruleset then
 		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
+		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
+			MPAPI.add_modifier("traps")
+		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 	end
 	if meta.deck then

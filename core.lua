@@ -208,6 +208,8 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		-- Manhunt only: each Hunter's individual life count (Runner is always
 		-- fixed at 1, not configurable -- see PVP.referee_reset).
 		manhunt_hunter_lives = 7,
+		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
+		trap_cards = false,
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,
 		pvp_countdown_seconds = 3,
