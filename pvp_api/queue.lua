@@ -158,6 +158,7 @@ function PVP.build_placements(player_ids, winner, opts)
 			place = place,
 			performance = performance,
 			metric = (PVP.pvp_score_metric and PVP.pvp_score_metric(id)) or 0,
+			metricText = PVP.pvp_score_text and PVP.pvp_score_text(id) or PVP.Score.ZERO,
 		}
 	end
 	return placements

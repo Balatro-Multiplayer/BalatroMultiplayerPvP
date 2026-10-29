@@ -654,27 +654,26 @@ local function broadcast_team_card_target()
 	broadcast("pvp_team_card_target", { pairing = payload })
 end
 
--- Best PvP score for a player (host referee state), as a plausibility-bounded number
--- for the matchmaking `metric` (season-best score column). Host-only.
-function PVP.pvp_score_metric(player_id)
+-- Best PvP score for a player (host referee state) as score text, for the
+-- matchmaking `metricText` (season-best score column). Host-only.
+function PVP.pvp_score_text(player_id)
 	local pl = PVP.REF and PVP.REF.players and PVP.REF.players[player_id]
-	if not pl or not pl.score then
-		return 0
+	if not pl then
+		return PVP.Score.ZERO
 	end
-	-- Numeric, not via INSANE_INT.to_string: that is a display string with
-	-- thousands separators ("2,832"), which tonumber rejects, so every score of
-	-- 1,000+ was reported as 0. Capped at the server's score bound (1e15,
-	-- nakama/src/rating/metrics.ts), above which it drops the value entirely.
-	local s = pl.highest_score or pl.score
+	return PVP.Score.or_zero(pl.highest_score or pl.score)
+end
+
+-- The same best score as the old plain number (`metric`), which a score board
+-- no longer reads. It stays for the report's shape: a whole number up to 1e15,
+-- else 1e15.
+function PVP.pvp_score_metric(player_id)
+	local text = PVP.pvp_score_text(player_id)
 	local cap = 1e15
-	if (tonumber(s.e_count) or 0) > 0 then
+	if text:find(",", 1, true) then
 		return cap
 	end
-	local v = (tonumber(s.coeffiocient) or 0) * 10 ^ (tonumber(s.exponent) or 0)
-	if v ~= v or v < 0 then
-		return 0
-	end
-	return math.min(math.floor(v), cap)
+	return math.min(tonumber(text) or 0, cap)
 end
 
 -- Reset all referee state at game start and stamp starting lives (option override

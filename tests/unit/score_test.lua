@@ -145,6 +145,24 @@ do
 	to_big = saved
 end
 
+-- The season best a player reports: score text, plus the old number.
+PVP.REF = { players = {
+	big = { score = "20,2", highest_score = "25.5,2" },
+	low = { score = "5", highest_score = "1234" },
+	cur = { score = "77" },
+	none = {},
+	huge = { score = "100,1" },
+} }
+check("season best text is the highest score", PVP.pvp_score_text("big"), "25.5,2")
+check("season best text keeps a whole number", PVP.pvp_score_text("low"), "1234")
+check("season best text falls back to the current score", PVP.pvp_score_text("cur"), "77")
+check("season best text of nobody is zero", PVP.pvp_score_text("ghost"), "0")
+check("season best text of a player with no score is zero", PVP.pvp_score_text("none"), "0")
+check("old number of a small score", PVP.pvp_score_metric("low"), 1234)
+check("old number caps at 1e15", PVP.pvp_score_metric("huge"), 1e15)
+check("old number of a tower caps at 1e15", PVP.pvp_score_metric("big"), 1e15)
+check("old number of nobody is zero", PVP.pvp_score_metric("ghost"), 0)
+
 if failures > 0 then
 	print(failures .. " failure(s)")
 	os.exit(1)

@@ -22,7 +22,7 @@ local function get_leaderboard()
 		},
 		columns = {
 			{ header = function() return localize("k_rating_cap") end, colour = G.C.BLUE, width = 0.95, value = function(e) return tostring(e.rating or "?") end },
-			{ header = function() return localize("k_best_score_cap") end, colour = G.C.PURPLE, width = 1.25, value = function(e) return tostring(e.seasonBest or "-") end },
+			{ header = function() return localize("k_best_score_cap") end, colour = G.C.PURPLE, width = 1.25, value = function(e) return e.seasonBest and (MPAPI.BigScore.display(tostring(e.seasonBest)) or "-") or "-" end },
 			{ header = "W", header_colour = G.C.GREEN, colour = G.C.GREEN, width = 0.5, value = function(e) return tostring(e.wins or 0) end },
 			{ header = "L", header_colour = G.C.RED, colour = G.C.RED, width = 0.5, value = function(e) return tostring(e.losses or 0) end },
 		},
