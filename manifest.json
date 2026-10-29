@@ -1,6 +1,6 @@
 {
   "name": "MultiplayerPvP",
-  "version_number": "1.0.2",
+  "version_number": "1.0.3",
   "website_url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerPvP",
   "description": "Head-to-head Balatro: players race on the same seed and battle each boss blind. Built on top of MultiplayerAPI.",
   "dependencies": [
