@@ -94,6 +94,10 @@ end)
 
 A_host("pvp_win", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
+	-- A contested match has no result for this client to report: a moderator decides.
+	if PVP.GAME.contested then
+		return
+	end
 	PVP.end_pending_death()
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
 	-- eliminated at once) has no winner to resolve against -- both routes here
@@ -149,6 +153,9 @@ end)
 -- A server-refereed lobby: whoever is still in reports it (the forfeiter has
 -- left, so the server settles the run as partial).
 A_host("pvp_player_won", function(_at, _from, params)
+	if PVP.GAME.contested then
+		return
+	end
 	local sid = self_id()
 	if params.player_id == sid then
 		PVP.dispatch_action("winGame")

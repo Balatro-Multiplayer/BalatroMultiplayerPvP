@@ -167,9 +167,20 @@ end
 -- win_body/lose_body (BalatroMultiplayerSpeed/ui/win_screen.lua,
 -- ui/lose_screen.lua) call the exact same shared body.
 function PVP.UI.end_game_body(has_won)
+	local side_rows = { PVP.UI.create_UIBox_round_scores_row_nemesis() }
+	if PVP.GAME.contested then
+		side_rows = {
+			PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
+				PVP.UI.UTILS.create_text_node(localize("k_pvp_contested_text_1"), { scale = 0.5, colour = G.C.UI.TEXT_LIGHT }),
+			}),
+			PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
+				PVP.UI.UTILS.create_text_node(localize("k_pvp_contested_text_2"), { scale = 0.45, colour = G.C.UI.TEXT_LIGHT }),
+			}),
+		}
+	end
 	return MPAPI.end_screen_body({
 		player_panel = PVP.UI.build_end_game_extras(),
-		side_rows = { PVP.UI.create_UIBox_round_scores_row_nemesis() },
+		side_rows = side_rows,
 		buttons = PVP.end_screen_buttons(),
 	})
 end
@@ -199,6 +210,7 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 	return MPAPI.end_screen_uibox({
 		won = has_won,
 		draw = PVP.GAME.draw,
+		title_key = PVP.GAME.contested and "k_pvp_contested_title" or nil,
 		id = has_won and "you_win_UI" or nil,
 		body = PVP.UI.end_game_body,
 	})

@@ -486,10 +486,18 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
+	-- Either player contesting ends the match for both (ui/contest_modal.lua).
+	lobby:on(MPAPI.LobbyEvent.CONTESTED, function()
+		PVP.show_contested_screen()
+	end)
+
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
+		if ended.status == "contested" then
+			PVP.show_contested_screen()
+		end
 		if PVP.reset_ready_state then
 			PVP.reset_ready_state()
 		end
