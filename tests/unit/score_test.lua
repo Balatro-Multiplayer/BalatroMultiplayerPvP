@@ -229,6 +229,19 @@ do
 	to_big = saved
 end
 
+-- Talisman's BigNum mode reads the second argument of to_big as an exponent, so a
+-- plain score is built from the number alone.
+do
+	local saved = to_big
+	local real = make_mod("talisman", add_first_entries)
+	to_big = function(x, exponent)
+		if type(x) == "number" then return real(x * 10 ^ (exponent or 0)) end
+		return real(x)
+	end
+	check("bignum mode: a plain score keeps its value", MPAPI.BigScore.from_game_value(S.to_game_value("12345")), "12345")
+	to_big = saved
+end
+
 -- A mod whose add raises an error: the error is logged, and the sum falls back to doubles.
 do
 	local saved = to_big
