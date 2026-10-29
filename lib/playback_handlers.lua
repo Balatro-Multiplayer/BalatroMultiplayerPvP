@@ -79,8 +79,8 @@ local function project_enemy_hand_result(args)
 	if not score_str or not hands_left then
 		return
 	end
-	local score = PVP.INSANE_INT.from_string(score_str)
-	if PVP.INSANE_INT.greater_than(score, PVP.GAME.enemy.highest_score) then
+	local score = PVP.Score.or_zero(score_str)
+	if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then
 		PVP.GAME.enemy.highest_score = score
 	end
 	PVP.GAME.enemy.real_score = score
@@ -409,11 +409,10 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.HAND_RESULT, function(args, 
 	if ctx.is_pov then
 		local score_str = args and args[1]
 		if score_str then
-			local recorded = PVP.INSANE_INT.from_string(score_str)
-			if not PVP.INSANE_INT.equal(recorded, PVP.GAME.score or PVP.INSANE_INT.empty()) then
+			if not PVP.Score.equal(score_str, PVP.GAME.score) then
 				MPAPI.sendWarnMessage(
 					'playback hand_result mismatch: recorded=' .. score_str
-					.. ' real=' .. PVP.INSANE_INT.to_string(PVP.GAME.score or PVP.INSANE_INT.empty())
+					.. ' real=' .. PVP.Score.or_zero(PVP.GAME.score)
 				)
 			end
 		end

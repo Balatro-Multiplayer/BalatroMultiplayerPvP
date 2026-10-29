@@ -29,7 +29,7 @@ end
 
 -- Local player's live game state, for payloads the old server used to fill in.
 local function my_score_str()
-	return (PVP.GAME.score and PVP.INSANE_INT.to_string(PVP.GAME.score)) or "0"
+	return PVP.Score.or_zero(PVP.GAME.score)
 end
 local function my_hands()
 	return (G.GAME and G.GAME.current_round and G.GAME.current_round.hands_left) or 0

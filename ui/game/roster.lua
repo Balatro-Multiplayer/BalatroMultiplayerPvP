@@ -22,7 +22,7 @@ local function roster_row(lobby, player_id)
 	local name = player_display_name(lobby, player_id)
 	local result = PVP._collected_results and PVP._collected_results[player_id]
 	local deck_label = (result and result.deck_back) or '--'
-	local score_label = (result and result.highest_pvp_score) or '--'
+	local score_label = (result and result.highest_pvp_score and PVP.Score.display(result.highest_pvp_score)) or '--'
 	local joker_count = result and result.jokers and #result.jokers or 0
 
 	local nodes = {

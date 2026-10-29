@@ -34,7 +34,7 @@ local function apply_hand_result(ev)
 	local score_str, hands_left = args[1], args[2]
 
 	if score_str ~= nil then
-		local score = PVP.INSANE_INT.from_string(tostring(score_str))
+		local score = PVP.Score.or_zero(score_str)
 		-- .score (not just .real_score) is what blind_hud.lua's score_text
 		-- actually renders from -- set both so the visible number, not just
 		-- comparisons like highest_score, catches up. An instant snap (no
@@ -42,7 +42,7 @@ local function apply_hand_result(ev)
 		-- this is a one-time catch-up after a gap, not an incremental update.
 		PVP.GAME.enemy.score = score
 		PVP.GAME.enemy.real_score = score
-		if PVP.INSANE_INT.greater_than(score, PVP.GAME.enemy.highest_score) then
+		if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then
 			PVP.GAME.enemy.highest_score = score
 		end
 	end

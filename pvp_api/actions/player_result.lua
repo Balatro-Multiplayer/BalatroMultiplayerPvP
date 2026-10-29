@@ -47,7 +47,7 @@ function PVP.report_roster_result(on_delivered)
 	end
 	local jokers = capture_local_jokers()
 	local deck_back = PVP.LOBBY.deck and PVP.LOBBY.deck.back
-	local highest_pvp_score = PVP.INSANE_INT.to_string(PVP.GAME.highest_pvp_score)
+	local highest_pvp_score = PVP.Score.or_zero(PVP.GAME.highest_pvp_score)
 
 	PVP._collected_results[lobby.player_id] = {
 		jokers = jokers,

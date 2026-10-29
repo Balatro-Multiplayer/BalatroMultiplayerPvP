@@ -254,8 +254,8 @@ function PVP.reset_game_states()
 		comeback_bonus = 0,
 		end_pvp = false,
 		enemy = {
-			score = PVP.INSANE_INT.empty(),
-			real_score = PVP.INSANE_INT.empty(),
+			score = PVP.Score.ZERO,
+			real_score = PVP.Score.ZERO,
 			score_text = "0",
 			hands = 4,
 			hands_text = "4",
@@ -270,7 +270,7 @@ function PVP.reset_game_states()
 			sells = 0,
 			sells_per_ante = {},
 			spent_in_shop = {},
-			highest_score = PVP.INSANE_INT.empty(),
+			highest_score = PVP.Score.ZERO,
 		},
 		location = "loc_selecting",
 		next_blind_context = nil,
@@ -282,13 +282,13 @@ function PVP.reset_game_states()
 		misprint_display = "",
 		spent_total = 0,
 		spent_before_shop = 0,
-		highest_score = PVP.INSANE_INT.empty(),
+		highest_score = PVP.Score.ZERO,
 		-- §17.10: PVP.GAME.highest_score above tracks the best SINGLE-BLIND
 		-- score of any kind (updated unconditionally in every play_hand,
 		-- including plain Small/Big/Boss blinds) -- not what the end-of-run
 		-- roster needs ("highest PvP-blind score"). Tracked separately here,
 		-- only updated while PVP.is_pvp_boss() is true.
-		highest_pvp_score = PVP.INSANE_INT.empty(),
+		highest_pvp_score = PVP.Score.ZERO,
 		timer = PVP.UTILS.timer_base(),
 		timer_started = false,
 		timer_threshold_pending = false,

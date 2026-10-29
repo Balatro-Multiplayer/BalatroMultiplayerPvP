@@ -414,8 +414,9 @@ local function action_start_blind(p)
 	local first_player = p.firstPlayer
 	-- Reset the stored opponent score each blind so the first frame after we
 	-- play (which lifts the "???" mask) shows 0, not last blind's stale score.
-	PVP.GAME.enemy.score = PVP.INSANE_INT.empty()
-	PVP.GAME.enemy.real_score = PVP.INSANE_INT.empty()
+	PVP.GAME.enemy.score = PVP.Score.ZERO
+	PVP.GAME.enemy.score_ease = nil
+	PVP.GAME.enemy.real_score = PVP.Score.ZERO
 	PVP.GAME.enemy.score_text = "0"
 	-- Re-mask the opponent's score until the first enemyInfo of the new blind.
 	PVP.GAME.enemy.info_received = false
@@ -1015,30 +1016,22 @@ end
 ---@param score number
 ---@param hands_left number
 function PVP.ACTIONS.play_hand(score, hands_left)
-	local fixed_score = tostring(to_big(score))
-	-- Credit to sidmeierscivilizationv on discord for this fix for Talisman
-	if string.match(fixed_score, "[eE]") == nil and string.match(fixed_score, "[.]") then
-		-- Remove decimal from non-exponential numbers
-		fixed_score = string.sub(string.gsub(fixed_score, "%.", ","), 1, -3)
-	end
-	fixed_score = string.gsub(fixed_score, ",", "") -- Remove commas
-
-	local insane_int_score = PVP.INSANE_INT.from_string(fixed_score)
-	PVP.GAME.score = insane_int_score
-	if PVP.INSANE_INT.greater_than(insane_int_score, PVP.GAME.highest_score) then
-		PVP.GAME.highest_score = insane_int_score
+	local score_text = PVP.Score.from_game_value(score)
+	PVP.GAME.score = score_text
+	if PVP.Score.greater(score_text, PVP.GAME.highest_score) then
+		PVP.GAME.highest_score = score_text
 	end
 	-- §17.10: the end-of-run roster's "highest PvP-blind score" needs the
 	-- PvP-blind-only figure, not the any-blind one tracked just above.
-	if PVP.is_pvp_boss() and PVP.INSANE_INT.greater_than(insane_int_score, PVP.GAME.highest_pvp_score) then
-		PVP.GAME.highest_pvp_score = insane_int_score
+	if PVP.is_pvp_boss() and PVP.Score.greater(score_text, PVP.GAME.highest_pvp_score) then
+		PVP.GAME.highest_pvp_score = score_text
 	end
 
 	-- Stop PvP timers according to score
 	if PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer") then
-		if PVP.INSANE_INT.greater_than(insane_int_score, PVP.GAME.enemy.score) then
+		if PVP.Score.greater(score_text, PVP.GAME.enemy.score) then
 			PVP.GAME.nemesis_timer_started = false
-        elseif PVP.INSANE_INT.equal(insane_int_score, PVP.GAME.enemy.score) and PVP.GAME.pvp_reached_first then
+        elseif PVP.Score.equal(score_text, PVP.GAME.enemy.score) and PVP.GAME.pvp_reached_first then
             PVP.GAME.nemesis_timer_started = false
 		else
 			PVP.GAME.timer_started = false
@@ -1047,7 +1040,7 @@ function PVP.ACTIONS.play_hand(score, hands_left)
 
 	Client.send({
 		action = "playHand",
-		score = fixed_score,
+		score = score_text,
 		handsLeft = hands_left,
 	})
 end

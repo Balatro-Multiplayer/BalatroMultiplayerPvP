@@ -50,7 +50,7 @@ MPAPI.Blind({
 			return
 		end
 		local d = context.data
-		local score = PVP.INSANE_INT.from_string(d.score)
+		local score = PVP.Score.parse(d.score)
 		local hands_left = tonumber(d.handsLeft)
 		local skips = tonumber(d.skips)
 
@@ -77,13 +77,13 @@ MPAPI.Blind({
 			return
 		end
 
-		if PVP.INSANE_INT.greater_than(score, PVP.GAME.enemy.highest_score) then PVP.GAME.enemy.highest_score = score end
+		if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then PVP.GAME.enemy.highest_score = score end
 
 		-- PvP timer: stop timer according to score.
 		if PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer") then
-			if PVP.INSANE_INT.greater_than(PVP.GAME.score, score) then
+			if PVP.Score.greater(PVP.GAME.score, score) then
 				PVP.GAME.nemesis_timer_started = false
-			elseif PVP.INSANE_INT.equal(PVP.GAME.score, score) and PVP.GAME.pvp_reached_first then
+			elseif PVP.Score.equal(PVP.GAME.score, score) and PVP.GAME.pvp_reached_first then
 				PVP.GAME.nemesis_timer_started = false
 			else
 				PVP.GAME.timer_started = false

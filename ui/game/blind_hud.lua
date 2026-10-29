@@ -177,7 +177,7 @@ end
 local add_round_eval_rowref = add_round_eval_row
 function add_round_eval_row(config) -- if i could post a skull emoji i would, wtf is this (cashout screen)
 	if config.name == "blind1" and G.GAME.blind.config.blind.key == "bl_mp_nemesis" then
-		G.GAME.blind.chip_text = PVP.INSANE_INT.to_string(PVP.GAME.enemy.score)
+		G.GAME.blind.chip_text = PVP.Score.display(PVP.GAME.enemy.score)
 
 		G.P_BLINDS["bl_mp_nemesis"].atlas = "mp_player_blind_col"
 		G.GAME.blind.pos = G.P_BLINDS[PVP.UTILS.get_nemesis_key()].pos -- this one is getting reset so no need to bother
@@ -238,57 +238,45 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 		PVP.GAME.enemy.score_text = "???"
 		return
 	end
-	local new_score_text = PVP.INSANE_INT.to_string(PVP.GAME.enemy.score)
+	local new_score_text = PVP.Score.display(PVP.GAME.enemy.score)
 	if G.GAME.blind and PVP.GAME.enemy.score and PVP.GAME.enemy.score_text ~= new_score_text then
-		if not PVP.INSANE_INT.greater_than(PVP.GAME.enemy.score, PVP.INSANE_INT.create(0, G.E_SWITCH_POINT, 0)) then
-			e.config.scale = scale_number(PVP.GAME.enemy.score.coeffiocient, 0.7, 100000)
-		end
+		local plain = PVP.Score.small_number(PVP.GAME.enemy.score)
+		e.config.scale = plain and scale_number(plain, 0.7, 100000) or 0.7
 		PVP.GAME.enemy.score_text = new_score_text
 	end
 end
 
--- Eases PVP.GAME.enemy.score's InsaneInt components toward `new_score` over 3s.
--- Shared by objects/blinds/nemesis.lua's raw per-sender relay and
+-- Counts PVP.GAME.enemy.score up to `new_score` (score text) over 3s while both
+-- are plain numbers; any larger score is set at once. Shared by
+-- objects/blinds/nemesis.lua's raw per-sender relay and
 -- pvp_api/actions/team_manhunt.lua's pvp_team_score_board handler (Teams' HUD
 -- shows a host-computed team SUM, not a single sender's raw score, so it can't
 -- reuse the relay itself -- just this animation).
 function PVP.UI.ease_enemy_score(new_score)
+	local target = PVP.Score.or_zero(new_score)
+	local from = PVP.Score.small_number(PVP.GAME.enemy.score)
+	local to = PVP.Score.small_number(target)
+	if not (from and to) then
+		PVP.GAME.enemy.score_ease = nil
+		PVP.GAME.enemy.score = target
+		return
+	end
+	local counter = { value = from }
+	-- A newer score replaces this count, so a late step cannot overwrite it.
+	PVP.GAME.enemy.score_ease = counter
 	G.E_MANAGER:add_event(Event({
 		blockable = false,
 		blocking = false,
 		trigger = "ease",
 		delay = 3,
-		ref_table = PVP.GAME.enemy.score,
-		ref_value = "e_count",
-		ease_to = new_score.e_count,
+		ref_table = counter,
+		ref_value = "value",
+		ease_to = to,
 		func = function(t)
-			return math.floor(t)
-		end,
-	}))
-	G.E_MANAGER:add_event(Event({
-		blockable = false,
-		blocking = false,
-		trigger = "ease",
-		delay = 3,
-		ref_table = PVP.GAME.enemy.score,
-		ref_value = "coeffiocient", -- misspelled in InsaneInt
-		ease_to = new_score.coeffiocient,
-		func = function(t)
-			local mult = 1
-			if new_score.exponent > 0 then mult = 100 end
-			return math.floor(t * mult) / mult
-		end,
-	}))
-	G.E_MANAGER:add_event(Event({
-		blockable = false,
-		blocking = false,
-		trigger = "ease",
-		delay = 3,
-		ref_table = PVP.GAME.enemy.score,
-		ref_value = "exponent",
-		ease_to = new_score.exponent,
-		func = function(t)
-			return math.floor(t)
+			if PVP.GAME.enemy.score_ease == counter then
+				PVP.GAME.enemy.score = string.format("%.0f", math.floor(t))
+			end
+			return t
 		end,
 	}))
 end
