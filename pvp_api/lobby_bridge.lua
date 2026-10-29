@@ -296,6 +296,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	end
 	mirror_metadata(lobby)
 	mirror_players(lobby)
+	PVP._version_mismatch_shown = false
 
 	-- Shows the version overlay once per run of mismatches; it re-arms when they clear.
 	local function check_version_mismatch()
@@ -332,6 +333,9 @@ PVP.setup_lobby_mirror = function(lobby)
 			mirror_metadata(lobby)
 		end
 		mirror_players(lobby)
+		-- A joiner's snapshot already holds the players (and their mods) who were
+		-- here first, and fires no PLAYER_JOINED or PLAYER_INFO for them.
+		check_version_mismatch()
 		-- A crash-rejoin resumes a run that was rebuilt with no lobby, so its
 		-- HUD has no Lives or Timer box until the lobby is back.
 		if G.STAGE == G.STAGES.RUN and PVP.UI and PVP.UI.apply_lobby_hud then
@@ -370,6 +374,8 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 		mirror_players(lobby)
 		PVP.TRAP_ROW.forget(player_id)
+		-- Re-arms the overlay once the mismatched player is gone.
+		check_version_mismatch()
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
 		-- A pending death decides it instead: leaving with one is not a forfeit.
@@ -486,6 +492,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP._match_handle = nil
 		end
 		PVP._pvp_kind = nil
+		PVP._version_mismatch_shown = false
 		refresh()
 	end)
 
