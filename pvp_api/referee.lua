@@ -1580,7 +1580,12 @@ function PVP.referee_on_blind_result(from, params)
 	if team_mode then
 		resolve_team_pending()
 	elseif two_player then
-		resolve_pending_death()
+		-- A failure is settled by the failRound / failTimer that follows it, once
+		-- the life it costs is counted: whether the survivor wins or draws depends
+		-- on the lives they have left.
+		if beaten then
+			resolve_pending_death()
+		end
 	else
 		announce_eliminations()
 		settle_many_pending()
