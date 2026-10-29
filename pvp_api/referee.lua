@@ -69,6 +69,49 @@ local function broadcast(key, params)
 	end
 end
 
+-- pvp_win is the only message that ends a client's run, and a client that misses
+-- it is stranded on a finished match. So the host sends it again after these
+-- delays (seconds); clients ignore a repeat (see the pvp_win handler in
+-- actions/outcomes.lua). A new match (referee_reset) cancels any pending repeat.
+local OUTCOME_RESENDS = { 3, 8 }
+
+local function declare_outcome(params)
+	PVP.REF.last_outcome = params
+	sendDebugMessage(
+		"[pvp] referee declares pvp_win winner="
+			.. tostring(params.winner_id or params.winner_team_id or (params.draw and "draw")),
+		"MULTIPLAYER"
+	)
+	broadcast("pvp_win", params)
+	if not (G and G.E_MANAGER) then
+		return
+	end
+	for _, delay in ipairs(OUTCOME_RESENDS) do
+		G.E_MANAGER:add_event(Event({
+			trigger = "after",
+			delay = delay,
+			timer = "REAL",
+			blocking = false,
+			blockable = false,
+			func = function()
+				if PVP.REF.last_outcome == params and is_host() then
+					broadcast("pvp_win", params)
+				end
+				return true
+			end,
+		}))
+	end
+end
+
+-- A client that saw a player reach 0 lives and heard no result asks for it again.
+function PVP.referee_on_result_request(from)
+	if not is_host() or not PVP.REF.last_outcome then
+		return
+	end
+	sendDebugMessage("[pvp] resending pvp_win on request from " .. tostring(from), "MULTIPLAYER")
+	broadcast("pvp_win", PVP.REF.last_outcome)
+end
+
 local function ref_player(id)
 	PVP.REF.players[id] = PVP.REF.players[id]
 		or {
@@ -198,11 +241,11 @@ local function check_alive_win()
 		return true
 	end
 	if #alive == 0 then
-		broadcast("pvp_win", { draw = true })
+		declare_outcome({ draw = true })
 		return true
 	end
 	if #alive == 1 then
-		broadcast("pvp_win", { winner_id = alive[1] })
+		declare_outcome({ winner_id = alive[1] })
 		return true
 	end
 	announce_eliminations()
@@ -229,7 +272,7 @@ local function check_team_win()
 		for _, id in ipairs(both_players()) do
 			local pl = ref_player(id)
 			if pl.team_id == "RUNNER" and pl.lives <= 0 then
-				broadcast("pvp_win", { winner_id = "", winner_team_id = "HUNTER" })
+				declare_outcome({ winner_id = "", winner_team_id = "HUNTER" })
 				return true
 			end
 			if pl.team_id == "HUNTER" and pl.lives > 0 then
@@ -237,7 +280,7 @@ local function check_team_win()
 			end
 		end
 		if not any_hunter_alive then
-			broadcast("pvp_win", { winner_id = "", winner_team_id = "RUNNER" })
+			declare_outcome({ winner_id = "", winner_team_id = "RUNNER" })
 			return true
 		end
 		announce_eliminations()
@@ -245,11 +288,11 @@ local function check_team_win()
 	end
 	if PVP.LOBBY.config.team_based then
 		if (PVP.REF.team_lives.A or 1) <= 0 then
-			broadcast("pvp_win", { winner_id = "", winner_team_id = "B" })
+			declare_outcome({ winner_id = "", winner_team_id = "B" })
 			return true
 		end
 		if (PVP.REF.team_lives.B or 1) <= 0 then
-			broadcast("pvp_win", { winner_id = "", winner_team_id = "A" })
+			declare_outcome({ winner_id = "", winner_team_id = "A" })
 			return true
 		end
 		return false
@@ -304,9 +347,9 @@ local function resolve_pending_death()
 	end
 	PVP.REF.pending_death = nil
 	if outcome == PVP.PendingDeath.Outcome.DRAW then
-		broadcast("pvp_win", { draw = true })
+		declare_outcome({ draw = true })
 	else
-		broadcast("pvp_win", { winner_id = winner_id })
+		declare_outcome({ winner_id = winner_id })
 	end
 	return true
 end
@@ -394,9 +437,9 @@ function resolve_team_pending()
 	end
 	PVP.REF.team_pending = nil
 	if outcome == PVP.PendingDeath.Outcome.DRAW then
-		broadcast("pvp_win", { draw = true })
+		declare_outcome({ draw = true })
 	else
-		broadcast("pvp_win", { winner_id = "", winner_team_id = other_team_id(pending.team_id) })
+		declare_outcome({ winner_id = "", winner_team_id = other_team_id(pending.team_id) })
 	end
 	return true
 end
@@ -476,7 +519,7 @@ function settle_many_pending()
 		end
 	end
 	PVP.REF.many_result_sent = true
-	broadcast("pvp_win", { places = places, winner_id = first == 1 and winner_id or nil, draw = first ~= 1 or nil })
+	declare_outcome({ places = places, winner_id = first == 1 and winner_id or nil, draw = first ~= 1 or nil })
 	return true
 end
 
@@ -752,6 +795,7 @@ function PVP.referee_reset(starting_lives)
 		return
 	end
 	PVP.REF.players = {}
+	PVP.REF.last_outcome = nil
 	PVP.REF.first_ready_at = nil
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:reset()
@@ -1301,7 +1345,7 @@ local function try_resolve_round()
 				local game_winner = (a.lives > b.lives) and a or b
 				winner.first_ready = false
 				loser.first_ready = false
-				broadcast("pvp_win", { winner_id = game_winner.id })
+				declare_outcome({ winner_id = game_winner.id })
 				return
 			end
 		end
@@ -1424,7 +1468,7 @@ function PVP.referee_on_set_ante(from, params)
 	if PVP.LOBBY.config.manhunt and pl.team_id == "RUNNER" then
 		local ante = tonumber(params.ante)
 		if ante and ante > 8 then
-			broadcast("pvp_win", { winner_id = "", winner_team_id = "RUNNER" })
+			declare_outcome({ winner_id = "", winner_team_id = "RUNNER" })
 			return
 		end
 	end
@@ -1705,7 +1749,7 @@ function PVP.referee_manhunt_on_forfeit(player_id)
 		return nil
 	end
 	if pl.team_id == "RUNNER" then
-		broadcast("pvp_win", { winner_id = "", winner_team_id = "HUNTER" })
+		declare_outcome({ winner_id = "", winner_team_id = "HUNTER" })
 		return "HUNTER"
 	end
 	if pl.team_id ~= "HUNTER" then
@@ -1746,7 +1790,7 @@ function PVP.referee_teams_on_forfeit(player_id)
 		end
 	end
 	local winner = (team == "A") and "B" or "A"
-	broadcast("pvp_win", { winner_id = "", winner_team_id = winner })
+	declare_outcome({ winner_id = "", winner_team_id = winner })
 	return winner
 end
 
