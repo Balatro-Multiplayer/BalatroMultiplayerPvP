@@ -174,8 +174,8 @@ local function ref_player(id)
 	PVP.REF.players[id] = PVP.REF.players[id]
 		or {
 			id = id,
-			score = PVP.INSANE_INT.empty(),
-			highest_score = PVP.INSANE_INT.empty(),
+			score = PVP.Score.ZERO,
+			highest_score = PVP.Score.ZERO,
 			hands_left = 4,
 			lives = PVP.LOBBY.config.starting_lives or 4,
 			skips = 0,
@@ -755,27 +755,25 @@ local function broadcast_team_card_target()
 	broadcast("pvp_team_card_target", { pairing = payload })
 end
 
--- Best PvP score for a player (host referee state), as a plausibility-bounded number
--- for the matchmaking `metric` (season-best score column). Host-only.
-function PVP.pvp_score_metric(player_id)
+-- Best PvP score for a player (host referee state) as score text, for the
+-- matchmaking `metricText` (season-best score column). Host-only.
+function PVP.pvp_score_text(player_id)
 	local pl = PVP.REF and PVP.REF.players and PVP.REF.players[player_id]
-	if not pl or not pl.score then
-		return 0
+	if not pl then
+		return PVP.Score.ZERO
 	end
-	-- Numeric, not via INSANE_INT.to_string: that is a display string with
-	-- thousands separators ("2,832"), which tonumber rejects, so every score of
-	-- 1,000+ was reported as 0. Capped at the server's score bound (1e15,
-	-- nakama/src/rating/metrics.ts), above which it drops the value entirely.
-	local s = pl.highest_score or pl.score
+	return PVP.Score.or_zero(pl.highest_score or pl.score)
+end
+
+-- The best score as a plain number (`metric`) for the report's shape: a whole
+-- number up to 1e15, else 1e15. A score board reads the score text, not this.
+function PVP.pvp_score_metric(player_id)
+	local text = PVP.pvp_score_text(player_id)
 	local cap = 1e15
-	if (tonumber(s.e_count) or 0) > 0 then
+	if text:find(",", 1, true) then
 		return cap
 	end
-	local v = (tonumber(s.coeffiocient) or 0) * 10 ^ (tonumber(s.exponent) or 0)
-	if v ~= v or v < 0 then
-		return 0
-	end
-	return math.min(math.floor(v), cap)
+	return math.min(tonumber(text) or 0, cap)
 end
 
 -- Reset all referee state at game start and stamp starting lives (option override
@@ -879,7 +877,7 @@ function PVP.referee_reset(starting_lives)
 	for _, id in ipairs(total) do
 		local pl = ref_player(id)
 		pl.lives = lives
-		pl.score = PVP.INSANE_INT.empty()
+		pl.score = PVP.Score.ZERO
 		pl.hands_left = 4
 		pl.played_this_blind = false
 		pl.is_ready = false
@@ -1041,7 +1039,7 @@ function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 			PVP.REF.ready_tracker:reset()
 			for _, id in ipairs(alive) do
 				local pl = ref_player(id)
-				pl.score = PVP.INSANE_INT.empty()
+				pl.score = PVP.Score.ZERO
 				pl.hands_left = 4
 				pl.played_this_blind = false
 			end
@@ -1066,8 +1064,8 @@ function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 	if enemy and me.is_ready and enemy.is_ready then
 		me.is_ready = false
 		enemy.is_ready = false
-		me.score = PVP.INSANE_INT.empty()
-		enemy.score = PVP.INSANE_INT.empty()
+		me.score = PVP.Score.ZERO
+		enemy.score = PVP.Score.ZERO
 		me.hands_left = 4
 		enemy.hands_left = 4
 		me.played_this_blind = false
@@ -1101,9 +1099,9 @@ end
 -- ClaudeControl/suites/pvp/referee.lua, which verified this tie-break
 -- direction live against the actual expression below).
 function PVP.referee_resolve_2p_round(a, b)
-	local a_lt_b = PVP.INSANE_INT.greater_than(b.score, a.score) -- a.score < b.score
-	local b_lt_a = PVP.INSANE_INT.greater_than(a.score, b.score)
-	local equal = PVP.INSANE_INT.equal(a.score, b.score)
+	local a_lt_b = PVP.Score.greater(b.score, a.score) -- a.score < b.score
+	local b_lt_a = PVP.Score.greater(a.score, b.score)
+	local equal = PVP.Score.equal(a.score, b.score)
 
 	local trigger = (a.hands_left < 1 and a_lt_b)
 		or (b.hands_left < 1 and b_lt_a)
@@ -1128,12 +1126,12 @@ end
 -- caught) UNLESS the Runner scored exactly 0, in which case a tied (0-0) Hunter is
 -- not penalized.
 function PVP.referee_resolve_manhunt_round(runner, hunters)
-	local highest_hunter_score = PVP.INSANE_INT.empty()
+	local highest_hunter_score = PVP.Score.ZERO
 	-- Defaults to the first hunter (not nil) so an all-0-0 tie still shows someone
 	-- on the Runner's live target board rather than "no target yet".
 	local highest_hunter_id = hunters[1] and hunters[1].id or nil
 	for _, h in ipairs(hunters) do
-		if PVP.INSANE_INT.greater_than(h.score, highest_hunter_score) then
+		if PVP.Score.greater(h.score, highest_hunter_score) then
 			highest_hunter_score = h.score
 			highest_hunter_id = h.id
 		end
@@ -1141,9 +1139,9 @@ function PVP.referee_resolve_manhunt_round(runner, hunters)
 
 	local hunter_losers = {}
 	for _, h in ipairs(hunters) do
-		local hunter_behind = PVP.INSANE_INT.greater_than(runner.score, h.score)
-		local tied = PVP.INSANE_INT.equal(h.score, runner.score)
-		local runner_scored = not PVP.INSANE_INT.equal(runner.score, PVP.INSANE_INT.empty())
+		local hunter_behind = PVP.Score.greater(runner.score, h.score)
+		local tied = PVP.Score.equal(h.score, runner.score)
+		local runner_scored = not PVP.Score.equal(runner.score, PVP.Score.ZERO)
 		if hunter_behind or (tied and runner_scored) then
 			hunter_losers[#hunter_losers + 1] = h
 		end
@@ -1151,7 +1149,7 @@ function PVP.referee_resolve_manhunt_round(runner, hunters)
 
 	return {
 		hunter_losers = hunter_losers,
-		runner_caught = PVP.INSANE_INT.greater_than(highest_hunter_score, runner.score),
+		runner_caught = PVP.Score.greater(highest_hunter_score, runner.score),
 		-- The Runner's live HUD target -- whichever Hunter currently holds the
 		-- highest score (first-in-iteration-order tiebreak on exact ties). nil only
 		-- if `hunters` is empty (shouldn't happen with a live match, but a fabricated
@@ -1164,21 +1162,19 @@ end
 -- (PVP.referee_resolve_teams_round below) and the live pvp_team_score_board
 -- broadcast (broadcast_live_targets), so the summing rule can't drift between them.
 local function sum_team_scores(team_players)
-	local sum = PVP.INSANE_INT.empty()
-	for _, pl in ipairs(team_players) do
-		sum = PVP.INSANE_INT.add(sum, pl.score)
-	end
-	return sum
+	local scores = {}
+	for i, pl in ipairs(team_players) do scores[i] = PVP.Score.or_zero(pl.score) end
+	return PVP.Score.sum(scores)
 end
 
 -- Pure: sums each team's scores this round and returns the losing team ("A"/"B"),
 -- or equal=true on an exact tie (mirrors the 1v1/Royale "nobody loses on a tie" rule).
 function PVP.referee_resolve_teams_round(team_a, team_b)
 	local sum_a, sum_b = sum_team_scores(team_a), sum_team_scores(team_b)
-	if PVP.INSANE_INT.equal(sum_a, sum_b) then
+	if PVP.Score.equal(sum_a, sum_b) then
 		return { equal = true }
 	end
-	return { equal = false, loser_team = PVP.INSANE_INT.greater_than(sum_b, sum_a) and "A" or "B" }
+	return { equal = false, loser_team = PVP.Score.greater(sum_b, sum_a) and "A" or "B" }
 end
 
 -- Pure: ranks alive players by score ascending and returns the same "bottom
@@ -1194,7 +1190,7 @@ function PVP.referee_rank_royale(players)
 		ranked[#ranked + 1] = pl
 	end
 	table.sort(ranked, function(x, y)
-		return PVP.INSANE_INT.greater_than(y.score, x.score)
+		return PVP.Score.greater(y.score, x.score)
 	end)
 
 	local cutoff_idx = math.max(1, math.floor(#ranked / 2))
@@ -1204,9 +1200,9 @@ function PVP.referee_rank_royale(players)
 	-- letting a lone low scorer escape just because the others tied above it.
 	-- Then the cut sits just under the top score: everyone strictly below it loses.
 	local top_score = ranked[#ranked].score
-	if not PVP.INSANE_INT.greater_than(top_score, cutoff_score) then
+	if not PVP.Score.greater(top_score, cutoff_score) then
 		for i = #ranked, 1, -1 do
-			if PVP.INSANE_INT.greater_than(top_score, ranked[i].score) then
+			if PVP.Score.greater(top_score, ranked[i].score) then
 				cutoff_idx, cutoff_score = i, ranked[i].score
 				break
 			end
@@ -1214,7 +1210,7 @@ function PVP.referee_rank_royale(players)
 	end
 	local losers, is_loser = {}, {}
 	for _, pl in ipairs(ranked) do
-		if not PVP.INSANE_INT.greater_than(pl.score, cutoff_score) then
+		if not PVP.Score.greater(pl.score, cutoff_score) then
 			losers[#losers + 1] = pl
 			is_loser[pl.id] = true
 		end
@@ -1348,8 +1344,8 @@ function broadcast_live_targets()
 		end
 		broadcast("pvp_team_score_board", {
 			team_scores = {
-				A = PVP.INSANE_INT.to_string(sum_team_scores(by_team.A)),
-				B = PVP.INSANE_INT.to_string(sum_team_scores(by_team.B)),
+				A = sum_team_scores(by_team.A),
+				B = sum_team_scores(by_team.B),
 			},
 		})
 	else
@@ -1363,7 +1359,7 @@ end
 
 -- The score-comparison round resolution (playHand path). Called after a player's
 -- score/hands are updated. Ends the round when the trailing player is out of hands
--- or both are, decided by InsaneInt score with exact-equality = draw.
+-- or both are, decided by PVP.Score score with exact-equality = draw.
 --
 -- Branches on total lobby size (both_players()), not alive count: a lobby that
 -- started at 2 always uses the pairwise rule below, untouched. A lobby that
@@ -1454,8 +1450,8 @@ local function try_resolve_round()
 			local idb = PVP.REF.nemesis_of[ida]
 			if idb and not seen[ida] and not seen[idb] and ref_player(idb).lives > 0 then
 				local a, b = ref_player(ida), ref_player(idb)
-				if not PVP.INSANE_INT.equal(a.score, b.score) then
-					local loser = PVP.INSANE_INT.greater_than(b.score, a.score) and a or b
+				if not PVP.Score.equal(a.score, b.score) then
+					local loser = PVP.Score.greater(b.score, a.score) and a or b
 					lose_life(loser)
 				end
 				seen[ida] = true
@@ -1527,7 +1523,7 @@ function PVP.referee_on_play_hand(from, params)
 	end
 	local known = PVP.REF.players[from] ~= nil
 	local pl = ref_player(from)
-	pl.score = PVP.INSANE_INT.from_string(tostring(params.score or "0"))
+	pl.score = PVP.Score.or_zero(params.score)
 	pl.hands_left = math.floor(tonumber(params.handsLeft) or pl.hands_left)
 	if params.skips then
 		pl.skips = tonumber(params.skips) or pl.skips
@@ -1539,10 +1535,10 @@ function PVP.referee_on_play_hand(from, params)
 	if params.lives and not known then
 		pl.lives = tonumber(params.lives) or pl.lives
 	end
-	if PVP.INSANE_INT.greater_than(pl.score, PVP.INSANE_INT.empty()) then
+	if PVP.Score.greater(pl.score, PVP.Score.ZERO) then
 		pl.played_this_blind = true
 	end
-	if PVP.INSANE_INT.greater_than(pl.score, pl.highest_score) then
+	if PVP.Score.greater(pl.score, pl.highest_score) then
 		pl.highest_score = pl.score
 	end
 	broadcast_live_targets()
@@ -1914,7 +1910,7 @@ end
 --
 -- The host stays the rules engine; the server only stores. Moving the rules
 -- themselves into the server (it is mod-agnostic, and the rules are
--- PvP's, with five modes and the InsaneInt scores) is the larger change this
+-- PvP's, with five modes and the PVP.Score scores) is the larger change this
 -- leaves open.
 
 local CHECKPOINT_KEY = "_pvp_ref"
@@ -1932,16 +1928,12 @@ local function run_tag()
 	return seed and ("seed:" .. tostring(seed)) or nil
 end
 
-local function int_out(v)
-	v = v or PVP.INSANE_INT.empty()
-	return { v.coeffiocient or 0, v.exponent or 0, v.e_count or 0 }
+local function score_out(v)
+	return PVP.Score.or_zero(v)
 end
 
-local function int_in(v)
-	if type(v) ~= "table" then
-		return PVP.INSANE_INT.empty()
-	end
-	return PVP.INSANE_INT.create(v[1], v[2], v[3])
+local function score_in(v)
+	return PVP.Score.or_zero(v)
 end
 
 -- Booleans as 0/1 and nil-able fields left out: the snapshot crosses JSON.
@@ -1953,8 +1945,8 @@ local function snapshot()
 	local players = {}
 	for id, pl in pairs(PVP.REF.players) do
 		players[id] = {
-			score = int_out(pl.score),
-			highest = int_out(pl.highest_score),
+			score = score_out(pl.score),
+			highest = score_out(pl.highest_score),
 			hands = pl.hands_left,
 			lives = pl.lives,
 			skips = pl.skips,
@@ -1998,8 +1990,8 @@ local function restore(snap)
 	for id, s in pairs(snap.players or {}) do
 		PVP.REF.players[id] = {
 			id = id,
-			score = int_in(s.score),
-			highest_score = int_in(s.highest),
+			score = score_in(s.score),
+			highest_score = score_in(s.highest),
 			hands_left = tonumber(s.hands) or 4,
 			lives = tonumber(s.lives) or (PVP.LOBBY.config.starting_lives or 4),
 			skips = tonumber(s.skips) or 0,

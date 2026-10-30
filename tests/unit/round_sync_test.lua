@@ -125,7 +125,8 @@ local function setup(mode, count, lives, legacy)
 			}
 		end,
 	}
-	dofile("lib/insane_int.lua")
+	dofile((os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/") .. "lib/big_score.lua")
+	dofile("lib/score.lua")
 	dofile("lib/pending_death.lua")
 	dofile("pvp_api/server_hold.lua")
 	dofile("pvp_api/referee.lua")
@@ -205,7 +206,7 @@ test("reordered reports cannot roll score/hands back", function()
 	setup("pair")
 	report("a", 2, 200, 2)
 	report("a", 1, 100, 3)
-	equal(PVP.REF.players.a.score.coeffiocient, 200)
+	equal(PVP.Score.display(PVP.REF.players.a.score), PVP.Score.display("200"))
 	equal(PVP.REF.players.a.hands_left, 2)
 	equal(last("pvp_round_state").revisions.a, 2)
 end)
