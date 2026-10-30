@@ -12,55 +12,12 @@
 -- mechanism SPDRN's practice/create_lobby/find_game intents already use -- not a separate
 -- widget/mechanism of its own.
 --
--- WIP: chip art is a single placeholder frame reused across every pillar (no per-mode art
--- exists yet). Every pillar routes straight to the existing mp_pvp_queue_ranked_*/
+-- Chip art and colours per pillar come from ui/main_menu/_mode_chips.lua. Every pillar routes
+-- straight to the existing mp_pvp_queue_ranked_*/
 -- mp_pvp_queue_casual_* handlers (pvp_api/queue.lua), unchanged.
 
---Registering an atlas and the row index for the chips, similar to the one done 
---in the SPDRN's page (BalatroMultiplayerSpeed/ui/main_menu/game_select.lua).
-SMODS.Atlas({
-	key = 'game_mode_chips',
-	path = 'game_mode_chips.png',
-	atlas_table = 'ANIMATION_ATLAS',
-	frames = 21,
-	px = 34,
-	py = 34,
-})
-
-local CHIP_ROW = {
-	expanded = 0,
-	balanced = 1,
-	vanilla = 2,
-	mlba = 3,
-	smallworld = 4,
-	nemesis = 5,
-	royale = 6,
-	teams = 7,
-	manhunt = 8,
-	speedlatro = 9,
-	party = 10
-}
-
--- The name plate's color is similar to the one in SPDRN,
--- however, only one color is used and darkened accordingly.
-local MODE_COLOUR = {
-	expanded = 'B95C96',
-	balanced = 'B95B08',
-	vanilla = '439A4F',
-	mlba = '4B71E4',
-	smallworld = '45967F',
-	nemesis = 'B52D2D',
-	royale = 'DFCA81',
-	teams = 'A84024',
-	manhunt = 'B52D2D',
-	speedlatro = '575757',
-	party = 'EFC03C'
-}
-
--- Teams currently does not have any blind art, so it uses the placeholder nemesis blind and color.
--- Once there is art to the mode, remove the following 2 lines.
-CHIP_ROW.teams = CHIP_ROW.nemesis
-MODE_COLOUR.teams = MODE_COLOUR.nemesis
+local CHIP_ROW = PVP.MODE_CHIP_ROW
+local MODE_COLOUR = PVP.MODE_COLOUR
 
 -- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
 -- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
@@ -81,19 +38,19 @@ MODE_COLOUR.teams = MODE_COLOUR.nemesis
 local RANKED_MODES = {
 	{ key = "pvp_ranked_vanilla",
 		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RulesetKey.VANILLA, colour =  HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
+		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RulesetKey.VANILLA, colour = HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
 	{ key = "pvp_ranked_balanced",
 		desc = { "Minor balance", "changes for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RulesetKey.BALANCED, colour =  HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
+		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RulesetKey.BALANCED, colour = HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
 	{ key = "pvp_ranked_expanded",
 		desc = { "Standardized and", "balanced for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RulesetKey.EXPANDED, colour =  HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
+		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RulesetKey.EXPANDED, colour = HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
 	{ key = "pvp_ranked_majorleague", short_name = "MLBa",
 		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour =  HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
+		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
 	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour =  HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -109,30 +66,17 @@ local RANKED_MODES = {
 local CASUAL_MODES = {
 	{ key = "pvp_nemesis", name = "Nemesis",
 		desc = { "One Nemesis,", "head to head" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_nemesis", gamemode_key = "pvp_nemesis", colour =  HEX(MODE_COLOUR.nemesis), chip_row = CHIP_ROW.nemesis },
+		queue_button = "mp_pvp_queue_casual_nemesis", gamemode_key = "pvp_nemesis", colour = HEX(MODE_COLOUR.nemesis), chip_row = CHIP_ROW.nemesis },
 	{ key = "pvp_royale", name = { "Battle", "Royale" },
 		desc = { "Free for all;", "bottom half lose" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_royale", gamemode_key = "pvp_royale", colour =  HEX(MODE_COLOUR.royale), chip_row = CHIP_ROW.royale },
+		queue_button = "mp_pvp_queue_casual_royale", gamemode_key = "pvp_royale", colour = HEX(MODE_COLOUR.royale), chip_row = CHIP_ROW.royale },
 	{ key = "pvp_teams", name = "Teams",
 		desc = { "Team vs team;", "best score wins" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour =  HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
+		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour = HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
 	{ key = "pvp_smallworld_casual", display_ruleset = PVP.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour =  HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 }
-
--- Plain Sprite, not AnimatedSprite -- see SPDRN's game_select.lua build_chip_sprite for why
--- (AnimatedSprite free-runs its column animation; this icon is meant to sit static).
-local function build_chip_sprite(row)
-	return Sprite(0, 0, 1.1, 1.1, G.ANIMATION_ATLAS["mp_game_mode_chips"], { x = 0, y = row })
-end
-
--- A ruleset's art, shared by the Ranked pillars and the Ruleset vote's tiles
--- (pvp_api/setup.lua) so both change together when per-ruleset art exists.
-function PVP.ruleset_chip_sprite(_ruleset_key, row, size)
-	size = size or 1.1
-	return Sprite(0, 0, size, size, G.ANIMATION_ATLAS["mp_game_mode_chips"], { x = 0, y = row })
-end
 
 -- Every currently-built pillar's SELECT button, keyed by mode.key -- reset at the start of each
 -- build_items call (a fresh page build, e.g. a Ranked<->Casual tab switch) and refreshed live by
@@ -369,7 +313,7 @@ local function build_items(modes, group)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key, mode.chip_row) or build_chip_sprite(mode.chip_row),
+			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or PVP.mode_chip_sprite(mode.chip_row),
 			select = group and build_group_select(mode) or build_select(mode),
 			name_plate = MPAPI.ui_pillar_name_plate({
 				lines = pillar_name(mode),

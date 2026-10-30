@@ -6,59 +6,19 @@
 -- handlers in ui/pvp_main_menu.lua, unchanged.
 
 
--- Atlas, row index and color index for each gamemode. I made it identical as the one in Find Game.
-SMODS.Atlas({
-	key = 'game_mode_chips',
-	path = 'game_mode_chips.png',
-	atlas_table = 'ANIMATION_ATLAS',
-	frames = 21,
-	px = 34,
-	py = 34,
-})
-
-local CHIP_ROW = {
-	expanded = 0,
-	balanced = 1,
-	vanilla = 2,
-	mlba = 3,
-	smallworld = 4,
-	nemesis = 5,
-	royale = 6,
-	teams = 7,
-	manhunt = 8,
-	speedlatro = 9,
-	party = 10
-}
-
-local MODE_COLOUR = {
-	expanded = 'B95C96',
-	balanced = 'B95B08',
-	vanilla = '439A4F',
-	mlba = '4B71E4',
-	smallworld = '45967F',
-	nemesis = 'B52D2D',
-	royale = 'DFCA81',
-	teams = 'A84024',
-	manhunt = 'B52D2D',
-	speedlatro = '575757',
-	party = 'EFC03C'
-}
-
--- Teams currently does not have any blind art, so it uses the placeholder nemesis blind and color.
--- Once there is art to the mode, remove the following 2 lines.
-CHIP_ROW.teams = CHIP_ROW.nemesis
-MODE_COLOUR.teams = MODE_COLOUR.nemesis
+local CHIP_ROW = PVP.MODE_CHIP_ROW
+local MODE_COLOUR = PVP.MODE_COLOUR
 
 -- Practice: one pillar per ruleset; key is the ruleset key and the name is its display name.
 local PRACTICE_MODES = {
 	{ key = PVP.RulesetKey.BALANCED,
 		desc = { "Minor balance", "changes for MP" }, button = "mp_pvp_practice_balanced", colour = HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
 	{ key = PVP.RulesetKey.EXPANDED,
-		desc = { "Standardized and", "balanced for MP" }, button = "mp_pvp_practice_expanded", colour =  HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
+		desc = { "Standardized and", "balanced for MP" }, button = "mp_pvp_practice_expanded", colour = HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
 	{ key = PVP.RulesetKey.VANILLA,
-		desc = { "Normal Balatro", "with PvP blinds" }, button = "mp_pvp_practice_vanilla", colour =  HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
+		desc = { "Normal Balatro", "with PvP blinds" }, button = "mp_pvp_practice_vanilla", colour = HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
 	{ key = PVP.RulesetKey.SMALLWORLD,
-		desc = { "75% of cards are", "banned at random" }, button = "mp_pvp_practice_smallworld", colour =  HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+		desc = { "75% of cards are", "banned at random" }, button = "mp_pvp_practice_smallworld", colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 }
 
 -- key is the gamemode key PVP.pvp_create_private_lobby takes (pvp_api/flow.lua). The Party
@@ -67,21 +27,16 @@ local PRACTICE_MODES = {
 local function lobby_modes()
 	return {
 		{ key = "pvp_nemesis", name = "Nemesis",
-			desc = { "Face a different", "Nemesis every ante" }, button = "mp_pvp_create_lobby_nemesis", colour =  HEX(MODE_COLOUR.nemesis), chip_row = CHIP_ROW.nemesis },
+			desc = { "Face a different", "Nemesis every ante" }, button = "mp_pvp_create_lobby_nemesis", colour = HEX(MODE_COLOUR.nemesis), chip_row = CHIP_ROW.nemesis },
 		{ key = "pvp_royale", name = { "Battle", "Royale" },
-			desc = { "Free for all;", "bottom half lose" }, button = "mp_pvp_create_lobby_royale", colour =  HEX(MODE_COLOUR.royale), chip_row = CHIP_ROW.royale },
+			desc = { "Free for all;", "bottom half lose" }, button = "mp_pvp_create_lobby_royale", colour = HEX(MODE_COLOUR.royale), chip_row = CHIP_ROW.royale },
 		{ key = "pvp_manhunt", name = "Manhunt",
-			desc = { "Hunters team up", "to stop a Runner" }, button = "mp_pvp_create_lobby_manhunt", colour =  HEX(MODE_COLOUR.manhunt), chip_row = CHIP_ROW.manhunt },
+			desc = { "Hunters team up", "to stop a Runner" }, button = "mp_pvp_create_lobby_manhunt", colour = HEX(MODE_COLOUR.manhunt), chip_row = CHIP_ROW.manhunt },
 		{ key = "pvp_teams", name = "Teams",
-			desc = { "Team vs team;", "best score wins" }, button = "mp_pvp_create_lobby_teams", colour =  HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
+			desc = { "Team vs team;", "best score wins" }, button = "mp_pvp_create_lobby_teams", colour = HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
 		{ key = PVP.LobbyAccess.PARTY, name_key = "k_party",
-			desc_keys = { "k_party_desc_1", "k_party_desc_2" }, button = "mp_pvp_create_lobby_party", colour =  HEX(MODE_COLOUR.party), chip_row = CHIP_ROW.party },
+			desc_keys = { "k_party_desc_1", "k_party_desc_2" }, button = "mp_pvp_create_lobby_party", colour = HEX(MODE_COLOUR.party), chip_row = CHIP_ROW.party },
 	}
-end
-
--- Plain Sprite, not a placeholder chip anymore.
-local function build_chip_sprite(row)
-	return Sprite(0, 0, 1.1, 1.1, G.ANIMATION_ATLAS["mp_game_mode_chips"], { x = 0, y = row })
 end
 
 local function stat_box_for(mode, intent)
@@ -122,7 +77,7 @@ local function build_items(intent)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = build_chip_sprite(mode.chip_row),
+			icon = PVP.mode_chip_sprite(mode.chip_row),
 			select = MPAPI.ui_pillar_select_button({
 				label = intent == "create_lobby" and "CREATE" or "START",
 				button = mode.button,
