@@ -4,7 +4,7 @@ SMODS.Back({
 	atlas = "mp_decks",
 	pos = { x = 4, y = 0 },
 	mod_whitelist = {
-		Multiplayer = true,
+		[PVP.id] = true,
 		Cryptid = true,
 		aikoyorisshenanigans = true,
 		allinjest = true,
@@ -46,8 +46,8 @@ SMODS.Back({
 		for i = 1, #forced do
 			add_deck(i, forced[i], true)
 		end
-		for i = 1 + #forced, math.min(3, #decks) do
-			add_deck(i, decks[i], PVP.cocktail_cfg_readpos("show", true) ~= "H" and true or false)
+		for i = 1, math.min(3 - #forced, #decks) do
+			add_deck(#forced + i, decks[i], PVP.cocktail_cfg_readpos("show", true) ~= "H" and true or false)
 		end
 		local function merge(t1, t2, safe)
 			local t3 = {}
@@ -576,16 +576,18 @@ function PVP.cocktail_cfg_edit(bool, deck) -- strings are easier to send, and it
 end
 
 function PVP.cocktail_cfg_readpos(pos, construct)
-	local decks = PVP.get_cocktail_decks() -- copypasted code. unsure how to make this less messy without making it more messy
-	local cfg = PVP.config
-	if pos == "show" then pos = #cfg.cocktail end
-	if construct then return PVP.cocktail_cfg_get():sub(pos, pos) end
-	return cfg.cocktail:sub(pos, pos)
+	local cfg = construct and PVP.cocktail_cfg_get() or PVP.config.cocktail
+	if pos == "show" then pos = #cfg end
+	return cfg:sub(pos, pos)
 end
 
 function PVP.cocktail_cfg_get()
 	if PVP.LOBBY.code and PVP.LOBBY.deck and PVP.LOBBY.deck.cocktail then
-		return PVP.LOBBY.deck.cocktail
+		local cfg = PVP.LOBBY.deck.cocktail
+		-- Matchmaking has no custom selection. Use the same default pool on
+		-- every client, not each player's saved single-player preferences.
+		if cfg == "" then return string.rep("1", #PVP.get_cocktail_decks()) .. "H" end
+		return cfg
 	else
 		return PVP.config.cocktail
 	end

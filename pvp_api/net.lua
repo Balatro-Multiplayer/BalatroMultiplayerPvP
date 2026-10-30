@@ -79,7 +79,7 @@ local ROUTES = {
 		broadcast("pvp_stop_game", {})
 	end,
 	readyBlind = function(msg)
-		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands })
+		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands, round_protocol = 1 })
 	end,
 	unreadyBlind = function(_msg)
 		broadcast("pvp_unready_blind", {})
@@ -100,7 +100,10 @@ local ROUTES = {
 		broadcast("pvp_location", { location = msg.location })
 	end,
 	playHand = function(msg)
-		broadcast("pvp_play_hand", { score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() }) -- referee (host-authoritative)
+		local report = { score = msg.score, handsLeft = msg.handsLeft, skips = my_skips(), lives = my_lives() }
+		if not PVP.commit_round_report(report) then
+			broadcast("pvp_play_hand", report)
+		end
 		-- Score-bearing RLOG event: this is the only point in the codebase
 		-- where "my own score after playing" is already computed for the
 		-- legacy broadcast, so it doubles as the carbon-log source for this

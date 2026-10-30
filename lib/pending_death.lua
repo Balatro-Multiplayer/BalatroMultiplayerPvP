@@ -1,10 +1,11 @@
 -- Pure rules for a pending death in a match of 2 players or more.
 --
 -- A player who loses their last life on a non-PvP blind X does not end the
--- match at once. The opponent must get past the same blind X. Beating it, or
--- failing it and keeping a life, wins the match for the opponent. Losing their
--- last life to it too is a draw. Leaving before getting past it makes the dead
--- player the winner. No game state, broadcasts or UI here: the
+-- match at once. The opponent must beat the same blind X. Beating it (or
+-- skipping it, which the client reports as beaten) wins the match for the
+-- opponent. Failing it wins for the opponent too if they still have lives
+-- left, and is a draw if it cost their last one. Leaving before beating it
+-- makes the dead player the winner. No game state, broadcasts or UI here: the
 -- referee (pvp_api/referee.lua) feeds this module and acts on the answer.
 
 PVP.PendingDeath = {
@@ -43,11 +44,12 @@ function PD.decide(pending, opponent_id, results, opponent)
 	if opponent.lives <= 0 then
 		return PD.Outcome.DRAW, nil
 	end
+	if result == PD.BlindResult.FAILED then
+		-- Failing the blind costs a life; one who still has lives left wins.
+		return PD.Outcome.WIN, opponent_id
+	end
 	if not opponent.present then
 		return PD.Outcome.WIN, pending.player_id
-	end
-	if result == PD.BlindResult.FAILED then
-		return PD.Outcome.WIN, opponent_id
 	end
 	return PD.Outcome.PENDING, nil
 end

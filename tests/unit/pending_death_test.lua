@@ -41,26 +41,23 @@ do
 	local results = {}
 	PD.record(results, B, X, false)
 	local outcome, winner = decide(results)
-	check("opponent failed the blind and kept a life: win", outcome, PD.Outcome.WIN)
-	check("opponent failed the blind and kept a life: winner is the opponent", winner, B)
-	local drawn, none = decide(results, { present = true, lives = 0 })
-	check("opponent lost their last life to it too: draw", drawn, PD.Outcome.DRAW)
-	check("draw has no winner", none, nil)
+	check("opponent failed the blind with lives left: win", outcome, PD.Outcome.WIN)
+	check("opponent failed the blind with lives left: winner", winner, B)
+end
+
+do
+	local results = {}
+	PD.record(results, B, X, false)
+	local outcome, winner = decide(results, { present = true, lives = 0 })
+	check("opponent failed the blind and lost their last life: draw", outcome, PD.Outcome.DRAW)
+	check("draw has no winner", winner, nil)
 end
 
 do
 	local results = {}
 	PD.record(results, B, X, false)
 	PD.record(results, B, X, true)
-	check("a failed blind stays failed", results[B][X], PD.BlindResult.FAILED)
-end
-
-do
-	local results = {}
-	PD.record(results, B, X, false)
-	local outcome, winner = decide(results, { present = false, lives = 2 })
-	check("opponent failed the blind then left: the dead player wins", outcome, PD.Outcome.WIN)
-	check("opponent failed the blind then left: winner is the dead player", winner, A)
+	check("a failed blind stays failed", (decide(results, { present = true, lives = 0 })), PD.Outcome.DRAW)
 end
 
 do

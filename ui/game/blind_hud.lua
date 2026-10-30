@@ -13,6 +13,19 @@ local hud_opponent_name = setmetatable({}, {
     end,
 })
 
+-- The enemy-score label's text, read each frame through PVP.GAME.enemy.score_label.
+-- Royale tells the player what their shown target's score means: "Beat:" while they
+-- are in the losing half, "Leading:" while safe. Every other mode (and Royale before
+-- the host's first target broadcast) keeps the plain "Current Enemy score" label.
+function PVP.UI.refresh_enemy_score_label()
+	local safe = PVP.GAME.royale_target_safe
+	local key = "k_enemy_score"
+	if safe ~= nil and PVP.current_target_id() then
+		key = safe and "k_royale_leading" or "k_royale_beat"
+	end
+	PVP.GAME.enemy.score_label = localize(key)
+end
+
 function PVP.UI.update_blind_HUD(blind, reset, silent)
     if PVP.is_mp_or_practice() then
         -- Setup blind name display
@@ -49,7 +62,10 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
             -- Setup labels
             -- Casual balala UI experience right here
             local labels = G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2]
-            labels.children[1].children[1].config.text = localize("k_enemy_score")
+            PVP.UI.refresh_enemy_score_label()
+            labels.children[1].children[1].config.text = PVP.GAME.enemy.score_label
+            labels.children[1].children[1].config.ref_table = PVP.GAME.enemy
+            labels.children[1].children[1].config.ref_value = "score_label"
             labels.children[3].children[1].config.text = localize("k_enemy_hands")
             -- Setup enemy hands
             G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").parent.parent.states.visible = false
@@ -109,8 +125,11 @@ function PVP.UI.reset_blind_HUD()
         end
 		G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = G.GAME.blind
 		G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "chip_text"
-		G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1].config.text =
-			localize("ph_blind_score_at_least")
+		local score_label =
+			G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1]
+		score_label.config.ref_table = nil
+		score_label.config.ref_value = nil
+		score_label.config.text = localize("ph_blind_score_at_least")
 		G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[3].children[1].config.text =
 			localize("ph_blind_reward")
 		G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object.config.string =

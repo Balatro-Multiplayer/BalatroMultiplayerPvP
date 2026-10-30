@@ -1,3 +1,4 @@
+local A = PVP._pvp_action_helpers.A
 local A_host = PVP._pvp_action_helpers.A_host
 local self_id = PVP._pvp_action_helpers.self_id
 
@@ -12,6 +13,37 @@ A_host("pvp_end_pvp", function(_at, _from, params)
 	PVP.dispatch_action("endPvP", { lost = lost, pvpTimerLost = params.pvp_timer_lost and true or false })
 end)
 
+-- A client that saw a player drop to 0 lives and has heard no result after this
+-- long asks the host to send it again (the host also repeats it unasked).
+local RESULT_WAIT = 5
+
+local function watch_for_result()
+	if not (G and G.E_MANAGER) then
+		return
+	end
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = RESULT_WAIT,
+		timer = "REAL",
+		blocking = false,
+		blockable = false,
+		func = function()
+			local lobby = MPAPI.get_current_lobby()
+			if
+				lobby
+				and G.STAGE == G.STAGES.RUN
+				and not PVP.GAME.result_handled
+				and not PVP.GAME.eliminated
+				and G.STATE ~= G.STATES.GAME_OVER
+			then
+				sendDebugMessage("[pvp] no pvp_win after a player hit 0 lives; asking the host", "MULTIPLAYER")
+				lobby:action(MPAPI.ActionTypes["pvp_result_request"]):broadcast({})
+			end
+			return true
+		end,
+	}))
+end
+
 A_host("pvp_player_lives", function(_at, _from, params)
 	local sid = self_id()
 	local lives = tonumber(params.lives)
@@ -25,6 +57,10 @@ A_host("pvp_player_lives", function(_at, _from, params)
 		player_ids[#player_ids + 1] = p.id
 	end
 	PVP._player_lives_cache = PVP.lives_cache_after(PVP._player_lives_cache, params, player_ids)
+
+	if lives == 0 and params.player_id ~= "*all*" then
+		watch_for_result()
+	end
 
 	if params.player_id == "*all*" then
 		PVP.GAME.lives = lives
@@ -80,6 +116,7 @@ A_host("pvp_death_pending", function(_at, _from, params)
 		PVP.GAME.team_pending = { team_id = params.team_id, blind_key = params.blind_key }
 		local roster = PVP.LOBBY.roster
 		if not (roster and roster[self_id()] == params.team_id) then
+			PVP.UI.show_pending_death_notice()
 			return
 		end
 		PVP.GAME.pending_death = { player_id = self_id(), blind_key = params.blind_key }
@@ -92,6 +129,7 @@ A_host("pvp_death_pending", function(_at, _from, params)
 		PVP.GAME.pending_deaths = PVP.GAME.pending_deaths or {}
 		PVP.GAME.pending_deaths[params.player_id] = params.blind_key
 		if params.player_id ~= self_id() then
+			PVP.UI.show_pending_death_notice()
 			return
 		end
 	end
@@ -102,15 +140,31 @@ A_host("pvp_death_pending", function(_at, _from, params)
 	}
 	if params.player_id == self_id() then
 		PVP.UI.show_pending_death_screen()
+	else
+		PVP.UI.show_pending_death_notice()
 	end
 end)
 
+A("pvp_result_request", function(_at, from, _params)
+	PVP.referee_on_result_request(from)
+end)
+
 A_host("pvp_win", function(_at, _from, params)
+	-- The host repeats pvp_win, so this can arrive more than once, and late: act
+	-- on it once, and never outside a run (a player who already left the end
+	-- screen must not be dropped into win_game()).
+	if PVP.GAME.result_handled or G.STAGE ~= G.STAGES.RUN then
+		sendDebugMessage("[pvp] pvp_win ignored (already handled or not in a run)", "MULTIPLAYER")
+		return
+	end
+	PVP.GAME.result_handled = true
+	sendDebugMessage("[pvp] pvp_win received", "MULTIPLAYER")
 	local lobby = MPAPI.get_current_lobby()
 	-- A contested match has no result for this client to report: a moderator decides.
 	if PVP.GAME.contested then
 		return
 	end
+	PVP.GAME.round_sync = nil
 	PVP.end_pending_death()
 	PVP.GAME.team_pending = nil
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
@@ -170,6 +224,7 @@ A_host("pvp_player_won", function(_at, _from, params)
 	if PVP.GAME.contested then
 		return
 	end
+	PVP.GAME.round_sync = nil
 	local sid = self_id()
 	if params.player_id == sid then
 		PVP.dispatch_action("winGame")

@@ -8,6 +8,7 @@ local relay = PVP._pvp_action_helpers.relay
 -- it, else all 8.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
+	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
 	return {
 		id = PVP.SETUP.Step.DRAFT,
 		pool_size = bp.pool_size,
@@ -18,18 +19,46 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			for _, center in ipairs(G.P_CENTER_POOLS.Back or {}) do
 				backs[#backs + 1] = { key = center.key, mod_id = center.mod and center.mod.id }
 			end
+			-- A ruleset limiting its stakes has the host roll each deck's stake
+			-- from the allowed ones; otherwise the server rolls 1..max_stake.
+			local stake_keys = {}
+			for i, center in ipairs(G.P_CENTER_POOLS.Stake or {}) do
+				stake_keys[i] = center.key
+			end
+			local stakes =
+				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
 			local candidates = {}
-			for i, key in ipairs(PVP.SETUP.draft_candidates(ruleset, backs, PVP.id)) do
-				candidates[i] = { key = key }
+			for i, key in ipairs(PVP.SETUP.draft_candidates(
+				backs,
+				MPAPI.resolve_ruleset_field(ruleset, "allowed_backs"),
+				MPAPI.resolve_ruleset_field(ruleset, "banned_backs")
+			)) do
+				candidates[i] = { key = key, stake = stakes and stakes[math.random(#stakes)] or nil }
 			end
 			return candidates
 		end,
-		max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8,
-		-- Stamp the stake sticker onto each deck back (see the game's back_sticker DrawStep).
+		max_stake = max_stake,
+		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
+		-- to read at this tile size) and name the stake in the hover popup.
 		decorate_tile = function(card, item)
-			if type(item) == "table" and item.stake then
-				card.sticker = G.sticker_map[SMODS.stake_from_index(item.stake)]
+			local stake = type(item) == "table" and item.stake and G.P_CENTER_POOLS.Stake[item.stake]
+			if not stake then
+				return
 			end
+			local size = card.T.w * 0.5
+			local chip = get_stake_sprite(item.stake, size)
+			chip.states.collide.can = false
+			chip:set_role({
+				major = card,
+				role_type = "Minor",
+				offset = { x = card.T.w - size * 1.05, y = card.T.h - size * 1.05 },
+				xy_bond = "Strong",
+				wh_bond = "Weak",
+				r_bond = "Strong",
+				scale_bond = "Strong",
+			})
+			card.children.mp_stake_chip = chip
+			card.mp_tile_note = localize({ type = "name_text", set = "Stake", key = stake.key })
 		end,
 		on_refresh = function()
 			if PVP.lobby and PVP.lobby.refresh_mm_status then

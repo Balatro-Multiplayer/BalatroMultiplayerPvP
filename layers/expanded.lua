@@ -6,6 +6,10 @@ MPAPI.Layer("expanded", {
 		"j_turtle_bean",
 		"c_ouija",
 	},
+	allowed_backs = {
+		"b_mp_orange",
+		"b_mp_violet",
+	},
 	banned_jokers = {
 		"j_mp_speedrun",
 		"j_mp_conjoined_joker",
