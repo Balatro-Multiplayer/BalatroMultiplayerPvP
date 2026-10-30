@@ -1,4 +1,4 @@
--- Standalone: lua tests/test_draft_candidates.lua (from the repo root).
+-- Standalone: luajit tests/unit/draft_candidates_test.lua (from the repo root).
 PVP = {}
 G = { FUNCS = {} }
 dofile("pvp_api/setup.lua")
@@ -40,8 +40,14 @@ check("other mod decks are opt-in", run({ "b_other_deck" }, nil), "b_red,b_black
 check("banned can remove a base deck", run(nil, { "b_black" }), "b_red")
 
 local stake_keys = {
-	"stake_white", "stake_red", "stake_green", "stake_black",
-	"stake_blue", "stake_purple", "stake_orange", "stake_gold",
+	"stake_white",
+	"stake_red",
+	"stake_green",
+	"stake_black",
+	"stake_blue",
+	"stake_purple",
+	"stake_orange",
+	"stake_gold",
 }
 local function stakes(allowed, cap)
 	local out = PVP.SETUP.draft_stakes(allowed, stake_keys, cap)

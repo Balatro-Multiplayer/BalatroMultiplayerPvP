@@ -25,7 +25,8 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			for i, center in ipairs(G.P_CENTER_POOLS.Stake or {}) do
 				stake_keys[i] = center.key
 			end
-			local stakes = PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
+			local stakes =
+				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
 			local candidates = {}
 			for i, key in ipairs(PVP.SETUP.draft_candidates(
 				backs,
