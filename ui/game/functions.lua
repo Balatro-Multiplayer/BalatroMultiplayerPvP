@@ -83,6 +83,11 @@ end
 
 local skip_blind_ref = G.FUNCS.skip_blind
 G.FUNCS.skip_blind = function(e)
+	-- Reported before the skip moves blind_on_deck on: a pending death on this blind
+	-- waits for the skipper's result, and a skipped blind counts as passed.
+	if PVP.LOBBY.code then
+		PVP.ACTIONS.blind_result(true)
+	end
 	skip_blind_ref(e)
 	if PVP.LOBBY.code then
 		-- Old timer: add time from skipping to own timer when not timered and not timering
