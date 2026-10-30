@@ -1,24 +1,36 @@
 -- The lobby's options screen (previously a no-op placeholder, see ui/lobby/code.lua):
--- a host-only ruleset picker (private lobbies only -- ranked/casual matchmaking
+-- a host-only ruleset picker and Trap cards switch (private lobbies only -- ranked/casual matchmaking
 -- already commits to a specific ruleset by which queue option was picked, see
 -- pvp_api/queue.lua), plus Manhunt's Hunter/Runner or Teams' A/B role picker when
 -- applicable (any lobby kind -- a casual matchmaking-formed Manhunt/Teams match
 -- still needs its players to pick a role before the match can start).
---
--- Literal English strings (not localize() keys) match the existing "Practice"
--- ruleset-picker overlay's own style (ui/pvp_main_menu.lua) rather than inventing
--- localization keys ahead of a later polish pass.
 
-local RULESET_LABELS = { "Vanilla", "Balanced", "Expanded", "Small World" }
-local RULESET_KEYS = { "ruleset_mp_vanilla", "ruleset_mp_balanced", "ruleset_mp_expanded", "ruleset_mp_smallworld" }
+local RULESET_KEYS = {
+	PVP.RulesetKey.VANILLA,
+	PVP.RulesetKey.BALANCED,
+	PVP.RulesetKey.EXPANDED,
+	PVP.RulesetKey.SMALLWORLD,
+}
+local DEFAULT_RULESET_KEY = PVP.RulesetKey.BALANCED -- what every gamemode key creates a lobby on.
 
-local function current_ruleset_option()
+local function ruleset_labels()
+	local labels = {}
 	for i, key in ipairs(RULESET_KEYS) do
-		if PVP.LOBBY.config.ruleset == key then
+		labels[i] = PVP.ruleset_display_name(key)
+	end
+	return labels
+end
+
+local function ruleset_option(ruleset_key)
+	for i, key in ipairs(RULESET_KEYS) do
+		if key == ruleset_key then
 			return i
 		end
 	end
-	return 2 -- Balanced, the default every gamemode key creates a lobby on.
+end
+
+local function current_ruleset_option()
+	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(DEFAULT_RULESET_KEY)
 end
 
 function PVP.build_lobby_options()
@@ -33,11 +45,31 @@ function PVP.build_lobby_options()
 				MPAPI.disableable_option_cycle({
 					id = "mp_pvp_ruleset_pick",
 					label = "Ruleset",
-					options = RULESET_LABELS,
+					options = ruleset_labels(),
 					current_option = current_ruleset_option(),
 					opt_callback = "mp_pvp_change_ruleset",
 					w = 4,
 					scale = 0.6,
+					enabled = function()
+						return lobby and lobby.is_host
+					end,
+				}).node,
+			},
+		}
+		rows[#rows + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.1 },
+			nodes = {
+				MPAPI.disableable_toggle({
+					label = localize("k_pvp_lobby_trap_cards"),
+					ref_table = PVP.LOBBY.config,
+					ref_value = "trap_cards",
+					callback = function()
+						local current = MPAPI.get_current_lobby()
+						if current and current.is_host then
+							current:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+						end
+					end,
 					enabled = function()
 						return lobby and lobby.is_host
 					end,

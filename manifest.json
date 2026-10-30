@@ -1,10 +1,10 @@
 {
   "name": "MultiplayerPvP",
-  "version_number": "1.0.0",
+  "version_number": "1.0.3",
   "website_url": "https://github.com/Balatro-Multiplayer/BalatroMultiplayerPvP",
   "description": "Head-to-head Balatro: players race on the same seed and battle each boss blind. Built on top of MultiplayerAPI.",
   "dependencies": [
-    "Steamodded-Steamodded-1.1814.0",
-    "BalatroMultiplayer-MultiplayerAPI-1.0.0"
+    "Steamodded-Steamodded-26.1002.0",
+    "BalatroMultiplayer-MultiplayerAPI-1.0.2"
   ]
 }

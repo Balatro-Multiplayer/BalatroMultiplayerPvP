@@ -59,7 +59,7 @@ end
 local function apply_tail(opponent_id, events)
 	local last_t = PVP.RLOG._last_seen_t[opponent_id] or 0
 	for _, ev in ipairs(events or {}) do
-		if ev.opcode == "hand_result" then
+		if ev.opcode == MPAPI.OPCODE.HAND_RESULT then
 			apply_hand_result(ev)
 		end
 		if ev.t and ev.t > last_t then

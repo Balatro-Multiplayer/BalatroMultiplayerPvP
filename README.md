@@ -6,7 +6,7 @@ Head-to-head Balatro. There are many ways to play but generally 2-16 people in a
 
 This is the PvP mod of the Balatro Multiplayer Platform. It runs on top of [MultiplayerAPI](https://github.com/Balatro-Multiplayer/BalatroMultiplayerAPI), which owns the connection, accounts, lobbies, matchmaking, and leaderboards. Sibling mods on the same API include [Speedrunning](https://github.com/Balatro-Multiplayer/BalatroMultiplayerSpeedrunning). The server lives in [BalatroMultiplayerServer](https://github.com/Balatro-Multiplayer/BalatroMultiplayerServer).
 
-> **Looking for the original Balatro Multiplayer mod (v0.5.x, mod id `Multiplayer`)?** It lives on the [`legacy` branch](https://github.com/Balatro-Multiplayer/BalatroMultiplayerPvP/tree/legacy). That code is frozen`.
+> **Looking for the original Balatro Multiplayer mod (v0.5.x, mod id `Multiplayer`)?** It lives on the [`legacy/main` branch](https://github.com/Balatro-Multiplayer/BalatroMultiplayerPvP/tree/legacy/main). That code is frozen.
 
 ## Installation
 

@@ -50,6 +50,13 @@ function PVP.ACTIONS.set_blind_col(num)
 	PVP.LOBBY.blind_col = num or 1
 end
 
+-- Stops both ante timers and drops a held-back timer start.
+local function stop_timers()
+	PVP.GAME.timer_started = false
+	PVP.GAME.nemesis_timer_started = false
+	PVP.GAME.timer_threshold_pending = false
+end
+
 -- Reconnection state (persists across connections)
 local reconnectToken = nil
 local lastLobbyCode = nil
@@ -94,8 +101,7 @@ local function action_rejoinedLobby(p)
 	reconnectToken = token
 	lastLobbyCode = code
 	PVP.self_reconnect_countdown = nil
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
+	stop_timers()
 	PVP.ACTIONS.sync_client()
 	PVP.ACTIONS.lobby_info()
 	PVP.UI.update_connection_status()
@@ -147,8 +153,7 @@ local function action_enemyDisconnected(p)
 	local timeout = p.timeout or 60
 	sendWarnMessage("Opponent disconnected, waiting for reconnection...", "MULTIPLAYER")
 
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
+	stop_timers()
 
 	PVP.enemy_disconnect_countdown = {
 		end_time = love.timer.getTime() + timeout,
@@ -247,8 +252,7 @@ local function action_reconnecting()
 	-- Only show if we were in a lobby and don't already have a countdown running
 	if reconnectToken and lastLobbyCode and not PVP.self_reconnect_countdown then
 		PVP.LOBBY.connected = false
-		PVP.GAME.timer_started = false
-		PVP.GAME.nemesis_timer_started = false
+		stop_timers()
 		PVP.UI.update_connection_status()
 		sendWarnMessage("Connection lost, attempting to reconnect...", "MULTIPLAYER")
 
@@ -306,7 +310,10 @@ end
 
 function G.FUNCS.copy_host_deck()
 	PVP.LOBBY.deck.back = PVP.LOBBY.config.back
-	PVP.LOBBY.deck.cocktail = PVP.LOBBY.config.cocktail
+	-- The lobby config's cocktail is "" until the picker is edited; use the saved selection then
+	local cocktail = PVP.LOBBY.config.cocktail
+	if cocktail == nil or cocktail == "" then cocktail = PVP.config.cocktail end
+	PVP.LOBBY.deck.cocktail = cocktail
 	PVP.LOBBY.deck.sleeve = PVP.LOBBY.config.sleeve
 	PVP.LOBBY.deck.stake = PVP.LOBBY.config.stake
 	PVP.LOBBY.deck.challenge = PVP.LOBBY.config.challenge
@@ -428,8 +435,7 @@ local function action_start_blind(p)
 	if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
+	stop_timers()
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer = PVP.UTILS.pvp_timer_base()
 	PVP.GAME.pvp_reached_first = (PVP.LOBBY.is_host and "host" or "guest") == first_player
@@ -461,8 +467,7 @@ local function action_end_pvp(p)
 	PVP.GAME.end_pvp = true
 	PVP.GAME.timer = PVP.UTILS.timer_base()
 	PVP.GAME.timer_consumed = false
-	PVP.GAME.timer_started = false
-	PVP.GAME.nemesis_timer_started = false
+	stop_timers()
 	PVP.GAME.ready_blind = false
 	PVP.GAME.pvp_reached = false
     PVP.GAME.pvp_reached_first = false
@@ -600,9 +605,6 @@ local function action_lobby_options(options)
 	end
 	PVP.ACTIONS.update_player_usernames() -- render new DECK button state
 end
-
--- (The phantom masking patches — Card:remove / SMODS.find_card / poll_edition — moved to the
--- synced-object framework; installed via MPAPI.configure_phantom in objects/editions/phantom.lua.)
 
 local function action_speedrun()
 	SMODS.calculate_context({ mp_speedrun = true })
@@ -947,9 +949,30 @@ function PVP.ACTIONS.stop_game()
 	})
 end
 
+-- Tells the referee how this client ended the current non-PvP blind. A failure
+-- is sent before failRound / failTimer so the referee knows which blind a death was on.
+-- `blind` (optional) names the blind when it is no longer the one on deck, as
+-- after a skip.
+function PVP.ACTIONS.blind_result(beaten, blind)
+	local lobby = MPAPI.get_current_lobby()
+	local ante = G.GAME.round_resets.ante
+	blind = blind or G.GAME.blind_on_deck
+	PVP.GAME.own_blind_results = PVP.GAME.own_blind_results or {}
+	PVP.PendingDeath.record(PVP.GAME.own_blind_results, PVP.PendingDeath.SELF, PVP.PendingDeath.blind_key(ante, blind), beaten)
+	if lobby then
+		Client.send({
+			action = "blindResult",
+			ante = ante,
+			blind = blind,
+			beaten = beaten,
+		})
+	end
+end
+
 function PVP.ACTIONS.fail_round(hands_used)
 	if PVP.LOBBY.config.no_gold_on_round_loss then G.GAME.blind.dollars = 0 end
 	if hands_used == 0 then return end
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failRound",
 	})
@@ -1099,17 +1122,27 @@ function PVP.ACTIONS.request_nemesis_stats()
 	})
 end
 
-function PVP.ACTIONS.start_ante_timer()
+function PVP.ACTIONS.announce_ante_timer(time)
 	local is_pvp = PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer")
 	Client.send({
 		action = "startAnteTimer",
-		time = PVP.GAME.timer,
+		time = time,
 		isPvP = is_pvp or nil,
 	})
+end
+
+-- Above the ruleset's timer threshold the opponent is told only when the timer
+-- falls to it (ui/game/timer.lua's Game:update).
+function PVP.ACTIONS.start_ante_timer()
+	PVP.GAME.timer_threshold_pending = PVP.UTILS.timer_start_held_back(PVP.GAME.timer)
+	if not PVP.GAME.timer_threshold_pending then
+		PVP.ACTIONS.announce_ante_timer(PVP.GAME.timer)
+	end
 	action_start_ante_timer({ time = PVP.GAME.timer, fromNemesis = false })
 end
 
 function PVP.ACTIONS.pause_ante_timer()
+	PVP.GAME.timer_threshold_pending = false
 	Client.send({
 		action = "pauseAnteTimer",
 		time = PVP.GAME.timer,
@@ -1118,6 +1151,7 @@ function PVP.ACTIONS.pause_ante_timer()
 end
 
 function PVP.ACTIONS.fail_timer()
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failTimer",
 	})

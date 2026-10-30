@@ -397,29 +397,6 @@ return {
 					"quien tenga más fichas gana",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
-		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterno{} y {C:dark_edition}negativo{}",
-					"Creado y destruido por tu {X:purple,C:white}némesis{}",
-				},
-			},
 		},
 		Back = {
 			b_mp_cocktail = {
@@ -651,7 +628,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Fantasma",
 			mp_sticker_persistent = "Persistente",
 			mp_sticker_unreliable = "Inconsistente",
 			mp_sticker_draining = "Drenante",
@@ -794,8 +770,7 @@ return {
 			k_tournament_description = "Reglas de torneo, igual que las reglas del modo estándar pero no se permite cambiar las opciones de sala.",
 			k_badlatro = "Badlatro",
 			k_badlatro_description = "Reglas semanales diseñadas por @dr_monty_the_snek en nuestro servidor de Discord que se agregaron de forma permanente.",
-			k_expanded = "Estándar",
-			k_expanded_description = "Este reglamento incluye cartas y funciones que fomentan jugar rápido y\nusar el tiempo como un recurso.\n\nAlgunas cartas están balanceadas aquí para ajustarse mejor al meta del multijugador:\n- Papel perforado está modificado\n- Justicia se elimina\n- Vidrio está modificado\n\n(Ver las pestañas de prohibiciones y ajustes para más info)",
+			k_mp_ruleset_expanded_description = "Este reglamento incluye cartas y funciones que fomentan jugar rápido y\nusar el tiempo como un recurso.\n\nAlgunas cartas están balanceadas aquí para ajustarse mejor al meta del multijugador:\n- Papel perforado está modificado\n- Justicia se elimina\n- Vidrio está modificado\n\n(Ver las pestañas de prohibiciones y ajustes para más info)",
 			k_traditional = "Tradicional",
 			k_traditional_description = "Este reglamento quita los aspectos del multijugador que usan el tiempo como recurso.\n\nPermite jugar con el contenido multijugador\nmientras mantienes una partida metódica.\n\nAlgunas cartas están balanceadas aquí para ajustarse mejor al meta del multijugador:\n- Papel perforado está modificado\n- Justicia se elimina\n- Vidrio está modificado\n\n(Ver las pestañas de prohibiciones y ajustes para más info)",
 			k_majorleague = "Major League",
@@ -867,9 +842,6 @@ return {
 			loc_playing = "Jugando ",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Arte: #1#",
 			},
@@ -893,7 +865,6 @@ return {
 			k_reworked_objs = "#1# modificados",
 			k_no_reworked_objs = "Sin #1# modificados",
 			k_ruleset_disabled_smods_version = "Se requiere SMODS #1#",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "No se pudo unir a la sala: #1#",
 			k_ante_number = "Apuesta #1#",
 			k_ante_min = "Apuesta #1#+",

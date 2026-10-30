@@ -99,10 +99,10 @@ end
 G.C.MULTIPLAYER = HEX("AC3232")
 
 PVP.MIN_SMODS_VERSION = "1.0.0~BETA-1814a"
-PVP.MIN_LOVELY_VERSION = "0.9.0"
+PVP.MIN_LOVELY_VERSION = "0.10.0"
 
 -- The Order (deterministic/anti-desync RNG) engine now lives entirely in the API
--- (BalatroMultiplayerAPI/api/the_order.lua). We delegate the gate + helpers to the
+-- (BalatroMultiplayerAPI/api/the_order/). We delegate the gate + helpers to the
 -- API's single implementation instead of shipping our own copy (was compatibility/TheOrder.lua).
 function PVP.should_use_the_order()
 	return MPAPI.should_use_the_order()
@@ -113,7 +113,7 @@ function PVP.is_major_league_ruleset()
 end
 
 -- §20: register our own predicates through the API's generic extension points
--- (MPAPI.register_order_gate/register_voucher_queue_gate) rather than the_order.lua
+-- (MPAPI.register_order_gate/register_voucher_queue_gate/register_idol_gate) rather than the API
 -- reading PVP.* globals directly. Practice mode always uses the order; otherwise a
 -- lobby with the_order enabled does -- exactly the previous PVP-compat branch's logic.
 MPAPI.register_order_gate(function()
@@ -122,9 +122,13 @@ MPAPI.register_order_gate(function()
 		or false
 end)
 
-MPAPI.register_voucher_queue_gate(function()
+-- MLBa plays without The Order, but its voucher queue and The Idol's card follow it.
+local function in_major_league_lobby()
 	return PVP.is_major_league_ruleset() and true or false
-end)
+end
+
+MPAPI.register_voucher_queue_gate(in_major_league_lobby)
+MPAPI.register_idol_gate(in_major_league_lobby)
 
 -- Legacy PVP.* aliases for The Order queue helpers, kept because live content still calls
 -- them (objects/jokers/standard/bloodstone, objects/boosters/standard_giga, ui/game/blind_choice,
@@ -204,6 +208,8 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		-- Manhunt only: each Hunter's individual life count (Runner is always
 		-- fixed at 1, not configurable -- see PVP.referee_reset).
 		manhunt_hunter_lives = 7,
+		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
+		trap_cards = false,
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,
 		pvp_countdown_seconds = 3,
@@ -257,6 +263,8 @@ function PVP.reset_game_states()
 			-- the opponent's hands as "?" until we hear from them.
 			info_received = false,
 			location = localize("loc_selecting"),
+			-- " (catching up)" while the target is replaying its run after a crash, else "".
+			catching_up_text = "",
 			skips = 0,
 			lives = PVP.LOBBY.config.starting_lives,
 			sells = 0,
@@ -283,6 +291,7 @@ function PVP.reset_game_states()
 		highest_pvp_score = PVP.INSANE_INT.empty(),
 		timer = PVP.UTILS.timer_base(),
 		timer_started = false,
+		timer_threshold_pending = false,
 		timer_consumed = false,
 		pvp_reached = false,
 		pvp_countdown = 0,

@@ -5,6 +5,9 @@
 -- rather than rendering a literal "nil".
 local hud_opponent_name = setmetatable({}, {
     __index = function()
+        if PVP.is_announced_bye() then
+            return PVP.pvp_blind_opponent_name()
+        end
         local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
         return (opponent and opponent.username) or PVP.pvp_blind_opponent_name()
     end,
@@ -30,21 +33,30 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
         end
         name_element.config.object:update_text(true)
         name_element.states.visible = false
-        -- Setup enemy score text
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = PVP.GAME.enemy
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "score_text"
-        G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.func = "multiplayer_blind_chip_UI_scale"
-        -- Setup labels
-        -- Casual balala UI experience right here
-        G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1].config.text =
-            localize("k_enemy_score")
-        G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[3].children[1].config.text =
-            localize("k_enemy_hands")
-        -- Setup enemy hands
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").parent.parent.states.visible = false
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object.config.string =
-            { { ref_table = PVP.GAME.enemy, ref_value = "hands_text" } }
-        G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object:update_text()
+        -- A bye has no opponent: keep the normal boss text ("Score at least",
+        -- "Reward") with a 0 score requirement. The PvP round still ends only
+        -- after every hand is played (Game:update_hand_played), not at 0 chips.
+        local bye = PVP.is_announced_bye()
+        if bye then
+            G.GAME.blind.chips = 0
+            G.GAME.blind.chip_text = "0"
+        end
+        if not bye then
+            -- Setup enemy score text
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = PVP.GAME.enemy
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "score_text"
+            G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.func = "multiplayer_blind_chip_UI_scale"
+            -- Setup labels
+            -- Casual balala UI experience right here
+            local labels = G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2]
+            labels.children[1].children[1].config.text = localize("k_enemy_score")
+            labels.children[3].children[1].config.text = localize("k_enemy_hands")
+            -- Setup enemy hands
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").parent.parent.states.visible = false
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object.config.string =
+                { { ref_table = PVP.GAME.enemy, ref_value = "hands_text" } }
+            G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned").config.object:update_text()
+        end
 
         G.HUD_blind.alignment.offset.y = 0
         G.E_MANAGER:add_event(Event({

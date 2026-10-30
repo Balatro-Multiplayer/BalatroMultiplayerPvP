@@ -25,13 +25,13 @@ MPAPI.Joker({
 	-- Opponent receives the discard count directly: gains discards this round (was action_eat_pizza).
 	receive = function(self, context)
 		local discards = context.data
-		PVP.RLOG.record("net_pizza", discards, "action:netPizza,discards:" .. tostring(discards))
+		PVP.RLOG.record(MPAPI.OPCODE.NET_PIZZA, discards, "action:netPizza,discards:" .. tostring(discards))
 		PVP.GAME.pizza_discards = PVP.GAME.pizza_discards + discards
 		G.GAME.round_resets.discards = G.GAME.round_resets.discards + discards
 		ease_discard(discards)
 	end,
 	calculate = function(self, card, context)
-		if context.mp_end_of_pvp and not context.blueprint and (not card.edition or card.edition.type ~= "mp_phantom") then
+		if context.mp_end_of_pvp and not context.blueprint and not PVP.is_phantom(card) then
 			PVP.GAME.pizza_discards = PVP.GAME.pizza_discards + card.ability.extra.discards
 			G.GAME.round_resets.discards = G.GAME.round_resets.discards + card.ability.extra.discards
 			ease_discard(card.ability.extra.discards)

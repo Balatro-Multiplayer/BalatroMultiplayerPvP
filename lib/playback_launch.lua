@@ -68,14 +68,26 @@ function PVP._start_playback(manifest, on_ready)
 
 	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
 
+	-- A restart (a checkpoint seek, the second pass of a crash rejoin) starts this from inside a
+	-- run that is still on screen. on_ready waits for the new run's own blind-select screen: the
+	-- old run's would fire it before the new run exists.
+	local old_game = G.GAME
+
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		PVP.LOBBY.guest = { username = "???", id = "practice" }
 		lobby:set_metadata(PVP.pvp_lobby_metadata(manifest.gamemode, PVP.LobbyAccess.PRACTICE))
-		G.FUNCS.lobby_start_run(nil, { seed = manifest.seed })
+		-- MPAPI fires CONNECTED from inside a queued Event. G.FUNCS.start_run clears the event
+		-- queue, and doing that while EventManager:update iterates it makes the manager remove the
+		-- wrong event after this one returns: the queued delete_run (the new run then builds a
+		-- second blind HUD, and the SMODS blind HUD assert crashes the game) or the queued
+		-- G:start_run (the run never starts). Start the run from the next Game:update instead.
+		PVP._playback_next_frame(function()
+			G.FUNCS.lobby_start_run(nil, { seed = manifest.seed })
+		end)
 	end)
 
 	PVP._playback_wait_for(function()
-		return G.STATE == G.STATES.BLIND_SELECT
+		return G.GAME ~= old_game and G.STATE == G.STATES.BLIND_SELECT
 	end, on_ready)
 end
 
@@ -88,6 +100,13 @@ PVP._playback_waiters = PVP._playback_waiters or {}
 
 function PVP._playback_wait_for(predicate, callback)
 	PVP._playback_waiters[#PVP._playback_waiters + 1] = { predicate = predicate, callback = callback }
+end
+
+-- Runs `callback` from the next Game:update, outside any event the queue is running.
+function PVP._playback_next_frame(callback)
+	PVP._playback_wait_for(function()
+		return true
+	end, callback)
 end
 
 -- A waiter belongs to the playback run it was made in: a fresh playback run,

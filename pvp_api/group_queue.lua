@@ -1,6 +1,7 @@
--- Group casual queue (MPAPI.matchmaking.group): the host of a private lobby
--- queues the whole lobby for a casual mode; the group meets strangers in a
--- public match and comes back to this lobby (same code, same host) after it.
+-- Group casual queue (MPAPI.matchmaking.group): the host of a Party lobby
+-- (pvp_api/party_lobby.lua) queues the whole lobby for a casual mode; the group
+-- meets strangers in a public match and comes back to this lobby (same code,
+-- same host) after it.
 -- MPAPI runs the queue; this wires its handles like a solo casual queue's
 -- (pvp_api/queue.lua) and says how to rejoin the home lobby.
 
@@ -171,11 +172,6 @@ function PVP.group_mode_available(lobby, key)
 		end
 	end
 	return false
-end
-
--- The lobby's Group Queue button: pick a mode from the casual pillars.
-G.FUNCS.mp_pvp_group_queue = function()
-	MPAPI.pages.show("pvp_find_game", { category = "casual", group = true })
 end
 
 -- A pillar's group QUEUE: queue the lobby for that mode and go back to it.

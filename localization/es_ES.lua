@@ -124,29 +124,6 @@ return {
 					"quien puntúe más fichas gana",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
-		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterno{} y {C:dark_edition}Negativo{}",
-					"Creado y destruido por tu {X:purple,C:white}Némesis{}",
-				},
-			},
 		},
 		Other = {
 			current_nemesis = {
@@ -159,9 +136,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Fantasma",
-		},
 		dictionary = {
 			b_singleplayer = "Un jugador",
 			b_join_lobby = "Unirse a la Sala",
@@ -289,9 +263,6 @@ return {
 			loc_playing = "Jugando ",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Arte: #1#",
 			},

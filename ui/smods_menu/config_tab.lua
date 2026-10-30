@@ -107,6 +107,29 @@ function PVP.UI.create_config_tab()
 					},
 				},
 			},
+			{
+				n = G.UIT.R,
+				config = {
+					padding = 0.1,
+					align = "cm",
+				},
+				nodes = {
+					{
+						n = G.UIT.C,
+						config = { align = "cm" },
+						nodes = {
+							create_option_cycle({
+								label = localize("k_nemesis_layout"),
+								w = 4,
+								scale = 0.8,
+								options = localize("ml_nemesis_layout_opt"),
+								opt_callback = "mp_change_nemesis_layout",
+								current_option = PVP.nemesis_layout_index(),
+							}),
+						},
+					},
+				},
+			},
 		},
 	}
 	return ret

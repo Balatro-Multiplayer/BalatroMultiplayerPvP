@@ -151,29 +151,6 @@ return {
 					"最多筹码获胜",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
-		},
-		Edition = {
-			e_mp_phantom = {
-				name = "幻影",
-				text = {
-					"拥有{C:attention}永恒{}和{C:dark_edition}负片{}属性",
-					"由你的{X:purple,C:white}宿敌{}创建被并摧毁",
-				},
-			},
 		},
 		Other = {
 			current_nemesis = {
@@ -186,9 +163,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "幻影",
-		},
 		dictionary = {
 			b_singleplayer = "单人游戏",
 			b_join_lobby = "加入房间",
@@ -309,8 +283,7 @@ return {
 			k_sandbox_description = "类似于经典模式，但是有人给牌喝了点咖啡，令它们变得好像有点话多。",
 			k_vanilla = "原味香草",
 			k_vanilla_description = "此规则集移除了所有多人游戏内容，使您能够以游戏最初设计的方式进行游玩。\n\n此规则集仍包含多人游戏功能，如计时器。\n\n（可在房间设置中禁用）",
-			k_expanded = "闪电赛",
-			k_expanded_description = "本规则集包含鼓励快速游戏和将时间作为资源使用的卡牌和功能。\n\n部分卡牌在本规则集中经过调整以更好地适应多人游戏环境：\n- 未断选票 经过调整\n- 正义 被移除\n- 玻璃牌 经过调整\n\n(请参阅禁用和修改区域以获取更多信息)",
+			k_mp_ruleset_expanded_description = "本规则集包含鼓励快速游戏和将时间作为资源使用的卡牌和功能。\n\n部分卡牌在本规则集中经过调整以更好地适应多人游戏环境：\n- 未断选票 经过调整\n- 正义 被移除\n- 玻璃牌 经过调整\n\n(请参阅禁用和修改区域以获取更多信息)",
 			k_traditional = "经典",
 			k_traditional_description = "此规则集移除了多人游戏中以时间作为资源的各项功能。\n\n该规则集允许您畅玩多人游戏内容，同时仍能保持游戏的策略性。\n\n部分卡牌在本规则集中经过调整以更好地适应多人游戏环境：\n- 未断选票 经过调整\n- 正义 被移除\n- 玻璃牌 经过调整\n\n(请参阅禁用和修改区域以获取更多信息)",
 			k_majorleague = "Major League",
@@ -368,9 +341,6 @@ return {
 			loc_playing = "战斗", -- translates to "fighting" because the direct translation for playing sounds a bit funny in context
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Art: #1#",
 			},
@@ -394,7 +364,6 @@ return {
 			k_reworked_objs = "修改 #1#",
 			k_no_reworked_objs = "非修改 #1#",
 			k_ruleset_disabled_smods_version = "需求 SMODS 版本 #1#",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "加入房间失败: #1#",
 			k_ante_number = "底注 #1#",
 			k_ante_min = "底注 #1#+", -- For example, "Ante 2+"

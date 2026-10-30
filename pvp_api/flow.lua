@@ -6,6 +6,8 @@ PVP.LobbyAccess = {
 	PRACTICE = "practice",
 	RANKED = "ranked",
 	CASUAL = "casual",
+	-- A Party lobby's metadata kind (pvp_api/party_lobby.lua). Its client kind stays PRIVATE.
+	PARTY = MPAPI.Party.KIND,
 	RANKED_PREFIX = "ranked:",
 }
 
@@ -45,7 +47,28 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		starting_lives = PVP.LOBBY.config.starting_lives or 4,
 		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
+		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
+end
+
+-- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
+-- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
+-- options do not cross the wire, so every client applies them from the shared
+-- ruleset. These lobbies have no Setup vote, so this is where they apply; the
+-- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
+-- lobby can change the ruleset, so The Order goes back on before the ruleset
+-- forces its options.
+local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
+
+function PVP.force_lobby_options(kind, ruleset_key)
+	if not FORCES_LOBBY_OPTIONS[kind] then
+		return
+	end
+	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
+	if def and def.force_lobby_options then
+		PVP.LOBBY.config.the_order = true
+		def:force_lobby_options(kind)
+	end
 end
 
 function PVP.pvp_create_private_lobby(gamemode_key)
@@ -134,7 +157,7 @@ function PVP.pvp_start_match()
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
 	local gm_def = MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
-		lobby._gamemode_instance = gm_def:new_instance()
+		lobby:set_gamemode_instance(gm_def:new_instance())
 	end
 	if MPAPI.has_server_referee(lobby) then
 		-- The server checks who's ready and picks the seed; everyone starts off

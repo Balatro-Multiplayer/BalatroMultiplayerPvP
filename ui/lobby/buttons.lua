@@ -18,10 +18,6 @@ function PVP.lobby.create_buttons()
 			if not lobby or not lobby.is_host then
 				return false
 			end
-			-- Queued as a group: the lobby plays its match elsewhere.
-			if lobby.group_queue then
-				return false
-			end
 			local players = lobby:get_players()
 			if #players < 2 then
 				return false
@@ -32,6 +28,18 @@ function PVP.lobby.create_buttons()
 				end
 			end
 			return true
+		end,
+	})
+	b.party_find_game = MPAPI.disableable_button({
+		id = "mp_pvp_party_find_game",
+		button = "mp_pvp_party_find_game",
+		colour = G.C.BLUE,
+		minw = 3.65,
+		minh = 1.55,
+		label = { localize("b_find_game_cap") },
+		scale = 0.7,
+		enabled = function()
+			return MPAPI.Party.find_game_enabled(MPAPI.Party.find_game_facts(L.ref, L.ready))
 		end,
 	})
 	b.ready_args = {

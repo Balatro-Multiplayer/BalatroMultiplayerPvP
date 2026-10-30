@@ -9,20 +9,6 @@ return {
 					"得分最多的人贏",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 	},
 	misc = {

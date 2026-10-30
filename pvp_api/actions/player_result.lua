@@ -83,11 +83,40 @@ function PVP.report_roster_result(on_delivered)
 	})
 end
 
+-- Interim roster: the last jokers other players saw. Sent when this player leaves
+-- the shop. If this client later drops and relaunches (a Leave from the reconnect
+-- prompt), it has no run state to send, so the others keep this one for the end
+-- screen. Not sent while a Replay is driving (it would resend old jokers).
+function PVP.report_roster_snapshot()
+	local lobby = MPAPI.get_current_lobby()
+	if not lobby or not MPAPI.ActionTypes["pvp_player_result"] or MPAPI.playback.is_driving("pvp") then
+		return
+	end
+	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
+		jokers = capture_local_jokers(),
+		interim = true,
+	})
+end
+
 MPAPI.ActionType({
 	key = "pvp_player_result",
 	prefix_config = { key = false },
 	on_receive = function(_at, from_player_id, params)
 		if not params then
+			return
+		end
+		local kept = PVP._collected_results[from_player_id]
+		if params.interim and kept and not kept.interim then
+			return
+		end
+		if params.interim then
+			-- Keep the deck and score of the earlier roster, if any.
+			PVP._collected_results[from_player_id] = {
+				jokers = params.jokers,
+				deck_back = kept and kept.deck_back,
+				highest_pvp_score = kept and kept.highest_pvp_score,
+				interim = true,
+			}
 			return
 		end
 		PVP._collected_results[from_player_id] = {

@@ -44,12 +44,17 @@ end)
 MPAPI.ActionType({
 	key = "pvp_nemesis_pairing",
 	prefix_config = { key = false },
-	parameters = { { key = "pairing", type = "table", required = true } },
+	parameters = {
+		{ key = "pairing", type = "table", required = true },
+		{ key = "ante", type = "number", required = false },
+	},
 	on_receive = host_only("pvp_nemesis_pairing", function(_at, _from, params)
 		local sid = self_id()
 		local partner = params.pairing and params.pairing[sid]
 		PVP.GAME.nemesis_partner_id = (partner and partner ~= "") and partner or nil
+		PVP.GAME.nemesis_pairing_received = true
 		if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
+		PVP.on_nemesis_pairing(params.ante)
 	end),
 })
 

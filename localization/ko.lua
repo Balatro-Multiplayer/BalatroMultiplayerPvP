@@ -404,31 +404,8 @@ return {
 					"칩이 더 많은 쪽이 승리",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
 		},
 
-		Edition = {
-			e_mp_phantom = {
-				name = "팬텀",
-				text = {
-					"{C:attention}이터널{} 및 {C:dark_edition}네거티브{}",
-					"{X:purple,C:white}Nemesis{}에 의해 생성되고 파괴됨",
-				},
-			},
-		},
 
 
 		Back = {
@@ -683,9 +660,6 @@ return {
 	},
 
 	misc = {
-		labels = {
-			mp_phantom = "팬텀",
-		},
 
 		challenge_names = {
 			c_mp_standard = "스탠다드",
@@ -840,8 +814,7 @@ return {
 			k_vanilla = "바닐라",
 			k_vanilla_description = "Balatro의 오리지널 경험.\n멀티플레이어 전용 조커와밸런스 변경 없이\n기본 게임 그대로 플레이합니다.\n(멀티플레이어 기능은 옵션에서 비활성화 가능)",
 
-			k_expanded = "스탠다드",
-			k_expanded_description = "균형 잡힌 멀티플레이어 룰셋.\n멀티플레이어 조커와밸런스 변경을 포함하며\n로비 설정을 자유롭게 조절할 수 있습니다.\n(자세한 내용은 금지/리워크 탭 참고)",
+			k_mp_ruleset_expanded_description = "균형 잡힌 멀티플레이어 룰셋.\n멀티플레이어 조커와밸런스 변경을 포함하며\n로비 설정을 자유롭게 조절할 수 있습니다.\n(자세한 내용은 금지/리워크 탭 참고)",
 
 			k_traditional = "트래디셔널",
 			k_traditional_description = "시간 압박 없는 멀티플레이어 룰셋.\n멀티플레이어 조커와밸런스 변경을 포함하지만\n시간 기반 요소는 제거됩니다.\n(자세한 내용은 금지/리워크 탭 참고)",
@@ -923,9 +896,6 @@ return {
 		},
 	},
 	v_dictionary = {
-		k_end_player_jokers = "#1#'s Jokers",
-		k_end_player_left = "#1# -- left the match",
-		k_end_player_playing = "#1# -- still playing...",
 		a_mp_art = {
 			"아트: #1#",
 		},
@@ -950,7 +920,6 @@ return {
 		k_reworked_objs = "리워크된 #1#",
 		k_no_reworked_objs = "리워크된 #1# 없음",
 		k_ruleset_disabled_smods_version = "SMODS 버전 #1# 필요",
-		k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 		k_failed_to_join_lobby = "로비 참가 실패: #1#",
 
 		k_ante_number = "앤티 #1#",
