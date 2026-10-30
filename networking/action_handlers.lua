@@ -310,7 +310,10 @@ end
 
 function G.FUNCS.copy_host_deck()
 	PVP.LOBBY.deck.back = PVP.LOBBY.config.back
-	PVP.LOBBY.deck.cocktail = PVP.LOBBY.config.cocktail
+	-- The lobby config's cocktail is "" until the picker is edited; use the saved selection then
+	local cocktail = PVP.LOBBY.config.cocktail
+	if cocktail == nil or cocktail == "" then cocktail = PVP.config.cocktail end
+	PVP.LOBBY.deck.cocktail = cocktail
 	PVP.LOBBY.deck.sleeve = PVP.LOBBY.config.sleeve
 	PVP.LOBBY.deck.stake = PVP.LOBBY.config.stake
 	PVP.LOBBY.deck.challenge = PVP.LOBBY.config.challenge

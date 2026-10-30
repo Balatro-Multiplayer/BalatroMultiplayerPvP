@@ -584,7 +584,8 @@ function PVP.cocktail_cfg_readpos(pos, construct)
 end
 
 function PVP.cocktail_cfg_get()
-	if PVP.LOBBY.code and PVP.LOBBY.deck and PVP.LOBBY.deck.cocktail then
+	-- An empty string is the lobby config's unset default, not a selection
+	if PVP.LOBBY.code and PVP.LOBBY.deck and PVP.LOBBY.deck.cocktail and PVP.LOBBY.deck.cocktail ~= "" then
 		return PVP.LOBBY.deck.cocktail
 	else
 		return PVP.config.cocktail
