@@ -379,6 +379,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		refresh()
 		PVP.TRAP_ROW.on_player_back(player_id)
+		PVP.reconcile_round()
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
 			return
@@ -392,8 +393,12 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
-	-- The same catch-up on a Nakama lobby: the tail comes with the rejoin
-	-- itself, and the server tells only the others that we're back.
+	-- The snapshot restores lobby state, not this client's pending round report.
+	lobby:on(MPAPI.LobbyEvent.SNAPSHOT_APPLIED, function(snapshot)
+		PVP.reconcile_round(snapshot.hostId)
+	end)
+
+	-- Replay tails come with the Nakama rejoin itself.
 	lobby:on(MPAPI.LobbyEvent.REPLAY_TAIL, function(tails)
 		PVP.RECONNECT_TAIL.receive_pushed_tails(tails)
 		if G.STAGE ~= G.STAGES.RUN then return end
@@ -438,6 +443,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then
 			PVP.referee_take_over()
 		end
+		PVP.reconcile_round(host_id)
 		-- Before the run: we open the next Setup step if one is due (the Draft
 		-- itself is opened by MPAPI.BanPick).
 		PVP.SETUP.continue(lobby)

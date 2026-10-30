@@ -11,6 +11,10 @@ A("pvp_play_hand", function(_at, from, params)
 	PVP.referee_on_play_hand(from, params or {})
 end)
 
+A_host("pvp_round_state", function(_at, from, params)
+	PVP.receive_round_state(from, params)
+end)
+
 A("pvp_skip", function(_at, from, params)
 	PVP.referee_on_skip(from, params or {})
 end)

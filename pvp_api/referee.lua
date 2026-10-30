@@ -41,6 +41,9 @@ PVP.REF = PVP.REF
 		-- blind_key, held } while the dead player waits for the opponent, else nil.
 		-- blind_results[player_id][blind_key] is each player's result per non-PvP blind.
 		pending_death = nil,
+		-- Current PvP round, retained through the shop and checkpointed for takeover.
+		round = nil,
+		retired_rounds = {},
 		blind_results = {},
 		-- Matches of 3 or more players: one entry per dead player (see
 		-- PVP.PendingDeath.add_pending). many_hold is nil or a PVP.ManyHold state.
@@ -62,11 +65,66 @@ end
 -- stale ones from the round that just ended.
 local broadcast_royale_targets, broadcast_live_targets
 
+local function round_state(round)
+	return {
+		round_id = round.id,
+		revisions = round.revisions,
+		outcome = round.outcome,
+		lives = round.lives,
+		team_lives = round.team_lives,
+		eliminated = round.eliminated,
+	}
+end
+
 local function broadcast(key, params)
 	local lobby = MPAPI.get_current_lobby()
+	local round = PVP.REF.round
+	if round and round.resolving and not round.outcome and (key == "pvp_end_pvp" or key == "pvp_win") then
+		-- Commit the result before network delivery (which can synchronously loop back).
+		round.outcome = { key = key, params = params }
+		round.lives, round.team_lives, round.eliminated = {}, {}, {}
+		for id, pl in pairs(PVP.REF.players) do round.lives[id] = pl.lives end
+		for id, lives in pairs(PVP.REF.team_lives) do round.team_lives[id] = lives end
+		for id, eliminated in pairs(PVP.REF.eliminated) do round.eliminated[id] = eliminated end
+		if round.enabled then
+			-- Earlier eliminations no longer enter new blinds, so they have no matching
+			-- client round record. They still need the final match result for reporting.
+			if key == "pvp_win" then
+				for _, player in ipairs(lobby:get_players()) do
+					if round.revisions[player.id] == nil then
+						lobby:action(MPAPI.ActionTypes.pvp_win):send(player.id, params)
+					end
+				end
+			end
+			key, params = "pvp_round_state", round_state(round)
+		end
+	end
 	if lobby and MPAPI.ActionTypes[key] then
 		lobby:action(MPAPI.ActionTypes[key]):broadcast(params or {})
 	end
+end
+
+local function begin_round(ids)
+	local previous = PVP.REF.round
+	if previous and previous.outcome then
+		-- Survivors must receive the result before readying another blind. Eliminated
+		-- players do not ready again: retain their last round until the run ends.
+		-- At most one such round per eliminated player, rather than an unbounded log.
+		for id in pairs(previous.revisions) do
+			if previous.lives[id] <= 0 then
+				PVP.REF.retired_rounds[previous.id] = previous
+				break
+			end
+		end
+	end
+	local round = { id = MPAPI.generate_id(), enabled = true, revisions = {} }
+	for _, id in ipairs(ids) do
+		round.revisions[id] = 0
+		if PVP.REF.players[id].round_protocol ~= 1 then round.enabled = false end
+	end
+	PVP.REF.round = round
+	-- Mixed-version lobbies use the old wire protocol, without unsafe retries.
+	return round.enabled and round.id or nil
 end
 
 -- pvp_win is the only message that ends a client's run, and a client that misses
@@ -795,6 +853,8 @@ function PVP.referee_reset(starting_lives)
 		return
 	end
 	PVP.REF.players = {}
+	PVP.REF.round = nil
+	PVP.REF.retired_rounds = {}
 	PVP.REF.last_outcome = nil
 	PVP.REF.first_ready_at = nil
 	if PVP.REF.ready_tracker then
@@ -959,11 +1019,12 @@ end
 -- "every alive player has readied", via MPAPI.ReadyTracker()'s set/is_ready/reset
 -- primitives (checked against alive_ids() ourselves rather than its own all_ready(),
 -- which loops the full lobby roster and would stall on eliminated spectators).
-function PVP.referee_on_ready_blind(from, starting_hands)
+function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 	if not is_host() then
 		return
 	end
 	ref_player(from).starting_hands = tonumber(starting_hands)
+	ref_player(from).round_protocol = round_protocol
 
 	if #both_players() > 2 then
 		PVP.REF.ready_tracker = PVP.REF.ready_tracker or MPAPI.ReadyTracker()
@@ -984,7 +1045,8 @@ function PVP.referee_on_ready_blind(from, starting_hands)
 				pl.hands_left = 4
 				pl.played_this_blind = false
 			end
-			broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive) })
+			local round_id = begin_round(alive)
+			broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive), round_id = round_id })
 			-- Show fresh (0) values on the live target board immediately, not stale
 			-- ones from the round that just ended.
 			broadcast_live_targets()
@@ -1010,12 +1072,14 @@ function PVP.referee_on_ready_blind(from, starting_hands)
 		enemy.hands_left = 4
 		me.played_this_blind = false
 		enemy.played_this_blind = false
+		local round_id = begin_round({ from, opp })
 
 		-- firstPlayer is the id of whichever player readied first.
 		local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
 		broadcast("pvp_start_blind", {
 			first_player = first_id or "",
 			starting_hands = starting_hands_by_id({ from, opp }),
+			round_id = round_id,
 		})
 	end
 end
@@ -1307,6 +1371,8 @@ end
 -- 2 alive -- at exactly 2 alive, floor(2/2)=1 degenerates to "the lower scorer of
 -- the pair loses a life", so the ending plays out identically to a 1v1 anyway.
 local function try_resolve_round()
+	local round = PVP.REF.round
+	if round and round.resolving then return end
 	local total = both_players()
 	if #total < 2 then
 		return
@@ -1325,6 +1391,7 @@ local function try_resolve_round()
 				return
 			end
 		end
+		if round then round.resolving = true end
 		if PVP.LOBBY.config.manhunt then
 			resolve_manhunt_round(alive)
 		else
@@ -1340,6 +1407,7 @@ local function try_resolve_round()
 			return
 		end
 		local winner, loser, equal = outcome.winner, outcome.loser, outcome.equal
+		if round then round.resolving = true end
 
 		if not equal then
 			lose_life(loser)
@@ -1373,6 +1441,7 @@ local function try_resolve_round()
 		end
 	end
 
+	if round then round.resolving = true end
 	if PVP.LOBBY.config.nemesis_pairing then
 		-- Nemesis: resolve every still-live pair independently (a pair with one side
 		-- now eliminated/disconnected is skipped -- the survivor is untouched this
@@ -1426,6 +1495,36 @@ function PVP.referee_on_play_hand(from, params)
 	if not is_host() then
 		return
 	end
+	local round = PVP.REF.round
+	if params.round_id and (not round or params.round_id ~= round.id) then
+		round = PVP.REF.retired_rounds[params.round_id]
+		if not round then return end
+	end
+	local function acknowledge()
+		if round and round.enabled then
+			local lobby = MPAPI.get_current_lobby()
+			lobby:action(MPAPI.ActionTypes.pvp_round_state):send(from, round_state(round))
+		end
+	end
+	if round and round.enabled then
+		local revision = params.revision
+		if params.round_id ~= round.id or round.revisions[from] == nil
+			or type(revision) ~= "number" or revision < 0 or revision % 1 ~= 0 then
+			return
+		end
+		if round.resolving or revision <= round.revisions[from] then
+			acknowledge()
+			return
+		end
+		if type(params.score) ~= "string" or type(params.handsLeft) ~= "number"
+			or params.handsLeft < 0 or params.handsLeft % 1 ~= 0 then return end
+		round.revisions[from] = revision
+	elseif params.round_id then
+		-- Never feed a delayed report from an earlier upgraded round into a legacy one.
+		return
+	elseif round and round.resolving then
+		return
+	end
 	local known = PVP.REF.players[from] ~= nil
 	local pl = ref_player(from)
 	pl.score = PVP.INSANE_INT.from_string(tostring(params.score or "0"))
@@ -1448,6 +1547,7 @@ function PVP.referee_on_play_hand(from, params)
 	end
 	broadcast_live_targets()
 	try_resolve_round()
+	acknowledge()
 end
 
 function PVP.referee_on_skip(from, params)
@@ -1866,6 +1966,7 @@ local function snapshot()
 			blocker = flag(pl.lives_blocker),
 			team = pl.team_id,
 			failed_blind = pl.failed_blind,
+			round_protocol = pl.round_protocol,
 			tracked_ready = flag(PVP.REF.ready_tracker and PVP.REF.ready_tracker:is_ready(id)),
 		}
 	end
@@ -1886,6 +1987,8 @@ local function snapshot()
 		many_hold = PVP.REF.many_hold,
 		team_pending = PVP.REF.team_pending,
 		blind_results = PVP.REF.blind_results or {},
+		round = PVP.REF.round,
+		retired_rounds = PVP.REF.retired_rounds,
 	}
 end
 
@@ -1908,6 +2011,7 @@ local function restore(snap)
 			lives_blocker = s.blocker == 1,
 			team_id = s.team,
 			failed_blind = s.failed_blind,
+			round_protocol = s.round_protocol,
 		}
 		if s.tracked_ready == 1 then
 			PVP.REF.ready_tracker:set(id, true)
@@ -1927,6 +2031,8 @@ local function restore(snap)
 	PVP.REF.many_hold = snap.many_hold
 	PVP.REF.team_pending = type(snap.team_pending) == "table" and snap.team_pending or nil
 	PVP.REF.blind_results = snap.blind_results or {}
+	PVP.REF.round = snap.round
+	PVP.REF.retired_rounds = snap.retired_rounds or {}
 end
 
 -- No checkpoint to take over (an old host on an older build, or one that
@@ -1936,6 +2042,8 @@ end
 -- each player plays its next hand.
 local function rebuild_from_local(lobby)
 	PVP.REF.players = {}
+	PVP.REF.round = nil
+	PVP.REF.retired_rounds = {}
 	PVP.REF.ready_tracker = MPAPI.ReadyTracker()
 	PVP.REF.eliminated = {}
 	PVP.REF.blind_results = {}
