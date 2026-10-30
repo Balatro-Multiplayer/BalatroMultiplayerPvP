@@ -829,6 +829,14 @@ return {
 					"at random",
 				},
 			},
+			b_mp_cocktail_bean = {
+				name = "Bean's Cocktail",
+				text = {
+					"{C:attention}Abandoned{}: no face cards",
+					"{C:attention}Erratic{}: random cards",
+					"{C:attention}Checkered{}: {C:spades}Spades{}, {C:hearts}Hearts{}",
+				},
+			},
 			b_mp_gradient = {
 				name = "Gradient Deck",
 				text = {

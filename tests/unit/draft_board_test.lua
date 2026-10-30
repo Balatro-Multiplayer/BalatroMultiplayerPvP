@@ -170,7 +170,7 @@ print("-- the Draft config the host hands MPAPI.BanPick --")
 local FIELDS = {
 	ruleset_mp_balanced = { banned_backs = { "b_mp_orange", "b_mp_violet" }, allowed_backs = { "b_mp_orange", "b_mp_violet" } },
 	ruleset_mp_expanded = {
-		allowed_backs = { "b_mp_orange", "b_mp_violet" },
+		allowed_backs = { "b_mp_orange", "b_mp_violet", "b_mp_cocktail" },
 		allowed_stakes = { "stake_white", "stake_green", "stake_black", "stake_purple", "stake_gold", "stake_mp_spectralplus" },
 		half_weight_stakes = { "stake_mp_spectralplus" },
 	},
@@ -214,7 +214,7 @@ end
 local stakes, decks, sizes, config = pool_stakes_and_decks("ruleset_mp_expanded")
 check(config.tile_order == S.draft_tile_order, "the config shows tiles in draft_tile_order")
 check(keys_of(stakes) == "1,11,3,4,6,8", "Expanded drafts its allowed stakes, Spectral+ included (" .. keys_of(stakes) .. ")")
-check(decks.b_mp_orange and decks.b_mp_violet and not decks.b_mp_cocktail and not decks.b_challenge, "Expanded drafts Orange and Violet, not Cocktail or Challenge")
+check(decks.b_mp_orange and decks.b_mp_violet and decks.b_mp_cocktail and not decks.b_challenge, "Expanded drafts Orange, Violet and Cocktail, not Challenge")
 check(sizes[9] and keys_of(sizes) == "9", "Expanded boards have 9 tiles")
 local counts = {}
 for _ = 1, 3000 do
@@ -224,13 +224,15 @@ for _ = 1, 3000 do
 end
 local plus = counts[11] / counts[3]
 check(plus > 0.35 and plus < 0.65, ("Spectral+ comes up about half as often as Green (%.2f)"):format(plus))
-stakes = pool_stakes_and_decks("ruleset_mp_smallworld")
+stakes, decks = pool_stakes_and_decks("ruleset_mp_smallworld")
+check(decks.b_mp_cocktail, "Small World drafts Cocktail")
 check(keys_of(stakes) == "1,11,3,4,6,8", "Small World drafts the same stakes as Expanded (" .. keys_of(stakes) .. ")")
 stakes, decks = pool_stakes_and_decks("ruleset_mp_balanced")
 check(keys_of(stakes) == "1,2,3,4,5,6,7,8", "Balanced drafts every stake up to 8")
-check(not decks.b_mp_orange and not decks.b_mp_violet, "Balanced bans Orange and Violet")
+check(not decks.b_mp_orange and not decks.b_mp_violet and not decks.b_mp_cocktail, "Balanced drafts no PvP decks")
 PVP.DECK.MAX_STAKE = 3
-stakes = pool_stakes_and_decks("ruleset_mp_smallworld")
+stakes, decks = pool_stakes_and_decks("ruleset_mp_smallworld")
+check(decks.b_mp_cocktail, "Small World drafts Cocktail")
 check(keys_of(stakes) == "1,3", "a stake cap of 3 limits the stakes")
 PVP.DECK.MAX_STAKE = nil
 local _, _, small = pool_stakes_and_decks("ruleset_mp_balanced", 6)
