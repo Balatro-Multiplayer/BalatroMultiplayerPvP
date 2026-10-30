@@ -80,6 +80,7 @@ A_host("pvp_death_pending", function(_at, _from, params)
 		PVP.GAME.team_pending = { team_id = params.team_id, blind_key = params.blind_key }
 		local roster = PVP.LOBBY.roster
 		if not (roster and roster[self_id()] == params.team_id) then
+			PVP.UI.show_pending_death_notice()
 			return
 		end
 		PVP.GAME.pending_death = { player_id = self_id(), blind_key = params.blind_key }
@@ -92,6 +93,7 @@ A_host("pvp_death_pending", function(_at, _from, params)
 		PVP.GAME.pending_deaths = PVP.GAME.pending_deaths or {}
 		PVP.GAME.pending_deaths[params.player_id] = params.blind_key
 		if params.player_id ~= self_id() then
+			PVP.UI.show_pending_death_notice()
 			return
 		end
 	end
@@ -102,6 +104,8 @@ A_host("pvp_death_pending", function(_at, _from, params)
 	}
 	if params.player_id == self_id() then
 		PVP.UI.show_pending_death_screen()
+	else
+		PVP.UI.show_pending_death_notice()
 	end
 end)
 

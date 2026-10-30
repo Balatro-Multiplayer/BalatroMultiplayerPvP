@@ -948,10 +948,12 @@ end
 
 -- Tells the referee how this client ended the current non-PvP blind. A failure
 -- is sent before failRound / failTimer so the referee knows which blind a death was on.
-function PVP.ACTIONS.blind_result(beaten)
+-- `blind` (optional) names the blind when it is no longer the one on deck, as
+-- after a skip.
+function PVP.ACTIONS.blind_result(beaten, blind)
 	local lobby = MPAPI.get_current_lobby()
 	local ante = G.GAME.round_resets.ante
-	local blind = G.GAME.blind_on_deck
+	blind = blind or G.GAME.blind_on_deck
 	PVP.GAME.own_blind_results = PVP.GAME.own_blind_results or {}
 	PVP.PendingDeath.record(PVP.GAME.own_blind_results, PVP.PendingDeath.SELF, PVP.PendingDeath.blind_key(ante, blind), beaten)
 	if lobby then
