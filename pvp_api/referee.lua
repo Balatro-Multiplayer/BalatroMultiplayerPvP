@@ -1966,6 +1966,32 @@ function PVP.referee_checkpoint()
 	lobby:set_metadata({ [CHECKPOINT_KEY] = snap })
 end
 
+-- The old host left before this client became host, so its PLAYER_LEFT was heard
+-- with no gamemode instance and no host rights, and nothing ended the match. The
+-- restored referee still lists whoever is no longer in the lobby; forfeit them.
+local function forfeit_departed(lobby)
+	local present = {}
+	for _, p in ipairs(lobby:get_players()) do
+		present[p.id] = true
+	end
+	local gm = lobby:get_gamemode_instance()
+	if not (gm and gm.on_player_forfeit) then
+		return
+	end
+	local gone = {}
+	for id in pairs(PVP.REF.players) do
+		if not present[id] then
+			gone[#gone + 1] = id
+		end
+	end
+	for _, id in ipairs(gone) do
+		-- A pending death decides it instead, as for a live leave.
+		if not PVP.referee_pending_death_on_player_gone(id) then
+			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(id))
+		end
+	end
+end
+
 -- Run on the player the server has just made host, mid-run. Returns how the
 -- referee was rebuilt ("checkpoint" or "local"), or nil when nothing was done.
 function PVP.referee_take_over()
@@ -2013,6 +2039,7 @@ function PVP.referee_take_over()
 	resolve_pending_death()
 	resolve_team_pending()
 	settle_many_pending()
+	forfeit_departed(lobby)
 	PVP.referee_checkpoint()
 	return source
 end
