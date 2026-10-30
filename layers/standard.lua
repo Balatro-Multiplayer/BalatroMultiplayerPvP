@@ -9,6 +9,10 @@ MPAPI.Layer("standard", {
 		"j_bloodstone",
 		"c_ouija",
 	},
+	allowed_backs = {
+		"b_mp_orange",
+		"b_mp_violet",
+	},
 	banned_jokers = {
 		"j_mp_speedrun",
 		"j_mp_conjoined_joker",
