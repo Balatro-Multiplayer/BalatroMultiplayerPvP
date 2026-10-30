@@ -3,7 +3,7 @@
 -- player's lives, ranked lobbies also show Elo (or placement progress for a
 -- player still in their placement games, whose rating isn't shown yet).
 --
--- Cached per (gamemode, player) since MPAPI.matchmaking.get_rating is an
+-- Cached per (ranked board, player) since MPAPI.matchmaking.get_rating is an
 -- async network call and hover callbacks must return synchronously: the
 -- first hover with no cache entry fires the lookup in the background and
 -- shows a placeholder immediately, a later hover shows the resolved value.
@@ -20,11 +20,14 @@ local function text_row(text)
 end
 
 local function elo_row(lobby, player_data)
+	-- Ratings are kept per ranked ruleset (the queue's ticket, e.g.
+	-- "pvp_ranked_balanced"), not per gamemode: every ranked lobby is
+	-- gamemode_mp_attrition, whose board never has games on it.
 	local meta = lobby:get_metadata() or {}
-	local gamemode = meta.gamemode
-	if not gamemode then
+	if not meta.ruleset then
 		return text_row("Elo: N/A")
 	end
+	local gamemode = PVP.ranked_ticket(meta.ruleset)
 
 	if PVP._rating_cache_lobby ~= lobby.code then
 		PVP._rating_cache = {}
