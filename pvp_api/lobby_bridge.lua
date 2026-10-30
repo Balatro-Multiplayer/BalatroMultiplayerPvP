@@ -84,6 +84,18 @@ function PVP.current_target_id()
 	return PVP.GAME.royale_target_id
 end
 
+-- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
+-- set while the server says the target is replaying its run after a crash.
+function PVP.refresh_catching_up_badge()
+	if not (PVP.GAME and PVP.GAME.enemy) then
+		return
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local target_id = lobby and PVP.current_target_id()
+	local catching_up = target_id and lobby:is_player_catching_up(target_id)
+	PVP.GAME.enemy.catching_up_text = catching_up and (" (" .. localize("k_catching_up") .. ")") or ""
+end
+
 -- The name shown on the PvP boss blind (key "bl_mp_nemesis", the shared marker
 -- for every gamemode's PvP boss -- see gamemodes/attrition.lua) for the CURRENT
 -- gamemode. Mirrors current_target_id()'s own branch order/reasoning above:
@@ -96,7 +108,11 @@ end
 --  - Teams (N>2): the blind shows the whole opposing team's aggregate score,
 --    not any one member -- show that team's fixed label.
 --  - Royale (N>2, no pairing): show the fixed "The Royale" label.
+-- A Nemesis player with no nemesis this ante (a bye) gets "Bye".
 function PVP.pvp_blind_opponent_name()
+	if PVP.is_announced_bye() then
+		return localize("k_bye")
+	end
 	local lobby = MPAPI.get_current_lobby()
 	if PVP.LOBBY.config.nemesis_pairing or not lobby or #lobby:get_players() == 2 then
 		local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
@@ -121,6 +137,12 @@ end
 -- the two cases.
 function PVP.is_byed()
 	return PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id == nil
+end
+
+-- True only for a bye the host has announced: is_byed() is also true before the
+-- first pairing arrives, when the opponent is not yet known ("????", not "Bye").
+function PVP.is_announced_bye()
+	return PVP.is_byed() and PVP.GAME.nemesis_pairing_received == true
 end
 
 local function player_name(lobby, player_id)
@@ -164,9 +186,13 @@ local function mirror_metadata(lobby)
 	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
 	-- layers on top of it for the whole lobby. Every client derives them from the
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
-	-- without a metadata field of their own. Nothing else adds modifiers.
+	-- without a metadata field of their own. The only other modifier is Trap
+	-- cards: the private lobby host's switch here, the Casual vote below.
 	if PVP.LOBBY.config.ruleset then
 		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
+		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
+			MPAPI.add_modifier("traps")
+		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 	end
 	if meta.deck then
@@ -175,6 +201,9 @@ local function mirror_metadata(lobby)
 	if meta.stake then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
+	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
+	-- arrives, so the queued kind stands in for it.
+	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)
@@ -209,12 +238,20 @@ local function mirror_players(lobby)
 	else
 		opp_name = opp_id and player_name(lobby, opp_id) or nil
 	end
+	-- An opponent who leaves mid-match drops out of the roster, so current_target_id() goes
+	-- nil and the slot would blank: the end screen then read "Your Nemesis ????". During a
+	-- run, keep the name last seen in this same lobby.
+	local previous = lobby.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
+	local opponent = opp_name and { username = opp_name, id = opp_id, lobby = lobby } or {}
+	if not opp_name and previous and previous.lobby == lobby and previous.username and G.STAGE == G.STAGES.RUN then
+		opponent = previous
+	end
 	PVP.LOBBY.is_host = lobby.is_host and true or false
 	if lobby.is_host then
 		PVP.LOBBY.host = { username = self_name, id = lobby.player_id }
-		PVP.LOBBY.guest = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.guest = opponent
 	else
-		PVP.LOBBY.host = opp_name and { username = opp_name, id = opp_id } or {}
+		PVP.LOBBY.host = opponent
 		PVP.LOBBY.guest = { username = self_name, id = lobby.player_id }
 	end
 end
@@ -292,8 +329,13 @@ PVP.setup_lobby_mirror = function(lobby)
 		refresh()
 	end)
 
+	lobby:on(MPAPI.LobbyEvent.PLAYER_CATCHING_UP, function()
+		PVP.refresh_catching_up_badge()
+	end)
+
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
+		PVP.TRAP_ROW.on_player_back(player_id)
 		refresh()
 	end)
 
@@ -308,9 +350,16 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.draw_votes:remove(player_id)
 		end
 		mirror_players(lobby)
+		PVP.TRAP_ROW.forget(player_id)
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
-		if gm and gm.on_player_forfeit and G.STAGE == G.STAGES.RUN then
+		-- A pending death decides it instead: leaving with one is not a forfeit.
+		if
+			gm
+			and gm.on_player_forfeit
+			and G.STAGE == G.STAGES.RUN
+			and not PVP.referee_pending_death_on_player_gone(player_id)
+		then
 			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
 		end
 		refresh()
@@ -321,16 +370,15 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- rejoins the match) -- only act when the reconnecting
 	-- player IS us; the opponent's own client needs no catch-up, it never
 	-- disconnected. See pvp_api/reconnect_tail.lua.
-	-- The group panel (ui/lobby/group_panel.lua) refuses while a player is
-	-- away, so it follows players dropping and coming back: a group member
-	-- back from a public match after its host left the host's panel saying
-	-- "every player must be connected".
+	-- A Party lobby's Find Game pillars (ui/main_menu/find_game.lua) refuse
+	-- while a player is away, so they follow players dropping and coming back.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function()
 		refresh()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		refresh()
+		PVP.TRAP_ROW.on_player_back(player_id)
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
 			return
@@ -362,8 +410,8 @@ PVP.setup_lobby_mirror = function(lobby)
 		MPAPI.refresh_current_view()
 	end)
 
-	-- The group panel (the waiting room's) also names a player whose standing
-	-- refuses the group, so a change that moves that verdict rebuilds it.
+	-- A Party lobby's Find Game pillars grey a mode a player's standing
+	-- refuses, so a change that moves that verdict rebuilds them.
 	-- Only those: a joiner's first standing lands just after the join, and a
 	-- rebuild then would close an overlay the host had just opened. Not once
 	-- a game is on: a rejoin's playback starts from the main menu, and a
@@ -442,10 +490,31 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
+	-- A contest in a match of 2 ends it for both. In a larger match only the
+	-- contester leaves (their own client shows the screen once the server accepted
+	-- it); everyone else gets a chat line (ui/contest_modal.lua).
+	lobby:on(MPAPI.LobbyEvent.CONTESTED, function(contested)
+		local by = contested and contested.by
+		local scope = PVP.Contest.scope(PVP._match_players and #PVP._match_players, by, PVP.self_player_id())
+		if scope == PVP.Contest.Scope.EVERYONE then
+			PVP.show_contested_screen()
+		elseif scope == PVP.Contest.Scope.BYSTANDER then
+			PVP.note_contest_by(by)
+		end
+	end)
+
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
+		-- Only a match of 2 ends on a contest; in a larger one the others already
+		-- have their own result and the contester their contested screen.
+		if
+			ended.status == PVP.Contest.RunStatus.CONTESTED
+			and PVP.Contest.scope(PVP._match_players and #PVP._match_players, nil, nil) == PVP.Contest.Scope.EVERYONE
+		then
+			PVP.show_contested_screen()
+		end
 		if PVP.reset_ready_state then
 			PVP.reset_ready_state()
 		end

@@ -8,7 +8,7 @@ priority = 2147483600
 target = "card.lua"
 pattern = '''\) then self.cost = 0 end'''
 position = 'after'
-payload = '''if self.edition and self.edition.type == 'mp_phantom' then self.sell_cost = 0 end'''
+payload = '''if PVP.is_phantom(self) then self.sell_cost = 0 end'''
 times = 1
 
 [[patches]]
@@ -16,7 +16,7 @@ times = 1
 target = "card.lua"
 pattern = '''if G.jokers.cards[i] ~= self then'''
 position = 'at'
-payload = '''if G.jokers.cards[i] ~= self and (not G.jokers.cards[i].edition or G.jokers.cards[i].edition.type ~= "mp_phantom") then'''
+payload = '''if G.jokers.cards[i] ~= self and not PVP.is_phantom(G.jokers.cards[i]) then'''
 match_indent = true
 times = 1
 
@@ -27,7 +27,7 @@ pattern = '''local chosen_joker = pseudorandom_element(G.jokers.cards, pseudosee
 position = 'at'
 payload = '''local copyable_jokers = {}
     for i, v in ipairs(G.jokers.cards) do
-      if not G.jokers.cards[i].edition or G.jokers.cards[i].edition.type ~= "mp_phantom" then copyable_jokers[#copyable_jokers + 1] = v end
+      if not PVP.is_phantom(G.jokers.cards[i]) then copyable_jokers[#copyable_jokers + 1] = v end
     end
     local chosen_joker = pseudorandom_element(copyable_jokers, pseudoseed('ankh_choice'))'''
 match_indent = true
@@ -40,7 +40,7 @@ pattern = '''--if there is at least one joker(?<pre>[\s\S]+?)for k, v in pairs\(
 position = 'at'
 payload = '''--if there is at least one joker$pre local copyable_jokers = {}
       for i, v in ipairs(G.jokers.cards) do
-        if not G.jokers.cards[i].edition or G.jokers.cards[i].edition.type ~= "mp_phantom" then copyable_jokers[#copyable_jokers + 1] = v end
+        if not PVP.is_phantom(G.jokers.cards[i]) then copyable_jokers[#copyable_jokers + 1] = v end
       end
       for k, v in pairs(copyable_jokers) do'''
 times = 1
@@ -69,6 +69,6 @@ times = 1
 target = "card.lua"
 pattern = '''if self.ability.name == 'Baseball Card' and self ~= context.other_joker and context.other_joker:is_rarity("Uncommon") then'''
 position = 'after'
-payload = '''if context.other_joker.edition and context.other_joker.edition.type == 'mp_phantom' then return end'''
+payload = '''if PVP.is_phantom(context.other_joker) then return end'''
 match_indent = true
 times = 1

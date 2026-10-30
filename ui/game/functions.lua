@@ -15,7 +15,7 @@ function G.FUNCS.mp_toggle_ready(e)
 	sendTraceMessage("Toggling Ready", "MULTIPLAYER")
 	PVP.GAME.ready_blind = not PVP.GAME.ready_blind
 	PVP.GAME.ready_blind_text = PVP.GAME.ready_blind and localize("b_unready") or localize("b_ready")
-	PVP.RLOG.record("ready_blind", PVP.GAME.ready_blind and 1 or 0)
+	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, PVP.GAME.ready_blind and 1 or 0)
 
     PVP.GAME.pvp_reached = true
 
@@ -73,7 +73,7 @@ function G.FUNCS.select_blind(e)
 		-- is now recorded once, generically, by
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
-		PVP.RLOG.record("set_ante_key", PVP.GAME.ante_key)
+		PVP.RLOG.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
 		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands)
 		PVP.ACTIONS.new_round()
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
@@ -83,8 +83,13 @@ end
 
 local skip_blind_ref = G.FUNCS.skip_blind
 G.FUNCS.skip_blind = function(e)
+	local skipped_blind = G.GAME.blind_on_deck
 	skip_blind_ref(e)
 	if PVP.LOBBY.code then
+		-- A skipped blind counts as beaten for a pending death: the opponent died on
+		-- a blind this player went past, so there is nothing left to beat.
+		PVP.ACTIONS.blind_result(true, skipped_blind)
+
 		-- Old timer: add time from skipping to own timer when not timered and not timering
 		if
             PVP.LOBBY.config.timer

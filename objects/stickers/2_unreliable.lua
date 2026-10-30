@@ -10,7 +10,7 @@ SMODS.Sticker({
 local calculate_joker_ref = Card.calculate_joker
 function Card:calculate_joker(context)
 	if self.ability.mp_sticker_unreliable and G.GAME.current_round.hands_left == 0 then
-		if not self.edition or self.edition.type ~= "mp_phantom" then return end
+		if not PVP.is_phantom(self) then return end
 	end
 	return calculate_joker_ref(self, context)
 end

@@ -35,7 +35,7 @@ MPAPI.Joker({
 	receive = function(self, context)
 		local d = context.data
 		if d.type == "request" then
-			PVP.RLOG.record("net_magnet", nil, "action:netMagnet")
+			PVP.RLOG.record(MPAPI.OPCODE.NET_MAGNET, nil, "action:netMagnet")
 			local best = nil
 			for _, v in pairs(G.jokers.cards) do
 				if not best or v.sell_cost > best.sell_cost then best = v end
@@ -58,7 +58,7 @@ MPAPI.Joker({
 			and not context.other_card
 			and not context.blueprint
 			and not context.debuffed
-			and (not card.edition or card.edition.type ~= "mp_phantom")
+			and not PVP.is_phantom(card)
 		then
 			local removed = false
 			card.ability.extra.current_rounds = card.ability.extra.current_rounds + 1

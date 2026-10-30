@@ -230,6 +230,11 @@ G.FUNCS.mp_pvp_create_lobby_teams = function()
 	PVP.pvp_create_private_lobby("pvp_teams")
 end
 
+G.FUNCS.mp_pvp_create_lobby_party = function()
+	G.FUNCS.exit_overlay_menu()
+	PVP.pvp_create_party_lobby()
+end
+
 -- ── Join overlays (copied from Speed's join.lua) ─────────────────────────────
 -- CONFIRMED LIVE BUG, fixed by capturing this table directly: create_UIBox_generic_options
 -- wraps create_text_input's node in a way that leaves config.ref_table nil on the node
@@ -291,37 +296,26 @@ end
 -- ruleset_mp_vanilla + gamemode_mp_attrition as plain Vanilla and have no distinguishing
 -- mechanic with a single practice player (see PVP._start_practice's header comment), so
 -- they're intentionally not offered here.
--- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below.
+-- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below,
+-- which opens the run setup screen (deck, stake, seed) for that ruleset.
 G.FUNCS.mp_pvp_practice = function()
 	MPAPI.pages.show("pvp_game_select", { intent = "practice" })
 end
 
 G.FUNCS.mp_pvp_practice_balanced = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_balanced")
+	PVP.open_practice_setup(PVP.RulesetKey.BALANCED)
 end
 
 G.FUNCS.mp_pvp_practice_expanded = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_expanded")
+	PVP.open_practice_setup(PVP.RulesetKey.EXPANDED)
 end
 
 G.FUNCS.mp_pvp_practice_vanilla = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_vanilla")
+	PVP.open_practice_setup(PVP.RulesetKey.VANILLA)
 end
 
 G.FUNCS.mp_pvp_practice_smallworld = function()
-	G.FUNCS.exit_overlay_menu()
-	PVP._start_practice("ruleset_mp_smallworld")
-end
-
-G.FUNCS.mp_pvp_practice_experimental = function()
-	G.FUNCS.exit_overlay_menu()
-	-- PVP._start_practice now takes a ruleset key directly (see its own header
-	-- comment), not the pvp_experimental gamemode-table entry's key -- that entry
-	-- was never registered as an MPAPI.GameMode anyway (§17.6/§17.3).
-	PVP._start_practice("ruleset_mp_experimental")
+	PVP.open_practice_setup(PVP.RulesetKey.SMALLWORLD)
 end
 
 -- ── Replay/Spectate overlay ───────────────────────────────────────────────

@@ -13,10 +13,8 @@
 -- widget/mechanism of its own.
 --
 -- WIP: chip art is a single placeholder frame reused across every pillar (no per-mode art
--- exists yet), and MLBa Ranked has no matchmaking gamemode-key registered in PVP.PVP_GAMEMODES
--- yet, so its SELECT button is disabled rather than wired to a queue call that would fail.
--- Everything else routes straight to the existing mp_pvp_queue_ranked_*/mp_pvp_queue_casual_*
--- handlers (pvp_api/queue.lua), unchanged.
+-- exists yet). Every pillar routes straight to the existing mp_pvp_queue_ranked_*/
+-- mp_pvp_queue_casual_* handlers (pvp_api/queue.lua), unchanged.
 
 -- No new atlas registered here -- reuses objects/blinds/nemesis.lua's already-registered
 -- "player_blind_chip" (G.ANIMATION_ATLAS['mp_player_blind_chip'], SMODS auto-prefixes the key)
@@ -30,19 +28,12 @@ local PLACEHOLDER_CHIP_ROW = 0
 
 -- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
 -- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
--- hand-picked guess: rulesets/majorleague.lua explicitly forces false; balanced's
--- "ranked" layer (layers/ranked.lua) explicitly forces true (redundant with the default, but
--- explicit); expanded/smallworld have no override, so they inherit the true default.
--- KNOWN MISMATCH: rulesets/vanilla.lua has no force_lobby_options at all, so it also inherits
--- the true default -- Vanilla Ranked is listed here as false (no Order) per the content this
--- was requested with, but as of this commit the ruleset itself doesn't actually turn the_order
--- off. Flagged, not silently "fixed" -- changing vanilla.lua's actual lobby behavior wasn't
--- part of this visual pass.
+-- hand-picked guess: rulesets/majorleague.lua explicitly forces false; rulesets/vanilla.lua
+-- forces false; balanced's "ranked" layer (layers/ranked.lua) explicitly
+-- forces true (redundant with the default, but explicit); expanded/smallworld have no
+-- override, so they inherit the true default.
 --
--- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this. MLBa has
--- no gamemode_key of its own in PVP.PVP_GAMEMODES yet (only a ruleset, rulesets/majorleague.lua),
--- so it has no queue_button -- build_select below disables its SELECT rather than wiring a
--- queue call that would silently misresolve.
+-- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this.
 -- desc lines are hand-wrapped to roughly Nemesis's own second line ("Nemesis every ante", 19
 -- chars) rather than left as whatever length the source description happened to be -- a couple
 -- (Battle Royale, Teams) were 25+ chars per line before this and visibly overran their card
@@ -50,28 +41,26 @@ local PLACEHOLDER_CHIP_ROW = 0
 -- rewritten by hand to fit.
 -- ruleset_key is the exact string PVP._join_ranked_ruleset stamps onto PVP.LOBBY.config.ruleset
 -- and PVP._active_queue_id.key (pvp_api/queue.lua) -- build_select below compares against it to
--- decide whether this exact pillar's queue is the one currently active. MLBa has none (nil):
--- it's never wired to a real queue call (see this file's header WIP comment), so it can never be
--- the active queue and is unconditionally disabled below.
+-- decide whether this exact pillar's queue is the one currently active.
 local RANKED_MODES = {
-	{ key = "pvp_ranked_vanilla", name = { "Vanilla", "Ranked" },
+	{ key = "pvp_ranked_vanilla",
 		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = "ruleset_mp_vanilla", colour = G.C.GREEN },
-	{ key = "pvp_ranked_balanced", name = { "Balanced", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RulesetKey.VANILLA, colour = G.C.GREEN },
+	{ key = "pvp_ranked_balanced",
 		desc = { "Minor balance", "changes for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = "ruleset_mp_balanced", colour = G.C.BLUE },
-	{ key = "pvp_ranked_expanded", name = { "Expanded", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RulesetKey.BALANCED, colour = G.C.BLUE },
+	{ key = "pvp_ranked_expanded",
 		desc = { "Standardized and", "balanced for MP" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = "ruleset_mp_expanded", colour = G.C.PURPLE },
-	{ key = "pvp_majorleague", name = { "MLBa", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RulesetKey.EXPANDED, colour = G.C.PURPLE },
+	{ key = "pvp_ranked_majorleague", short_name = "MLBa",
 		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = nil, ruleset_key = nil, colour = G.C.BLACK },
-	{ key = "pvp_smallworld_ranked", name = { "Smallworld", "Ranked" },
+		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = G.C.BLACK },
+	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = "ruleset_mp_smallworld", colour = G.C.RED },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = G.C.RED },
 }
 
--- Casual: 2-16 players. Each pillar plays its gamemode key's own default ruleset
+-- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
 -- (PVP.reset_ruleset_to_gamemode_default, pvp_api/queue.lua). Manhunt has an existing
 -- casual queue handler (mp_pvp_queue_casual_manhunt) but wasn't in the requested pillar
 -- set, so it's left reachable only via Create Lobby for now, not duplicated here. None
@@ -83,7 +72,7 @@ local RANKED_MODES = {
 -- page's own UI item id, unrelated to the wire gamemode key.
 local CASUAL_MODES = {
 	{ key = "pvp_nemesis", name = "Nemesis",
-		desc = { "Face a different", "Nemesis every ante" }, uses_order = true,
+		desc = { "One Nemesis,", "head to head" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_nemesis", gamemode_key = "pvp_nemesis", colour = G.C.BLUE },
 	{ key = "pvp_royale", name = { "Battle", "Royale" },
 		desc = { "Free for all;", "bottom half lose" }, uses_order = true,
@@ -91,7 +80,7 @@ local CASUAL_MODES = {
 	{ key = "pvp_teams", name = "Teams",
 		desc = { "Team vs team;", "best score wins" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour = G.C.GREEN },
-	{ key = "pvp_smallworld_casual", name = "Smallworld",
+	{ key = "pvp_smallworld_casual", display_ruleset = PVP.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour = G.C.RED },
 }
@@ -100,6 +89,13 @@ local CASUAL_MODES = {
 -- (AnimatedSprite free-runs its column animation; this icon is meant to sit static).
 local function build_chip_sprite()
 	return Sprite(0, 0, 1.1, 1.1, G.ANIMATION_ATLAS["mp_player_blind_chip"], { x = PLACEHOLDER_CHIP_ROW, y = 0 })
+end
+
+-- A ruleset's art, shared by the Ranked pillars and the Ruleset vote's tiles
+-- (pvp_api/setup.lua) so both change together when per-ruleset art exists.
+function PVP.ruleset_chip_sprite(_ruleset_key, size)
+	size = size or 1.1
+	return Sprite(0, 0, size, size, G.ANIMATION_ATLAS["mp_player_blind_chip"], { x = PLACEHOLDER_CHIP_ROW, y = 0 })
 end
 
 -- Every currently-built pillar's SELECT button, keyed by mode.key -- reset at the start of each
@@ -160,7 +156,7 @@ end
 -- Reactive SELECT button: QUEUE (orange) when idle or a different pillar is the active queue,
 -- CANCEL (red) while this exact pillar's own queue is PvP's one active queue
 -- (PVP._active_queue_matches, pvp_api/queue.lua). A pillar the account's standing refuses
--- (MPAPI.can_queue: Casual needs a valid or verified account, Ranked a launcher-verified one,
+-- (MPAPI.can_queue: Casual needs a valid or verified account, Ranked on the Official server a launcher-verified one,
 -- matching SPDRN's own gating in BalatroMultiplayerSpeed/ui/main_menu/game_select.lua) is
 -- greyed, and pressing it says why. Every OTHER pillar is also disabled while
 -- one queue is active: PvP tracks only a single matchmaking handle at a time
@@ -203,7 +199,7 @@ local function build_select(mode)
 	return el.node
 end
 
--- In group mode (opened from a private lobby's Group Queue button, ui/lobby/group_panel.lua)
+-- In group mode (opened from a Party lobby's Find Game, pvp_api/party_lobby.lua)
 -- a pillar's QUEUE queues the whole lobby for its mode instead (pvp_api/group_queue.lua). A
 -- mode the lobby doesn't fit is greyed; one a member's standing refuses is greyed but still
 -- pressable, so the server's refusal says which mods.
@@ -240,10 +236,10 @@ local _latest_counts = nil
 local _stat_els = {}
 
 -- The key the server counts a pillar's players under: its queue ticket's game_mode, as
--- pvp_api/queue.lua builds it (and the matchmade lobby's label carries). MLBa has no queue.
+-- pvp_api/queue.lua builds it (and the matchmade lobby's label carries).
 local function count_key(mode)
 	if mode.ruleset_key then
-		return PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. mode.ruleset_key:gsub("^ruleset_mp_", "")
+		return PVP.ranked_ticket(mode.ruleset_key)
 	end
 	return mode.gamemode_key
 end
@@ -319,6 +315,17 @@ local function build_order_card()
 	} })
 end
 
+-- Ranked pillars read "<ruleset> / Ranked"; a Casual pillar may take its name from its ruleset.
+local function pillar_name(mode)
+	if mode.ruleset_key then
+		return { mode.short_name or PVP.ruleset_display_name(mode.ruleset_key), localize("k_pvp_ranked") }
+	end
+	if mode.display_ruleset then
+		return PVP.ruleset_display_name(mode.display_ruleset)
+	end
+	return mode.name
+end
+
 local function build_items(modes, group)
 	_select_els = {}
 	_stat_els = {}
@@ -326,10 +333,10 @@ local function build_items(modes, group)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = build_chip_sprite(),
+			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or build_chip_sprite(),
 			select = group and build_group_select(mode) or build_select(mode),
 			name_plate = MPAPI.ui_pillar_name_plate({
-				lines = mode.name,
+				lines = pillar_name(mode),
 				bg_colour = mix_colours(mode.colour, G.C.BLACK, 0.3),
 				outline_colour = mode.colour,
 			}),
@@ -377,7 +384,7 @@ local function build_group_header()
 			UIBox_button({ button = "mp_pvp_group_queue_back", label = { localize("b_back") }, colour = G.C.ORANGE, minw = 2.4, minh = 0.6, scale = 0.4 }),
 		} },
 		{ n = G.UIT.C, config = { align = "cm", padding = 0.08 }, nodes = {
-			UIBox_button({ button = "nil", label = { localize("k_group_queue") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
+			UIBox_button({ button = "nil", label = { localize("k_party_lobby") }, colour = G.C.BLUE, minw = 3.0, minh = 0.6, scale = 0.4 }),
 		} },
 	} }
 end
@@ -400,7 +407,7 @@ end
 
 -- Builds this page's full definition (tab row + pillar row) for the given category ("ranked" or
 -- "casual", default "ranked"). `group` builds the casual pillars for queueing the current
--- private lobby as a group, with a back-to-lobby header in place of the tabs. The caller (pvp_find_game's MPAPI.Page registration, core.lua)
+-- Party lobby as a group, with a back-to-lobby header in place of the tabs. The caller (pvp_find_game's MPAPI.Page registration, core.lua)
 -- owns the returned pillar_row controller for this page's lifetime: call :dispose() from the
 -- page's own dispose() hook so the tracked chip icons get :remove()'d -- see
 -- api/ui_pillar_row.lua's header comment for why that's required.

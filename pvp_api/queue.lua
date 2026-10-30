@@ -124,24 +124,39 @@ end
 
 -- The finished match's placements for `player_ids`: the winner first, everyone else
 -- second. `opts.team` makes `winner` a team id (Manhunt/Teams, resolved through
--- PVP.LOBBY.roster); `opts.draw` places everyone first. metric = each player's best
--- PvP score (the leaderboard's season-best column).
+-- PVP.LOBBY.roster); `opts.draw` places everyone first. `opts.places` (id -> place)
+-- overrides all of that: tied players share a place, and a tie for first is no win.
+-- metric = each player's best PvP score (the leaderboard's season-best column).
 function PVP.build_placements(player_ids, winner, opts)
 	opts = opts or {}
+	local tied_first = 0
+	for _, id in ipairs(player_ids) do
+		if opts.places and opts.places[id] == 1 then
+			tied_first = tied_first + 1
+		end
+	end
 	local placements = {}
 	for _, id in ipairs(player_ids) do
-		local won
-		if opts.draw then
-			won = true
-		elseif opts.team then
-			won = PVP.LOBBY.roster and PVP.LOBBY.roster[id] == winner
+		local place, performance
+		if opts.places then
+			place = opts.places[id] or #player_ids
+			performance = (place == 1 and tied_first == 1) and 1 or 0
 		else
-			won = id == winner
+			local won
+			if opts.draw then
+				won = true
+			elseif opts.team then
+				won = PVP.LOBBY.roster and PVP.LOBBY.roster[id] == winner
+			else
+				won = id == winner
+			end
+			place = won and 1 or 2
+			performance = (won and not opts.draw) and 1 or 0
 		end
 		placements[#placements + 1] = {
 			playerId = id,
-			place = won and 1 or 2,
-			performance = (won and not opts.draw) and 1 or 0,
+			place = place,
+			performance = performance,
 			metric = (PVP.pvp_score_metric and PVP.pvp_score_metric(id)) or 0,
 		}
 	end
@@ -167,6 +182,12 @@ function PVP.report_server_result(lobby, winner, opts)
 	end)
 end
 
+-- A ranked ruleset's queue ticket, "ranked:pvp_ranked_<ruleset short>": the
+-- game mode the server counts it under and the key of its rating board.
+function PVP.ranked_ticket(ruleset_key)
+	return PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. ruleset_key:gsub("^ruleset_mp_", "")
+end
+
 -- Ranked-only entry point: ranked queues by RULESET directly now, not by a
 -- per-ruleset gamemode key (see pvp_api/gamemodes.lua's PVP.PVP_GAMEMODES
 -- header comment) -- ranked always plays Nemesis pairing regardless of which
@@ -175,7 +196,7 @@ end
 -- and stamps the ruleset straight onto PVP.LOBBY.config. The ticket string
 -- passed as `game_mode` is ruleset-scoped (e.g. "ranked:pvp_ranked_balanced";
 -- the server only treats a "ranked:"-prefixed game mode as ranked) so the
--- server's ELO ladder is per-ruleset, matching the 4 separate leaderboard tabs
+-- server's ELO ladder is per-ruleset, matching the separate leaderboard tabs
 -- (ui/pvp_leaderboard.lua).
 function PVP._join_ranked_ruleset(ruleset_key)
 	local gamemode_key = PVP.GamemodeKey.PVP_NEMESIS
@@ -185,7 +206,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max = (gm and gm.max_players and gm.max_players.ranked) or 2
-	local ticket = PVP.LobbyAccess.RANKED_PREFIX .. "pvp_ranked_" .. ruleset_key:gsub("^ruleset_mp_", "")
+	local ticket = PVP.ranked_ticket(ruleset_key)
 
 	local handle = MPAPI.matchmaking.queue({
 		mod_id = PVP.id,
@@ -272,6 +293,10 @@ end
 G.FUNCS.mp_pvp_queue_ranked_vanilla = function()
 	G.FUNCS.exit_overlay_menu()
 	PVP._join_ranked_ruleset("ruleset_mp_vanilla")
+end
+G.FUNCS.mp_pvp_queue_ranked_majorleague = function()
+	G.FUNCS.exit_overlay_menu()
+	PVP._join_ranked_ruleset("ruleset_mp_majorleague")
 end
 G.FUNCS.mp_pvp_queue_ranked_smallworld = function()
 	G.FUNCS.exit_overlay_menu()

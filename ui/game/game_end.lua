@@ -11,6 +11,19 @@ function G.FUNCS.mp_pvp_leave_from_game()
 	G.FUNCS.go_to_menu()
 end
 
+-- Back to the private lobby's waiting room from the end screen. Unlike the leave above, the
+-- lobby stays joined: go_to_menu rebuilds the menu as the lobby view (the lobby is still
+-- the current one). Each player returns on their own, so one can keep reading the end
+-- screen while the others are already back; a server-refereed lobby's game has ended by
+-- now, since every client reports its result when the match is decided.
+function G.FUNCS.mp_pvp_return_to_lobby()
+	G.FUNCS.exit_overlay_menu()
+	G.SETTINGS.paused = false
+	G.FUNCS.go_to_menu()
+	PVP.reset_game_states()
+	PVP.reset_ready_state()
+end
+
 function PVP.UI.create_UIBox_round_scores_row_nemesis()
     local label = localize({ type = "name_text", set = "Blind", key = "bl_mp_nemesis" })
     local score_tab = {}
@@ -68,10 +81,11 @@ local END_GAME_JOKERS_TEXT_KEY = {
 
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
-	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, result and result.jokers)
 	local lobby = MPAPI.get_current_lobby()
 	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
 	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
+	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
+	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
 	local name = player_name or "Player"
 	PVP.end_game_jokers_text = localize({ type = "variable", key = END_GAME_JOKERS_TEXT_KEY[state], vars = { name } })
 end
@@ -135,10 +149,22 @@ end
 -- MPAPI.end_screen_buttons (matching SPDRN.end_screen_buttons's own
 -- per-situation button lists in BalatroMultiplayerSpeed/ui/lose_screen.lua).
 function PVP.end_screen_buttons()
-	return MPAPI.end_screen_buttons({
+	local specs = {
 		{ button = "continue_in_singleplayer", label = localize("b_continue_singleplayer"), colour = G.C.BLUE },
-		{ button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED },
-	})
+	}
+	-- A pending death is not over yet: the only way out is to leave, which is no forfeit.
+	if PVP.GAME.pending_death_screen then
+		return MPAPI.end_screen_buttons({
+			{ button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED },
+		})
+	end
+	-- Only a private lobby is a room to come back to; a matchmade one is over with the match.
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		specs[#specs + 1] =
+			{ button = "mp_pvp_return_to_lobby", label = localize("b_return_lobby"), colour = G.C.GREEN }
+	end
+	specs[#specs + 1] = { button = "mp_pvp_leave_from_game", label = localize("b_leave_lobby"), colour = G.C.RED }
+	return MPAPI.end_screen_buttons(specs)
 end
 
 -- The PvP end screen's body: the shared MPAPI.end_screen_body
@@ -147,9 +173,35 @@ end
 -- win_body/lose_body (BalatroMultiplayerSpeed/ui/win_screen.lua,
 -- ui/lose_screen.lua) call the exact same shared body.
 function PVP.UI.end_game_body(has_won)
+	local side_rows = { PVP.UI.create_UIBox_round_scores_row_nemesis() }
+	if PVP.GAME.contested then
+		side_rows = {
+			PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
+				PVP.UI.UTILS.create_text_node(localize("k_pvp_contested_text_1"), { scale = 0.5, colour = G.C.UI.TEXT_LIGHT }),
+			}),
+			PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
+				PVP.UI.UTILS.create_text_node(localize("k_pvp_contested_text_2"), { scale = 0.45, colour = G.C.UI.TEXT_LIGHT }),
+			}),
+		}
+	end
+	if PVP.GAME.pending_death_screen then
+		local wait_key = PVP.GAME.pending_death and PVP.GAME.pending_death.opponent_id == nil
+				and "k_pvp_pending_death_wait_many"
+			or "k_pvp_pending_death_wait"
+		side_rows = {}
+		for _, line in ipairs({
+			{ "k_pvp_pending_death_result", 0.5 },
+			{ wait_key, 0.4 },
+			{ "k_pvp_pending_death_leave", 0.4 },
+		}) do
+			side_rows[#side_rows + 1] = PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
+				PVP.UI.UTILS.create_text_node(localize(line[1]), { scale = line[2], colour = G.C.UI.TEXT_LIGHT }),
+			})
+		end
+	end
 	return MPAPI.end_screen_body({
 		player_panel = PVP.UI.build_end_game_extras(),
-		side_rows = { PVP.UI.create_UIBox_round_scores_row_nemesis() },
+		side_rows = side_rows,
 		buttons = PVP.end_screen_buttons(),
 	})
 end
@@ -163,7 +215,7 @@ end
 -- networking/action_handlers.lua). PvP hooks this via the create_UIBox_win/
 -- game_over overrides below rather than calling the overlay directly, so it keeps
 -- its own paused handling.
-function PVP.UI.create_UIBox_mp_game_end(has_won)
+function PVP.UI.prepare_nemesis_deck()
 	PVP.ACTIONS.request_nemesis_stats()
 
 	PVP.nemesis_deck = CardArea(-100, -100, G.CARD_W, G.CARD_H, { type = "deck" })
@@ -173,12 +225,19 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 	else
 		G.FUNCS.load_nemesis_deck()
 	end
+end
+
+function PVP.UI.create_UIBox_mp_game_end(has_won)
+	PVP.UI.prepare_nemesis_deck()
 
 	G.SETTINGS.paused = false
 
 	return MPAPI.end_screen_uibox({
 		won = has_won,
 		draw = PVP.GAME.draw,
+		title_key = PVP.GAME.contested and "k_pvp_contested_title"
+			or PVP.GAME.pending_death_screen and "k_pvp_pending_death_title"
+			or nil,
 		id = has_won and "you_win_UI" or nil,
 		body = PVP.UI.end_game_body,
 	})

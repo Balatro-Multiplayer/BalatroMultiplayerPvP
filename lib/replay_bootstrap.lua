@@ -11,17 +11,17 @@ function PVP.replay_bootstrap(timeline, player_id)
 	local found_manifest, found_lobby, found_run = false, false, false
 	for _, entry in ipairs(timeline) do
 		if entry.player_id == player_id then
-			if not found_manifest and entry.opcode == "match_manifest" then
+			if not found_manifest and entry.opcode == MPAPI.OPCODE.MATCH_MANIFEST then
 				found_manifest = true
 				bootstrap.schema_version = entry.args.schema_version
-			elseif not found_lobby and entry.opcode == "lobby_info" then
+			elseif not found_lobby and entry.opcode == MPAPI.OPCODE.LOBBY_INFO then
 				found_lobby = true
 				bootstrap.gamemode = entry.args.gamemode
 				bootstrap.ruleset = entry.args.ruleset
 				local options = entry.args.options or {}
 				bootstrap.sleeve = options.sleeve
 				bootstrap.challenge = options.challenge
-			elseif entry.opcode == "run_info" then
+			elseif entry.opcode == MPAPI.OPCODE.RUN_INFO then
 				found_run = true
 				bootstrap.seed = entry.args.seed
 				bootstrap.deck = entry.args.deck

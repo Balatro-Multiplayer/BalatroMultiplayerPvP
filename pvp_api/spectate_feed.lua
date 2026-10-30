@@ -55,10 +55,10 @@ function S._apply_snapshot(snapshot)
 	for _, entry in ipairs(snapshot) do
 		local ctx = { is_pov = entry.playerId == pov_player_id, player_id = entry.playerId }
 		if entry.ante then
-			MPAPI.playback.dispatch('pvp', 'set_ante_key', entry.ante, ctx)
+			MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.SET_ANTE_KEY, entry.ante, ctx)
 		end
 		if entry.score or entry.handsRemaining then
-			MPAPI.playback.dispatch('pvp', 'hand_result', { entry.score, entry.handsRemaining }, ctx)
+			MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.HAND_RESULT, { entry.score, entry.handsRemaining }, ctx)
 		end
 	end
 	return pov_player_id

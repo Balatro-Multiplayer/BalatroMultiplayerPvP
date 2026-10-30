@@ -6,7 +6,7 @@ function PVP.STATS.get_player_joker_keys()
 	for i = 1, #G.jokers.cards do
 		local card = G.jokers.cards[i]
 		if card.config and card.config.center and card.config.center.key then
-			if not card.edition or card.edition.type ~= "mp_phantom" then table.insert(keys, card.config.center.key) end
+			if not PVP.is_phantom(card) then table.insert(keys, card.config.center.key) end
 		end
 	end
 	return keys

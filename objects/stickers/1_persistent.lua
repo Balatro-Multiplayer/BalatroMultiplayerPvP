@@ -6,7 +6,7 @@ SMODS.Sticker({
 	default_compat = false,
 	needs_enable_flag = true,
 	apply = function(self, card, val)
-		if card and card.edition and card.edition.type == "mp_phantom" then return end
+		if card and PVP.is_phantom(card) then return end
 		old_val = card.ability.mp_sticker_persistent or false
 		card.ability.mp_sticker_persistent = val
 		if old_val ~= val then card:set_cost() end

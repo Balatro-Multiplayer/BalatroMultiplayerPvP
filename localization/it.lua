@@ -341,29 +341,6 @@ return {
 					"chi fa più punti vince",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
-		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterna{} e {C:dark_edition}Negativa{}",
-					"Creata e distrutta dalla tua {X:purple,C:white}Nemesi{}",
-				},
-			},
 		},
 		Back = {
 			b_mp_cocktail = {
@@ -470,9 +447,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Fantasma",
-		},
 		dictionary = {
 			b_singleplayer = "Giocatore singolo",
 			b_join_lobby = "Unisciti ad una Lobby",
@@ -604,8 +578,7 @@ return {
 			k_sandbox_description = "Delle regole identiche a quelle Blitz,\nma qualcuno ha dato il caffè alle carte e ora si sentono loquaci.",
 			k_vanilla = "Vanilla",
 			k_vanilla_description = "Le regole vanilla rimuovono tutto il contenuto Multigiocatore,\npermettendoti di giocare il gioco com'era originariamente pensato.\n\nQueste regole includono alcune modifiche Multigiocatore\ncome il timer che può essere disabilitato nelle opzioni della Lobby",
-			k_expanded = "Blitz",
-			k_expanded_description = 'Le regole Blitz includono carte e caratteristiche che incitano ad \nusare il tempo come una risorsa.\n\nAlcune carte sono bilanciate per adattarle al Multigiocatore:\n- "Scheda non valida" è modificata\n- "Giustizia" è rimossa\n- Le "Carte di vetro" sono modificate\n\n(Guarda la scheda dei ban e delle aggiunte/modifiche per più info)',
+			k_mp_ruleset_expanded_description = 'Le regole Blitz includono carte e caratteristiche che incitano ad \nusare il tempo come una risorsa.\n\nAlcune carte sono bilanciate per adattarle al Multigiocatore:\n- "Scheda non valida" è modificata\n- "Giustizia" è rimossa\n- Le "Carte di vetro" sono modificate\n\n(Guarda la scheda dei ban e delle aggiunte/modifiche per più info)',
 			k_traditional = "Tradizionale",
 			k_traditional_description = 'Le regole tradizionali rimuovono le carte del Multigiocatore\nche trattano il tempo come una risorsa,\npermettendoti un gioco ancora più metodico.\n\nAlcune carte sono bilanciate per adattarle al Multigiocatore:\n- "Scheda non valida" è modificata\n- "Giustizia" è rimossa\n- Le "Carte di vetro" sono modificate\n\n(Guarda la scheda dei ban e delle aggiunte/modifiche per più info)',
 			k_majorleague = "Lega Maggiore",
@@ -667,9 +640,6 @@ return {
 			loc_playing = "Giocando ",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"Disegno: #1#",
 			},
@@ -693,7 +663,6 @@ return {
 			k_reworked_objs = "#1# Aggiunti/Modificati",
 			k_no_reworked_objs = "Non ci sono #1# Aggiunti/Modificati",
 			k_ruleset_disabled_smods_version = "Versione SMODS #1# necessaria",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "Errore nel connettersi alla lobby: #1#",
 			k_ante_number = "Ante #1#",
 			k_ante_min = "Ante #1#+", --Per esempio, "Ante 2+"

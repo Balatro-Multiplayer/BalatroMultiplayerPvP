@@ -2,7 +2,7 @@
 -- BalatroMultiplayerAPI/ui/enemy_location.lua for the shared swap/hover
 -- mechanics and the id contract that keeps this crash-safe). PvP shows a
 -- single opposing nemesis: a blind icon + name in the main slot, and the
--- same content again in the hover popup.
+-- same location box beside the opponent's name in the hover popup.
 
 function PVP.UI.enemy_location_blind_render()
 	local blind_key, blind_object = PVP.GAME.enemy.location_blind, nil
@@ -36,6 +36,16 @@ function PVP.UI.enemy_location_blind_render()
 	return blind_object_render
 end
 
+-- The location and the " (catching up)" badge read as one text, so a long pair scales down
+-- together to fit the column instead of the badge overflowing it.
+local shown_location = setmetatable({}, {
+	__index = function(_, key)
+		if key == "text" then
+			return PVP.GAME.enemy.location .. PVP.GAME.enemy.catching_up_text
+		end
+	end,
+})
+
 -- The [text location][blind icon] pair shown both in the main HUD slot and
 -- in the hover popup -- the text node carries chip_ui_id per
 -- MPAPI.enemy_location's contract; the icon is a separate sibling node kept
@@ -50,8 +60,8 @@ local function value_nodes(chip_ui_id)
 				{
 					n = G.UIT.T,
 					config = {
-						ref_table = PVP.GAME.enemy,
-						ref_value = "location",
+						ref_table = shown_location,
+						ref_value = "text",
 						scale = 0.35,
 						colour = G.C.WHITE,
 						id = chip_ui_id,
@@ -72,32 +82,41 @@ local function value_nodes(chip_ui_id)
 	}
 end
 
+-- The opponent this location belongs to; before a target latches, the same
+-- gamemode name the blind shows (see ui/game/blind_hud.lua).
+local function opponent_name()
+	if PVP.is_announced_bye() then
+		return PVP.pvp_blind_opponent_name()
+	end
+	local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
+	return (opponent and opponent.username) or PVP.pvp_blind_opponent_name()
+end
+
+-- The hover popup names the opponent where the HUD slot says "Enemy location".
+-- Built on each hover, so the name is read fresh.
 local function popup_rows()
 	return { MPAPI.enemy_location_row(
-		{
-			n = G.UIT.O,
-			config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false },
-		},
-		{
-			{ n = G.UIT.R, config = { align = "cm", padding = 0, maxw = 1.2 }, nodes = {
-				{ n = G.UIT.T, config = { text = localize("ml_enemy_loc")[1], scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-			} },
-			{ n = G.UIT.R, config = { align = "cm", padding = 0, maxw = 1.2 }, nodes = {
-				{ n = G.UIT.T, config = { text = localize("ml_enemy_loc")[2], scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-			} },
-		},
-		-- Fresh value_nodes() here (not the same table reused above) --
-		-- popup content is a separate live UIBox with its own nodes.
+		nil,
+		{ { n = G.UIT.R, config = { align = "cm", padding = 0, maxw = 1.2 }, nodes = {
+			{ n = G.UIT.T, config = { text = tostring(opponent_name() or ""), scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+		} } },
+		-- Fresh value_nodes() here: the popup is a separate live UIBox with its own nodes.
 		value_nodes("mp_enemy_location_popup_value"),
 		2.8
 	) }
 end
 
 PVP._enemy_location = MPAPI.enemy_location({
-	label = { localize("ml_enemy_loc")[1], localize("ml_enemy_loc")[2] },
+	-- A function: this file loads before the localization does.
+	label = function()
+		return localize("ml_enemy_loc")
+	end,
 	build_value_nodes = value_nodes,
 	build_popup_rows = popup_rows,
 	swatch_minw = 2.8,
+	popup_disabled = function()
+		return PVP.current_ruleset().enemy_location_disabled and true or false
+	end,
 	-- Vietnamese reads more naturally with round/score swapped; vanilla
 	-- itself doesn't do this, it's a PvP-specific community fix.
 	round_score_labels = function()
@@ -109,6 +128,7 @@ PVP._enemy_location = MPAPI.enemy_location({
 })
 
 function PVP.UI.show_enemy_location()
+	if PVP.current_ruleset().enemy_location_disabled then return end
 	PVP._enemy_location.show()
 end
 

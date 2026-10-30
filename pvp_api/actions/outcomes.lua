@@ -38,7 +38,7 @@ A_host("pvp_player_lives", function(_at, _from, params)
 		-- each of them lost a life from the shared pool.
 		local lost = tonumber(params.lost)
 		if lost and lost > 0 and PVP.RLOG then
-			PVP.RLOG.record("life_lost", { lost = lost, lives = lives })
+			PVP.RLOG.record(MPAPI.OPCODE.LIFE_LOST, { lost = lost, lives = lives })
 		end
 		PVP.dispatch_action("playerInfo", { lives = lives })
 	elseif params.player_id == PVP.current_target_id() then
@@ -59,25 +59,89 @@ end)
 -- referee.lua): the player gets its lose screen now instead of playing on.
 -- The match's own pvp_win still arrives later, and is then only reported.
 A_host("pvp_eliminated", function(_at, _from, params)
-	if params.player_id ~= self_id() or PVP.GAME.eliminated then
+	if params.player_id ~= self_id() or PVP.GAME.eliminated or PVP.GAME.contested then
 		return
 	end
 	PVP.GAME.eliminated = true
+	PVP.end_pending_death()
 	PVP.dispatch_action("loseGame")
+end)
+
+-- A player lost their last life on a non-PvP blind in a 2-player match (or a whole
+-- Manhunt/Teams side did: params.team_id). The
+-- referee waits for the opponent to beat the same blind before it decides.
+A_host("pvp_death_pending", function(_at, _from, params)
+	if PVP.GAME.won or PVP.GAME.draw then
+		return
+	end
+	if params.team_id then
+		-- Manhunt or Teams: a whole side is pending. Every client keeps it; the dead
+		-- side's players wait on the screen.
+		PVP.GAME.team_pending = { team_id = params.team_id, blind_key = params.blind_key }
+		local roster = PVP.LOBBY.roster
+		if not (roster and roster[self_id()] == params.team_id) then
+			PVP.UI.show_pending_death_notice()
+			return
+		end
+		PVP.GAME.pending_death = { player_id = self_id(), blind_key = params.blind_key }
+		PVP.UI.show_pending_death_screen()
+		return
+	end
+	if params.opponent_id == nil then
+		-- A match of 3 or more players: every client keeps who is pending, only the
+		-- dead player waits on the screen.
+		PVP.GAME.pending_deaths = PVP.GAME.pending_deaths or {}
+		PVP.GAME.pending_deaths[params.player_id] = params.blind_key
+		if params.player_id ~= self_id() then
+			PVP.UI.show_pending_death_notice()
+			return
+		end
+	end
+	PVP.GAME.pending_death = {
+		player_id = params.player_id,
+		opponent_id = params.opponent_id,
+		blind_key = params.blind_key,
+	}
+	if params.player_id == self_id() then
+		PVP.UI.show_pending_death_screen()
+	else
+		PVP.UI.show_pending_death_notice()
+	end
 end)
 
 A_host("pvp_win", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
+	-- A contested match has no result for this client to report: a moderator decides.
+	if PVP.GAME.contested then
+		return
+	end
+	PVP.end_pending_death()
+	PVP.GAME.team_pending = nil
 	-- A draw (a unanimous vote, or referee.lua's check_alive_win seeing everyone
 	-- eliminated at once) has no winner to resolve against -- both routes here
 	-- converge on the same drawGame dispatch/MMR-skip, see pvp_api/run_actions.lua's
 	-- PVP.register_draw_vote for why this reuses pvp_win instead of a separate action.
 	local refereed = MPAPI.has_server_referee(lobby)
+	if params.places then
+		-- A match of 3 or more players with pending deaths: the referee sent every
+		-- player's place, tied players share one.
+		local mine = params.places[self_id()]
+		local tied_first = params.draw == true
+		if not PVP.GAME.eliminated or mine == 1 then
+			PVP.dispatch_action((mine == 1 and (tied_first and "drawGame" or "winGame")) or "loseGame")
+		end
+		if refereed then
+			PVP.report_server_result(lobby, nil, { places = params.places })
+		end
+		PVP.release_held_result(lobby)
+		return
+	end
 	if params.draw then
 		PVP.dispatch_action("drawGame")
 		if refereed then
 			PVP.report_server_result(lobby, nil, { draw = true })
 		end
+		PVP.release_held_result(lobby)
 		return
 	end
 
@@ -100,12 +164,16 @@ A_host("pvp_win", function(_at, _from, params)
 	if refereed then
 		PVP.report_server_result(lobby, params.winner_team_id or params.winner_id, { team = params.winner_team_id ~= nil })
 	end
+	PVP.release_held_result(lobby)
 end)
 
 -- Opponent-forfeit win (broadcast from the gamemode's on_player_forfeit).
 -- A server-refereed lobby: whoever is still in reports it (the forfeiter has
 -- left, so the server settles the run as partial).
 A_host("pvp_player_won", function(_at, _from, params)
+	if PVP.GAME.contested then
+		return
+	end
 	local sid = self_id()
 	if params.player_id == sid then
 		PVP.dispatch_action("winGame")

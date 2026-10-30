@@ -361,29 +361,6 @@ return {
 					"負けるとライフを1失う",
 				},
 			},
-			bl_mp_manhunt_hunter = {
-				name = "The Hunters",
-				text = {
-					"Manhunt: the Runner faces",
-					"the Hunters in the PvP Blind",
-				},
-			},
-			bl_mp_manhunt_runner = {
-				name = "The Runner",
-				text = {
-					"Manhunt: the Hunters face",
-					"the Runner in the PvP Blind",
-				},
-			},
-		},
-		Edition = {
-			e_mp_phantom = {
-				name = "ファントム",
-				text = {
-					"{C:attention}エターナル{} と {C:dark_edition}ネガティブ{} を併せ持つ",
-					"作成も破壊も {X:purple,C:white}相手{} にしかできない",
-				},
-			},
 		},
 		Back = {
 			b_mp_cocktail = {
@@ -495,9 +472,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "ファントム",
-		},
 		dictionary = {
 			b_singleplayer = "シングルプレイ",
 			b_join_lobby = "ロビーに参加",
@@ -629,8 +603,7 @@ return {
 			k_sandbox_description = "ちょっと一息。このモードでは開発中の新アイテムをお試しできます。\n(詳細については「追加､修正されたアイテム」のタブをご確認ください)",
 			k_vanilla = "バニラ",
 			k_vanilla_description = "マルチプレイオリジナルカードやカードの調整なしのルールです。",
-			k_expanded = "クイック",
-			k_expanded_description = "リアルタイムで効果を及ぼすジョーカー(「タイムアタック」「結合双生ジョーカー」)\nが出現するルールです。\nスピードを重視したプレイをしたい人におすすめです。\n\nこのルールセットでは、マルチプレイのメタ戦術緩和のため一部のカードが調整されています。\n・ジョーカー「ハンギングチャド」の調整\n・タロット「正義」の削除\n・ガラスカードの倍率の調整\n\n(詳細については「出現しないアイテム」と「追加､修正されたアイテム」のタブをご確認ください)",
+			k_mp_ruleset_expanded_description = "リアルタイムで効果を及ぼすジョーカー(「タイムアタック」「結合双生ジョーカー」)\nが出現するルールです。\nスピードを重視したプレイをしたい人におすすめです。\n\nこのルールセットでは、マルチプレイのメタ戦術緩和のため一部のカードが調整されています。\n・ジョーカー「ハンギングチャド」の調整\n・タロット「正義」の削除\n・ガラスカードの倍率の調整\n\n(詳細については「出現しないアイテム」と「追加､修正されたアイテム」のタブをご確認ください)",
 			k_traditional = "じっくり",
 			k_traditional_description = "リアルタイムで効果を及ぼすジョーカー(「タイムアタック」「結合双生ジョーカー」)\nが出現しないルールです。\nある程度自分のペースで戦略を立ててプレイしたい人におすすめです。\n\nこのルールセットでは、マルチプレイのメタ戦術緩和のため一部のカードが調整されています。\n・ジョーカー「ハンギングチャド」の調整\n・タロット「正義」の削除\n・ガラスカードの倍率の調整\n\n(詳細については「出現しないアイテム」と「追加､修正されたアイテム」のタブをご確認ください)",
 			k_majorleague = "メジャーリーグ",
@@ -693,9 +666,6 @@ return {
 			loc_playing = "",
 		},
 		v_dictionary = {
-			k_end_player_jokers = "#1#'s Jokers",
-			k_end_player_left = "#1# -- left the match",
-			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
 				"イラスト #1#",
 			},
@@ -719,7 +689,6 @@ return {
 			k_reworked_objs = "追加､修正された#1#",
 			k_no_reworked_objs = "追加､修正された#1#はありません",
 			k_ruleset_disabled_smods_version = "Steammodded バージョン #1# が必須です。",
-			k_ruleset_disabled_lovely_version = "Needs Lovely #1# or newer",
 			k_failed_to_join_lobby = "ロビーの入室に失敗しました #1#",
 			k_ante_number = "アンティ #1#",
 			k_ante_min = "アンティ #1#以降", -- For example, "Ante 2+"

@@ -56,6 +56,19 @@ G.FUNCS.mp_pvp_leave_lobby = function()
 	end
 end
 
+-- Host: open the vanilla run setup screen to pick the lobby's deck and stake. Its Select
+-- button lands in the G.FUNCS.start_run wrapper (overrides/run_start.lua), which publishes
+-- the pick to the lobby metadata.
+G.FUNCS.lobby_choose_deck = function(e)
+	G.FUNCS.setup_run(e)
+	if G.OVERLAY_MENU then
+		local seed = G.OVERLAY_MENU:get_UIE_by_ID("run_setup_seed")
+		if seed then
+			seed:remove()
+		end
+	end
+end
+
 G.FUNCS.mp_pvp_lobby_options = function()
 	G.FUNCS.overlay_menu({ definition = PVP.build_lobby_options() })
 end

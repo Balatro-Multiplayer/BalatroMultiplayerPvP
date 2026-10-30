@@ -18,6 +18,30 @@
 -- expecting a key -> ruleset lookup table, which MPAPI.Rulesets now IS.
 PVP.Rulesets = MPAPI.Rulesets
 
+-- The full keys of the rulesets the menus name.
+PVP.RulesetKey = {
+	VANILLA = "ruleset_mp_vanilla",
+	BALANCED = "ruleset_mp_balanced",
+	EXPANDED = "ruleset_mp_expanded",
+	SMALLWORLD = "ruleset_mp_smallworld",
+	EXPERIMENTAL = "ruleset_mp_experimental",
+	MAJORLEAGUE = "ruleset_mp_majorleague",
+}
+
+local RULESET_NAME_KEY = {
+	[PVP.RulesetKey.VANILLA] = "k_vanilla",
+	[PVP.RulesetKey.BALANCED] = "k_mp_ruleset_balanced",
+	[PVP.RulesetKey.EXPANDED] = "k_mp_ruleset_expanded",
+	[PVP.RulesetKey.SMALLWORLD] = "k_smallworld",
+	[PVP.RulesetKey.EXPERIMENTAL] = "k_experimental",
+	[PVP.RulesetKey.MAJORLEAGUE] = "k_majorleague",
+}
+
+-- The ruleset's name as the menus show it. Every menu that names a ruleset goes through here.
+function PVP.ruleset_display_name(ruleset_key)
+	return localize(RULESET_NAME_KEY[ruleset_key])
+end
+
 function PVP.Ruleset(init)
 	init.key = "ruleset_mp_" .. init.key
 	init.prefix_config = init.prefix_config or { key = false }

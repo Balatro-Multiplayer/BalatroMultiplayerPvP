@@ -238,6 +238,8 @@ function Game:update_new_round(dt)
 			else
 				PVP.ACTIONS.fail_round(G.GAME.current_round.hands_played)
 			end
+		elseif not practice and not PVP.is_pvp_boss() then
+			PVP.ACTIONS.blind_result(true)
 		end
 
 		if practice then
@@ -262,12 +264,15 @@ end
 
 local update_selecting_hand_ref = Game.update_selecting_hand
 function Game:update_selecting_hand(dt)
+	-- Out of cards with hands left. On a PvP blind this always counts as playing the
+	-- last hand (even with extra hands, e.g. Burglar, or before any hand was played),
+	-- so the referee gets 0 hands left instead of the player leaving through end_round.
 	if
-		G.GAME.current_round.hands_left < G.GAME.round_resets.hands
-		and #G.hand.cards < 1
+		#G.hand.cards < 1
 		and #G.deck.cards < 1
 		and #G.play.cards < 1
 		and PVP.is_mp_or_practice()
+		and (PVP.is_pvp_boss() or G.GAME.current_round.hands_left < G.GAME.round_resets.hands)
 	then
 		G.GAME.current_round.hands_left = 0
 		if not PVP.is_pvp_boss() then
@@ -386,22 +391,32 @@ end
 function PVP.UI.apply_lobby_hud()
 	PVP.UI.apply_timer_hud()
 	PVP.UI.apply_lives_hud()
-	-- The rebuild ran as practice, which adds a Collection button to the HUD.
-	local collection = G.HUD and lobby_hud_shown() and G.HUD:get_UIE_by_ID("practice_collection_button")
-	if collection then
-		local parent = collection.parent
-		collection:remove()
-		for i = #parent.children, 1, -1 do
-			if parent.children[i] == collection then
-				table.remove(parent.children, i)
-			end
-		end
-		G.HUD:recalculate()
-	end
 end
 
--- Turns the Ante box into the Lives box. Reads PVP.GAME by reference, so it is
--- built again whenever PVP.GAME is replaced (PVP.reset_game_states).
+-- The opponent lives in the Lives box (PVP.shown_opponent_lives). Read through
+-- __index so the text node reads it again every frame.
+local hud_opponent_lives = setmetatable({}, {
+	__index = function()
+		local lobby = MPAPI.get_current_lobby()
+		local player_ids = {}
+		for _, p in ipairs(lobby and lobby:get_players() or {}) do
+			player_ids[#player_ids + 1] = p.id
+		end
+		return PVP.shown_opponent_lives({
+			ref_players = PVP.REF and PVP.REF.players,
+			self_id = PVP.self_player_id(),
+			own_lives = PVP.GAME and PVP.GAME.lives,
+			cache = PVP._player_lives_cache,
+			starting_lives = PVP.LOBBY.config.starting_lives,
+			player_ids = player_ids,
+			nemesis_id = PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id or nil,
+		})
+	end,
+})
+
+-- Turns the Ante box into the Lives box: your lives "vs" the opponent's. Reads
+-- PVP.GAME by reference, so it is built again whenever PVP.GAME is replaced
+-- (PVP.reset_game_states).
 function PVP.UI.apply_lives_hud()
 	if not (G.HUD and lobby_hud_shown()) then return end
 
@@ -432,7 +447,29 @@ function PVP.UI.apply_lives_hud()
                                 scale = 2 * scale * 0.8,
                                 colour = G.C.IMPORTANT,
                                 shadow = true,
-                                maxw = 1.1,
+                                maxw = 0.5,
+                            }
+                        },
+                        { n = G.UIT.B, config = { w = 0.05, h = 0.05 } },
+                        {
+                            n = G.UIT.T,
+                            config = {
+                                text = "vs", -- not localized intentionally
+                                scale = scale * 0.8,
+                                colour = G.C.UI.TEXT_DARK,
+                                shadow = true,
+                            }
+                        },
+                        { n = G.UIT.B, config = { w = 0.05, h = 0.05 } },
+                        {
+                            n = G.UIT.T,
+                            config = {
+                                ref_table = hud_opponent_lives,
+                                ref_value = "lives",
+                                scale = 2 * scale * 0.8,
+                                colour = G.C.RED,
+                                shadow = true,
+                                maxw = 0.5,
                             }
                         },
                     }
@@ -464,15 +501,15 @@ function PVP.handle_duplicate_end()
 	return false
 end
 
--- This handles an edge case where a player plays no hands, and discards the only cards in their deck.
--- Allows opponent to advance after playing anything, and eases a life from the person who discarded their deck.
+-- This handles an edge case where a player plays no hands, and discards the only cards in their deck:
+-- on a non-PvP blind it fails the round. A PvP blind already finished through
+-- update_selecting_hand's out-of-cards check, with a score of 0.
 function PVP.handle_deck_out()
-	if PVP.is_mp_or_practice() then
+	if PVP.is_mp_or_practice() and not PVP.is_pvp_boss() then
 		if
 			G.GAME.current_round.hands_played == 0
 			and G.GAME.current_round.discards_used > 0
 		then
-			if PVP.is_pvp_boss() then PVP.ACTIONS.play_hand(0, 0) end
 			PVP.ACTIONS.fail_round(1)
 		end
 	end
@@ -626,29 +663,6 @@ function PVP.UI.jimbo_say(text)
 			return true
 		end,
 	}))
-end
-
--- Practice mode: spawn Jimbo when opening collection to hint at card spawning (once per boot)
-local practice_collection_jimbo = false
-local practice_collection_hint_shown = false
-
-local your_collection_ref = G.FUNCS.your_collection
-function G.FUNCS.your_collection(e)
-	your_collection_ref(e)
-	if PVP.is_practice_mode() and G.STAGE == G.STAGES.RUN and not PVP.LOBBY.code and not practice_collection_hint_shown then
-		practice_collection_hint_shown = true
-		practice_collection_jimbo = true
-		PVP.UI.create_jimbo(2, localize("k_practice_collection_hint"))
-	end
-end
-
-local exit_overlay_menu_ref_jimbo = G.FUNCS.exit_overlay_menu
-function G.FUNCS:exit_overlay_menu()
-	if practice_collection_jimbo then
-		practice_collection_jimbo = false
-		PVP.UI.remove_jimbo()
-	end
-	exit_overlay_menu_ref_jimbo(self)
 end
 
 function PVP.UI.remove_jimbo()
