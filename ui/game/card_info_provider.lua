@@ -1,12 +1,17 @@
 -- Card-info provider for MPAPI's Lobby Info overlay (see
 -- BalatroMultiplayerAPI/api/card_info_providers.lua): every lobby shows the
--- player's lives, ranked lobbies also show Elo.
+-- player's lives, ranked lobbies also show Elo (or placement progress for a
+-- player still in their placement games, whose rating isn't shown yet).
 --
 -- Cached per (gamemode, player) since MPAPI.matchmaking.get_rating is an
 -- async network call and hover callbacks must return synchronously: the
 -- first hover with no cache entry fires the lookup in the background and
 -- shows a placeholder immediately, a later hover shows the resolved value.
+-- The cache belongs to one lobby, so the next match reads ratings afresh.
 PVP._rating_cache = PVP._rating_cache or {}
+
+-- Matches the server's PLACEMENT_GAMES, for a server that doesn't send it.
+local DEFAULT_PLACEMENT_GAMES = 5
 
 local function text_row(text)
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = {
@@ -19,6 +24,11 @@ local function elo_row(lobby, player_data)
 	local gamemode = meta.gamemode
 	if not gamemode then
 		return text_row("Elo: N/A")
+	end
+
+	if PVP._rating_cache_lobby ~= lobby.code then
+		PVP._rating_cache = {}
+		PVP._rating_cache_lobby = lobby.code
 	end
 
 	local cache_key = gamemode .. ":" .. player_data.id
@@ -40,7 +50,13 @@ local function elo_row(lobby, player_data)
 		return text_row("Elo: ...")
 	end
 
-	return text_row("Elo: " .. tostring(cached.rating or "Placement"))
+	if cached.isPlacement or not cached.rating then
+		local total = tonumber(cached.placementGames) or DEFAULT_PLACEMENT_GAMES
+		local played = math.min(tonumber(cached.gamesPlayed) or 0, total)
+		return text_row(localize({ type = "variable", key = "k_pvp_placement_progress", vars = { played, total } }))
+	end
+
+	return text_row("Elo: " .. tostring(math.floor(cached.rating + 0.5)))
 end
 
 local function lives_row(player_data)
