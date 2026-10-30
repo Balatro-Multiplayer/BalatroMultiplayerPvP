@@ -855,6 +855,7 @@ function PVP.referee_reset(starting_lives)
 	PVP.REF.retired_rounds = {}
 	PVP.REF.last_outcome = nil
 	PVP.REF.first_ready_at = nil
+	PVP.REF.ready_check = nil
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:reset()
 	end
@@ -1011,12 +1012,126 @@ local function team_lose_life(pl)
 	end
 end
 
--- readyBlind: both ready -> compute firstPlayer, reset per-blind state, start blind.
--- The 2-player path (below) is untouched. For N>2 (Royale) there's no meaningful
+-- readyBlind: both ready -> ask them to confirm, then compute firstPlayer, reset
+-- per-blind state, start blind. For N>2 (Royale) there's no meaningful
 -- "first player" HUD ordering, so that concept is dropped and readiness is just
 -- "every alive player has readied", via MPAPI.ReadyTracker()'s set/is_ready/reset
 -- primitives (checked against alive_ids() ourselves rather than its own all_ready(),
 -- which loops the full lobby roster and would stall on eliminated spectators).
+--
+-- A stored Ready can be stale (one that arrives after its blind already started stays
+-- set), so the start waits on a ready check: every player is asked whether they are
+-- ready now and only answers of yes start the blind (lib/ready_check.lua).
+local READY_CHECK_TIMEOUT = 2
+local ready_check_count = 0
+
+-- Whether the referee still holds `id` as ready (the tracker in matches of 3 or more).
+local function marked_ready(id)
+	if #both_players() > 2 then
+		return PVP.REF.ready_tracker ~= nil and PVP.REF.ready_tracker:is_ready(id)
+	end
+	return ref_player(id).is_ready
+end
+
+local function clear_ready(id)
+	ref_player(id).is_ready = false
+	if PVP.REF.ready_tracker then
+		PVP.REF.ready_tracker:set(id, false)
+	end
+end
+
+local function start_blind_many(alive)
+	PVP.REF.ready_tracker:reset()
+	for _, id in ipairs(alive) do
+		local pl = ref_player(id)
+		pl.score = PVP.Score.ZERO
+		pl.hands_left = 4
+		pl.played_this_blind = false
+	end
+	local round_id = begin_round(alive)
+	broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive), round_id = round_id })
+	-- Show fresh (0) values on the live target board immediately, not stale
+	-- ones from the round that just ended.
+	broadcast_live_targets()
+end
+
+local function start_blind_2p(from, opp)
+	local me, enemy = ref_player(from), ref_player(opp)
+	me.is_ready = false
+	enemy.is_ready = false
+	me.score = PVP.Score.ZERO
+	enemy.score = PVP.Score.ZERO
+	me.hands_left = 4
+	enemy.hands_left = 4
+	me.played_this_blind = false
+	enemy.played_this_blind = false
+	local round_id = begin_round({ from, opp })
+
+	-- firstPlayer is the id of whichever player readied first.
+	local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
+	broadcast("pvp_start_blind", {
+		first_player = first_id or "",
+		starting_hands = starting_hands_by_id({ from, opp }),
+		round_id = round_id,
+	})
+end
+
+-- The answers are in: start the blind if everyone is still marked ready (an unready
+-- may have come in while they were out).
+local function finish_ready_check(check)
+	PVP.REF.ready_check = nil
+	if #both_players() > 2 then
+		local alive = alive_ids()
+		for _, id in ipairs(alive) do
+			if not marked_ready(id) then
+				return
+			end
+		end
+		start_blind_many(alive)
+		return
+	end
+	local opp = opponent_of(check.trigger)
+	if opp and marked_ready(check.trigger) and marked_ready(opp) then
+		start_blind_2p(check.trigger, opp)
+	end
+end
+
+local function settle_ready_check(check, outcome, refuser)
+	if outcome == PVP.ReadyCheck.Outcome.PENDING then
+		return
+	end
+	if outcome == PVP.ReadyCheck.Outcome.REFUSED then
+		-- The refuser is not on the blind-select screen, so its stored Ready was stale.
+		-- The others stay ready and the blind waits for a Ready that is real.
+		PVP.REF.ready_check = nil
+		clear_ready(refuser)
+		sendDebugMessage("[pvp] ready check refused by " .. tostring(refuser) .. ": dropped its stale ready", "MULTIPLAYER")
+		return
+	end
+	finish_ready_check(check)
+end
+
+local function open_ready_check(trigger, ids)
+	ready_check_count = ready_check_count + 1
+	local nonce = tostring(os.time()) .. "-" .. ready_check_count
+	local check = PVP.ReadyCheck.new(nonce, ids, trigger)
+	PVP.REF.ready_check = check
+	broadcast("pvp_ready_check", { nonce = nonce, players = ids })
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = READY_CHECK_TIMEOUT,
+		blocking = false,
+		blockable = false,
+		func = function()
+			-- Still the open check: whoever never answered gets the benefit of the doubt.
+			if PVP.REF.ready_check == check then
+				settle_ready_check(check, PVP.ReadyCheck.on_timeout(check))
+			end
+			return true
+		end,
+	}))
+end
+
 function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 	if not is_host() then
 		return
@@ -1035,19 +1150,8 @@ function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 				break
 			end
 		end
-		if all_ready then
-			PVP.REF.ready_tracker:reset()
-			for _, id in ipairs(alive) do
-				local pl = ref_player(id)
-				pl.score = PVP.Score.ZERO
-				pl.hands_left = 4
-				pl.played_this_blind = false
-			end
-			local round_id = begin_round(alive)
-			broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive), round_id = round_id })
-			-- Show fresh (0) values on the live target board immediately, not stale
-			-- ones from the round that just ended.
-			broadcast_live_targets()
+		if all_ready and not PVP.REF.ready_check then
+			open_ready_check(from, alive)
 		end
 		return
 	end
@@ -1061,24 +1165,8 @@ function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 		me.first_ready = true
 	end
 
-	if enemy and me.is_ready and enemy.is_ready then
-		me.is_ready = false
-		enemy.is_ready = false
-		me.score = PVP.Score.ZERO
-		enemy.score = PVP.Score.ZERO
-		me.hands_left = 4
-		enemy.hands_left = 4
-		me.played_this_blind = false
-		enemy.played_this_blind = false
-		local round_id = begin_round({ from, opp })
-
-		-- firstPlayer is the id of whichever player readied first.
-		local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
-		broadcast("pvp_start_blind", {
-			first_player = first_id or "",
-			starting_hands = starting_hands_by_id({ from, opp }),
-			round_id = round_id,
-		})
+	if enemy and me.is_ready and enemy.is_ready and not PVP.REF.ready_check then
+		open_ready_check(from, { from, opp })
 	end
 end
 
@@ -1086,7 +1174,22 @@ function PVP.referee_on_unready_blind(from)
 	if not is_host() then
 		return
 	end
-	ref_player(from).is_ready = false
+	clear_ready(from)
+	-- Whoever was just asked is no longer all ready.
+	PVP.REF.ready_check = nil
+end
+
+-- A player's answer to pvp_ready_check: whether they are on the blind-select screen,
+-- readied, right now.
+function PVP.referee_on_ready_ack(from, nonce, ready)
+	if not is_host() then
+		return
+	end
+	local check = PVP.REF.ready_check
+	if not check then
+		return
+	end
+	settle_ready_check(check, PVP.ReadyCheck.answer(check, nonce, from, ready))
 end
 
 -- Pure: given the 2-player round-end state, decides whether the round is over
@@ -2009,6 +2112,7 @@ local function restore(snap)
 			PVP.REF.ready_tracker:set(id, true)
 		end
 	end
+	PVP.REF.ready_check = nil
 	PVP.REF.first_ready_at = nil
 	PVP.REF.nemesis_of = snap.nemesis_of or {}
 	PVP.REF.used_pairs = snap.used_pairs or {}
@@ -2216,6 +2320,7 @@ for _, name in ipairs({
 	"referee_on_player_reconnected",
 	"referee_on_ready_blind",
 	"referee_on_unready_blind",
+	"referee_on_ready_ack",
 	"referee_on_play_hand",
 	"referee_on_skip",
 	"referee_on_set_ante",
