@@ -431,6 +431,10 @@ local function action_start_blind(p)
 	-- team_card_target_id is NOT reset here -- it re-picks once per ante, the same
 	-- cadence as Nemesis pairing, not once per blind.
 	PVP.GAME.royale_target_id = nil
+	PVP.GAME.royale_target_safe = nil
+	if PVP.UI.refresh_enemy_score_label then
+		PVP.UI.refresh_enemy_score_label()
+	end
 	PVP.GAME.manhunt_target_id = nil
 	if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 	PVP.GAME.ready_blind = false

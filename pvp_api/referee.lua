@@ -1231,7 +1231,7 @@ end
 -- existing raw per-sender score/hands/lives relay (objects/blinds/nemesis.lua)
 -- displays the value, no separate score payload needed here.
 function broadcast_royale_targets(rank)
-	local payload = {}
+	local payload, safe = {}, {}
 	for i, pl in ipairs(rank.ranked) do
 		local neighbor
 		if rank.is_loser[pl.id] then
@@ -1240,8 +1240,10 @@ function broadcast_royale_targets(rank)
 			neighbor = rank.ranked[i - 1] -- may be nil: i == 1, the lowest-ranked "safe" player (full-tie edge case)
 		end
 		payload[pl.id] = neighbor and neighbor.id or ""
+		-- Lets the HUD label the target "Beat:" (unsafe) vs "Leading:" (safe).
+		safe[pl.id] = rank.is_loser[pl.id] and 0 or 1
 	end
-	broadcast("pvp_royale_target", { targets = payload })
+	broadcast("pvp_royale_target", { targets = payload, safe = safe })
 end
 
 -- Live (mid-round, not just round-end) target broadcast for N>2 modes, called on
