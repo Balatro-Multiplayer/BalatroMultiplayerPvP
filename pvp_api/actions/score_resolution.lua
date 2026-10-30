@@ -76,7 +76,11 @@ MPAPI.ActionType({
 		local target = params.targets and params.targets[sid]
 		PVP.GAME.royale_target_id = (target and target ~= "") and target or nil
 		local safe = params.safe and params.safe[sid]
-		PVP.GAME.royale_target_safe = safe ~= nil and tonumber(safe) == 1 or nil
+		-- Not `x and y or nil`: a losing player's false would collapse to nil.
+		PVP.GAME.royale_target_safe = nil
+		if safe ~= nil then
+			PVP.GAME.royale_target_safe = tonumber(safe) == 1
+		end
 		if PVP.UI.refresh_enemy_score_label then
 			PVP.UI.refresh_enemy_score_label()
 		end
