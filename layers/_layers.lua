@@ -25,7 +25,7 @@
 -- those jokers eligible in the shop pool (get_current_pool('Joker') actually drew 4 of
 -- them). multiplayer_content resolves correctly through the ruleset's layer chain
 -- (confirmed live for balanced/expanded/smallworld, all inheriting `true`
--- from the "standard" layer) via PVP.current_ruleset(), which -- unlike checking
+-- from the "expanded" layer) via PVP.current_ruleset(), which -- unlike checking
 -- PVP.LOBBY.config.ruleset directly -- also already knows about practice mode's
 -- separate resolution path (see rulesets/_rulesets.lua's own comment on why PvP keeps
 -- this resolution local instead of delegating to MPAPI's).

@@ -1,4 +1,4 @@
 PVP.Ruleset({
 	key = "smallworld",
-	layers = { "standard", "smallworld" },
+	layers = { "balanced", "expanded", "smallworld" },
 }):inject()

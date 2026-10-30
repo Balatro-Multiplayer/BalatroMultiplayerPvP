@@ -1,5 +1,5 @@
 PVP.Ruleset({
 	key = "speedlatro",
-	layers = { "standard", "speedlatro_timer" },
+	layers = { "balanced", "expanded", "speedlatro_timer" },
 	forced_gamemode = "gamemode_mp_attrition",
 }):inject()

@@ -1,5 +1,5 @@
 PVP.ReworkCenter("m_glass", {
-	layers = { "standard", "classic", "wsob" },
+	layers = { "balanced", "classic", "wsob" },
 	config = { Xmult = 1.5, extra = 4 },
 })
 
