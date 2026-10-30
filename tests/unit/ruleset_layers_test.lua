@@ -50,8 +50,8 @@ local function sorted_list(list)
 	return table.concat(copy, ",")
 end
 
--- What every one of these rulesets resolved to when they listed the single shared layer.
-local before = {
+-- What Expanded, and every ruleset that lists both layers, resolved to when they listed the single shared layer.
+local full = {
 	banned_jokers = "j_mp_conjoined_joker,j_mp_defensive_joker,j_mp_speedrun",
 	banned_consumables = "c_justice",
 	banned_silent = "c_ouija,j_bloodstone,j_hanging_chad,j_selzer,j_ticket,j_turtle_bean",
@@ -59,13 +59,22 @@ local before = {
 	reworked_consumables = "c_mp_ouija_standard",
 	reworked_enhancements = "m_glass",
 }
+-- Balanced keeps the Hanging Chad, Bloodstone and Glass reworks and the Justice ban, and nothing else.
+local near_vanilla = {
+	banned_jokers = "",
+	banned_consumables = "c_justice",
+	banned_silent = "j_bloodstone,j_hanging_chad",
+	reworked_jokers = "j_mp_bloodstone,j_mp_hanging_chad",
+	reworked_consumables = "",
+	reworked_enhancements = "m_glass",
+}
 
 for _, name in ipairs(ruleset_names) do
-	local ruleset = resolved[name]
-	for field, want in pairs(before) do
-		check(name .. " " .. field, sorted_list(ruleset[field]), want)
+	local want = name == "balanced" and near_vanilla or full
+	for field, expected in pairs(want) do
+		check(name .. " " .. field, sorted_list(resolved[name][field] or {}), expected)
 	end
-	check(name .. " PvP-only cards", ruleset.multiplayer_content, true)
+	check(name .. " PvP-only cards", resolved[name].multiplayer_content, name ~= "balanced")
 end
 check("balanced timer", resolved.balanced.pvp_timer_base_seconds, 60)
 check("expanded timer", resolved.expanded.pvp_timer_base_seconds, 60)
