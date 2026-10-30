@@ -20,6 +20,22 @@ function PVP.UI.show_pending_death_screen()
 	})
 end
 
+-- Tells the player still in the match that an opponent is out of lives and the
+-- match waits on this player beating the same blind.
+function PVP.UI.show_pending_death_notice()
+	if G.STAGE ~= G.STAGES.RUN or not G.play or PVP.GAME.eliminated then
+		return
+	end
+	attention_text({
+		scale = 0.5,
+		text = localize("k_pvp_pending_death_survivor"),
+		hold = 8,
+		align = "cm",
+		offset = { x = 0, y = -1.5 },
+		major = G.play,
+	})
+end
+
 -- The pending death is over (the result arrived): drop the screen and unpause so
 -- the end screen can show.
 function PVP.end_pending_death()

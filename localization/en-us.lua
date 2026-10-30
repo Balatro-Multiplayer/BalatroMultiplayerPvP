@@ -1335,6 +1335,7 @@ return {
 			k_pvp_pending_death_wait = "Your Nemesis must beat the same blind.",
 			k_pvp_pending_death_wait_many = "The others must beat the same blind.",
 			k_pvp_pending_death_leave = "Leaving is not a forfeit. The result still counts.",
+			k_pvp_pending_death_survivor = "Opponent lost their last life to the blind, finish this blind to end the game!",
 			-- Forfeit or Contest modal (ui/contest_modal.lua)
 			k_pvp_contest_title = "Forfeit or Contest match?",
 			k_pvp_contest_pick_title = "Contest which player?",
