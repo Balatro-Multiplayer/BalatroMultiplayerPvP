@@ -1335,6 +1335,7 @@ return {
 			k_pvp_pending_death_wait = "Your Nemesis must beat the same blind.",
 			k_pvp_pending_death_wait_many = "The others must beat the same blind.",
 			k_pvp_pending_death_leave = "Leaving is not a forfeit. The result still counts.",
+			k_pvp_pending_death_survivor = "Opponent lost their last life to the blind, finish this blind to end the game!",
 			-- Forfeit or Contest modal (ui/contest_modal.lua)
 			k_pvp_contest_title = "Forfeit or Contest match?",
 			k_pvp_contest_pick_title = "Contest which player?",
@@ -1446,10 +1447,13 @@ return {
 			k_continue_singleplayer_tooltip = "This will overwrite your current singleplayer run",
 			k_enemy_score = "Current Enemy score",
 			k_enemy_hands = "Enemy hands left: ",
+			k_royale_beat = "Beat:",
+			k_royale_leading = "Leading:",
 			-- The PvP boss's name for a player with no nemesis this ante.
 			k_bye = "Bye",
 			k_coming_soon = "Coming Soon!",
 			k_wait_enemy = "Waiting for enemy to finish...",
+			k_pvp_sync_failed = "Round sync unconfirmed. Reconnect to retry.",
 			k_lives = "Lives",
 			k_skips = "Skips",
 			k_lost_life = "Lost a life",

@@ -3,7 +3,7 @@ local A_host = PVP._pvp_action_helpers.A_host
 
 -- Blind handshake (host-authoritative).
 A("pvp_ready_blind", function(_at, from, params)
-	PVP.referee_on_ready_blind(from, params and params.starting_hands)
+	PVP.referee_on_ready_blind(from, params and params.starting_hands, params and params.round_protocol)
 end)
 
 A("pvp_unready_blind", function(_at, from, _params)
@@ -16,6 +16,7 @@ A_host("pvp_start_blind", function(_at, _from, params)
 	if not lobby or PVP.GAME.eliminated then
 		return
 	end
+	if PVP.begin_round_sync(params.round_id, _from) == false then return end
 	-- action_start_blind compares firstPlayer to (is_host and "host" or "guest");
 	-- translate the authoritative first-player id into this client's frame.
 	local me = lobby.is_host and "host" or "guest"
