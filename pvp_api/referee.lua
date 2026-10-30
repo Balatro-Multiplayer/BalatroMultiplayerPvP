@@ -1974,7 +1974,7 @@ local function forfeit_departed(lobby)
 	for _, p in ipairs(lobby:get_players()) do
 		present[p.id] = true
 	end
-	local gm = lobby._gamemode_instance
+	local gm = lobby:get_gamemode_instance()
 	if not (gm and gm.on_player_forfeit) then
 		return
 	end
@@ -1985,7 +1985,10 @@ local function forfeit_departed(lobby)
 		end
 	end
 	for _, id in ipairs(gone) do
-		MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(id))
+		-- A pending death decides it instead, as for a live leave.
+		if not PVP.referee_pending_death_on_player_gone(id) then
+			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(id))
+		end
 	end
 end
 
@@ -2036,8 +2039,8 @@ function PVP.referee_take_over()
 	resolve_pending_death()
 	resolve_team_pending()
 	settle_many_pending()
-	PVP.referee_checkpoint()
 	forfeit_departed(lobby)
+	PVP.referee_checkpoint()
 	return source
 end
 
