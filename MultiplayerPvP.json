@@ -12,12 +12,12 @@
   "priority": 0,
   "badge_colour": "AC3232",
   "badge_text_colour": "FFFFFF",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "dependencies": [
     "Steamodded (>=1.0.0~BETA-1814a)",
     "Lovely (>=0.10)",
     "Balatro (>=1.0.1o)",
-    "MultiplayerAPI (>=1.0.1)"
+    "MultiplayerAPI (>=1.0.2)"
   ],
   "conflicts": [
     "Multiplayer",

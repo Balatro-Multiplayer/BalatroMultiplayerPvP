@@ -186,9 +186,13 @@ local function mirror_metadata(lobby)
 	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
 	-- layers on top of it for the whole lobby. Every client derives them from the
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
-	-- without a metadata field of their own. Nothing else adds modifiers.
+	-- without a metadata field of their own. The only other modifier is Trap
+	-- cards: the private lobby host's switch here, the Casual vote below.
 	if PVP.LOBBY.config.ruleset then
 		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
+		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
+			MPAPI.add_modifier("traps")
+		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 	end
 	if meta.deck then
@@ -331,6 +335,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
+		PVP.TRAP_ROW.on_player_back(player_id)
 		refresh()
 	end)
 
@@ -345,9 +350,16 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.draw_votes:remove(player_id)
 		end
 		mirror_players(lobby)
+		PVP.TRAP_ROW.forget(player_id)
 		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
 		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
-		if gm and gm.on_player_forfeit and G.STAGE == G.STAGES.RUN then
+		-- A pending death decides it instead: leaving with one is not a forfeit.
+		if
+			gm
+			and gm.on_player_forfeit
+			and G.STAGE == G.STAGES.RUN
+			and not PVP.referee_pending_death_on_player_gone(player_id)
+		then
 			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
 		end
 		refresh()
@@ -366,6 +378,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		refresh()
+		PVP.TRAP_ROW.on_player_back(player_id)
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
 			return
@@ -477,10 +490,31 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
+	-- A contest in a match of 2 ends it for both. In a larger match only the
+	-- contester leaves (their own client shows the screen once the server accepted
+	-- it); everyone else gets a chat line (ui/contest_modal.lua).
+	lobby:on(MPAPI.LobbyEvent.CONTESTED, function(contested)
+		local by = contested and contested.by
+		local scope = PVP.Contest.scope(PVP._match_players and #PVP._match_players, by, PVP.self_player_id())
+		if scope == PVP.Contest.Scope.EVERYONE then
+			PVP.show_contested_screen()
+		elseif scope == PVP.Contest.Scope.BYSTANDER then
+			PVP.note_contest_by(by)
+		end
+	end)
+
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
 		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
 		PVP.last_game_ended = ended
+		-- Only a match of 2 ends on a contest; in a larger one the others already
+		-- have their own result and the contester their contested screen.
+		if
+			ended.status == PVP.Contest.RunStatus.CONTESTED
+			and PVP.Contest.scope(PVP._match_players and #PVP._match_players, nil, nil) == PVP.Contest.Scope.EVERYONE
+		then
+			PVP.show_contested_screen()
+		end
 		if PVP.reset_ready_state then
 			PVP.reset_ready_state()
 		end

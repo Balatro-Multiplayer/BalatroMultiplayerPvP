@@ -24,6 +24,11 @@ G.FUNCS.mp_pvp_forfeit = function()
 		G.FUNCS.go_to_menu()
 		return
 	end
+	-- A matchmade match (2 players or more) asks first: forfeit or contest.
+	if PVP.contest_offered() then
+		PVP.UI.show_contest_modal()
+		return
+	end
 	PVP.pvp_forfeit()
 end
 

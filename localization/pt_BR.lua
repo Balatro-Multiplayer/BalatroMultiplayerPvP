@@ -814,16 +814,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterno{} e {C:dark_edition}Negativo{}",
-					"Criado quando seu {X:purple,C:white}Rival{} tem este Curinga",
-					"Afeta apenas seu {X:purple,C:white}Rival{} e é destruído por ele.",
-				},
-			},
-		},
 		Enhanced = {},
 		Back = {
 			b_mp_cocktail = {
@@ -1325,7 +1315,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Fantasma",
 			mp_sticker_balanced = "Equilibrado",
 			mp_sticker_extra_credit = "Crédito Extra",
 			mp_sticker_persistent = "Persistente",

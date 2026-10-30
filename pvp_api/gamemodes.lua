@@ -40,7 +40,7 @@ PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 -- one shape covers both. Ranked play is always exactly 2 players (matchmaking's
 -- ELO/forfeit resolution -- BalatroMultiplayerServer's autoForfeitMatch -- is
 -- hardcoded for a 2-player result and would tie multiple players for 1st with
--- more); casual/private both go up to 16 (§17.4).
+-- more); casual Nemesis is 1v1 too, private lobbies go up to 16 (§17.4).
 --
 -- pvp_nemesis/pvp_smallworld are the only two ruleset-only entries left as
 -- MPAPI.GameMode registrations. pvp_nemesis (the renamed former ranked format)
@@ -49,8 +49,9 @@ PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 -- pvp_api/queue.lua) rather than through this gamemode key. Every casual
 -- queue plays its gamemode key's own default ruleset.
 PVP.PVP_GAMEMODES = {
-	pvp_nemesis = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Nemesis", has_ranked = true, custom_bridge = true, nemesis_pairing = true },
-	pvp_smallworld = { ruleset = "ruleset_mp_smallworld", gamemode = "gamemode_mp_attrition", display = "Small World", has_ranked = true, custom_bridge = true, nemesis_pairing = true },
+	pvp_nemesis = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Nemesis", has_ranked = true, custom_bridge = true, nemesis_pairing = true, public_max_players = 2 },
+	-- Plays the Royale shape (no pairing): a 2-player game, ranked included, is a plain 1v1.
+	pvp_smallworld = { ruleset = "ruleset_mp_smallworld", gamemode = "gamemode_mp_attrition", display = "Small World", has_ranked = true, custom_bridge = true, public_max_players = 16 },
 	-- Royale/Manhunt/Teams (2-16 players): never ranked (no per-ruleset ELO ladder
 	-- for these), default to the Balanced ruleset like everything else (swappable
 	-- in Lobby Options for private lobbies), casual-queueable at up to 16 players.
@@ -70,7 +71,7 @@ PVP.PVP_GAMEMODES = {
 -- run_lifecycle.lua's ban_pick gate): 9 random deck+stake pairs. A random player
 -- bans 1, the other bans 3, the first bans 3, then the other PICKS one of the
 -- final 2 to play on. Rendered in the matchmaking lobby status panel. Shared by
--- the two ranked-eligible (Nemesis-shaped) entries below.
+-- the two ranked-eligible entries below.
 local BAN_PICK = {
 	pool_size = 9,
 	schedule = {
@@ -97,10 +98,9 @@ local ROTATING_BAN_PICK = {
 	keep = 1,
 }
 
--- The two remaining ruleset-only (Nemesis-shaped) entries: identical registration
--- shape, parameterized per ruleset. Round-robin pairing degenerates to plain
--- pairwise at 2 players (ranked) and behaves as real rotating Nemesis at N>2
--- (casual/private).
+-- The two ranked-eligible entries: identical registration shape, parameterized
+-- per ruleset. Ranked is 2 players; the shape at N>2 comes from the entry's
+-- flags (Nemesis pairs, Small World ranks like Royale).
 for _, key in ipairs({ "pvp_nemesis", "pvp_smallworld" }) do
 	local def = PVP.PVP_GAMEMODES[key]
 	MPAPI.GameMode({
@@ -112,7 +112,7 @@ for _, key in ipairs({ "pvp_nemesis", "pvp_smallworld" }) do
 		has_ranked_mode = def.has_ranked,
 		ban_pick = BAN_PICK,
 		min_players = 2,
-		max_players = { public = 16, private = 16, ranked = 2 },
+		max_players = { public = def.public_max_players, private = 16, ranked = 2 },
 		-- PVP.LOBBY.config.ruleset/gamemode are already correctly populated by the
 		-- metadata mirror (lobby_bridge.lua's mirror_metadata) by the time start_run
 		-- runs -- setting them here from `def` would stomp a ruleset the host chose

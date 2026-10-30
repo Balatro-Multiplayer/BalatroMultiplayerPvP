@@ -128,15 +128,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Spook",
-				text = {
-					"{C:attention}Eeuwig{} en {C:dark_edition}Negatief{}",
-					"Gecreëerd en vernietigd door je {X:purple,C:white}Aartsvijand{}",
-				},
-			},
-		},
 		Other = {
 			current_nemesis = {
 				name = "Aartsvijand",
@@ -148,9 +139,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Spook",
-		},
 		dictionary = {
 			b_singleplayer = "Singleplayer",
 			b_join_lobby = "Sluit je aan bij een lobby",

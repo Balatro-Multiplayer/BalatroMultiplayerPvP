@@ -126,24 +126,23 @@ function PVP.UTILS.reorder_permutation(old_ids, cards)
 	return perm
 end
 
+function PVP.is_phantom(card)
+	return card.ability ~= nil and card.ability.mp_phantom == true
+end
+
 function PVP.UTILS.get_phantom_joker(key)
-	if not PVP.shared or not PVP.shared.cards then return nil end
-	for i = 1, #PVP.shared.cards do
-		if
-			PVP.shared.cards[i].ability.name == key
-			and PVP.shared.cards[i].edition
-			and PVP.shared.cards[i].edition.type == "mp_phantom"
-		then
-			return PVP.shared.cards[i]
-		end
+	if not PVP.nemesis_jokers or not PVP.nemesis_jokers.cards then return nil end
+	for i = 1, #PVP.nemesis_jokers.cards do
+		local card = PVP.nemesis_jokers.cards[i]
+		if card.ability.name == key and PVP.is_phantom(card) then return card end
 	end
 	return nil
 end
 
 function PVP.UTILS.run_for_each_phantom_joker(key, func)
-	if not PVP.shared or not PVP.shared.cards then return end
-	for i = 1, #PVP.shared.cards do
-		if PVP.shared.cards[i].ability.name == key then func(PVP.shared.cards[i]) end
+	if not PVP.nemesis_jokers or not PVP.nemesis_jokers.cards then return end
+	for i = 1, #PVP.nemesis_jokers.cards do
+		if PVP.nemesis_jokers.cards[i].ability.name == key then func(PVP.nemesis_jokers.cards[i]) end
 	end
 end
 

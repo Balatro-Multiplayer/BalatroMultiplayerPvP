@@ -362,15 +362,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "ファントム",
-				text = {
-					"{C:attention}エターナル{} と {C:dark_edition}ネガティブ{} を併せ持つ",
-					"作成も破壊も {X:purple,C:white}相手{} にしかできない",
-				},
-			},
-		},
 		Back = {
 			b_mp_cocktail = {
 				name = "カクテルデッキ",
@@ -481,9 +472,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "ファントム",
-		},
 		dictionary = {
 			b_singleplayer = "シングルプレイ",
 			b_join_lobby = "ロビーに参加",

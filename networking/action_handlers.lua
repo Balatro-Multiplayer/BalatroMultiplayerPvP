@@ -310,7 +310,10 @@ end
 
 function G.FUNCS.copy_host_deck()
 	PVP.LOBBY.deck.back = PVP.LOBBY.config.back
-	PVP.LOBBY.deck.cocktail = PVP.LOBBY.config.cocktail
+	-- The lobby config's cocktail is "" until the picker is edited; use the saved selection then
+	local cocktail = PVP.LOBBY.config.cocktail
+	if cocktail == nil or cocktail == "" then cocktail = PVP.config.cocktail end
+	PVP.LOBBY.deck.cocktail = cocktail
 	PVP.LOBBY.deck.sleeve = PVP.LOBBY.config.sleeve
 	PVP.LOBBY.deck.stake = PVP.LOBBY.config.stake
 	PVP.LOBBY.deck.challenge = PVP.LOBBY.config.challenge
@@ -604,9 +607,6 @@ local function action_lobby_options(options)
 	end
 	PVP.ACTIONS.update_player_usernames() -- render new DECK button state
 end
-
--- (The phantom masking patches — Card:remove / SMODS.find_card / poll_edition — moved to the
--- synced-object framework; installed via MPAPI.configure_phantom in objects/editions/phantom.lua.)
 
 local function action_speedrun()
 	SMODS.calculate_context({ mp_speedrun = true })
@@ -951,9 +951,30 @@ function PVP.ACTIONS.stop_game()
 	})
 end
 
+-- Tells the referee how this client ended the current non-PvP blind. A failure
+-- is sent before failRound / failTimer so the referee knows which blind a death was on.
+-- `blind` (optional) names the blind when it is no longer the one on deck, as
+-- after a skip.
+function PVP.ACTIONS.blind_result(beaten, blind)
+	local lobby = MPAPI.get_current_lobby()
+	local ante = G.GAME.round_resets.ante
+	blind = blind or G.GAME.blind_on_deck
+	PVP.GAME.own_blind_results = PVP.GAME.own_blind_results or {}
+	PVP.PendingDeath.record(PVP.GAME.own_blind_results, PVP.PendingDeath.SELF, PVP.PendingDeath.blind_key(ante, blind), beaten)
+	if lobby then
+		Client.send({
+			action = "blindResult",
+			ante = ante,
+			blind = blind,
+			beaten = beaten,
+		})
+	end
+end
+
 function PVP.ACTIONS.fail_round(hands_used)
 	if PVP.LOBBY.config.no_gold_on_round_loss then G.GAME.blind.dollars = 0 end
 	if hands_used == 0 then return end
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failRound",
 	})
@@ -1132,6 +1153,7 @@ function PVP.ACTIONS.pause_ante_timer()
 end
 
 function PVP.ACTIONS.fail_timer()
+	PVP.ACTIONS.blind_result(false)
 	Client.send({
 		action = "failTimer",
 	})

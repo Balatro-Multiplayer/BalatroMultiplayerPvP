@@ -406,15 +406,6 @@ return {
 			},
 		},
 
-		Edition = {
-			e_mp_phantom = {
-				name = "팬텀",
-				text = {
-					"{C:attention}이터널{} 및 {C:dark_edition}네거티브{}",
-					"{X:purple,C:white}Nemesis{}에 의해 생성되고 파괴됨",
-				},
-			},
-		},
 
 
 		Back = {
@@ -669,9 +660,6 @@ return {
 	},
 
 	misc = {
-		labels = {
-			mp_phantom = "팬텀",
-		},
 
 		challenge_names = {
 			c_mp_standard = "스탠다드",

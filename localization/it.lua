@@ -342,15 +342,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Fantasma",
-				text = {
-					"{C:attention}Eterna{} e {C:dark_edition}Negativa{}",
-					"Creata e distrutta dalla tua {X:purple,C:white}Nemesi{}",
-				},
-			},
-		},
 		Back = {
 			b_mp_cocktail = {
 				name = "Mazzo cocktail",
@@ -456,9 +447,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Fantasma",
-		},
 		dictionary = {
 			b_singleplayer = "Giocatore singolo",
 			b_join_lobby = "Unisciti ad una Lobby",

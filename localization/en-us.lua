@@ -9,6 +9,13 @@ return {
 					"{C:red}Rare Joker{}",
 				},
 			},
+			tag_mp_ward = {
+				name = "Ward Tag",
+				text = {
+					"Gives a free",
+					"{C:spectral}Jumbo Spectral Pack",
+				},
+			},
 			tag_mp_juggle_sandbox = {
 				name = "Juggle Tag",
 				text = {
@@ -812,16 +819,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Phantom",
-				text = {
-					"{C:attention}Eternal{} and {C:dark_edition}Negative{}",
-					"Created when your {X:purple,C:white}Nemesis{} has this Joker",
-					"Only affects your {X:purple,C:white}Nemesis{} and is destroyed by them.",
-				},
-			},
-		},
 		Enhanced = {},
 		Back = {
 			b_mp_cocktail = {
@@ -1197,9 +1194,9 @@ return {
 			c_mp_trap_phase_door = {
 				name = "Phase Door",
 				text = {
-					"When your {X:purple,C:white}Nemesis{} triggers a",
-					"gold card, gain {C:money}$4{} for every",
-					"gold card in their hand",
+					"When your {X:purple,C:white}Nemesis{} is paid for",
+					"held gold cards, gain {C:money}$4{} for",
+					"every gold card in their hand",
 				},
 			},
 			c_mp_trap_fire_trap = {
@@ -1215,8 +1212,8 @@ return {
 				name = "Forbiddance",
 				text = {
 					"When your {X:purple,C:white}Nemesis{} discards,",
-					"the cards drawn from their",
-					"deck are {C:attention}flipped{}",
+					"the cards drawn to refill their",
+					"hand are {C:attention}face-down{}",
 				},
 			},
 			c_mp_trap_guards_and_wards = {
@@ -1274,8 +1271,8 @@ return {
 				text = {
 					"When your {X:purple,C:white}Nemesis{} plays a",
 					"hand with a {C:attention}Glass{} card,",
-					"all Glass cards in the hand",
-					"are guaranteed to break",
+					"every scored Glass card",
+					"breaks after it scores",
 				},
 			},
 			c_mp_trap_sepia_snake_sigil = {
@@ -1323,7 +1320,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Phantom",
 			mp_sticker_balanced = "Balanced",
 			mp_sticker_extra_credit = "Extra Credit",
 			mp_sticker_persistent = "Persistent",
@@ -1333,6 +1329,30 @@ return {
 		dictionary = {
 			-- Find Game (ui/main_menu/find_game.lua)
 			k_pvp_ranked = "Ranked",
+			-- Pending death waiting screen (ui/game/pending_death.lua)
+			k_pvp_pending_death_title = "OUT OF LIVES",
+			k_pvp_pending_death_result = "Your result is pending.",
+			k_pvp_pending_death_wait = "Your Nemesis must beat the same blind.",
+			k_pvp_pending_death_wait_many = "The others must beat the same blind.",
+			k_pvp_pending_death_leave = "Leaving is not a forfeit. The result still counts.",
+			k_pvp_pending_death_survivor = "Opponent lost their last life to the blind, finish this blind to end the game!",
+			-- Forfeit or Contest modal (ui/contest_modal.lua)
+			k_pvp_contest_title = "Forfeit or Contest match?",
+			k_pvp_contest_pick_title = "Contest which player?",
+			k_pvp_contest_pick_text = "Pick the player who breaks the rules or stalls.",
+			k_pvp_contest_warn_1 = "Contest only if your opponent is breaking the rules on purpose or stalling.",
+			k_pvp_contest_warn_2 = "A moderator will review the match.",
+			k_pvp_contest_warn_3 = "Contesting a fair match can result in punishment.",
+			b_pvp_forfeit = "Forfeit",
+			b_pvp_contest = "Contest",
+			b_pvp_contest_cancel = "Cancel",
+			k_pvp_contest_failed = "Could not contest the match. Try again.",
+			k_pvp_contest_already = "This match is already contested.",
+			k_pvp_contest_over = "The match is over. It can no longer be contested.",
+			k_pvp_contest_old_server = "This server does not support contests yet.",
+			k_pvp_contested_title = "MATCH CONTESTED",
+			k_pvp_contested_text_1 = "A moderator will review this match.",
+			k_pvp_contested_text_2 = "No win or loss is recorded and your rating does not change.",
 			-- Setup votes (pvp_api/setup.lua)
 			k_pvp_setup_title_ruleset = "Vote: Ruleset",
 			k_pvp_setup_title_traps = "Vote: Trap Cards",
@@ -1343,6 +1363,7 @@ return {
 			k_pvp_setup_your_vote_tag = "Your vote",
 			k_pvp_setup_confirm_vote = "Confirm Vote",
 			k_pvp_setup_waiting = "Setting up the game...",
+			k_pvp_lobby_trap_cards = "Trap Cards",
 			k_trap_pack = "Trap Pack",
 			b_singleplayer = "Singleplayer",
 			b_sp_with_ruleset = "Practice Mode",
@@ -1582,6 +1603,12 @@ return {
 			k_show_mp_content_anyway = "Show Multiplayer content anyway*",
 			k_applies_singleplayer_vanilla_rulesets = "*Applies in singleplayer and vanilla rulesets",
 			k_timer_sfx = "Timer Sound Effects",
+			k_nemesis_layout = "Nemesis layout",
+			ml_nemesis_layout_opt = {
+				"Standard",
+				"Mirrored",
+				"Classic",
+			},
 			ml_mp_kofi_message = {
 				"This game server is",
 				"funded by the community,",
@@ -1612,6 +1639,7 @@ return {
 			loc_playing = "Playing",
 		},
 		v_dictionary = {
+			k_pvp_contest_by = "#1# contested the match with another player.",
 			k_end_player_jokers = "#1#'s Jokers",
 			k_end_player_left = "#1# -- left the match",
 			k_end_player_playing = "#1# -- still playing...",

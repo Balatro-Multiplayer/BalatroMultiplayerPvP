@@ -6,7 +6,7 @@ SMODS.Sticker({
 	default_compat = false,
 	needs_enable_flag = true,
 	calculate = function(self, card, context)
-		if card and card.edition and card.edition.type == "mp_phantom" then return end
+		if card and PVP.is_phantom(card) then return end
 		if context.joker_main then return {
 			x_mult = 0.75,
 		} end

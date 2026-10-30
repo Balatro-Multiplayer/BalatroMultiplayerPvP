@@ -1,5 +1,5 @@
 -- The lobby's options screen (previously a no-op placeholder, see ui/lobby/code.lua):
--- a host-only ruleset picker (private lobbies only -- ranked/casual matchmaking
+-- a host-only ruleset picker and Trap cards switch (private lobbies only -- ranked/casual matchmaking
 -- already commits to a specific ruleset by which queue option was picked, see
 -- pvp_api/queue.lua), plus Manhunt's Hunter/Runner or Teams' A/B role picker when
 -- applicable (any lobby kind -- a casual matchmaking-formed Manhunt/Teams match
@@ -50,6 +50,26 @@ function PVP.build_lobby_options()
 					opt_callback = "mp_pvp_change_ruleset",
 					w = 4,
 					scale = 0.6,
+					enabled = function()
+						return lobby and lobby.is_host
+					end,
+				}).node,
+			},
+		}
+		rows[#rows + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.1 },
+			nodes = {
+				MPAPI.disableable_toggle({
+					label = localize("k_pvp_lobby_trap_cards"),
+					ref_table = PVP.LOBBY.config,
+					ref_value = "trap_cards",
+					callback = function()
+						local current = MPAPI.get_current_lobby()
+						if current and current.is_host then
+							current:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+						end
+					end,
 					enabled = function()
 						return lobby and lobby.is_host
 					end,

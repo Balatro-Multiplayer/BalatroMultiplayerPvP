@@ -801,15 +801,6 @@ return {
 				},
 			},
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Фантом",
-				text = {
-					"{C:attention}Вечный{} и {C:dark_edition}Негативный{}",
-					"Создан и уничтожен вашим {X:purple,C:white}Противником{}",
-				},
-			},
-		},
 		Enhanced = {},
 		Back = {
 			b_mp_cocktail = {
@@ -1148,7 +1139,6 @@ return {
 	},
 	misc = {
 		labels = {
-			mp_phantom = "Фантом",
 			mp_sticker_balanced = "Сбалансировано",
 			mp_sticker_extra_credit = "Доп. кредит",
 			mp_sticker_persistent = "Постоянный",

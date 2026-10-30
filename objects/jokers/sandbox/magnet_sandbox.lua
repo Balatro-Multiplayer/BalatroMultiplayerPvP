@@ -58,7 +58,7 @@ MPAPI.Joker({
 			and not context.other_card
 			and not context.blueprint
 			and not context.debuffed
-			and (not card.edition or card.edition.type ~= "mp_phantom")
+			and not PVP.is_phantom(card)
 		then
 			local removed = false
 			card.ability.extra.current_rounds = card.ability.extra.current_rounds + 1

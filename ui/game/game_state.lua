@@ -238,6 +238,8 @@ function Game:update_new_round(dt)
 			else
 				PVP.ACTIONS.fail_round(G.GAME.current_round.hands_played)
 			end
+		elseif not practice and not PVP.is_pvp_boss() then
+			PVP.ACTIONS.blind_result(true)
 		end
 
 		if practice then
@@ -262,12 +264,15 @@ end
 
 local update_selecting_hand_ref = Game.update_selecting_hand
 function Game:update_selecting_hand(dt)
+	-- Out of cards with hands left. On a PvP blind this always counts as playing the
+	-- last hand (even with extra hands, e.g. Burglar, or before any hand was played),
+	-- so the referee gets 0 hands left instead of the player leaving through end_round.
 	if
-		G.GAME.current_round.hands_left < G.GAME.round_resets.hands
-		and #G.hand.cards < 1
+		#G.hand.cards < 1
 		and #G.deck.cards < 1
 		and #G.play.cards < 1
 		and PVP.is_mp_or_practice()
+		and (PVP.is_pvp_boss() or G.GAME.current_round.hands_left < G.GAME.round_resets.hands)
 	then
 		G.GAME.current_round.hands_left = 0
 		if not PVP.is_pvp_boss() then
@@ -496,15 +501,15 @@ function PVP.handle_duplicate_end()
 	return false
 end
 
--- This handles an edge case where a player plays no hands, and discards the only cards in their deck.
--- Allows opponent to advance after playing anything, and eases a life from the person who discarded their deck.
+-- This handles an edge case where a player plays no hands, and discards the only cards in their deck:
+-- on a non-PvP blind it fails the round. A PvP blind already finished through
+-- update_selecting_hand's out-of-cards check, with a score of 0.
 function PVP.handle_deck_out()
-	if PVP.is_mp_or_practice() then
+	if PVP.is_mp_or_practice() and not PVP.is_pvp_boss() then
 		if
 			G.GAME.current_round.hands_played == 0
 			and G.GAME.current_round.discards_used > 0
 		then
-			if PVP.is_pvp_boss() then PVP.ACTIONS.play_hand(0, 0) end
 			PVP.ACTIONS.fail_round(1)
 		end
 	end

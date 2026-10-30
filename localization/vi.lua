@@ -578,15 +578,6 @@ return {
 			-- 	},
 			-- },
 		},
-		Edition = {
-			e_mp_phantom = {
-				name = "Bóng Ma",
-				text = {
-					"{C:attention}Vĩnh Hằng{} và {C:dark_edition}Âm Bản{}",
-					"Quyền tạo ra và phá huỷ là của {X:purple,C:white}Đối_Thủ{}",
-				},
-			},
-		},
 		Back = {
 			b_mp_cocktail = {
 				name = "Bộ Bài Cocktail",
@@ -801,9 +792,6 @@ return {
 		},
 	},
 	misc = {
-		labels = {
-			mp_phantom = "Bóng Ma",
-		},
 		dictionary = {
 			b_singleplayer = "Chơi Đơn",
 			b_sp_with_ruleset = "Luyện Tập",

@@ -46,7 +46,7 @@ MPAPI.Joker({
 		if
 			context.cardarea == G.jokers
 			and context.joker_main
-			and (not card.edition or card.edition.type ~= "mp_phantom")
+			and not PVP.is_phantom(card)
 		then
 			local returns = nil
 			if SMODS.pseudorandom_probability(card, "j_mp_lets_go_gambling", 1, card.ability.extra.odds) then
