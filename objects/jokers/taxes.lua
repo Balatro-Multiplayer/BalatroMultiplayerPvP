@@ -1,14 +1,12 @@
+-- The opponent's sells are recorded once, outside any joker (pvp_api/actions/opponent_context.lua);
+-- Taxes only reads them.
 local function next_taxes_total_mult_gain(card)
-	local sells = PVP.GAME.enemy.sells_per_ante[G.GAME.round_resets.ante] or 0
-
-	-- If PvP hasn't been reached for the first time, accumulate sells from previous Antes
-	if G.GAME.round_resets.ante <= PVP.LOBBY.config.pvp_start_round then
-		for i = 1, G.GAME.round_resets.ante - 1 do
-			sells = sells + (PVP.GAME.enemy.sells_per_ante[i] or 0)
-		end
-	end
-
-	return sells * card.ability.extra.mult_gain
+	return PVP.OPPONENT_RECORD.taxes_mult_gain(
+		PVP.GAME.enemy.sells_per_ante,
+		G.GAME.round_resets.ante,
+		PVP.LOBBY.config.pvp_start_round,
+		card.ability.extra.mult_gain
+	)
 end
 
 SMODS.Atlas({
@@ -34,22 +32,6 @@ MPAPI.Joker({
 		return { vars = { card.ability.extra.mult_gain, card.ability.extra.mult } }
 	end,
 	calculate = function(self, card, context)
-		-- §18.2: opponent sold a card, told to us via MPAPI.broadcast_opponent_context
-		-- (overrides/game.lua's Card:sell_card) -- was previously its own bespoke
-		-- receive handler (action_sold_joker).
-		if context.opponent_selling_card then
-			if PVP.is_byed() then
-				return
-			end
-			local target = PVP.current_target_id()
-			if target and context.from ~= target then
-				return
-			end
-			PVP.GAME.enemy.sells = PVP.GAME.enemy.sells + 1
-			PVP.GAME.enemy.sells_per_ante[G.GAME.round_resets.ante] = (PVP.GAME.enemy.sells_per_ante[G.GAME.round_resets.ante] or 0)
-				+ 1
-			return
-		end
 		if context.cardarea == G.jokers and context.joker_main then
 			return {
 				mult = card.ability.extra.mult,
