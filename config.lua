@@ -5,6 +5,7 @@ return {
 	["server_port"] = 8788,
 	["logging"] = false,
 	["misprint_display"] = true,
+	["queue_match_sound"] = true,
 	["integrations"] = {
 		["TheOrder"] = true,
 		["Preview"] = false,

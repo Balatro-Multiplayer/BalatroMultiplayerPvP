@@ -1605,6 +1605,7 @@ return {
 			k_show_mp_content_anyway = "Show Multiplayer content anyway*",
 			k_applies_singleplayer_vanilla_rulesets = "*Applies in singleplayer and vanilla rulesets",
 			k_timer_sfx = "Timer Sound Effects",
+			k_queue_match_sound = "Play a sound when a match is found",
 			k_nemesis_layout = "Nemesis layout",
 			ml_nemesis_layout_opt = {
 				"Standard",
