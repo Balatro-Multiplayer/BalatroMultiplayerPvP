@@ -33,11 +33,18 @@ local function current_ruleset_option()
 	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(DEFAULT_RULESET_KEY)
 end
 
+local function can_edit_private_lobby(lobby)
+	return lobby and lobby.is_host and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and not lobby:is_game_started()
+end
+
 function PVP.build_lobby_options()
 	local rows = {}
 	local lobby = MPAPI.get_current_lobby()
 
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		local function editable()
+			return can_edit_private_lobby(lobby)
+		end
 		rows[#rows + 1] = {
 			n = G.UIT.R,
 			config = { align = "cm", padding = 0.1 },
@@ -50,9 +57,7 @@ function PVP.build_lobby_options()
 					opt_callback = "mp_pvp_change_ruleset",
 					w = 4,
 					scale = 0.6,
-					enabled = function()
-						return lobby and lobby.is_host
-					end,
+					enabled = editable,
 				}).node,
 			},
 		}
@@ -137,11 +142,10 @@ function PVP.build_lobby_options()
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)
-	PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
-	end
+	if not can_edit_private_lobby(lobby) then return end
+	PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
+	lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
 end
 
 G.FUNCS.mp_pvp_change_manhunt_role = function(e)
@@ -155,7 +159,5 @@ end
 G.FUNCS.mp_pvp_change_manhunt_hunter_lives = function(e)
 	PVP.LOBBY.config.manhunt_hunter_lives = e.to_key + 6
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
-	end
+	if lobby and lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind)) end
 end

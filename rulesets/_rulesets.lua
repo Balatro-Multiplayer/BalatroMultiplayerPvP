@@ -103,52 +103,5 @@ function PVP.current_ruleset()
 	return _resolver
 end
 
--- Returns a single deduped, ordered list of active layer names. Body looks
--- scarier than it is. Order: target ruleset's _layer_order, then its
--- self-name, then modifiers (when target is the active ruleset). Dedup
--- matters because not every hook is idempotent — smallworld's 75% cull
--- would re-cull the survivors.
---
--- NOT delegated to MPAPI.active_layer_chain despite the walk being otherwise
--- identical: MPAPI adds the ruleset's own KEY as its self-entry, which for
--- MPAPI/Speed content is fine (their ruleset keys are already fully-qualified,
--- doubling as their own layer name when one exists). PvP's ruleset keys carry
--- the extra "ruleset_mp_" prefix (see PVP.Ruleset above) while a same-named
--- layer, when one exists, is registered under the unprefixed SHORT name --
--- so PvP must add target_short here, not the prefixed key MPAPI would add.
-function PVP.active_layer_chain(target_short)
-	local active_key = PVP.get_active_ruleset()
-	local active_short = active_key and active_key:gsub("^ruleset_mp_", "") or nil
-	target_short = target_short or active_short
-
-	local result, seen = {}, {}
-	local function add(name)
-		if name and not seen[name] then
-			seen[name] = true
-			result[#result + 1] = name
-		end
-	end
-
-	if target_short then
-		local ruleset = MPAPI.Rulesets["ruleset_mp_" .. target_short]
-		if ruleset and ruleset._layer_order then
-			for _, name in ipairs(ruleset._layer_order) do
-				add(name)
-			end
-		end
-		add(target_short)
-	end
-	-- With no session neither is set, and no modifier applies either.
-	if active_short and target_short == active_short then
-		for _, name in ipairs(MPAPI.MODIFIERS) do
-			add(name)
-		end
-	end
-	return result
-end
-
--- Delegate straight to MPAPI: both take (key, opts) / (ruleset_key, key) and
--- MPAPI.LoadReworks resolves via MPAPI.active_layer_chain, which agrees with the
--- resolution above since PVP.Ruleset/PVP.Layer register into MPAPI's own tables.
 PVP.ReworkCenter = MPAPI.ReworkCenter
 PVP.LoadReworks = MPAPI.LoadReworks

@@ -1,4 +1,4 @@
 PVP.Ruleset({
 	key = "expanded",
-	layers = { "standard" },
+	layers = { "standard", PVP.LayerKey.MULTIPLAYER_CONTENT },
 }):inject()

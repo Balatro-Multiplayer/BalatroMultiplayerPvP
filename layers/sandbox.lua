@@ -1,10 +1,5 @@
 PVP.SANDBOX = {}
 
--- The sandbox layer's key, referenced as a raw string across several consumer
--- files (jokers, rulesets, enhancements) -- kept as one named constant here, next
--- to this layer's own registration below, so those call sites can't drift from it.
-PVP.LayerKey = { SANDBOX = "sandbox" }
-
 -- Centralized joker mappings: defines sandbox variants, their vanilla counterparts, and rotation status
 PVP.SANDBOX.joker_mappings = {
 	-- Active jokers in rotation
@@ -122,60 +117,18 @@ local function select_random_idol()
 	end
 end
 
--- Shuffle reworked jokers to randomize the overview panel order
--- Only show extra_credit jokers + idol jokers + error jokers in overview (hide other sandbox jokers)
-local sandbox_reworked_jokers = (function()
-	local jokers = {}
-	local idol_jokers = {}
-
-	-- Collect extra_credit and idol jokers separately
-	for _, mapping in ipairs(PVP.SANDBOX.joker_mappings) do
-		if mapping.active then
-			if mapping.group == "extra_credit" then
-				table.insert(jokers, mapping.sandbox)
-			elseif mapping.sandbox:find("idol") then
-				table.insert(idol_jokers, mapping.sandbox)
-			end
-		end
-	end
-
-	-- Add error jokers (for overview only, not in actual pool)
-	for i = 1, 14 do
-		table.insert(jokers, "j_mp_error_sandbox_" .. i)
-	end
-
-	-- final vanilla stuff
-	table.insert(jokers, "j_mp_hanging_chad")
-
-	-- Fisher-Yates shuffle
-	for i = #jokers, 2, -1 do
-		local j = math.random(1, i)
-		jokers[i], jokers[j] = jokers[j], jokers[i]
-	end
-
-	-- Insert idol jokers in the middle
-	local middle = math.floor(#jokers / 2) + 1
-	for i, idol in ipairs(idol_jokers) do
-		table.insert(jokers, middle + i - 1, idol)
-	end
-
-	return jokers
-end)()
-
 MPAPI.Layer(PVP.LayerKey.SANDBOX, {
-	multiplayer_content = true,
-	banned_jokers = { "j_hanging_chad" },
+	banned_jokers = { "j_hanging_chad", "j_mp_conjoined_joker" },
 	banned_silent = PVP.SANDBOX.get_vanilla_bans(),
 	banned_consumables = { "c_ouija", "c_ectoplasm" },
 	banned_tags = { "tag_rare", "tag_juggle", "tag_investment" },
-	reworked_jokers = sandbox_reworked_jokers,
+	-- Sandbox jokers gate themselves through mp_include; Hanging Chad has none.
+	reworked_jokers = { "j_mp_hanging_chad" },
 	reworked_consumables = { "c_mp_ouija_standard", "c_mp_ectoplasm_sandbox" },
 	reworked_enhancements = { "m_glass" },
 	reworked_tags = { "tag_mp_gambling_sandbox", "tag_mp_juggle_sandbox", "tag_mp_investment_sandbox" },
 	calculate = function(self, context)
-		if not context.apply_bans then
-			return
-		end
+		if not context.apply_bans then return end
 		select_random_idol()
 
 		if SMODS.Mods["extracredit"] and SMODS.Mods["extracredit"].can_load then

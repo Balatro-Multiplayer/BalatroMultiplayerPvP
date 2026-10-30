@@ -1,6 +1,6 @@
 PVP.Ruleset({
 	key = "sandbox",
-	layers = { PVP.LayerKey.SANDBOX },
+	layers = { PVP.LayerKey.SANDBOX, PVP.LayerKey.MULTIPLAYER_CONTENT },
 
 	forced_lobby_options = true,
 
