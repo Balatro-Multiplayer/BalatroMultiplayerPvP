@@ -77,7 +77,9 @@ MPAPI.ActionType({
 		PVP.GAME.royale_target_id = (target and target ~= "") and target or nil
 		local safe = params.safe and params.safe[sid]
 		PVP.GAME.royale_target_safe = safe ~= nil and tonumber(safe) == 1 or nil
-		if PVP.UI.refresh_enemy_score_label then PVP.UI.refresh_enemy_score_label() end
+		if PVP.UI.refresh_enemy_score_label then
+			PVP.UI.refresh_enemy_score_label()
+		end
 		if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 	end),
 })

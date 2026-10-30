@@ -18,12 +18,12 @@ local hud_opponent_name = setmetatable({}, {
 -- are in the losing half, "Leading:" while safe. Every other mode (and Royale before
 -- the host's first target broadcast) keeps the plain "Current Enemy score" label.
 function PVP.UI.refresh_enemy_score_label()
-    local safe = PVP.GAME.royale_target_safe
-    local key = "k_enemy_score"
-    if safe ~= nil and PVP.current_target_id() then
-        key = safe and "k_royale_leading" or "k_royale_beat"
-    end
-    PVP.GAME.enemy.score_label = localize(key)
+	local safe = PVP.GAME.royale_target_safe
+	local key = "k_enemy_score"
+	if safe ~= nil and PVP.current_target_id() then
+		key = safe and "k_royale_leading" or "k_royale_beat"
+	end
+	PVP.GAME.enemy.score_label = localize(key)
 end
 
 function PVP.UI.update_blind_HUD(blind, reset, silent)
@@ -125,7 +125,8 @@ function PVP.UI.reset_blind_HUD()
         end
 		G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_table = G.GAME.blind
 		G.HUD_blind:get_UIE_by_ID("HUD_blind_count").config.ref_value = "chip_text"
-		local score_label = G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1]
+		local score_label =
+			G.HUD_blind:get_UIE_by_ID("HUD_blind").children[2].children[2].children[2].children[1].children[1]
 		score_label.config.ref_table = nil
 		score_label.config.ref_value = nil
 		score_label.config.text = localize("ph_blind_score_at_least")
