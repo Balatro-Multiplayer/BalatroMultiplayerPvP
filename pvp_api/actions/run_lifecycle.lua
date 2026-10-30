@@ -25,11 +25,27 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			return candidates
 		end,
 		max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8,
-		-- Stamp the stake sticker onto each deck back (see the game's back_sticker DrawStep).
+		-- Pin the stake's chip to each deck back's corner, where the sticker would
+		-- go: the stock sticker is too small to read at this tile size, and PvP's
+		-- stakes have no sticker art (they borrow Gold's). Same approach as PvP PR 558.
 		decorate_tile = function(card, item)
-			if type(item) == "table" and item.stake then
-				card.sticker = G.sticker_map[SMODS.stake_from_index(item.stake)]
+			local stake = type(item) == "table" and item.stake and G.P_CENTER_POOLS.Stake[item.stake]
+			if not stake then
+				return
 			end
+			local size = card.T.w * 0.5
+			local chip = get_stake_sprite(item.stake, size)
+			chip.states.collide.can = false
+			chip:set_role({
+				major = card,
+				role_type = "Minor",
+				offset = { x = card.T.w - size * 1.05, y = card.T.h - size * 1.05 },
+				xy_bond = "Strong",
+				wh_bond = "Weak",
+				r_bond = "Strong",
+				scale_bond = "Strong",
+			})
+			card.children.mp_stake_chip = chip
 		end,
 		on_refresh = function()
 			if PVP.lobby and PVP.lobby.refresh_mm_status then
