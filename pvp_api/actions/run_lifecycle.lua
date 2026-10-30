@@ -8,6 +8,7 @@ local relay = PVP._pvp_action_helpers.relay
 -- it, else all 8.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
+	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
 	return {
 		id = PVP.SETUP.Step.DRAFT,
 		pool_size = bp.pool_size,
@@ -18,13 +19,25 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			for _, center in ipairs(G.P_CENTER_POOLS.Back or {}) do
 				backs[#backs + 1] = { key = center.key, mod_id = center.mod and center.mod.id }
 			end
+			-- A ruleset limiting its stakes has the host roll each deck's stake
+			-- from the allowed ones; otherwise the server rolls 1..max_stake.
+			local stake_keys = {}
+			for i, center in ipairs(G.P_CENTER_POOLS.Stake or {}) do
+				stake_keys[i] = center.key
+			end
+			local stakes =
+				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
 			local candidates = {}
-			for i, key in ipairs(PVP.SETUP.draft_candidates(ruleset, backs, PVP.id)) do
-				candidates[i] = { key = key }
+			for i, key in ipairs(PVP.SETUP.draft_candidates(
+				backs,
+				MPAPI.resolve_ruleset_field(ruleset, "allowed_backs"),
+				MPAPI.resolve_ruleset_field(ruleset, "banned_backs")
+			)) do
+				candidates[i] = { key = key, stake = stakes and stakes[math.random(#stakes)] or nil }
 			end
 			return candidates
 		end,
-		max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8,
+		max_stake = max_stake,
 		-- Stamp the stake sticker onto each deck back (see the game's back_sticker DrawStep).
 		decorate_tile = function(card, item)
 			if type(item) == "table" and item.stake then
