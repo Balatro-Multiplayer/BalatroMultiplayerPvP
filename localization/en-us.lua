@@ -1542,7 +1542,7 @@ return {
 			k_wsob = "WSOB",
 			k_wsob_description = "World Series of Balatro ruleset.\n\nNear-vanilla card pool with minimal balance changes:\n- Hanging Chad, Bloodstone, and Glass reworked\n- Justice banned\n- No Multiplayer-original content\n\n(See bans and reworks tabs for details)",
 			k_mp_ruleset_balanced = "Balanced",
-			k_mp_ruleset_balanced_description = "The official competitive ruleset.\n\nLocked settings:\n- Attrition gamemode\n- The Order enabled\n- Requires recommended Steamodded version",
+			k_mp_ruleset_balanced_description = "The official competitive ruleset.",
 			k_legacy_ranked = "Legacy Ranked",
 			k_legacy_ranked_description = "A minimal competitive ruleset.\n\nNo Multiplayer cards or balance changes\nexcept Glass. Has locked settings:\n- Attrition gamemode\n- The Order enabled\n- Requires recommended Steamodded version",
 			k_experimental_balanced = "Experimental (Balanced)",
