@@ -114,10 +114,10 @@ end
 
 -- §20: register our own predicates through the API's generic extension points
 -- (MPAPI.register_order_gate/register_voucher_queue_gate/register_idol_gate) rather than the API
--- reading PVP.* globals directly. Practice mode always uses the order; otherwise a
--- lobby with the_order enabled does -- exactly the previous PVP-compat branch's logic.
+-- reading PVP.* globals directly. Playback uses the recorded The Order setting;
+-- practice and live lobbies use their own config.
 MPAPI.register_order_gate(function()
-	return (PVP.is_practice_mode and PVP.is_practice_mode())
+	return (PVP.is_practice_mode and PVP.is_practice_mode() and PVP.LOBBY.config.the_order)
 		or (PVP.LOBBY and PVP.LOBBY.config and PVP.LOBBY.config.the_order and PVP.LOBBY.code ~= nil)
 		or false
 end)

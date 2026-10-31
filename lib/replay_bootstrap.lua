@@ -21,6 +21,7 @@ function PVP.replay_bootstrap(timeline, player_id)
 				local options = entry.args.options or {}
 				bootstrap.sleeve = options.sleeve
 				bootstrap.challenge = options.challenge
+				bootstrap.the_order_enabled = options.the_order_enabled
 			elseif entry.opcode == MPAPI.OPCODE.RUN_INFO then
 				found_run = true
 				bootstrap.seed = entry.args.seed
@@ -51,4 +52,5 @@ function PVP.apply_replay_loadout(lobby_state, manifest)
 	config.challenge = manifest.challenge
 	config.ruleset = manifest.ruleset
 	config.gamemode = manifest.gamemode
+	config.the_order = manifest.the_order_enabled ~= false
 end
