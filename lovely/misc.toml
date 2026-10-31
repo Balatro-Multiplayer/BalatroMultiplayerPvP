@@ -51,7 +51,8 @@ if not self.role.offset then self.role.offset = {} end'''
 match_indent = true
 times = 1
 
-# remove collection misprint when in multiplayer
+# remove collection misprint when in a PvP session (lobby, practice or playback;
+# practice has no lobby code)
 # code restructured from "no peeking" by spad_overolls
 [[patches]]
 [patches.pattern]
@@ -59,7 +60,7 @@ target = "card.lua"
 pattern = 'for i = self.ability.extra.min, self.ability.extra.max do'
 position = "before"
 payload = '''
-local mp_collection = self.area.config.type == "title" and PVP.LOBBY.code
+local mp_collection = self.area.config.type == "title" and PVP.in_session()
 '''
 match_indent = true
 
