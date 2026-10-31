@@ -476,6 +476,9 @@ local function action_end_pvp(p)
 	PVP.GAME.pvp_reached = false
     PVP.GAME.pvp_reached_first = false
 	PVP.GAME.score = nil
+	-- The PvP is over: clear the referee's lives blocker now, not at the next blind
+	-- select, so an ante timer running out on the cash out or in the shop costs a life.
+	Client.send({ action = "newRound" })
 end
 
 local function action_player_info(p)
@@ -1147,7 +1150,11 @@ function PVP.ACTIONS.pause_ante_timer()
 end
 
 function PVP.ACTIONS.fail_timer()
-	PVP.ACTIONS.blind_result(false)
+	-- Out of time on the cash out after the Boss: the ante has gone up but the Boss is
+	-- still on deck until cash_out resets the blinds. The Boss is the PvP, which never
+	-- reports a result, so a pending death on it would wait forever. Use the next Small Blind.
+	local boss_cash_out = G.GAME.blind_on_deck == "Boss" and G.GAME.round_resets.blind_states.Boss == "Defeated"
+	PVP.ACTIONS.blind_result(false, boss_cash_out and "Small" or nil)
 	Client.send({
 		action = "failTimer",
 	})
