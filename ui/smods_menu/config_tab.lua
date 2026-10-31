@@ -87,6 +87,21 @@ function PVP.UI.create_config_tab()
 			{
 				n = G.UIT.R,
 				config = {
+					padding = 0,
+					align = "cm",
+				},
+				nodes = {
+					create_toggle({
+						id = "queue_match_sound_toggle",
+						label = localize("k_queue_match_sound"),
+						ref_table = PVP.config,
+						ref_value = "queue_match_sound",
+					}),
+				},
+			},
+			{
+				n = G.UIT.R,
+				config = {
 					padding = 0.1,
 					align = "cm",
 				},
