@@ -142,17 +142,23 @@ local sticker_x_pos = {
 	b_mp_echodeck = 22,
 }
 
--- Matchmade games (the ranked Draft) play one fixed Cocktail for now.
-PVP.MATCH_COCKTAIL = { "b_abandoned", "b_erratic", "b_checkered" }
-
-function PVP.match_cocktail_active()
-	return PVP.is_matchmaking ~= nil and PVP.is_matchmaking()
+-- The Cocktail the lobby fixes for every player, { name, decks } from the lobby
+-- metadata (see PVP.pvp_lobby_metadata), or nil to play the player's own picker.
+-- Decks this client doesn't have are dropped, and at most 3 are mixed.
+function PVP.cocktail_recipe()
+	local recipe = PVP.LOBBY.code and PVP.LOBBY.deck.cocktail_recipe
+	if type(recipe) ~= "table" or type(recipe.decks) ~= "table" then return nil end
+	local decks = {}
+	for _, key in ipairs(recipe.decks) do
+		if G.P_CENTERS[key] and #decks < 3 then decks[#decks + 1] = key end
+	end
+	if #decks == 0 then return nil end
+	return { name = recipe.name, decks = decks }
 end
 
 function PVP.get_cocktail_decks(cull)
-	if cull and PVP.match_cocktail_active() then
-		return {}, { unpack(PVP.MATCH_COCKTAIL) }
-	end
+	local recipe = cull and PVP.cocktail_recipe()
+	if recipe then return {}, recipe.decks end
 	local ret = {}
 	local forced = {}
 	for k, v in pairs(G.P_CENTERS) do
@@ -625,18 +631,21 @@ local localize_ref = localize
 function localize(args, misc_cat)
 	if args and type(args) == "table" and args.key then
 		local key = args.key or args.node and args.node.config.center.key or "NULL"
-		-- Bean's Cocktail: its own name, and a description of its three decks.
-		if
-			key == "b_mp_cocktail"
-			and (args.type == "name_text" or args.type == "descriptions")
-			and PVP.match_cocktail_active()
-		then
-			local bean = {}
+		-- A lobby's Cocktail: its own name, and its decks' names as the description.
+		local recipe = key == "b_mp_cocktail" and PVP.cocktail_recipe()
+		if recipe and args.type == "name_text" and recipe.name then return recipe.name end
+		if recipe and args.type == "descriptions" then
+			local mix = {}
 			for k, v in pairs(args) do
-				bean[k] = v
+				mix[k] = v
 			end
-			bean.key = "b_mp_cocktail_bean"
-			return localize_ref(bean, misc_cat)
+			mix.key = "b_mp_cocktail_recipe"
+			mix.vars = {}
+			for i = 1, 3 do
+				local deck = recipe.decks[i]
+				mix.vars[i] = deck and localize({ type = "name_text", set = "Back", key = deck }) or ""
+			end
+			return localize_ref(mix, misc_cat)
 		end
 		local ret = localize_ref(args, misc_cat)
 		if args.type == "name_text" and key == "b_mp_cocktail" then
