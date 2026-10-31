@@ -60,6 +60,13 @@ check("expanded stakes by index", stakes(expanded, 8), "1,3,4,6,8")
 check("stake cap trims allowed stakes", stakes(expanded, 5), "1,3,4")
 check("nothing allowed under the cap is unrestricted", stakes({ "stake_gold" }, 5), "nil")
 
+local before = PVP.SETUP.draft_tile_before
+check("white stake sorts before gold", before({ stake = 1 }, { stake = 8 }) and "before" or "after", "before")
+check("gold stake sorts after white", before({ stake = 8 }, { stake = 1 }) and "before" or "after", "after")
+check("equal stakes are a tie", before({ stake = 3 }, { stake = 3 }) and "before" or "tie", "tie")
+check("a missing stake sorts before a real one", before({}, { stake = 2 }) and "before" or "after", "before")
+check("a string stake index still orders", before({ stake = "2" }, { stake = "4" }) and "before" or "after", "before")
+
 if failures > 0 then
 	os.exit(1)
 end

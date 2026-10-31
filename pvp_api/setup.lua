@@ -108,6 +108,19 @@ function S.draft_stakes(allowed_stakes, stake_keys, cap)
 	return #indices > 0 and indices or nil
 end
 
+-- Draft tile display order. A lower stake index is an easier stake, and a tile
+-- with no stake sorts first. Pure: equal stakes are a tie, and the Draft UI
+-- keeps the server's order for those. Bans and picks still use the tile's key.
+function S.draft_tile_before(a, b)
+	local function stake_of(item)
+		if type(item) ~= "table" then
+			return 0
+		end
+		return tonumber(item.stake) or 0
+	end
+	return stake_of(a) < stake_of(b)
+end
+
 local function setup_results(lobby)
 	local setup = lobby and lobby._game and lobby._game.setup
 	return setup and setup.results or {}
