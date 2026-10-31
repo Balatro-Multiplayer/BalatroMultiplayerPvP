@@ -35,9 +35,17 @@ end
 --
 -- ruleset/gamemode prefer the ALREADY-current PVP.LOBBY.config value over the
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
+--
+-- `cocktail_recipe` is the Cocktail every player in a matchmade lobby plays
+-- (objects/decks/ZZ_cocktail.lua). The host stamps a fixed one until the server
+-- seeds it into the lobby's metadata itself; then this line goes.
+local MATCH_COCKTAIL = { name = "Bean's Cocktail", decks = { "b_abandoned", "b_erratic", "b_checkered" } }
+local MATCHMADE = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.CASUAL] = true }
+
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
 	return {
+		cocktail_recipe = MATCHMADE[kind] and MATCH_COCKTAIL or nil,
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
 		ruleset = PVP.LOBBY.config.ruleset or def.ruleset,
 		queue_mode = gamemode_key,

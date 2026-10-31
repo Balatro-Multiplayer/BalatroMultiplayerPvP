@@ -1,11 +1,7 @@
 local A = PVP._pvp_action_helpers.A
 local relay = PVP._pvp_action_helpers.relay
 
--- The Draft's MPAPI.BanPick config for `gm_def` on the ruleset `ruleset`. The
--- host sends every allowed deck back and the stake cap; the server samples the
--- pool and rolls a stake per deck. The stake cap mirrors PVP's own
--- (ui/lobby/lobby.lua): PVP.DECK.MAX_STAKE when a compatibility mod restricts
--- it, else all 8.
+-- Wire PvP's Draft policy and presentation into MPAPI.BanPick.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
 	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
@@ -15,28 +11,14 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 		keep = bp.keep,
 		schedule = bp.schedule,
 		build_pool = function()
-			local backs = {}
-			for _, center in ipairs(G.P_CENTER_POOLS.Back or {}) do
-				backs[#backs + 1] = { key = center.key, mod_id = center.mod and center.mod.id }
-			end
-			-- A ruleset limiting its stakes has the host roll each deck's stake
-			-- from the allowed ones; otherwise the server rolls 1..max_stake.
-			local stake_keys = {}
-			for i, center in ipairs(G.P_CENTER_POOLS.Stake or {}) do
-				stake_keys[i] = center.key
-			end
-			local stakes =
-				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
-			local candidates = {}
-			for i, key in ipairs(PVP.SETUP.draft_candidates(
-				backs,
-				MPAPI.resolve_ruleset_field(ruleset, "allowed_backs"),
-				MPAPI.resolve_ruleset_field(ruleset, "banned_backs")
-			)) do
-				candidates[i] = { key = key, stake = stakes and stakes[math.random(#stakes)] or nil }
-			end
-			return candidates
+			return PVP.DRAFT.build({
+				ruleset = ruleset,
+				size = bp.pool_size,
+				max_stake = PVP.DECK and PVP.DECK.MAX_STAKE,
+			})
 		end,
+		-- The server shuffles the pool; show it lowest stake first, then by deck.
+		tile_order = PVP.DRAFT.tile_order,
 		max_stake = max_stake,
 		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
 		-- to read at this tile size) and name the stake in the hover popup.
