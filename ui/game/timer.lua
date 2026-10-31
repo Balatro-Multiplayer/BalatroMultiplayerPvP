@@ -410,11 +410,20 @@ end
 
 -- RLOG's play opcode is now recorded once, generically, by
 -- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
--- G.FUNCS.play_cards_from_highlighted hook -- this override stays only for
--- PvP's own timer-increment logic below.
+-- G.FUNCS.play_cards_from_highlighted hook -- this override stays for
+-- the double-play guard and PvP's own timer-increment logic below.
 local old_play = G.FUNCS.play_cards_from_highlighted
+-- Vanilla only stops a second play once the first hand's cards reach G.play, which
+-- can take a while when the event queue is busy. A second click before then plays
+-- the same cards again, and both hands score from the same chips, so one hand's
+-- score is lost. Ignore it until the first play's events have run (or 10s pass, or
+-- a new run starts: leaving clears the event queue, unlock included).
+local play_pending = nil
 function G.FUNCS.play_cards_from_highlighted(...)
+    if play_pending and play_pending.game == G.GAME and love.timer.getTime() - play_pending.at < 10 then return end
+    play_pending = { game = G.GAME, at = love.timer.getTime() }
     old_play(...)
+    G.E_MANAGER:add_event(Event({ func = function() play_pending = nil; return true end }))
     if G.play and G.play.cards[1] then return end
     if PVP.LOBBY.code and PVP.LOBBY.config.timer and not PVP.GAME.timer_consumed then
         if PVP.is_pvp_boss() then
