@@ -38,6 +38,10 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			return candidates
 		end,
 		max_stake = max_stake,
+		-- A deck may sit in the pool up to 3 times, each on its own stake; the server
+		-- also keeps any one stake to 4 of the 9 (the pool size minus 1, over 2; hard-coded
+		-- on the server for now). Decks whose stake the host already rolled stay single.
+		max_repeats = 3,
 		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
 		-- to read at this tile size) and name the stake in the hover popup.
 		decorate_tile = function(card, item)
