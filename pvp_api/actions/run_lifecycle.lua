@@ -2,8 +2,8 @@ local A = PVP._pvp_action_helpers.A
 local relay = PVP._pvp_action_helpers.relay
 
 -- The Draft's MPAPI.BanPick config for `gm_def` on the ruleset `ruleset`. The
--- host sends every allowed deck back and the stake cap; the server samples the
--- pool and rolls a stake per deck. The stake cap mirrors PVP's own
+-- host builds the deck+stake tiles itself (PVP.SETUP.draft_board) from the
+-- ruleset's allowed decks and stakes. The stake cap mirrors PVP's own
 -- (ui/lobby/lobby.lua): PVP.DECK.MAX_STAKE when a compatibility mod restricts
 -- it, else all 8.
 function PVP._ban_pick_config_for(gm_def, ruleset)
@@ -19,24 +19,42 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			for _, center in ipairs(G.P_CENTER_POOLS.Back or {}) do
 				backs[#backs + 1] = { key = center.key, mod_id = center.mod and center.mod.id }
 			end
-			-- A ruleset limiting its stakes has the host roll each deck's stake
-			-- from the allowed ones; otherwise the server rolls 1..max_stake.
+			-- A ruleset without allowed_stakes drafts every stake up to max_stake. One that
+			-- lists its stakes can reach past 8 (Spectral+) unless a compatibility mod caps them.
 			local stake_keys = {}
 			for i, center in ipairs(G.P_CENTER_POOLS.Stake or {}) do
 				stake_keys[i] = center.key
 			end
+			local compat_cap = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE
+				or math.huge
 			local stakes =
-				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, max_stake)
-			local candidates = {}
-			for i, key in ipairs(PVP.SETUP.draft_candidates(
+				PVP.SETUP.draft_stakes(MPAPI.resolve_ruleset_field(ruleset, "allowed_stakes"), stake_keys, compat_cap)
+			if not stakes then
+				stakes = {}
+				for i = 1, math.min(max_stake, #stake_keys) do
+					stakes[i] = i
+				end
+			end
+			-- half_weight_stakes come up half as often as each other stake.
+			local half = {}
+			for _, key in ipairs(MPAPI.resolve_ruleset_field(ruleset, "half_weight_stakes") or {}) do
+				half[key] = true
+			end
+			local weights = {}
+			for i, key in ipairs(stake_keys) do
+				if half[key] then
+					weights[i] = 0.5
+				end
+			end
+			local decks = PVP.SETUP.draft_candidates(
 				backs,
 				MPAPI.resolve_ruleset_field(ruleset, "allowed_backs"),
 				MPAPI.resolve_ruleset_field(ruleset, "banned_backs")
-			)) do
-				candidates[i] = { key = key, stake = stakes and stakes[math.random(#stakes)] or nil }
-			end
-			return candidates
+			)
+			return PVP.SETUP.draft_board(decks, stakes, { size = bp.pool_size, weights = weights })
 		end,
+		-- The server shuffles the pool; show it lowest stake first, then by deck.
+		tile_order = PVP.SETUP.draft_tile_order,
 		max_stake = max_stake,
 		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
 		-- to read at this tile size) and name the stake in the hover popup.
