@@ -221,6 +221,13 @@ end)
 -- A server-refereed lobby: whoever is still in reports it (the forfeiter has
 -- left, so the server settles the run as partial).
 A_host("pvp_player_won", function(_at, _from, params)
+	-- The opponent leaving the end screen also lands here: a decided match
+	-- must not end again (a second end screen, and a stayer who lost would win).
+	if PVP.GAME.result_handled or G.STAGE ~= G.STAGES.RUN then
+		sendDebugMessage("[pvp] pvp_player_won ignored (already handled or not in a run)", "MULTIPLAYER")
+		return
+	end
+	PVP.GAME.result_handled = true
 	if PVP.GAME.contested then
 		return
 	end
