@@ -1,6 +1,7 @@
 -- Card-info provider for MPAPI's Lobby Info overlay (see
 -- BalatroMultiplayerAPI/api/card_info_providers.lua): every lobby shows the
--- player's lives, ranked lobbies also show Elo.
+-- player's lives, ranked lobbies also show Elo, and during a run the
+-- player's skips and best PvP score where known (see run_rows).
 --
 -- Cached per (gamemode, player) since MPAPI.matchmaking.get_rating is an
 -- async network call and hover callbacks must return synchronously: the
@@ -54,8 +55,27 @@ local function lives_row(player_data)
 	return text_row(tostring(lives) .. " " .. localize("k_lives"))
 end
 
+-- Skips and best PvP score: our own come from G.GAME/PVP.GAME. An opponent's
+-- only exist as PVP.GAME.enemy, which is never reset when the target changes,
+-- so it is that player's own numbers only in a two-player, non-Teams lobby.
+-- Anyone else gets no rows rather than another player's numbers.
+local function run_rows(lobby, player_data, rows)
+	if G.STAGE ~= G.STAGES.RUN or not PVP.GAME or PVP.is_practice_mode() then return end
+	local skips, best_score
+	if player_data.id == PVP.self_player_id() then
+		skips, best_score = G.GAME.skips, PVP.GAME.highest_pvp_score
+	elseif #lobby:get_players() == 2 and not PVP.LOBBY.config.team_based then
+		skips, best_score = PVP.GAME.enemy.skips, PVP.GAME.enemy.highest_score
+	else
+		return
+	end
+	rows[#rows + 1] = text_row(tostring(skips or 0) .. " " .. localize("k_skips"))
+	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. PVP.Score.display(best_score))
+end
+
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)
 	local rows = { lives_row(player_data) }
+	run_rows(lobby, player_data, rows)
 	local meta = lobby:get_metadata() or {}
 	if meta.kind == PVP.LobbyAccess.RANKED then
 		rows[#rows + 1] = elo_row(lobby, player_data)

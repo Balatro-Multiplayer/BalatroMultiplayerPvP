@@ -1456,6 +1456,7 @@ return {
 			k_pvp_sync_failed = "Round sync unconfirmed. Reconnect to retry.",
 			k_lives = "Lives",
 			k_skips = "Skips",
+			k_best_pvp_score = "Best PvP Score",
 			k_lost_life = "Lost a life",
 			k_total_lives_lost = " Total Lives Lost",
 			k_comeback_money_sandbox = " Comeback Money ($3 × ante cleared)",
