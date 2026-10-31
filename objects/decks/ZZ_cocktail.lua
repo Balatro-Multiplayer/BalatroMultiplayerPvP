@@ -142,7 +142,17 @@ local sticker_x_pos = {
 	b_mp_echodeck = 22,
 }
 
+-- Matchmade games (the ranked Draft) play one fixed Cocktail for now.
+PVP.MATCH_COCKTAIL = { "b_abandoned", "b_erratic", "b_checkered" }
+
+function PVP.match_cocktail_active()
+	return PVP.is_matchmaking ~= nil and PVP.is_matchmaking()
+end
+
 function PVP.get_cocktail_decks(cull)
+	if cull and PVP.match_cocktail_active() then
+		return {}, { unpack(PVP.MATCH_COCKTAIL) }
+	end
 	local ret = {}
 	local forced = {}
 	for k, v in pairs(G.P_CENTERS) do
@@ -614,8 +624,21 @@ end
 local localize_ref = localize
 function localize(args, misc_cat)
 	if args and type(args) == "table" and args.key then
-		local ret = localize_ref(args, misc_cat)
 		local key = args.key or args.node and args.node.config.center.key or "NULL"
+		-- Bean's Cocktail: its own name, and a description of its three decks.
+		if
+			key == "b_mp_cocktail"
+			and (args.type == "name_text" or args.type == "descriptions")
+			and PVP.match_cocktail_active()
+		then
+			local bean = {}
+			for k, v in pairs(args) do
+				bean[k] = v
+			end
+			bean.key = "b_mp_cocktail_bean"
+			return localize_ref(bean, misc_cat)
+		end
+		local ret = localize_ref(args, misc_cat)
 		if args.type == "name_text" and key == "b_mp_cocktail" then
 			if PVP.cocktail_check_edited() then return ret .. "*" end
 		end

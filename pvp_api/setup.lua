@@ -108,6 +108,111 @@ function S.draft_stakes(allowed_stakes, stake_keys, cap)
 	return #indices > 0 and indices or nil
 end
 
+-- The Draft board: a stake at most 4 times, a deck at most 3, no deck+stake
+-- pair twice, and at least one White tile.
+local DRAFT_SIZE, MAX_PER_STAKE, MAX_PER_DECK, WHITE = 9, 4, 3, 1
+
+-- A deck's place in the game's deck order (G.P_CENTER_POOLS.Back), cached per pool.
+local deck_rank, ranked_pool = {}, nil
+local function deck_order(key)
+	local pool = G and G.P_CENTER_POOLS and G.P_CENTER_POOLS.Back
+	if pool ~= ranked_pool then
+		deck_rank, ranked_pool = {}, pool
+		for i, center in ipairs(pool or {}) do
+			deck_rank[center.key] = i
+		end
+	end
+	return deck_rank[key] or math.huge
+end
+
+-- The order the Draft screen shows tiles in: lowest stake first, then deck order.
+function S.draft_tile_order(a, b)
+	if a.stake ~= b.stake then
+		return a.stake < b.stake
+	end
+	return deck_order(a.key) < deck_order(b.key)
+end
+
+-- Balatro reseeds math.random from the run seed and never seeds love.math's
+-- global generator, so the board gets its own generator, seeded once.
+local board_rng
+local function default_rng()
+	if not (love and love.math) then
+		return math.random
+	end
+	board_rng = board_rng or love.math.newRandomGenerator(os.time() + math.floor((love.timer.getTime() % 1) * 1e6))
+	return function()
+		return board_rng:random()
+	end
+end
+
+-- The Draft's tiles, { { id, key, stake }, ... } sorted by S.draft_tile_order,
+-- id = key .. "@" .. stake. Pure given rng: decks are deck keys, stakes stake
+-- indices (White is 1). opts = { size, rng, weights }, all optional; weights maps
+-- a stake index to how often it comes up (default 1).
+function S.draft_board(decks, stakes, opts)
+	opts = opts or {}
+	local rng = opts.rng or default_rng()
+	local size = opts.size or DRAFT_SIZE
+	local weights = opts.weights or {}
+	local options = {}
+	for _, stake in ipairs(stakes) do
+		for _, key in ipairs(decks) do
+			options[#options + 1] = { key = key, stake = stake, weight = weights[stake] or 1 }
+		end
+	end
+	-- Few stakes (a cap of 1 leaves only White) loosen the per-stake limit so the board still fills.
+	local per_stake_max = math.max(MAX_PER_STAKE, math.ceil(size / math.max(#stakes, 1)))
+
+	local board, per_stake, per_deck, used = {}, {}, {}, {}
+	local function open(only_white)
+		local out = {}
+		for _, o in ipairs(options) do
+			if
+				not used[o]
+				and (per_stake[o.stake] or 0) < per_stake_max
+				and (per_deck[o.key] or 0) < MAX_PER_DECK
+				and (o.stake == WHITE or not only_white)
+			then
+				out[#out + 1] = o
+			end
+		end
+		return out
+	end
+	local function take(list)
+		local total = 0
+		for _, item in ipairs(list) do
+			total = total + item.weight
+		end
+		local r, o = rng() * total, list[#list]
+		for _, item in ipairs(list) do
+			r = r - item.weight
+			if r < 0 then
+				o = item
+				break
+			end
+		end
+		used[o] = true
+		per_stake[o.stake] = (per_stake[o.stake] or 0) + 1
+		per_deck[o.key] = (per_deck[o.key] or 0) + 1
+		board[#board + 1] = { id = o.key .. "@" .. o.stake, key = o.key, stake = o.stake }
+	end
+
+	local whites = open(true)
+	if #whites > 0 and size > 0 then
+		take(whites)
+	end
+	while #board < size do
+		local left = open(false)
+		if #left == 0 then
+			break
+		end
+		take(left)
+	end
+	table.sort(board, S.draft_tile_order)
+	return board
+end
+
 local function setup_results(lobby)
 	local setup = lobby and lobby._game and lobby._game.setup
 	return setup and setup.results or {}
