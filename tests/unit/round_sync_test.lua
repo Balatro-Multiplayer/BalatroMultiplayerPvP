@@ -351,6 +351,18 @@ test("a query before the first hand does not fabricate a zero-hand report", func
 	equal(last("pvp_round_state").revisions.a, 0)
 end)
 
+test("after a lost PvP, newRound lets the ante timer take a life", function()
+	setup("pair")
+	report("a", 1, 500, 0)
+	report("b", 1, 100, 0)
+	equal(PVP.REF.players.b.lives, 3)
+	-- b's client sends newRound when the PvP ends (action_end_pvp).
+	PVP.referee_on_new_round("b")
+	PVP.referee_on_fail_timer("b")
+	equal(PVP.REF.players.b.lives, 2)
+	equal(last("pvp_player_lives").player_id, "b")
+end)
+
 test("host socket drop keeps the referee's result available after rejoin", function()
 	setup("pair")
 	report("a", 1, 100, 0)
