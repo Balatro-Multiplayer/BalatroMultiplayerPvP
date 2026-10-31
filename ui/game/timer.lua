@@ -408,6 +408,37 @@ function PVP.UI.restore_timer(amount, silent, max_timer)
 	end
 end
 
+-- Old timer: skip time covers only how far ahead of the opponent a player has
+-- skipped since the last PvP (as in 0.5). Skipping further ahead adds
+-- timer_increment_seconds; the opponent catching up takes it back (down to 10s),
+-- so when both skip, both timers end where they started. A ruleset with a display
+-- threshold (MLBa) keeps adding time for each of the player's own skips.
+function PVP.UI.update_matching_skip_timer(from_opponent)
+	local increment = PVP.LOBBY.config.timer_increment_seconds or 0
+	if
+		not PVP.LOBBY.config.timer
+		or increment <= 0
+		or PVP.GAME.timer_started
+		or PVP.GAME.nemesis_timer_started
+		or PVP.GAME.timer_consumed
+		or PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" })
+	then
+		return
+	end
+	if PVP.UTILS.timer_display_threshold() > 0 then
+		if not from_opponent then PVP.UI.restore_timer(increment) end
+		return
+	end
+	local diff = math.max((PVP.GAME.skips_before_pvp or 0) - (PVP.GAME.enemy.skips_before_pvp or 0), 0)
+	local change = diff - (PVP.GAME.skips_difference or 0)
+	PVP.GAME.skips_difference = diff
+	if change > 0 then
+		PVP.UI.restore_timer(increment)
+	elseif change < 0 then
+		PVP.UI.consume_timer(math.min(increment, PVP.GAME.timer - 10), false, 10)
+	end
+end
+
 -- RLOG's play opcode is now recorded once, generically, by
 -- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 -- G.FUNCS.play_cards_from_highlighted hook -- this override stays only for
