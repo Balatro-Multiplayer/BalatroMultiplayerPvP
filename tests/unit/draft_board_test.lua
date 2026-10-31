@@ -1,25 +1,25 @@
 --[[
   Draft board test.
 
-  PVP.SETUP.draft_board turns the ruleset's allowed decks and stakes into the
+  PVP.DRAFT.board turns the ruleset's allowed decks and stakes into the
   Draft's tiles: 9 by default, at most 4 per stake and 3 per deck, no repeated
   (deck, stake) pair, at least one White tile, sorted by stake then by the
   game's deck order. The Draft config builds its pool with it and shows the
-  tiles in PVP.SETUP.draft_tile_order.
+  tiles in PVP.DRAFT.tile_order.
 
   Run from the repo root:
     luajit tests/unit/draft_board_test.lua
 ]]
 
-PVP = { DECK = {}, id = "MultiplayerPvP" }
+PVP = { DECK = {}, SETUP = { Step = { DRAFT = "draft" } }, id = "MultiplayerPvP" }
 MPAPI = {}
 G = { FUNCS = {} }
 function localize(k)
 	return k
 end
 
-dofile("pvp_api/setup.lua")
-local S = PVP.SETUP
+dofile("lib/draft.lua")
+local D = PVP.DRAFT
 
 -- Deterministic LCG in [0,1) so runs are reproducible.
 local function make_rng(seed)
@@ -130,7 +130,7 @@ for _, case in ipairs(cases) do
 	local name, decks, stakes = case[1], case[2], case[3]
 	local all = { size = true, allowed = true, caps = true, pairs = true, white = true, sorted = true }
 	for seed = 1, 300 do
-		for k, v in pairs(board_ok(S.draft_board(decks, stakes, { rng = make_rng(seed) }), 9, decks, stakes)) do
+		for k, v in pairs(board_ok(D.board(decks, stakes, { rng = make_rng(seed) }), 9, decks, stakes)) do
 			if not v then all[k] = false end
 		end
 	end
@@ -144,13 +144,13 @@ end
 
 local only_white = true
 for seed = 1, 50 do
-	local board = S.draft_board(vanilla, { 1 }, { rng = make_rng(seed) })
+	local board = D.board(vanilla, { 1 }, { rng = make_rng(seed) })
 	if #board ~= 9 then only_white = false end
 end
 check(only_white, "a stake cap of 1 still fills 9 White tiles")
-check(#S.draft_board(vanilla, { 1, 2, 3 }, { rng = make_rng(1), size = 6 }) == 6, "size sets the board size")
-local a = S.draft_board(vanilla, { 1, 3, 4, 6, 8 }, { rng = make_rng(42) })
-local b = S.draft_board(vanilla, { 1, 3, 4, 6, 8 }, { rng = make_rng(42) })
+check(#D.board(vanilla, { 1, 2, 3 }, { rng = make_rng(1), size = 6 }) == 6, "size sets the board size")
+local a = D.board(vanilla, { 1, 3, 4, 6, 8 }, { rng = make_rng(42) })
+local b = D.board(vanilla, { 1, 3, 4, 6, 8 }, { rng = make_rng(42) })
 local same = #a == #b
 for i = 1, #a do
 	if a[i].id ~= b[i].id then same = false end
@@ -159,10 +159,10 @@ check(same, "the same rng gives the same board")
 
 print()
 print("-- tile order --")
-check(S.draft_tile_order({ key = "b_red", stake = 1 }, { key = "b_abandoned", stake = 1 }), "deck order, not alphabetical")
-check(S.draft_tile_order({ key = "b_erratic", stake = 1 }, { key = "b_red", stake = 3 }), "lower stake first")
-check(S.draft_tile_order({ key = "b_erratic", stake = 1 }, { key = "b_mp_violet", stake = 1 }), "PvP decks after vanilla")
-check(not S.draft_tile_order({ key = "b_red", stake = 1 }, { key = "b_red", stake = 1 }), "a tile is not before itself")
+check(D.tile_order({ key = "b_red", stake = 1 }, { key = "b_abandoned", stake = 1 }), "deck order, not alphabetical")
+check(D.tile_order({ key = "b_erratic", stake = 1 }, { key = "b_red", stake = 3 }), "lower stake first")
+check(D.tile_order({ key = "b_erratic", stake = 1 }, { key = "b_mp_violet", stake = 1 }), "PvP decks after vanilla")
+check(not D.tile_order({ key = "b_red", stake = 1 }, { key = "b_red", stake = 1 }), "a tile is not before itself")
 
 print()
 print("-- the Draft config the host hands MPAPI.BanPick --")
@@ -172,7 +172,7 @@ local FIELDS = {
 	ruleset_mp_expanded = {
 		allowed_backs = { "b_mp_orange", "b_mp_violet", "b_mp_cocktail" },
 		allowed_stakes = { "stake_white", "stake_green", "stake_black", "stake_purple", "stake_gold", "stake_mp_spectralplus" },
-		half_weight_stakes = { "stake_mp_spectralplus" },
+		stake_weights = { stake_mp_spectralplus = 0.5 },
 	},
 	ruleset_mp_smallworld = "ruleset_mp_expanded",
 }
@@ -212,7 +212,7 @@ local function keys_of(set)
 end
 
 local stakes, decks, sizes, config = pool_stakes_and_decks("ruleset_mp_expanded")
-check(config.tile_order == S.draft_tile_order, "the config shows tiles in draft_tile_order")
+check(config.tile_order == D.tile_order, "the config shows tiles in Draft display order")
 check(keys_of(stakes) == "1,11,3,4,6,8", "Expanded drafts its allowed stakes, Spectral+ included (" .. keys_of(stakes) .. ")")
 check(decks.b_mp_orange and decks.b_mp_violet and decks.b_mp_cocktail and not decks.b_challenge, "Expanded drafts Orange, Violet and Cocktail, not Challenge")
 check(sizes[9] and keys_of(sizes) == "9", "Expanded boards have 9 tiles")

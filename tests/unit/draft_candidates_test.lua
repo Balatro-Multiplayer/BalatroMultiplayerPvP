@@ -1,7 +1,7 @@
 -- Standalone: luajit tests/unit/draft_candidates_test.lua (from the repo root).
 PVP = {}
 G = { FUNCS = {} }
-dofile("pvp_api/setup.lua")
+dofile("lib/draft.lua")
 
 local function backs(...)
 	local list = {}
@@ -22,7 +22,7 @@ local pool = backs(
 )
 
 local function run(allowed, banned)
-	return table.concat(PVP.SETUP.draft_candidates(pool, allowed, banned), ",")
+	return table.concat(PVP.DRAFT.candidates(pool, allowed, banned), ",")
 end
 
 local failures = 0
@@ -50,7 +50,7 @@ local stake_keys = {
 	"stake_gold",
 }
 local function stakes(allowed, cap)
-	local out = PVP.SETUP.draft_stakes(allowed, stake_keys, cap)
+	local out = PVP.DRAFT.stakes(allowed, stake_keys, cap)
 	return out and table.concat(out, ",") or "nil"
 end
 local expanded = { "stake_white", "stake_green", "stake_black", "stake_purple", "stake_gold" }
