@@ -5,12 +5,14 @@
 -- (the window MPAPI.matchmaking.ranked_spread widens every RANKED_SPREAD_EXPAND_SECS). A player
 -- still in placements isn't shown their rating, so their range reads as a step count instead.
 -- The queue keeps running wherever the player goes, so the HUD is how they get back to
--- cancelling. The menu's background swirl spins a little faster for each widening step, and a
+-- cancelling. The menu's background swirl runs a little faster for each widening step, and a
 -- fan of card backs in the HUD riffles while it searches (the top card arcs over to the bottom
 -- of the fan), spreading wider with each step too.
 --
--- On a match: the menu dims behind the reveal, a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
--- taskbar asks for attention, and the fan scatters: four cards spin off-screen, and the top one
+-- On a match: a white flash, a screen jiggle and a chip burst; the menu swirl gives way to a
+-- darker background (PVP.QUEUE_BACKDROP.REVEAL, ui/queue_backdrop.lua) that spins up and
+-- settles, and every other piece of UI is hidden until the reveal goes. The taskbar asks for
+-- attention, and the fan scatters: four cards spin off-screen, and the top one
 -- glides into a random corner, half off the screen, and stays there framing the reveal. MATCH
 -- FOUND drops in, and two player cards slide in from the sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
 -- the lobby, then flips to their name, Elo or placement progress and board rank. It all goes
@@ -21,8 +23,8 @@
 -- corner card sometimes lands and turns over as a Joker from the player's own discovered
 -- collection; and very rarely it's The Wheel of Fortune, which says "Nope!" and turns back.
 --
--- Reduced motion (G.SETTINGS.reduced_motion) drops the flash, jiggle, particles, spin and the
--- riffle; the slides stay, they're short.
+-- Reduced motion (G.SETTINGS.reduced_motion) drops the flash, jiggle, particles, the swirl's
+-- speed-up and spin, and the riffle; the slides stay, they're short.
 --
 -- Driven from pvp_api/queue.lua: PVP._show_searching starts/stops the HUD, the handle's
 -- match_found / lobby_ready events drive the reveal. The match sound itself is
@@ -42,7 +44,6 @@ local Q = {
 	next_poll = 0,
 	last_minute = 0,
 	hud = nil,
-	saved_spin = nil, -- the swirl's spin before the queue touched it
 	-- the reveal: its pieces, the lobby it shows, ratings read for it
 	rv = nil,
 	reveal_lobby = nil,
@@ -60,15 +61,14 @@ local REVEAL_MAX_SECONDS = 15
 local HUD_OFFSET = { x = -0.25, y = 0.25 }
 local OFFSCREEN_Y = -5
 local CARD_X = 2.6
--- The swirl's spin while searching: the first step and the cap, eased between by step.
-local SPIN_MIN, SPIN_MAX, SPIN_FOUND = 0.08, 0.45, 1.2
+-- How fast the menu swirl runs while searching (x its normal speed): the first step and the
+-- cap, eased between by step. Then the reveal background's spin spike on a match.
+local SWIRL_MIN, SWIRL_MAX, SPIN_FOUND = 1.25, 2.5, 1.2
 -- The searching fan: how many card backs, their size against a real card, and the riffle.
 local FAN_CARDS, FAN_SCALE = 5, 0.42
 local RIFFLE_EVERY, RIFFLE_SECONDS = 1.1, 0.45
 -- The corner card: its size against a fan card once it lands.
 local KEEPER_SCALE = 1.5
--- How dark the menu goes behind the reveal, and how fast.
-local DIM_ALPHA, DIM_SECONDS = 0.6, 0.3
 
 -- Chance per riffle (jimbo_peek) or per match (the two keeper eggs; nope is rolled first).
 Q.EGGS = { jimbo_peek = 1 / 40, keeper_joker = 1 / 20, keeper_nope = 1 / 50 }
@@ -110,10 +110,10 @@ function Q.search_step(spread)
 	return math.min(step, total), total
 end
 
--- How fast the swirl spins at a search step: SPIN_MIN on the first, SPIN_MAX at the cap.
-function Q.spin_for(spread)
+-- How fast the menu swirl runs at a search step: SWIRL_MIN on the first, SWIRL_MAX at the cap.
+function Q.swirl_for(spread)
 	local step, total = Q.search_step(spread)
-	return SPIN_MIN + (SPIN_MAX - SPIN_MIN) * (step - 1) / math.max(1, total - 1)
+	return SWIRL_MIN + (SWIRL_MAX - SWIRL_MIN) * (step - 1) / math.max(1, total - 1)
 end
 
 -- 0 on the first search step, 1 at the cap.
@@ -228,22 +228,7 @@ local function ease_to(ref_table, ref_value, value, duration)
 	}))
 end
 
-local function set_spin(value)
-	if not (G.ARGS and G.ARGS.spin) then
-		return
-	end
-	if Q.saved_spin == nil then
-		Q.saved_spin = G.ARGS.spin.real
-	end
-	G.ARGS.spin.real = reduced_motion() and Q.saved_spin or value
-end
-
-local function restore_spin()
-	if Q.saved_spin ~= nil and G.ARGS and G.ARGS.spin then
-		G.ARGS.spin.real = Q.saved_spin
-	end
-	Q.saved_spin = nil
-end
+local Backdrop = PVP.QUEUE_BACKDROP
 
 -- Moves a Weak-bonded UIBox to a new offset; its drawn position eases there on its own.
 local function slide(uibox, x, y)
@@ -477,7 +462,7 @@ function Q.start(queue_id)
 		end)
 	end
 	play_sound("highlight2", 1.1, 0.6)
-	set_spin(Q.spin_for(Q.spread))
+	Backdrop.set_speed(Q.swirl_for(Q.spread))
 	show_hud()
 end
 
@@ -489,13 +474,47 @@ function Q.stop()
 	Q.queue_id = nil
 	hide_hud()
 	if not Q.rv then
-		restore_spin()
+		Backdrop.restore()
 	end
 end
 
 -- Match-found reveal -----------------------------------------------------------------------------
 
 local seen_players = 0
+
+-- Hides every UIBox and CardArea that isn't the reveal's (its boxes are POPUPs; its CardArea is
+-- the scatter's table), its cards, and the title logo. Hidden ones aren't drawn, so they can't be
+-- clicked either. Run every frame, so UI that opens mid-reveal (the lobby) goes too.
+local function hide_ui(rv)
+	local hidden = rv.hidden
+	local function hide(obj)
+		if obj and obj.states and obj.states.visible and not hidden[obj] then
+			obj.states.visible = false
+			hidden[obj] = true
+		end
+	end
+	for _, box in pairs(G.I.UIBOX) do
+		if not box.attention_text then
+			hide(box)
+		end
+	end
+	for _, area in pairs(G.I.CARDAREA) do
+		if area ~= rv.table_area then
+			hide(area)
+			for _, card in ipairs(area.cards or {}) do
+				hide(card)
+			end
+		end
+	end
+	hide(G.SPLASH_LOGO)
+end
+
+local function show_ui(rv)
+	for obj in pairs(rv.hidden) do
+		obj.states.visible = true
+	end
+	rv.hidden = {}
+end
 
 local function remove_reveal()
 	Q.reveal_gen = Q.reveal_gen + 1
@@ -511,16 +530,16 @@ local function remove_reveal()
 			pcall(function() rv.table_area:remove() end)
 		end
 		remove_box(rv.table)
-		remove_box(rv.dim)
 		remove_box(rv.flash)
 		remove_box(rv.title)
 		remove_box(rv.left)
 		remove_box(rv.right)
 		remove_box(rv.vs)
 		remove_box(rv.footer)
+		show_ui(rv)
 	end
 	if not Q.active then
-		restore_spin()
+		Backdrop.restore()
 	end
 end
 
@@ -749,7 +768,7 @@ function Q.match_found()
 	Q.stop()
 	remove_reveal()
 	local gen = Q.reveal_gen
-	Q.rv = {}
+	Q.rv = { hidden = {} }
 	Q.reveal_ratings = {}
 	Q.reveal_ranked, Q.reveal_ticket = ranked, ticket
 	Q.reveal_until = now() + REVEAL_MAX_SECONDS
@@ -759,14 +778,13 @@ function Q.match_found()
 	-- Flashes the taskbar / bounces the dock icon if the game is in the background.
 	pcall(love.window.requestAttention, false)
 
-	-- 0.0s: the menu dims behind everything that follows. Created first, so drawn under the rest;
-	-- clicks pass through it to whatever is underneath.
-	local dim_colour = { G.C.BLACK[1], G.C.BLACK[2], G.C.BLACK[3], 0 }
-	rv.dim = room_box({ n = G.UIT.ROOT, config = { align = "cm", minw = 40, minh = 30, colour = dim_colour, can_collide = false }, nodes = {} }, { x = 0, y = 0 }, true)
-	rv.dim.states.collide.can = false
-	ease_to(dim_colour, 4, DIM_ALPHA, DIM_SECONDS)
+	-- 0.0s: the menu goes, and its swirl gives way to the reveal's background, spinning up and
+	-- settling. Under the flash, so the swap doesn't show.
+	hide_ui(rv)
+	Backdrop.reveal(SPIN_FOUND)
+	after(0.7, gen, Backdrop.settle)
 
-	-- 0.0s: flash, jiggle, spin spike.
+	-- 0.0s: flash, jiggle.
 	if not calm then
 		local flash_colour = { 1, 1, 1, 0.75 }
 		rv.flash = room_box({ n = G.UIT.ROOT, config = { align = "cm", minw = 40, minh = 30, colour = flash_colour }, nodes = {} }, { x = 0, y = 0 }, true)
@@ -774,10 +792,6 @@ function Q.match_found()
 		if G.ROOM then
 			G.ROOM.jiggle = G.ROOM.jiggle + 6
 		end
-		set_spin(SPIN_FOUND)
-		after(0.7, gen, function()
-			set_spin(SPIN_MAX)
-		end)
 	end
 
 	-- 0.0s: the fan scatters, under everything that follows.
@@ -919,7 +933,7 @@ local function tick_hud()
 	local spread = MPAPI.matchmaking.ranked_spread(elapsed)
 	if spread ~= Q.spread then
 		Q.spread = spread
-		set_spin(Q.spin_for(spread))
+		Backdrop.set_speed(Q.swirl_for(spread))
 		if Q.ranked then
 			play_sound("chips1", 1.2, 0.4)
 			local range = Q.hud and Q.hud:get_UIE_by_ID("pvp_queue_hud_range")
@@ -982,8 +996,10 @@ function Game:update(dt)
 			tick_hud()
 		end
 		if Q.rv then
+			hide_ui(Q.rv)
 			tick_reveal()
 		end
+		Backdrop.update(G.real_dt or dt)
 	end)
 	if not ok then
 		sendWarnMessage("[pvp] queue HUD: " .. tostring(err), "MULTIPLAYER")

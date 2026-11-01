@@ -3,7 +3,8 @@
 local function noop() end
 love = { timer = { getTime = function() return 0 end } }
 Game = { update = noop, start_run = noop }
-G = {}
+G = { C = { BLACK = { 0.2, 0.2, 0.2, 1 }, BLUE = { 0, 0, 1, 1 }, RED = { 1, 0, 0, 1 }, PURPLE = { 0.5, 0, 0.5, 1 }, SECONDARY_SET = { Spectral = { 0, 0.5, 1, 1 } } } }
+darken = function(c) return c end
 PVP = {}
 MPAPI = {
 	register_card_info_provider = noop,
@@ -22,6 +23,7 @@ localize = function(args)
 	return args
 end
 dofile("ui/game/card_info_provider.lua")
+dofile("ui/queue_backdrop.lua")
 dofile("ui/queue_hud.lua")
 local Q = PVP.QUEUE_HUD
 
@@ -39,8 +41,24 @@ local step, total = Q.search_step(150)
 eq(step, 1, "first step")
 eq(total, 10, "step count from +-150 to +-600 by 50")
 eq((Q.search_step(600)), 10, "last step at the cap")
-assert(Q.spin_for(150) < Q.spin_for(400), "the swirl spins up as the search widens")
-eq(Q.spin_for(600), Q.spin_for(10000), "the swirl stops speeding up at the cap")
+assert(Q.swirl_for(150) < Q.swirl_for(400), "the swirl speeds up as the search widens")
+eq(Q.swirl_for(600), Q.swirl_for(10000), "the swirl stops speeding up at the cap")
+assert(Q.swirl_for(150) > 1, "the swirl runs faster than the menu's from the first step")
+
+-- The reveal's palettes map like ease_background_colour's.
+local Backdrop = PVP.QUEUE_BACKDROP
+local p = Backdrop.palette_of({ new_colour = { 1, 1, 1, 1 }, contrast = 3 })
+eq(p.L[1], 1.3, "light colour is the new colour x1.3")
+eq(p.C[1], 0.9, "main colour is the new colour x0.9")
+eq(p.D[1], 0.7, "dark colour is the new colour x0.7")
+eq(p.contrast, 3, "contrast carried over")
+p = Backdrop.palette_of({ new_colour = { 1, 1, 1, 1 }, special_colour = { 0.5, 0.5, 0.5, 1 }, tertiary_colour = { 0.1, 0.1, 0.1, 1 } })
+eq(p.C[1], 0.5, "special colour taken as is")
+eq(p.D[1], 0.1, "tertiary colour taken as is")
+for key, preset in pairs(Backdrop.PRESETS) do
+	assert(Backdrop.palette_of(preset).L, "preset " .. key .. " maps to a palette")
+end
+assert(Backdrop.PRESETS[Backdrop.REVEAL], "the reveal's backdrop is a preset")
 
 -- The fan: a finished riffle leaves every card exactly where the next resting fan puts it, so
 -- reordering the cards after it doesn't jump.
@@ -156,7 +174,8 @@ do
 		C = setmetatable({ UI = setmetatable({}, { __index = function() return {} end }) }, { __index = function() return {} end }),
 		ROOM = { jiggle = 0, T = { w = 20, h = 11 } },
 		ROOM_ATTACH = {},
-		ARGS = { spin = { real = 0 } },
+		I = { UIBOX = {}, CARDAREA = {} },
+		TIMERS = { REAL_SHADER = 12 },
 		CARD_W = 2, CARD_H = 2.7,
 		P_CARDS = { S_A = {} },
 		P_CENTERS = { c_base = {}, b_red = { pos = {} }, j_joker = { key = "j_joker" }, c_wheel_of_fortune = { key = "c_wheel_of_fortune", discovered = true } },
@@ -177,15 +196,28 @@ do
 	end
 	MPAPI.matchmaking.get_queue_counts = function(_, cb) cb(nil, { ["ranked:pvp_ranked_balanced"] = { queued = 6 } }) end
 
+	local function shader()
+		return G.SPLASH_BACK.draw_steps[1].shader
+	end
+	G.SPLASH_BACK = { draw_steps = { { shader = "splash" } } }
+	function G.SPLASH_BACK:define_draw_steps(steps) self.draw_steps = steps end
+	local menu_box = { states = { visible = true } }
+	local menu_area = { states = { visible = true }, cards = { { states = { visible = true } } } }
+	G.I.UIBOX[1], G.I.CARDAREA[1] = menu_box, menu_area
+
 	Q.start({ kind = "ranked", key = "balanced" })
 	eq(Q.active, true, "queue HUD starts")
 	Game.update({}, 0)
 	eq(Q.in_queue, 6, "queue count read on the first frame")
-	local spin_at_start = G.ARGS.spin.real
+	eq(shader(), "splash", "the menu keeps its swirl while searching")
+	local rate_at_start = Backdrop.target_rate
+	assert(rate_at_start > 1, "the swirl runs faster once searching")
 	clock = 95
 	Game.update({}, 0)
 	eq(Q.spread, 300, "range widened after 95 s")
-	assert(G.ARGS.spin.real > spin_at_start, "the swirl spun up with the range")
+	assert(Backdrop.target_rate > rate_at_start, "the swirl sped up with the range")
+	Backdrop.update(1)
+	assert(Backdrop.clock > 12 + 1, "the swirl's clock runs faster than real time")
 	eq(#Q.fan.area.cards, 5, "the fan has its card backs")
 	for i, c in ipairs(Q.fan.area.cards) do
 		eq(c.facing, "back", "fan card " .. i .. " is face down")
@@ -210,8 +242,13 @@ do
 	assert(fan_cards[5].T.scale > 1, "the corner card grows as it lands")
 	eq(fan_cards[5].facing, "back", "the corner card lands face down")
 	assert(Q.rv and Q.rv.left and Q.rv.right and Q.rv.vs, "reveal dealt both cards and VS")
-	local dim = Q.rv.dim
-	assert(dim and dim.states.collide.can == false, "the menu dims behind the reveal, letting clicks through")
+	eq(shader(), "background", "the reveal plays over the backdrop preset")
+	eq(menu_box.states.visible, false, "the menu's UI is hidden during the reveal")
+	eq(menu_area.cards[1].states.visible, false, "the menu's cards are hidden during the reveal")
+	G.I.UIBOX[2] = { states = { visible = true } }
+	Game.update({}, 0)
+	eq(G.I.UIBOX[2].states.visible, false, "UI opened mid-reveal is hidden too")
+	G.I.UIBOX[2] = nil
 	local players = { { id = "me", displayName = "Me" } }
 	local lobby = { player_id = "me", get_players = function() return players end }
 	Q.lobby_ready(lobby)
@@ -224,8 +261,10 @@ do
 
 	Game.start_run({}, {})
 	eq(Q.rv, nil, "the run starting ends the reveal")
-	assert(dim.removed, "the dim goes with the reveal")
-	eq(G.ARGS.spin.real, 0, "the swirl's spin is put back")
+	eq(menu_box.states.visible, true, "the menu's UI comes back with the reveal's end")
+	eq(menu_area.cards[1].states.visible, true, "and its cards")
+	eq(shader(), "splash", "the menu's swirl is back")
+	eq(Backdrop.target_rate, 1, "at its normal speed")
 	-- Eggs, forced. The Wheel of Fortune: lands, turns over, says Nope!, turns back.
 	local function queue_and_match()
 		Q.start({ kind = "ranked", key = "balanced" })
