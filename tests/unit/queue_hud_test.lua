@@ -42,6 +42,24 @@ eq((Q.search_step(600)), 10, "last step at the cap")
 assert(Q.spin_for(150) < Q.spin_for(400), "the swirl spins up as the search widens")
 eq(Q.spin_for(600), Q.spin_for(10000), "the swirl stops speeding up at the cap")
 
+-- The fan: a finished riffle leaves every card exactly where the next resting fan puts it, so
+-- reordering the cards after it doesn't jump.
+do
+	local n, f, close = 5, 0.5, function(a, b) return math.abs(a - b) < 1e-9 end
+	for i = 1, n do
+		local x, _, r = Q.fan_pose(i, n, f, 0, 1, true)
+		local j = i == n and 1 or i + 1 -- where the card sits after the reorder
+		local rx, _, rr = Q.fan_pose(j, n, f, 0, nil, true)
+		assert(close(x, rx) and close(r, rr), "riffle lands card " .. i .. " on slot " .. j)
+	end
+	local _, y_top = Q.fan_pose(n, n, f, 0, 0.5, true)
+	local _, y_rest = Q.fan_pose(n, n, f, 0, nil, true)
+	assert(y_top < y_rest, "the riffling card lifts over the fan")
+	local wide = Q.fan_pose(1, n, 1, 0, nil, true)
+	local tight = Q.fan_pose(1, n, 0, 0, nil, true)
+	assert(wide < tight, "the fan opens up as the search widens")
+end
+
 local placed = { rating = 1432, isPlacement = false, gamesPlayed = 9, rank = 42 }
 local placing = { rating = 640, isPlacement = true, gamesPlayed = 2, placementGames = 5 }
 eq(Q.range_text(nil, 150), "...", "range before the rating is read")
@@ -78,6 +96,16 @@ do
 		return b
 	end
 	DynaText = function() return {} end
+	local function moveable(w, h)
+		return { T = { x = 0, y = 0, w = w or 1, h = h or 1, r = 0 }, states = { drag = {}, hover = {} }, juice_up = noop, remove = noop }
+	end
+	CardArea = function(_, _, w, h)
+		local a = moveable(w, h)
+		a.cards = {}
+		function a:emplace(card) self.cards[#self.cards + 1] = card end
+		return a
+	end
+	Card = function(_, _, w, h) return moveable(w, h) end
 	Particles = function() return { remove = noop } end
 	UIBox_button = function() return {} end
 	Event = function(e) return e end
@@ -90,6 +118,9 @@ do
 		ROOM = { jiggle = 0 },
 		ROOM_ATTACH = {},
 		ARGS = { spin = { real = 0 } },
+		CARD_W = 2, CARD_H = 2.7,
+		P_CARDS = { S_A = {} },
+		P_CENTERS = { c_base = {}, b_red = { pos = {} } },
 		SETTINGS = {},
 		E_MANAGER = { add_event = function(_, e) if e.trigger == "after" then e.func() end end },
 	}
@@ -115,6 +146,13 @@ do
 	Game.update({}, 0)
 	eq(Q.spread, 300, "range widened after 95 s")
 	assert(G.ARGS.spin.real > spin_at_start, "the swirl spun up with the range")
+	eq(#Q.fan.area.cards, 5, "the fan has its card backs")
+	local top = Q.fan.area.cards[5]
+	clock = 95 + 1.2
+	Game.update({}, 0) -- a riffle starts
+	clock = 95 + 1.2 + 0.5
+	Game.update({}, 0) -- and finishes
+	eq(Q.fan.area.cards[1], top, "the riffled top card went to the bottom")
 
 	Q.match_found()
 	eq(Q.active, false, "HUD stops on a match")

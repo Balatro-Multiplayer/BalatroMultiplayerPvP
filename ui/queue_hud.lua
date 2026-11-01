@@ -5,7 +5,9 @@
 -- (the window MPAPI.matchmaking.ranked_spread widens every RANKED_SPREAD_EXPAND_SECS). A player
 -- still in placements isn't shown their rating, so their range reads as a step count instead.
 -- The queue keeps running wherever the player goes, so the HUD is how they get back to
--- cancelling. The menu's background swirl spins a little faster for each widening step.
+-- cancelling. The menu's background swirl spins a little faster for each widening step, and a
+-- fan of card backs in the HUD riffles while it searches (the top card arcs over to the bottom
+-- of the fan), spreading wider with each step too.
 --
 -- On a match: a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
 -- taskbar asks for attention, MATCH FOUND drops in, and two player cards slide in from the
@@ -54,6 +56,9 @@ local OFFSCREEN_Y = -5
 local CARD_X = 2.6
 -- The swirl's spin while searching: the first step and the cap, eased between by step.
 local SPIN_MIN, SPIN_MAX, SPIN_FOUND = 0.08, 0.45, 1.2
+-- The searching fan: how many card backs, their size against a real card, and the riffle.
+local FAN_CARDS, FAN_SCALE = 5, 0.42
+local RIFFLE_EVERY, RIFFLE_SECONDS = 1.1, 0.45
 
 local function now()
 	return love.timer.getTime()
@@ -82,6 +87,36 @@ end
 function Q.spin_for(spread)
 	local step, total = Q.search_step(spread)
 	return SPIN_MIN + (SPIN_MAX - SPIN_MIN) * (step - 1) / math.max(1, total - 1)
+end
+
+-- 0 on the first search step, 1 at the cap.
+function Q.spread_factor(spread)
+	local step, total = Q.search_step(spread)
+	return (step - 1) / math.max(1, total - 1)
+end
+
+-- Where fan card `i` of `n` sits, relative to the fan's centre: x, y and tilt. `f` is the
+-- spread factor (the fan opens up as the search widens), `t` the clock for the bob, `riffle`
+-- the riffle's progress (nil between riffles). During a riffle the top card (i == n) arcs up
+-- and over to the bottom slot while the others each slide up one slot.
+function Q.fan_pose(i, n, f, t, riffle, calm)
+	local gap, tilt = 0.2 + 0.26 * f, 0.07 + 0.11 * f
+	local slot = i - (n + 1) / 2
+	local lift = 0
+	if riffle then
+		local e = riffle * riffle * (3 - 2 * riffle) -- smoothstep
+		if i == n then
+			slot = slot + (1 - n) * e
+			lift = math.sin(riffle * math.pi) * 0.45
+		else
+			slot = slot + e
+		end
+	end
+	local bob = calm and 0 or math.sin(t * 3 + i * 1.1) * 0.04
+	local x = slot * gap
+	local y = math.abs(slot) * 0.05 * f + bob - lift
+	local r = slot * tilt + (i == n and riffle and math.sin(riffle * math.pi) * 0.35 or 0)
+	return x, y, r
 end
 
 -- The Ranked range line: "1282-1582" around a placed player's rating, a step count for a
@@ -237,8 +272,37 @@ local function live_text(key, scale, colour, opts)
 	return text_object("pvp_queue_hud_" .. key, { { ref_table = live, ref_value = key } }, scale, colour, opts)
 end
 
+-- The fan lives in a CardArea whose own layout is switched off: tick_fan places every card
+-- itself each frame, and each card's drawn position eases after it like a hand card's does.
+local function remove_fan()
+	local fan = Q.fan
+	Q.fan = nil
+	if fan then
+		pcall(function() fan.area:remove() end)
+	end
+end
+
+local function build_fan()
+	remove_fan()
+	local w, h = G.CARD_W * FAN_SCALE, G.CARD_H * FAN_SCALE
+	local area = CardArea(0, 0, 3.0, h * 1.35, { card_limit = FAN_CARDS, type = "title_2", highlight_limit = 0 })
+	area.align_cards = function() end
+	for _ = 1, FAN_CARDS do
+		local card = Card(area.T.x, area.T.y, w, h, G.P_CARDS.S_A, G.P_CENTERS.c_base, { bypass_back = G.P_CENTERS.b_red.pos })
+		card.sprite_facing = "back"
+		card.facing = "back"
+		card.no_ui = true
+		card.states.drag.can = false
+		card.states.hover.can = false
+		area:emplace(card)
+	end
+	Q.fan = { area = area, next_riffle = now() + RIFFLE_EVERY, riffle_from = nil }
+	return { n = G.UIT.O, config = { object = area } }
+end
+
 local function hud_definition()
 	local rows = {
+		{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_fan() } },
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.C, config = { align = "cl", minw = 1.9 }, nodes = {
 				{ n = G.UIT.R, config = { align = "cl" }, nodes = {
@@ -271,14 +335,21 @@ local function hide_hud()
 	if not hud then
 		return
 	end
+	local fan = Q.fan
+	Q.fan = nil
 	slide(hud, nil, OFFSCREEN_Y)
 	after(0.5, nil, function()
 		remove_box(hud)
+		-- Removing a UIBox doesn't remove the objects in its G.UIT.O nodes.
+		if fan then
+			pcall(function() fan.area:remove() end)
+		end
 	end)
 end
 
 local function show_hud()
 	remove_box(Q.hud)
+	remove_fan()
 	Q.hud = UIBox({
 		definition = hud_definition(),
 		config = { align = "tri", offset = { x = HUD_OFFSET.x, y = OFFSCREEN_Y }, major = G.ROOM_ATTACH, bond = "Weak" },
@@ -576,6 +647,35 @@ end
 
 -- Per-frame upkeep ------------------------------------------------------------------------------
 
+local function tick_fan(t)
+	local fan = Q.fan
+	local area = fan and fan.area
+	if not (area and area.T and area.cards) then
+		return
+	end
+	local calm = reduced_motion()
+	if not calm and not fan.riffle_from and t >= fan.next_riffle then
+		fan.riffle_from = t
+	end
+	local riffle = fan.riffle_from and math.min(1, (t - fan.riffle_from) / RIFFLE_SECONDS)
+	local f = Q.spread_factor(Q.spread)
+	local cards = area.cards -- also the draw order: the top card is drawn last
+	local n = #cards
+	local cx, cy = area.T.x + area.T.w / 2, area.T.y + area.T.h * 0.12
+	for i, card in ipairs(cards) do
+		local x, y, r = Q.fan_pose(i, n, f, t, riffle, calm)
+		card.T.x, card.T.y, card.T.r = cx + x - card.T.w / 2, cy + y, r
+	end
+	if riffle == 1 then
+		-- The top card is now the bottom one: first in the list, so drawn under the rest.
+		local moved = table.remove(cards)
+		table.insert(cards, 1, moved)
+		moved:juice_up(0.08, 0.04)
+		fan.riffle_from = nil
+		fan.next_riffle = t + RIFFLE_EVERY
+	end
+end
+
 local function tick_hud()
 	local t = now()
 	local elapsed = t - Q.started_at
@@ -591,7 +691,13 @@ local function tick_hud()
 			end
 		end
 		juice(Q.hud, 0.08, 0.03)
+		if Q.fan then
+			for _, card in ipairs(Q.fan.area.cards or {}) do
+				card:juice_up(0.12, 0.08)
+			end
+		end
 	end
+	tick_fan(t)
 	-- A little bump on the timer each full minute waited.
 	local minute = math.floor(elapsed / 60)
 	if minute > Q.last_minute then
