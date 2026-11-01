@@ -39,6 +39,8 @@ local step, total = Q.search_step(150)
 eq(step, 1, "first step")
 eq(total, 10, "step count from +-150 to +-600 by 50")
 eq((Q.search_step(600)), 10, "last step at the cap")
+assert(Q.spin_for(150) < Q.spin_for(400), "the swirl spins up as the search widens")
+eq(Q.spin_for(600), Q.spin_for(10000), "the swirl stops speeding up at the cap")
 
 local placed = { rating = 1432, isPlacement = false, gamesPlayed = 9, rank = 42 }
 local placing = { rating = 640, isPlacement = true, gamesPlayed = 2, placementGames = 5 }
@@ -56,3 +58,77 @@ eq((Q.card_lines(nil)), "...", "card before the rating is read")
 eq((Q.card_lines({ unknown = true })), "", "card whose rating could not be read")
 
 print("queue_hud_test: ok")
+
+-- Smoke: drive queue -> widen -> match -> lobby -> run against stub engine objects, running every
+-- delayed event at once, to catch nil indexing in the HUD and reveal paths.
+do
+	local clock = 0
+	love.timer.getTime = function() return clock end
+	love.window = { requestAttention = noop }
+	local boxes = {}
+	local function element()
+		return { config = { object = { pulse = noop } }, juice_up = noop }
+	end
+	UIBox = function(args)
+		local b = { alignment = { offset = args.config.offset }, UIRoot = { juice_up = noop }, removed = false }
+		function b:align_to_major() end
+		function b:remove() self.removed = true end
+		function b:get_UIE_by_ID() return element() end
+		boxes[#boxes + 1] = b
+		return b
+	end
+	DynaText = function() return {} end
+	Particles = function() return { remove = noop } end
+	UIBox_button = function() return {} end
+	Event = function(e) return e end
+	mix_colours = function(a) return a end
+	play_sound = noop
+	sendWarnMessage = function(msg) error(msg) end
+	G = {
+		UIT = { ROOT = 0, R = 1, C = 2, T = 3, O = 4 },
+		C = setmetatable({ UI = setmetatable({}, { __index = function() return {} end }) }, { __index = function() return {} end }),
+		ROOM = { jiggle = 0 },
+		ROOM_ATTACH = {},
+		ARGS = { spin = { real = 0 } },
+		SETTINGS = {},
+		E_MANAGER = { add_event = function(_, e) if e.trigger == "after" then e.func() end end },
+	}
+	PVP.LobbyAccess = { RANKED = "ranked", CASUAL = "casual" }
+	PVP.ruleset_display_name = function() return "Balanced" end
+	PVP.ranked_ticket = function(key) return "ranked:pvp_ranked_" .. key end
+	PVP.PVP_GAMEMODES = {}
+	PVP.id = "MultiplayerPvP"
+	MPAPI.matchmaking.ranked_spread = function(t)
+		return math.min(150 + math.floor(t / 30) * 50, 600)
+	end
+	MPAPI.matchmaking.get_rating = function(_, _, _, player_id, cb)
+		cb(nil, { rating = player_id == "opp" and 1500 or 1432, isPlacement = false, rank = 7 })
+	end
+	MPAPI.matchmaking.get_queue_counts = function(_, cb) cb(nil, { ["ranked:pvp_ranked_balanced"] = { queued = 6 } }) end
+
+	Q.start({ kind = "ranked", key = "balanced" })
+	eq(Q.active, true, "queue HUD starts")
+	Game.update({}, 0)
+	eq(Q.in_queue, 6, "queue count read on the first frame")
+	local spin_at_start = G.ARGS.spin.real
+	clock = 95
+	Game.update({}, 0)
+	eq(Q.spread, 300, "range widened after 95 s")
+	assert(G.ARGS.spin.real > spin_at_start, "the swirl spun up with the range")
+
+	Q.match_found()
+	eq(Q.active, false, "HUD stops on a match")
+	assert(Q.rv and Q.rv.left and Q.rv.right and Q.rv.vs, "reveal dealt both cards and VS")
+	local players = { { id = "me", displayName = "Me" } }
+	local lobby = { player_id = "me", get_players = function() return players end }
+	Q.lobby_ready(lobby)
+	Game.update({}, 0)
+	players[2] = { id = "opp", displayName = "Rival" }
+	Game.update({}, 0)
+	eq(Q.reveal_ratings.opp.rating, 1500, "opponent rating read once they joined")
+
+	Game.start_run({}, {})
+	eq(Q.rv, nil, "the run starting ends the reveal")
+	eq(G.ARGS.spin.real, 0, "the swirl's spin is put back")
+	print("queue_hud_test smoke: ok")
+end
