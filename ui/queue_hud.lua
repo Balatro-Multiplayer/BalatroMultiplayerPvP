@@ -10,13 +10,19 @@
 -- of the fan), spreading wider with each step too.
 --
 -- On a match: a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
--- taskbar asks for attention, MATCH FOUND drops in, and two player cards slide in from the
--- sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
+-- taskbar asks for attention, and the fan scatters: four cards spin off-screen, and the top one
+-- glides into a random corner, half off the screen, and stays there framing the reveal. MATCH
+-- FOUND drops in, and two player cards slide in from the sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
 -- the lobby, then flips to their name, Elo or placement progress and board rank. It all goes
 -- when the run starts, the lobby goes, or after REVEAL_MAX_SECONDS.
 --
--- Reduced motion (G.SETTINGS.reduced_motion) drops the flash, jiggle, particles and spin; the
--- slides stay, they're short.
+-- Easter eggs, rare and never announced (odds in Q.EGGS, rolled on LÖVE's generator so the
+-- game's seeded RNG is never touched): now and then a riffling card flips to show Jimbo mid-arc; the
+-- corner card sometimes lands and turns over as a Joker from the player's own discovered
+-- collection; and very rarely it's The Wheel of Fortune, which says "Nope!" and turns back.
+--
+-- Reduced motion (G.SETTINGS.reduced_motion) drops the flash, jiggle, particles, spin and the
+-- riffle; the slides stay, they're short.
 --
 -- Driven from pvp_api/queue.lua: PVP._show_searching starts/stops the HUD, the handle's
 -- match_found / lobby_ready events drive the reveal. The match sound itself is
@@ -59,6 +65,25 @@ local SPIN_MIN, SPIN_MAX, SPIN_FOUND = 0.08, 0.45, 1.2
 -- The searching fan: how many card backs, their size against a real card, and the riffle.
 local FAN_CARDS, FAN_SCALE = 5, 0.42
 local RIFFLE_EVERY, RIFFLE_SECONDS = 1.1, 0.45
+-- The corner card: its size against a fan card once it lands.
+local KEEPER_SCALE = 1.5
+
+-- Chance per riffle (jimbo_peek) or per match (the two keeper eggs; nope is rolled first).
+Q.EGGS = { jimbo_peek = 1 / 40, keeper_joker = 1 / 20, keeper_nope = 1 / 50 }
+
+-- LÖVE seeds its own generator at startup; LuaJIT's math.random starts from the same seed every
+-- launch. Neither is the game's seeded pseudorandom, which these effects must never advance.
+local function rand(n)
+	local r = love.math and love.math.random or math.random
+	if n then
+		return r(n)
+	end
+	return r()
+end
+
+local function roll(odds)
+	return rand() < odds
+end
 
 local function now()
 	return love.timer.getTime()
@@ -117,6 +142,19 @@ function Q.fan_pose(i, n, f, t, riffle, calm)
 	local y = math.abs(slot) * 0.05 * f + bob - lift
 	local r = slot * tilt + (i == n and riffle and math.sin(riffle * math.pi) * 0.35 or 0)
 	return x, y, r
+end
+
+-- Where the corner card comes to rest, in room units: its centre and tilt. `vw`/`vh` are its
+-- drawn size; roughly 40% of it ends up past the two screen edges of a random corner (the
+-- bottom corners a bit more often), tilted in toward the middle. Also returns which corner
+-- (sx, sy: -1 left/top, 1 right/bottom).
+function Q.keeper_spot(room_w, room_h, vw, vh)
+	local sx = rand() < 0.5 and -1 or 1
+	local sy = rand() < 0.62 and 1 or -1
+	local cx = sx < 0 and vw * (0.1 + rand() * 0.12) or room_w - vw * (0.1 + rand() * 0.12)
+	local cy = sy < 0 and vh * (0.1 + rand() * 0.12) or room_h - vh * (0.1 + rand() * 0.12)
+	local r = sx * sy * -(0.35 + rand() * 0.35) + (rand() - 0.5) * 0.15
+	return cx, cy, r, sx, sy
 end
 
 -- The Ranked range line: "1282-1582" around a placed player's rating, a step count for a
@@ -282,19 +320,36 @@ local function remove_fan()
 	end
 end
 
+-- A face-down card with the red deck's back: the fan's, and the corner card's eggs. Its face is
+-- `center` (Jimbo for the fan, so any fan card can flip to him).
+local function face_down_card(x, y, w, h, center)
+	local card = Card(x, y, w, h, nil, center, {
+		bypass_back = G.P_CENTERS.b_red.pos,
+		bypass_discovery_center = true,
+		bypass_discovery_ui = true,
+		bypass_lock = true,
+	})
+	card.sprite_facing = "back"
+	card.facing = "back"
+	card.no_ui = true
+	card.states.drag.can = false
+	card.states.hover.can = false
+	return card
+end
+
+-- A CardArea that never lays its cards out: whoever owns it places them.
+local function free_area(w, h, limit)
+	local area = CardArea(0, 0, w, h, { card_limit = limit, type = "title_2", highlight_limit = 0 })
+	area.align_cards = function() end
+	return area
+end
+
 local function build_fan()
 	remove_fan()
 	local w, h = G.CARD_W * FAN_SCALE, G.CARD_H * FAN_SCALE
-	local area = CardArea(0, 0, 3.0, h * 1.35, { card_limit = FAN_CARDS, type = "title_2", highlight_limit = 0 })
-	area.align_cards = function() end
+	local area = free_area(3.0, h * 1.35, FAN_CARDS)
 	for _ = 1, FAN_CARDS do
-		local card = Card(area.T.x, area.T.y, w, h, G.P_CARDS.S_A, G.P_CENTERS.c_base, { bypass_back = G.P_CENTERS.b_red.pos })
-		card.sprite_facing = "back"
-		card.facing = "back"
-		card.no_ui = true
-		card.states.drag.can = false
-		card.states.hover.can = false
-		area:emplace(card)
+		area:emplace(face_down_card(area.T.x, area.T.y, w, h, G.P_CENTERS.j_joker))
 	end
 	Q.fan = { area = area, next_riffle = now() + RIFFLE_EVERY, riffle_from = nil }
 	return { n = G.UIT.O, config = { object = area } }
@@ -449,6 +504,10 @@ local function remove_reveal()
 		if rv.particles then
 			pcall(function() rv.particles:remove() end)
 		end
+		if rv.table_area then
+			pcall(function() rv.table_area:remove() end)
+		end
+		remove_box(rv.table)
 		remove_box(rv.flash)
 		remove_box(rv.title)
 		remove_box(rv.left)
@@ -529,10 +588,134 @@ local function clear_root(nodes, padding)
 	return { n = G.UIT.ROOT, config = { align = "cm", padding = padding or 0, colour = G.C.CLEAR }, nodes = nodes }
 end
 
+-- A discovered Joker for the corner card to turn over as, or nil before any are discovered.
+local function discovered_joker()
+	local found = {}
+	for _, center in ipairs((G.P_CENTER_POOLS and G.P_CENTER_POOLS.Joker) or {}) do
+		if center.discovered and not center.no_collection then
+			found[#found + 1] = center
+		end
+	end
+	return #found > 0 and found[rand(#found)] or nil
+end
+
+-- Swaps `old` for a face-down card of `center`, where `old` is drawn right now.
+local function swap_card(area, old, center)
+	local new = face_down_card(old.T.x, old.T.y, old.T.w, old.T.h, center)
+	new.T.r, new.T.scale = old.T.r, old.T.scale
+	new.VT.x, new.VT.y, new.VT.r, new.VT.scale = old.VT.x, old.VT.y, old.VT.r, old.VT.scale
+	area:remove_card(old)
+	old:remove()
+	area:emplace(new)
+	return new
+end
+
+-- The corner card's egg, rolled once per match: "nope", "joker" or nil, and its center.
+local function keeper_egg()
+	local wheel = G.P_CENTERS.c_wheel_of_fortune
+	if wheel and wheel.discovered and roll(Q.EGGS.keeper_nope) then
+		return "nope", wheel
+	end
+	if roll(Q.EGGS.keeper_joker) then
+		local joker = discovered_joker()
+		if joker then
+			return "joker", joker
+		end
+	end
+	return nil, nil
+end
+
+-- The fan scatters from where it is in the HUD: its cards move to a full-screen area of the
+-- reveal's own (the HUD and its CardArea are on their way out), four are sent spinning far
+-- off-screen and removed, and the top card goes to a corner. Every card's drawn position eases
+-- after its target, so one far target is a fling and a target past the corner, then the corner,
+-- is an overshoot and settle.
+local function scatter(cards, rv, gen, calm)
+	local W, H = G.ROOM.T.w, G.ROOM.T.h
+	rv.table_area = free_area(W, H, #cards)
+	rv.table = room_box(clear_root({ { n = G.UIT.O, config = { object = rv.table_area } } }), { x = 0, y = 0 }, true)
+	for _, card in ipairs(cards) do
+		rv.table_area:emplace(card)
+	end
+	local keeper = cards[#cards]
+	local from_x = keeper.T.x + keeper.T.w / 2
+	local from_y = keeper.T.y + keeper.T.h / 2
+
+	for k = 1, #cards - 1 do
+		local card = cards[k]
+		local a = -math.pi * 0.95 + ((k - 1) / math.max(1, #cards - 2)) * math.pi * 1.1 + (rand() - 0.5) * 0.5
+		local d = W * (0.8 + rand() * 0.3)
+		card.T.x = from_x + math.cos(a) * d - card.T.w / 2
+		card.T.y = from_y + math.sin(a) * d * 0.8 + H * 0.3 - card.T.h / 2
+		card.T.r = card.T.r + (calm and 0 or (rand() < 0.5 and -1 or 1) * (6 + rand() * 6))
+		card.T.scale = 1.3
+		after(1.0, gen, function()
+			rv.table_area:remove_card(card)
+			card:remove()
+		end)
+	end
+
+	local egg, center = keeper_egg()
+	if egg then
+		keeper = swap_card(rv.table_area, keeper, center)
+	end
+	local vw, vh = keeper.T.w * KEEPER_SCALE, keeper.T.h * KEEPER_SCALE
+	local cx, cy, r, sx, sy = Q.keeper_spot(W, H, vw, vh)
+	local turn = calm and 0 or math.pi * 2
+	keeper.T.scale = KEEPER_SCALE
+	keeper.T.x = cx + sx * 0.35 - keeper.T.w / 2
+	keeper.T.y = cy + sy * 0.25 - keeper.T.h / 2
+	keeper.T.r = r * 1.35 + turn
+	after(0.6, gen, function()
+		keeper.T.x, keeper.T.y, keeper.T.r = cx - keeper.T.w / 2, cy - keeper.T.h / 2, r + turn
+	end)
+	after(1.15, gen, function()
+		keeper:juice_up(0.15, 0.06)
+		play_sound("cardSlide1", 0.9, 0.4)
+	end)
+	if egg then
+		after(1.5, gen, function()
+			keeper:flip()
+			play_sound("card1", 1, 0.6)
+		end)
+	end
+	if egg == "nope" then
+		-- Vanilla's own Wheel of Fortune miss, nudged in from the corner so it's on screen.
+		after(2.0, gen, function()
+			attention_text({
+				text = localize("k_nope_ex"),
+				scale = 1.1,
+				hold = 1.2,
+				major = keeper,
+				backdrop_colour = G.C.SECONDARY_SET.Tarot,
+				align = "cm",
+				offset = { x = -sx * 1.2, y = -sy * 0.9 },
+				silent = true,
+			})
+			play_sound("tarot2", 1, 0.4)
+		end)
+		after(3.3, gen, function()
+			keeper:flip()
+			play_sound("card1", 0.9, 0.5)
+		end)
+	end
+end
+
 -- The match-found sequence. Each step is a delayed event tied to this reveal's gen, so tearing
 -- the reveal down (run start, lobby gone) cancels whatever hasn't played yet.
 function Q.match_found()
 	local ranked, ticket = Q.ranked, Q.ticket
+	-- Take the fan's cards before the HUD (and its CardArea) goes.
+	local fan_cards
+	if Q.fan and Q.fan.area and Q.fan.area.cards and #Q.fan.area.cards > 0 then
+		fan_cards = {}
+		for _, card in ipairs(Q.fan.area.cards) do
+			fan_cards[#fan_cards + 1] = card
+		end
+		for _, card in ipairs(fan_cards) do
+			Q.fan.area:remove_card(card)
+		end
+	end
 	Q.stop()
 	remove_reveal()
 	local gen = Q.reveal_gen
@@ -558,6 +741,11 @@ function Q.match_found()
 		after(0.7, gen, function()
 			set_spin(SPIN_MAX)
 		end)
+	end
+
+	-- 0.0s: the fan scatters, under everything that follows.
+	if fan_cards then
+		scatter(fan_cards, rv, gen, calm)
 	end
 
 	-- 0.0s: MATCH FOUND drops in from above, letters popping in one by one.
@@ -656,8 +844,12 @@ local function tick_fan(t)
 	local calm = reduced_motion()
 	if not calm and not fan.riffle_from and t >= fan.next_riffle then
 		fan.riffle_from = t
+		-- Egg: this riffle's card shows Jimbo at the top of its arc. It riffles slower, so he's seen.
+		fan.peek = roll(Q.EGGS.jimbo_peek)
+		fan.peeked = false
+		fan.riffle_len = fan.peek and RIFFLE_SECONDS * 2.2 or RIFFLE_SECONDS
 	end
-	local riffle = fan.riffle_from and math.min(1, (t - fan.riffle_from) / RIFFLE_SECONDS)
+	local riffle = fan.riffle_from and math.min(1, (t - fan.riffle_from) / fan.riffle_len)
 	local f = Q.spread_factor(Q.spread)
 	local cards = area.cards -- also the draw order: the top card is drawn last
 	local n = #cards
@@ -666,7 +858,16 @@ local function tick_fan(t)
 		local x, y, r = Q.fan_pose(i, n, f, t, riffle, calm)
 		card.T.x, card.T.y, card.T.r = cx + x - card.T.w / 2, cy + y, r
 	end
+	if fan.peek and not fan.peeked and riffle and riffle >= 0.25 then
+		fan.peeked = true
+		cards[n]:flip()
+		play_sound("card1", 1.25, 0.5)
+	end
 	if riffle == 1 then
+		if fan.peeked then
+			cards[n]:flip()
+		end
+		fan.peek, fan.peeked = false, false
 		-- The top card is now the bottom one: first in the list, so drawn under the rest.
 		local moved = table.remove(cards)
 		table.insert(cards, 1, moved)
