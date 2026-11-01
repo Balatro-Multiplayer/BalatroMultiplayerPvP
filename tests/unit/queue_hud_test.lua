@@ -99,7 +99,7 @@ do
 	remove_all = noop
 	rebuilds = 0
 	UIBox = function(args)
-		local b = { alignment = { offset = args.config.offset }, UIRoot = { juice_up = noop }, removed = false }
+		local b = { alignment = { offset = args.config.offset }, UIRoot = { juice_up = noop }, states = { collide = {} }, removed = false }
 		function b:align_to_major() end
 		function b:remove() self.removed = true end
 		function b:get_UIE_by_ID() return element() end
@@ -210,6 +210,8 @@ do
 	assert(fan_cards[5].T.scale > 1, "the corner card grows as it lands")
 	eq(fan_cards[5].facing, "back", "the corner card lands face down")
 	assert(Q.rv and Q.rv.left and Q.rv.right and Q.rv.vs, "reveal dealt both cards and VS")
+	local dim = Q.rv.dim
+	assert(dim and dim.states.collide.can == false, "the menu dims behind the reveal, letting clicks through")
 	local players = { { id = "me", displayName = "Me" } }
 	local lobby = { player_id = "me", get_players = function() return players end }
 	Q.lobby_ready(lobby)
@@ -222,6 +224,7 @@ do
 
 	Game.start_run({}, {})
 	eq(Q.rv, nil, "the run starting ends the reveal")
+	assert(dim.removed, "the dim goes with the reveal")
 	eq(G.ARGS.spin.real, 0, "the swirl's spin is put back")
 	-- Eggs, forced. The Wheel of Fortune: lands, turns over, says Nope!, turns back.
 	local function queue_and_match()

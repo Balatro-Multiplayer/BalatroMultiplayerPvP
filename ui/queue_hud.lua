@@ -9,7 +9,7 @@
 -- fan of card backs in the HUD riffles while it searches (the top card arcs over to the bottom
 -- of the fan), spreading wider with each step too.
 --
--- On a match: a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
+-- On a match: the menu dims behind the reveal, a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
 -- taskbar asks for attention, and the fan scatters: four cards spin off-screen, and the top one
 -- glides into a random corner, half off the screen, and stays there framing the reveal. MATCH
 -- FOUND drops in, and two player cards slide in from the sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
@@ -67,6 +67,8 @@ local FAN_CARDS, FAN_SCALE = 5, 0.42
 local RIFFLE_EVERY, RIFFLE_SECONDS = 1.1, 0.45
 -- The corner card: its size against a fan card once it lands.
 local KEEPER_SCALE = 1.5
+-- How dark the menu goes behind the reveal, and how fast.
+local DIM_ALPHA, DIM_SECONDS = 0.6, 0.3
 
 -- Chance per riffle (jimbo_peek) or per match (the two keeper eggs; nope is rolled first).
 Q.EGGS = { jimbo_peek = 1 / 40, keeper_joker = 1 / 20, keeper_nope = 1 / 50 }
@@ -509,6 +511,7 @@ local function remove_reveal()
 			pcall(function() rv.table_area:remove() end)
 		end
 		remove_box(rv.table)
+		remove_box(rv.dim)
 		remove_box(rv.flash)
 		remove_box(rv.title)
 		remove_box(rv.left)
@@ -755,6 +758,13 @@ function Q.match_found()
 
 	-- Flashes the taskbar / bounces the dock icon if the game is in the background.
 	pcall(love.window.requestAttention, false)
+
+	-- 0.0s: the menu dims behind everything that follows. Created first, so drawn under the rest;
+	-- clicks pass through it to whatever is underneath.
+	local dim_colour = { G.C.BLACK[1], G.C.BLACK[2], G.C.BLACK[3], 0 }
+	rv.dim = room_box({ n = G.UIT.ROOT, config = { align = "cm", minw = 40, minh = 30, colour = dim_colour, can_collide = false }, nodes = {} }, { x = 0, y = 0 }, true)
+	rv.dim.states.collide.can = false
+	ease_to(dim_colour, 4, DIM_ALPHA, DIM_SECONDS)
 
 	-- 0.0s: flash, jiggle, spin spike.
 	if not calm then
