@@ -1,17 +1,24 @@
 -- The queue HUD and the match-found reveal.
 --
--- While PvP's one queue is searching, a small box sits top-right over every menu screen: the
--- time waited, how many are in that queue, and for Ranked the rating range being searched (the
--- window MPAPI.matchmaking.ranked_spread widens every RANKED_SPREAD_EXPAND_SECS). A player still
--- in placements isn't shown their rating, so their range reads as a step count instead. The
--- queue keeps running wherever the player goes, so the HUD is how they get back to cancelling.
+-- While PvP's one queue is searching, a small box slides in top-right over every menu screen:
+-- the time waited, how many are in that queue, and for Ranked the rating range being searched
+-- (the window MPAPI.matchmaking.ranked_spread widens every RANKED_SPREAD_EXPAND_SECS). A player
+-- still in placements isn't shown their rating, so their range reads as a step count instead.
+-- The queue keeps running wherever the player goes, so the HUD is how they get back to
+-- cancelling. The menu's background swirl spins a little faster for each widening step.
 --
--- On a match: a sound, a screen jiggle, the taskbar asks for attention, and MATCH FOUND pops in
--- over the screen. Once the lobby is joined the two players' cards fill in (name, Elo or
--- placement progress, board rank), and it stays up until the run starts or the lobby goes.
+-- On a match: a white flash, a screen jiggle, a chip burst and a spin spike on the swirl, the
+-- taskbar asks for attention, MATCH FOUND drops in, and two player cards slide in from the
+-- sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
+-- the lobby, then flips to their name, Elo or placement progress and board rank. It all goes
+-- when the run starts, the lobby goes, or after REVEAL_MAX_SECONDS.
+--
+-- Reduced motion (G.SETTINGS.reduced_motion) drops the flash, jiggle, particles and spin; the
+-- slides stay, they're short.
 --
 -- Driven from pvp_api/queue.lua: PVP._show_searching starts/stops the HUD, the handle's
--- match_found / lobby_ready events drive the reveal.
+-- match_found / lobby_ready events drive the reveal. The match sound itself is
+-- PVP._play_match_found_sound (its own config toggle), not played here.
 
 local Q = {
 	active = false,
@@ -25,24 +32,38 @@ local Q = {
 	spread = nil,
 	in_queue = nil,
 	next_poll = 0,
+	last_minute = 0,
 	hud = nil,
-	reveal = nil,
+	saved_spin = nil, -- the swirl's spin before the queue touched it
+	-- the reveal: its pieces, the lobby it shows, ratings read for it
+	rv = nil,
 	reveal_lobby = nil,
 	reveal_until = 0,
+	reveal_ranked = false,
+	reveal_ticket = nil,
 	reveal_ratings = {},
-	particles = nil,
+	reveal_gen = 0, -- bumped on every reveal teardown, so its delayed steps know they're stale
 }
 PVP.QUEUE_HUD = Q
 
 local COUNTS_POLL_SECONDS = 5
 -- The reveal goes on its own if the run never starts (a failed autostart leaves the lobby UI).
 local REVEAL_MAX_SECONDS = 15
+local HUD_OFFSET = { x = -0.25, y = 0.25 }
+local OFFSCREEN_Y = -5
+local CARD_X = 2.6
+-- The swirl's spin while searching: the first step and the cap, eased between by step.
+local SPIN_MIN, SPIN_MAX, SPIN_FOUND = 0.08, 0.45, 1.2
 
 local function now()
 	return love.timer.getTime()
 end
 
--- Pure helpers (tests/queue_hud_test.lua) ------------------------------------------------------
+local function reduced_motion()
+	return G.SETTINGS and G.SETTINGS.reduced_motion
+end
+
+-- Pure helpers (tests/unit/queue_hud_test.lua) ---------------------------------------------------
 
 function Q.format_elapsed(seconds)
 	seconds = math.max(0, math.floor(seconds or 0))
@@ -55,6 +76,12 @@ function Q.search_step(spread)
 	local total = math.floor((M.RANKED_SPREAD_CAP - M.RANKED_SPREAD_INITIAL) / M.RANKED_SPREAD_EXPAND_RATE) + 1
 	local step = math.floor(((spread or M.RANKED_SPREAD_INITIAL) - M.RANKED_SPREAD_INITIAL) / M.RANKED_SPREAD_EXPAND_RATE) + 1
 	return math.min(step, total), total
+end
+
+-- How fast the swirl spins at a search step: SPIN_MIN on the first, SPIN_MAX at the cap.
+function Q.spin_for(spread)
+	local step, total = Q.search_step(spread)
+	return SPIN_MIN + (SPIN_MAX - SPIN_MIN) * (step - 1) / math.max(1, total - 1)
 end
 
 -- The Ranked range line: "1282-1582" around a placed player's rating, a step count for a
@@ -88,6 +115,87 @@ function Q.card_lines(rating)
 	return elo, tonumber(rating.rank) and ("#" .. rating.rank) or ""
 end
 
+-- Juice plumbing ---------------------------------------------------------------------------------
+
+-- Runs fn after `delay` real seconds, unless the reveal it belongs to (gen) was torn down first.
+-- no_delete: a run starting clears the event queue, and the steps check gen themselves.
+local function after(delay, gen, fn)
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = delay,
+		timer = "REAL",
+		blockable = false,
+		blocking = false,
+		no_delete = true,
+		func = function()
+			if gen == nil or gen == Q.reveal_gen then
+				fn()
+			end
+			return true
+		end,
+	}))
+end
+
+local function ease_to(ref_table, ref_value, value, duration)
+	G.E_MANAGER:add_event(Event({
+		trigger = "ease",
+		ref_table = ref_table,
+		ref_value = ref_value,
+		ease_to = value,
+		delay = duration,
+		timer = "REAL",
+		blockable = false,
+		blocking = false,
+		no_delete = true,
+		func = function(t)
+			return t
+		end,
+	}))
+end
+
+local function set_spin(value)
+	if not (G.ARGS and G.ARGS.spin) then
+		return
+	end
+	if Q.saved_spin == nil then
+		Q.saved_spin = G.ARGS.spin.real
+	end
+	G.ARGS.spin.real = reduced_motion() and Q.saved_spin or value
+end
+
+local function restore_spin()
+	if Q.saved_spin ~= nil and G.ARGS and G.ARGS.spin then
+		G.ARGS.spin.real = Q.saved_spin
+	end
+	Q.saved_spin = nil
+end
+
+-- Moves a Weak-bonded UIBox to a new offset; its drawn position eases there on its own.
+local function slide(uibox, x, y)
+	if not uibox or not uibox.alignment then
+		return
+	end
+	if x then
+		uibox.alignment.offset.x = x
+	end
+	if y then
+		uibox.alignment.offset.y = y
+	end
+	uibox:align_to_major()
+end
+
+local function juice(uibox, amount, rot)
+	if uibox and uibox.UIRoot then
+		uibox.UIRoot:juice_up(amount or 0.1, rot or 0.05)
+	end
+end
+
+local function remove_box(uibox)
+	if uibox then
+		pcall(function() uibox:remove() end)
+	end
+end
+
 -- Queue HUD ------------------------------------------------------------------------------------
 
 -- Live text: DynaText reads these through a ref_table every frame.
@@ -95,8 +203,8 @@ local live = setmetatable({}, {
 	__index = function(_, k)
 		if k == "timer" then
 			return Q.format_elapsed(now() - Q.started_at)
-		elseif k == "status" then
-			return localize("k_pvp_queue_searching") .. string.rep(".", math.floor(now() * 2) % 4)
+		elseif k == "dots" then
+			return string.rep(".", math.floor(now() * 2) % 4)
 		elseif k == "sub" then
 			if Q.in_queue == nil then
 				return Q.label
@@ -109,23 +217,37 @@ local live = setmetatable({}, {
 	end,
 })
 
-local function live_text(key, scale, colour, opts)
+local function text_object(id, string, scale, colour, opts)
 	opts = opts or {}
-	return { n = G.UIT.O, config = { id = "pvp_queue_hud_" .. key, object = DynaText({
-		string = { { ref_table = live, ref_value = key } },
+	return { n = G.UIT.O, config = { id = id, object = DynaText({
+		string = string,
 		colours = { colour },
 		scale = scale,
 		shadow = true,
 		float = opts.float,
+		bump = opts.bump,
+		pop_in = opts.pop_in,
+		pop_in_rate = opts.pop_in_rate,
+		silent = true,
 		maxw = opts.maxw,
 	}) } }
+end
+
+local function live_text(key, scale, colour, opts)
+	return text_object("pvp_queue_hud_" .. key, { { ref_table = live, ref_value = key } }, scale, colour, opts)
 end
 
 local function hud_definition()
 	local rows = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.C, config = { align = "cl", minw = 1.9 }, nodes = { live_text("status", 0.38, G.C.UI.TEXT_LIGHT) } },
-			{ n = G.UIT.C, config = { align = "cr", minw = 1.3 }, nodes = { live_text("timer", 0.6, G.C.IMPORTANT, { float = true }) } },
+			{ n = G.UIT.C, config = { align = "cl", minw = 1.9 }, nodes = {
+				{ n = G.UIT.R, config = { align = "cl" }, nodes = {
+					-- float: the letters bob one after another, Balatro's own "alive" text.
+					text_object("pvp_queue_hud_status", { localize("k_pvp_queue_searching") }, 0.38, G.C.UI.TEXT_LIGHT, { float = true }),
+					live_text("dots", 0.38, G.C.UI.TEXT_LIGHT),
+				} },
+			} },
+			{ n = G.UIT.C, config = { align = "cr", minw = 1.3 }, nodes = { live_text("timer", 0.6, G.C.IMPORTANT) } },
 		} },
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = { live_text("sub", 0.3, G.C.UI.TEXT_INACTIVE, { maxw = 3.2 }) } },
 	}
@@ -142,19 +264,32 @@ local function hud_definition()
 	} }
 end
 
-local function remove_hud()
-	if Q.hud then
-		pcall(function() Q.hud:remove() end)
-		Q.hud = nil
+-- Slides the HUD up off the screen, then removes it.
+local function hide_hud()
+	local hud = Q.hud
+	Q.hud = nil
+	if not hud then
+		return
 	end
+	slide(hud, nil, OFFSCREEN_Y)
+	after(0.5, nil, function()
+		remove_box(hud)
+	end)
 end
 
 local function show_hud()
-	remove_hud()
+	remove_box(Q.hud)
 	Q.hud = UIBox({
 		definition = hud_definition(),
-		config = { align = "tri", offset = { x = -0.25, y = 0.25 }, major = G.ROOM_ATTACH, bond = "Weak" },
+		config = { align = "tri", offset = { x = HUD_OFFSET.x, y = OFFSCREEN_Y }, major = G.ROOM_ATTACH, bond = "Weak" },
 	})
+	slide(Q.hud, nil, HUD_OFFSET.y)
+	local hud = Q.hud
+	after(0.35, nil, function()
+		if Q.hud == hud then
+			juice(hud, 0.15, 0.05)
+		end
+	end)
 end
 
 local function title_for(queue_id)
@@ -172,7 +307,14 @@ local function poll_counts()
 			return
 		end
 		local c = game_modes and game_modes[key]
-		Q.in_queue = c and tonumber(c.queued) or Q.in_queue
+		local n = c and tonumber(c.queued)
+		if n and n ~= Q.in_queue then
+			Q.in_queue = n
+			local sub = Q.hud and Q.hud:get_UIE_by_ID("pvp_queue_hud_sub")
+			if sub and sub.config.object then
+				sub.config.object:pulse(0.3)
+			end
+		end
 	end)
 end
 
@@ -187,11 +329,12 @@ function Q.start(queue_id)
 	Q.active = true
 	Q.queue_id = { kind = queue_id.kind, key = queue_id.key }
 	Q.started_at = now()
+	Q.last_minute = 0
 	Q.ranked = queue_id.kind == PVP.LobbyAccess.RANKED
 	Q.label = title_for(queue_id)
 	Q.ticket = Q.ranked and PVP.ranked_ticket(queue_id.key) or nil
 	Q.count_key = Q.ticket or queue_id.key
-	Q.spread = Q.ranked and MPAPI.matchmaking.ranked_spread(0) or nil
+	Q.spread = MPAPI.matchmaking.ranked_spread(0)
 	Q.in_queue = nil
 	Q.next_poll = now()
 	Q.rating = nil
@@ -205,13 +348,20 @@ function Q.start(queue_id)
 		end)
 	end
 	play_sound("highlight2", 1.1, 0.6)
+	set_spin(Q.spin_for(Q.spread))
 	show_hud()
 end
 
 function Q.stop()
+	if not Q.active then
+		return
+	end
 	Q.active = false
 	Q.queue_id = nil
-	remove_hud()
+	hide_hud()
+	if not Q.rv then
+		restore_spin()
+	end
 end
 
 -- Match-found reveal -----------------------------------------------------------------------------
@@ -219,31 +369,45 @@ end
 local seen_players = 0
 
 local function remove_reveal()
+	Q.reveal_gen = Q.reveal_gen + 1
 	seen_players = 0
-	if Q.particles then
-		pcall(function() Q.particles:remove() end)
-		Q.particles = nil
-	end
-	if Q.reveal then
-		pcall(function() Q.reveal:remove() end)
-		Q.reveal = nil
-	end
+	local rv = Q.rv
+	Q.rv = nil
 	Q.reveal_lobby = nil
+	if rv then
+		if rv.particles then
+			pcall(function() rv.particles:remove() end)
+		end
+		remove_box(rv.flash)
+		remove_box(rv.title)
+		remove_box(rv.left)
+		remove_box(rv.right)
+		remove_box(rv.vs)
+		remove_box(rv.footer)
+	end
+	if not Q.active then
+		restore_spin()
+	end
 end
 
-local function player_card(name, rating, colour)
+local function face(letter, colour, unknown)
+	local glyph = unknown
+			and text_object(nil, { "?" }, 0.9, G.C.WHITE, { float = true, bump = true })
+		or { n = G.UIT.T, config = { text = letter, scale = 0.9, colour = G.C.WHITE, shadow = true } }
+	return { n = G.UIT.R, config = { align = "cm", minw = 1.4, minh = 1.2, r = 0.1, colour = colour }, nodes = { glyph } }
+end
+
+local function player_card(name, rating, colour, unknown)
 	-- A casual match has no ratings to show.
 	local elo_line, rank_line = "", ""
-	if Q.reveal_ranked then
+	if Q.reveal_ranked and not unknown then
 		elo_line, rank_line = Q.card_lines(rating)
 	end
 	return { n = G.UIT.C, config = { align = "cm", padding = 0.1, r = 0.12, minw = 2.4, minh = 2.9, colour = G.C.WHITE, emboss = 0.08 }, nodes = {
 		{ n = G.UIT.R, config = { align = "cm", maxw = 2.2 }, nodes = {
 			{ n = G.UIT.T, config = { text = name, scale = 0.42, colour = G.C.UI.TEXT_DARK } },
 		} },
-		{ n = G.UIT.R, config = { align = "cm", minw = 1.4, minh = 1.2, r = 0.1, colour = colour }, nodes = {
-			{ n = G.UIT.T, config = { text = string.upper(string.sub(name, 1, 1)), scale = 0.9, colour = G.C.WHITE, shadow = true } },
-		} },
+		face(string.upper(string.sub(name, 1, 1)), colour, unknown),
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.T, config = { text = elo_line, scale = 0.36, colour = G.C.UI.TEXT_DARK } },
 		} },
@@ -253,101 +417,140 @@ local function player_card(name, rating, colour)
 	} }
 end
 
--- The two cards, or a placeholder until the lobby is joined and the opponent is in it.
-local vs_el = MPAPI.ui_element(function()
-	local lobby = Q.reveal_lobby
+local function players_of(lobby)
 	if not lobby then
-		return { nodes = { { n = G.UIT.R, config = { align = "cm", minh = 2.9 }, nodes = {} } } }
+		return nil, nil
 	end
-	local self_id = lobby.player_id
 	local me, opp
 	for _, p in ipairs(lobby:get_players()) do
-		if p.id == self_id then
+		if p.id == lobby.player_id then
 			me = p
 		else
 			opp = opp or p
 		end
 	end
-	local nodes = {
-		player_card(localize("k_pvp_you"), me and Q.reveal_ratings[me.id], G.C.BLUE),
-		{ n = G.UIT.C, config = { align = "cm", padding = 0.3 }, nodes = {
-			{ n = G.UIT.T, config = { text = "VS", scale = 1, colour = G.C.RED, shadow = true } },
-		} },
-		opp and player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], G.C.RED)
-			or player_card("...", nil, G.C.UI.BACKGROUND_INACTIVE),
-	}
-	return { nodes = { { n = G.UIT.R, config = { align = "cm" }, nodes = nodes } } }
-end)
-
-local function reveal_definition()
-	return { n = G.UIT.ROOT, config = { align = "cm", padding = 0.2, r = 0.2, colour = { 0, 0, 0, 0.55 } }, nodes = {
-		{ n = G.UIT.C, config = { align = "cm", padding = 0.15 }, nodes = {
-			{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-				{ n = G.UIT.O, config = { object = DynaText({
-					string = { localize("k_pvp_match_found") },
-					colours = { G.C.GOLD },
-					scale = 1.4,
-					shadow = true,
-					float = true,
-					bump = true,
-					pop_in = 0,
-					pop_in_rate = 8,
-					silent = true,
-				}) } },
-			} },
-			{ n = G.UIT.R, config = { align = "cm" }, nodes = { vs_el.node } },
-			{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-				{ n = G.UIT.T, config = { text = localize("k_pvp_shuffling"), scale = 0.35, colour = G.C.UI.TEXT_LIGHT } },
-			} },
-		} },
-	} }
+	return me, opp
 end
 
+-- Our own card: before the lobby is joined, the rating the queue already read.
+local left_el = MPAPI.ui_element(function()
+	local me = players_of(Q.reveal_lobby)
+	local rating = (me and Q.reveal_ratings[me.id]) or Q.rating
+	return { nodes = { player_card(localize("k_pvp_you"), rating, G.C.BLUE) } }
+end)
+
+local right_el = MPAPI.ui_element(function()
+	local _, opp = players_of(Q.reveal_lobby)
+	if not opp then
+		return { nodes = { player_card("...", nil, G.C.UI.BACKGROUND_INACTIVE, true) } }
+	end
+	return { nodes = { player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], G.C.RED) } }
+end)
+
+local function room_box(definition, offset, popup)
+	return UIBox({
+		definition = definition,
+		config = { align = "cm", offset = offset, major = G.ROOM_ATTACH, bond = "Weak", instance_type = popup and "POPUP" or nil },
+	})
+end
+
+local function clear_root(nodes, padding)
+	return { n = G.UIT.ROOT, config = { align = "cm", padding = padding or 0, colour = G.C.CLEAR }, nodes = nodes }
+end
+
+-- The match-found sequence. Each step is a delayed event tied to this reveal's gen, so tearing
+-- the reveal down (run start, lobby gone) cancels whatever hasn't played yet.
 function Q.match_found()
-	local ranked = Q.ranked
-	local ticket = Q.ticket
+	local ranked, ticket = Q.ranked, Q.ticket
 	Q.stop()
 	remove_reveal()
+	local gen = Q.reveal_gen
+	Q.rv = {}
 	Q.reveal_ratings = {}
 	Q.reveal_ranked, Q.reveal_ticket = ranked, ticket
 	Q.reveal_until = now() + REVEAL_MAX_SECONDS
+	local rv = Q.rv
+	local calm = reduced_motion()
 
-	play_sound("timpani", 1, 0.8)
-	play_sound("holo1", 1.3, 0.5)
-	if G.ROOM then
-		G.ROOM.jiggle = G.ROOM.jiggle + 4
-	end
 	-- Flashes the taskbar / bounces the dock icon if the game is in the background.
 	pcall(love.window.requestAttention, false)
 
-	Q.reveal = UIBox({
-		definition = reveal_definition(),
-		config = { align = "cm", offset = { x = 0, y = -0.5 }, major = G.ROOM_ATTACH, bond = "Weak", instance_type = "POPUP" },
-	})
-	Q.particles = Particles(0, 0, 0, 0, {
-		timer_type = "TOTAL",
-		timer = 0.01,
-		pulse_max = 40,
-		max = 0,
-		scale = 0.25,
-		speed = 5,
-		lifespan = 1.2,
-		fill = true,
-		padding = 0.5,
-		attach = Q.reveal.UIRoot,
-		colours = { G.C.RED, G.C.BLUE, G.C.GOLD, G.C.WHITE },
-	})
+	-- 0.0s: flash, jiggle, spin spike.
+	if not calm then
+		local flash_colour = { 1, 1, 1, 0.75 }
+		rv.flash = room_box({ n = G.UIT.ROOT, config = { align = "cm", minw = 40, minh = 30, colour = flash_colour }, nodes = {} }, { x = 0, y = 0 }, true)
+		ease_to(flash_colour, 4, 0, 0.45)
+		if G.ROOM then
+			G.ROOM.jiggle = G.ROOM.jiggle + 6
+		end
+		set_spin(SPIN_FOUND)
+		after(0.7, gen, function()
+			set_spin(SPIN_MAX)
+		end)
+	end
+
+	-- 0.0s: MATCH FOUND drops in from above, letters popping in one by one.
+	rv.title = room_box(clear_root({
+		text_object(nil, { localize("k_pvp_match_found") }, 1.4, G.C.GOLD, { float = true, bump = true, pop_in = 0, pop_in_rate = 8 }),
+	}), { x = 0, y = OFFSCREEN_Y }, true)
+	slide(rv.title, nil, -2.6)
+	if not calm then
+		rv.particles = Particles(0, 0, 0, 0, {
+			timer_type = "TOTAL",
+			timer = 0.01,
+			pulse_max = 50,
+			max = 0,
+			scale = 0.25,
+			speed = 6,
+			lifespan = 1.3,
+			fill = true,
+			padding = 0.6,
+			attach = rv.title.UIRoot,
+			colours = { G.C.RED, G.C.BLUE, G.C.GOLD, G.C.WHITE },
+		})
+	end
+
+	-- 0.35s / 0.5s: the two cards fly in from either side, and land with a bump and a card sound.
+	local function deal(side, el, x, delay)
+		after(delay, gen, function()
+			rv[side] = room_box(clear_root({ el.node }), { x = x * 5, y = 0.4 }, true)
+			slide(rv[side], x, nil)
+			after(0.3, gen, function()
+				juice(rv[side], 0.25, 0.1)
+				play_sound("card1", side == "left" and 1 or 1.15, 0.7)
+			end)
+		end)
+	end
+	deal("left", left_el, -CARD_X, 0.35)
+	deal("right", right_el, CARD_X, 0.5)
+
+	-- 0.9s: VS stamps in between them.
+	after(0.9, gen, function()
+		rv.vs = room_box(clear_root({
+			text_object(nil, { "VS" }, 1.1, G.C.RED, { bump = true, pop_in = 0, pop_in_rate = 10 }),
+		}), { x = 0, y = 0.4 }, true)
+		juice(rv.vs, 0.4, 0.15)
+		play_sound("generic1", 0.9, 0.6)
+		if G.ROOM and not calm then
+			G.ROOM.jiggle = G.ROOM.jiggle + 2
+		end
+	end)
+
+	-- 1.3s: the footer, until the run takes over.
+	after(1.3, gen, function()
+		rv.footer = room_box(clear_root({
+			text_object(nil, { localize("k_pvp_shuffling") }, 0.38, G.C.UI.TEXT_LIGHT, { float = true, pop_in = 0, pop_in_rate = 4 }),
+		}), { x = 0, y = 2.5 }, true)
+	end)
 end
 
 -- Fills the cards in once the matched lobby is joined. Ratings are read per player as they
 -- appear (an opponent can join a moment after us); a casual match shows no Elo lines.
 function Q.lobby_ready(lobby)
-	if not Q.reveal then
+	if not Q.rv then
 		return
 	end
 	Q.reveal_lobby = lobby
-	vs_el:update()
-	play_sound("card1", 1.1, 0.7)
 end
 
 local function read_reveal_ratings()
@@ -364,7 +567,8 @@ local function read_reveal_ratings()
 					return
 				end
 				Q.reveal_ratings[id] = (not err and data) or { unknown = true }
-				vs_el:update()
+				left_el:update()
+				right_el:update()
 			end)
 		end
 	end
@@ -372,40 +576,56 @@ end
 
 -- Per-frame upkeep ------------------------------------------------------------------------------
 
-local function tick()
-	if Q.active then
-		local t = now()
+local function tick_hud()
+	local t = now()
+	local elapsed = t - Q.started_at
+	local spread = MPAPI.matchmaking.ranked_spread(elapsed)
+	if spread ~= Q.spread then
+		Q.spread = spread
+		set_spin(Q.spin_for(spread))
 		if Q.ranked then
-			local spread = MPAPI.matchmaking.ranked_spread(t - Q.started_at)
-			if spread ~= Q.spread then
-				Q.spread = spread
-				play_sound("chips1", 1.2, 0.4)
-				local range = Q.hud and Q.hud:get_UIE_by_ID("pvp_queue_hud_range")
-				if range and range.config.object then
-					range.config.object:pulse(0.6)
-				end
-				if Q.hud then
-					Q.hud.UIRoot:juice_up(0.05, 0.02)
-				end
+			play_sound("chips1", 1.2, 0.4)
+			local range = Q.hud and Q.hud:get_UIE_by_ID("pvp_queue_hud_range")
+			if range and range.config.object then
+				range.config.object:pulse(0.6)
 			end
 		end
-		if t >= Q.next_poll then
-			Q.next_poll = t + COUNTS_POLL_SECONDS
-			poll_counts()
-		end
+		juice(Q.hud, 0.08, 0.03)
 	end
-	if Q.reveal then
-		local lobby = Q.reveal_lobby
-		if now() >= Q.reveal_until or (lobby and lobby._destroyed) then
-			remove_reveal()
-			return
+	-- A little bump on the timer each full minute waited.
+	local minute = math.floor(elapsed / 60)
+	if minute > Q.last_minute then
+		Q.last_minute = minute
+		local timer = Q.hud and Q.hud:get_UIE_by_ID("pvp_queue_hud_timer")
+		if timer and timer.config.object then
+			timer.config.object:pulse(0.8)
 		end
-		if lobby then
-			local n = #lobby:get_players()
-			if n ~= seen_players then
-				seen_players = n
-				read_reveal_ratings()
-				vs_el:update()
+		juice(Q.hud, 0.12, 0.04)
+	end
+	if t >= Q.next_poll then
+		Q.next_poll = t + COUNTS_POLL_SECONDS
+		poll_counts()
+	end
+end
+
+local function tick_reveal()
+	local lobby = Q.reveal_lobby
+	if now() >= Q.reveal_until or (lobby and lobby._destroyed) then
+		remove_reveal()
+		return
+	end
+	if lobby then
+		local n = #lobby:get_players()
+		if n ~= seen_players then
+			local had_opp = seen_players > 1
+			seen_players = n
+			read_reveal_ratings()
+			left_el:update()
+			right_el:update()
+			-- The opponent's card flipping from "?" to them.
+			if n > 1 and not had_opp and Q.rv and Q.rv.right then
+				juice(Q.rv.right, 0.35, 0.12)
+				play_sound("card1", 0.85, 0.8)
 			end
 		end
 	end
@@ -415,7 +635,14 @@ local game_update_ref = Game.update
 ---@diagnostic disable-next-line: duplicate-set-field
 function Game:update(dt)
 	game_update_ref(self, dt)
-	local ok, err = pcall(tick)
+	local ok, err = pcall(function()
+		if Q.active then
+			tick_hud()
+		end
+		if Q.rv then
+			tick_reveal()
+		end
+	end)
 	if not ok then
 		sendWarnMessage("[pvp] queue HUD: " .. tostring(err), "MULTIPLAYER")
 		Q.stop()
