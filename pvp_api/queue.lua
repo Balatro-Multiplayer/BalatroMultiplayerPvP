@@ -28,6 +28,13 @@ end
 
 function PVP._show_searching(on)
 	PVP._searching = on and true or false
+	if PVP.QUEUE_HUD then
+		if on then
+			PVP.QUEUE_HUD.start(PVP._active_queue_id)
+		else
+			PVP.QUEUE_HUD.stop()
+		end
+	end
 	if PVP._show_searching_state then
 		PVP._show_searching_state(on)
 	end
@@ -101,9 +108,11 @@ function PVP._join_queue(kind, gamemode_key)
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
 		PVP._play_match_found_sound()
+		PVP.QUEUE_HUD.match_found()
 	end)
 
 	handle:on("lobby_ready", function(lobby)
+		PVP.QUEUE_HUD.lobby_ready(lobby)
 		PVP._pvp_kind = kind
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
@@ -123,6 +132,7 @@ function PVP._join_queue(kind, gamemode_key)
 	end)
 
 	handle:on("left", function()
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._pvp_kind = nil
 		PVP._active_queue_id = nil
@@ -248,9 +258,11 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
 		PVP._play_match_found_sound()
+		PVP.QUEUE_HUD.match_found()
 	end)
 
 	handle:on("lobby_ready", function(lobby)
+		PVP.QUEUE_HUD.lobby_ready(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.RANKED
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
@@ -267,6 +279,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	end)
 
 	handle:on("left", function()
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._pvp_kind = nil
 		PVP._active_queue_id = nil
