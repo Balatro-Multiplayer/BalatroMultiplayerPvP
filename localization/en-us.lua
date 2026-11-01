@@ -1476,6 +1476,8 @@ return {
 			k_mod_hash_warning = "Players have different mods or mod versions! This can cause problems!",
 			k_steamodded_warning = "Players have different versions of Steamodded installed. This may cause the seeds to differ.",
 			k_mp_version_warning = "Players are on different Multiplayer versions! Seeds and jokers will desync - update so you both match.",
+			k_mp_lockstep_chaos = "CHAOS!",
+			k_mp_lockstep_waiting = "waiting...",
 			k_warning_unlock_profile = "The profile you are playing on is not fully unlocked. If this is a ranked/tournament game, please create a new profile and hit unlock all in the profile settings",
 			k_warning_nemesis_unlock = "Your opponent is playing on a profile that is not fully unlocked. Please instruct them to create a new profile and hit unlock all in the profile settings",
 			k_warning_no_order = "One player has The Order integration enabled while the other does not. This will cause the seeds to differ.",
