@@ -60,6 +60,15 @@ do
 	assert(wide < tight, "the fan opens up as the search widens")
 end
 
+-- The corner card rests near a corner, partly past both edges, tilted in toward the middle.
+for _ = 1, 200 do
+	local cx, cy, r, sx, sy = Q.keeper_spot(20, 11, 2, 2.6)
+	assert(cx > 0 and cx < 20 and cy > 0 and cy < 11, "the corner card's centre stays on screen")
+	assert(sx < 0 and cx - 1 < 0 or sx > 0 and cx + 1 > 20, "the corner card hangs past the side edge")
+	assert(sy < 0 and cy - 1.3 < 0 or sy > 0 and cy + 1.3 > 11, "the corner card hangs past the top or bottom edge")
+	assert(math.abs(r) > 0.25 and math.abs(r) < 0.8, "the corner card is tilted, not flat or sideways")
+end
+
 local placed = { rating = 1432, isPlacement = false, gamesPlayed = 9, rank = 42 }
 local placing = { rating = 640, isPlacement = true, gamesPlayed = 2, placementGames = 5 }
 eq(Q.range_text(nil, 150), "...", "range before the rating is read")
@@ -97,15 +106,37 @@ do
 	end
 	DynaText = function() return {} end
 	local function moveable(w, h)
-		return { T = { x = 0, y = 0, w = w or 1, h = h or 1, r = 0 }, states = { drag = {}, hover = {} }, juice_up = noop, remove = noop }
+		return {
+			T = { x = 0, y = 0, w = w or 1, h = h or 1, r = 0, scale = 1 },
+			VT = { x = 0, y = 0, w = w or 1, h = h or 1, r = 0, scale = 1 },
+			states = { drag = {}, hover = {} },
+			juice_up = noop,
+			remove = function(self) self.removed = true end,
+		}
 	end
 	CardArea = function(_, _, w, h)
 		local a = moveable(w, h)
 		a.cards = {}
 		function a:emplace(card) self.cards[#self.cards + 1] = card end
+		function a:remove_card(card)
+			for i, c in ipairs(self.cards) do
+				if c == card then return table.remove(self.cards, i) end
+			end
+		end
 		return a
 	end
-	Card = function(_, _, w, h) return moveable(w, h) end
+	flips = 0
+	Card = function(_, _, w, h, _, center)
+		local c = moveable(w, h)
+		c.center = center
+		function c:flip()
+			flips = flips + 1
+			self.facing = self.facing == "back" and "front" or "back"
+		end
+		return c
+	end
+	nopes = 0
+	attention_text = function() nopes = nopes + 1 end
 	Particles = function() return { remove = noop } end
 	UIBox_button = function() return {} end
 	Event = function(e) return e end
@@ -115,12 +146,13 @@ do
 	G = {
 		UIT = { ROOT = 0, R = 1, C = 2, T = 3, O = 4 },
 		C = setmetatable({ UI = setmetatable({}, { __index = function() return {} end }) }, { __index = function() return {} end }),
-		ROOM = { jiggle = 0 },
+		ROOM = { jiggle = 0, T = { w = 20, h = 11 } },
 		ROOM_ATTACH = {},
 		ARGS = { spin = { real = 0 } },
 		CARD_W = 2, CARD_H = 2.7,
 		P_CARDS = { S_A = {} },
-		P_CENTERS = { c_base = {}, b_red = { pos = {} } },
+		P_CENTERS = { c_base = {}, b_red = { pos = {} }, j_joker = { key = "j_joker" }, c_wheel_of_fortune = { key = "c_wheel_of_fortune", discovered = true } },
+		P_CENTER_POOLS = { Joker = { { key = "j_joker", discovered = true }, { key = "j_blueprint", discovered = true }, { key = "j_secret", discovered = false } } },
 		SETTINGS = {},
 		E_MANAGER = { add_event = function(_, e) if e.trigger == "after" then e.func() end end },
 	}
@@ -154,8 +186,17 @@ do
 	Game.update({}, 0) -- and finishes
 	eq(Q.fan.area.cards[1], top, "the riffled top card went to the bottom")
 
+	Q.EGGS.keeper_nope, Q.EGGS.keeper_joker = 0, 0
+	local fan_cards = { table.unpack(Q.fan.area.cards) }
 	Q.match_found()
 	eq(Q.active, false, "HUD stops on a match")
+	local kept = 0
+	for i, c in ipairs(fan_cards) do
+		if not c.removed then kept = kept + 1 end
+		if i < 5 then assert(c.removed, "flier " .. i .. " is removed once off-screen") end
+	end
+	eq(kept, 1, "one card stays behind")
+	assert(fan_cards[5].T.scale > 1, "the corner card grows as it lands")
 	assert(Q.rv and Q.rv.left and Q.rv.right and Q.rv.vs, "reveal dealt both cards and VS")
 	local players = { { id = "me", displayName = "Me" } }
 	local lobby = { player_id = "me", get_players = function() return players end }
@@ -168,5 +209,46 @@ do
 	Game.start_run({}, {})
 	eq(Q.rv, nil, "the run starting ends the reveal")
 	eq(G.ARGS.spin.real, 0, "the swirl's spin is put back")
+	-- Eggs, forced. The Wheel of Fortune: lands, turns over, says Nope!, turns back.
+	local function queue_and_match()
+		Q.start({ kind = "ranked", key = "balanced" })
+		clock = clock + 1
+		Game.update({}, 0)
+		Q.match_found()
+		return Q.rv.table_area.cards[#Q.rv.table_area.cards]
+	end
+	Q.EGGS.keeper_nope = 1
+	flips, nopes = 0, 0
+	local keeper = queue_and_match()
+	eq(keeper.center.key, "c_wheel_of_fortune", "nope egg: the corner card is The Wheel of Fortune")
+	eq(nopes, 1, "nope egg: it says Nope!")
+	eq(flips, 2, "nope egg: it turns over, then back")
+	Game.start_run({}, {})
+
+	-- A discovered Joker, never an undiscovered one.
+	Q.EGGS.keeper_nope, Q.EGGS.keeper_joker = 0, 1
+	for _ = 1, 20 do
+		flips = 0
+		keeper = queue_and_match()
+		assert(keeper.center.key == "j_joker" or keeper.center.key == "j_blueprint", "joker egg: a discovered Joker")
+		eq(flips, 1, "joker egg: it turns over")
+		Game.start_run({}, {})
+	end
+	Q.EGGS.keeper_joker = 0
+
+	-- Jimbo in the shuffle: the riffling card flips up mid-arc and back down as it lands.
+	Q.EGGS.jimbo_peek = 1
+	Q.start({ kind = "ranked", key = "balanced" })
+	flips = 0
+	local t0 = clock
+	clock = t0 + 1.2
+	Game.update({}, 0) -- the riffle starts
+	clock = t0 + 1.2 + 0.4
+	Game.update({}, 0) -- past a quarter of its (slowed) arc
+	eq(flips, 1, "jimbo egg: the card flips up mid-arc")
+	clock = t0 + 1.2 + 1.1
+	Game.update({}, 0) -- it lands
+	eq(flips, 2, "jimbo egg: and back down as it lands")
+	Q.stop()
 	print("queue_hud_test smoke: ok")
 end
