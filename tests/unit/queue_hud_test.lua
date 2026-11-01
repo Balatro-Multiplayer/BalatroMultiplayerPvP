@@ -94,13 +94,17 @@ do
 	love.window = { requestAttention = noop }
 	local boxes = {}
 	local function element()
-		return { config = { object = { pulse = noop } }, juice_up = noop }
+		return { config = { object = { pulse = noop } }, juice_up = noop, children = {} }
 	end
+	remove_all = noop
+	rebuilds = 0
 	UIBox = function(args)
 		local b = { alignment = { offset = args.config.offset }, UIRoot = { juice_up = noop }, removed = false }
 		function b:align_to_major() end
 		function b:remove() self.removed = true end
 		function b:get_UIE_by_ID() return element() end
+		function b:set_parent_child() rebuilds = rebuilds + 1 end
+		function b:recalculate() end
 		boxes[#boxes + 1] = b
 		return b
 	end
@@ -117,7 +121,11 @@ do
 	CardArea = function(_, _, w, h)
 		local a = moveable(w, h)
 		a.cards = {}
-		function a:emplace(card) self.cards[#self.cards + 1] = card end
+		-- Like CardArea:emplace, turns a face-down card up unless told to stay flipped.
+		function a:emplace(card, _, stay_flipped)
+			if card.facing == "back" and not stay_flipped then card:flip() end
+			self.cards[#self.cards + 1] = card
+		end
 		function a:remove_card(card)
 			for i, c in ipairs(self.cards) do
 				if c == card then return table.remove(self.cards, i) end
@@ -179,6 +187,9 @@ do
 	eq(Q.spread, 300, "range widened after 95 s")
 	assert(G.ARGS.spin.real > spin_at_start, "the swirl spun up with the range")
 	eq(#Q.fan.area.cards, 5, "the fan has its card backs")
+	for i, c in ipairs(Q.fan.area.cards) do
+		eq(c.facing, "back", "fan card " .. i .. " is face down")
+	end
 	local top = Q.fan.area.cards[5]
 	clock = 95 + 1.2
 	Game.update({}, 0) -- a riffle starts
@@ -197,14 +208,17 @@ do
 	end
 	eq(kept, 1, "one card stays behind")
 	assert(fan_cards[5].T.scale > 1, "the corner card grows as it lands")
+	eq(fan_cards[5].facing, "back", "the corner card lands face down")
 	assert(Q.rv and Q.rv.left and Q.rv.right and Q.rv.vs, "reveal dealt both cards and VS")
 	local players = { { id = "me", displayName = "Me" } }
 	local lobby = { player_id = "me", get_players = function() return players end }
 	Q.lobby_ready(lobby)
 	Game.update({}, 0)
 	players[2] = { id = "opp", displayName = "Rival" }
+	local rebuilds_before = rebuilds
 	Game.update({}, 0)
 	eq(Q.reveal_ratings.opp.rating, 1500, "opponent rating read once they joined")
+	assert(rebuilds > rebuilds_before, "the player cards were rebuilt when the opponent joined")
 
 	Game.start_run({}, {})
 	eq(Q.rv, nil, "the run starting ends the reveal")

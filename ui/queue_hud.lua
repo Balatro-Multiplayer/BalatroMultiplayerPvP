@@ -321,7 +321,8 @@ local function remove_fan()
 end
 
 -- A face-down card with the red deck's back: the fan's, and the corner card's eggs. Its face is
--- `center` (Jimbo for the fan, so any fan card can flip to him).
+-- `center` (Jimbo for the fan, so any fan card can flip to him). Emplace it with stay_flipped, or
+-- CardArea:emplace turns it face up.
 local function face_down_card(x, y, w, h, center)
 	local card = Card(x, y, w, h, nil, center, {
 		bypass_back = G.P_CENTERS.b_red.pos,
@@ -349,7 +350,7 @@ local function build_fan()
 	local w, h = G.CARD_W * FAN_SCALE, G.CARD_H * FAN_SCALE
 	local area = free_area(3.0, h * 1.35, FAN_CARDS)
 	for _ = 1, FAN_CARDS do
-		area:emplace(face_down_card(area.T.x, area.T.y, w, h, G.P_CENTERS.j_joker))
+		area:emplace(face_down_card(area.T.x, area.T.y, w, h, G.P_CENTERS.j_joker), nil, true)
 	end
 	Q.fan = { area = area, next_riffle = now() + RIFFLE_EVERY, riffle_from = nil }
 	return { n = G.UIT.O, config = { object = area } }
@@ -563,19 +564,45 @@ local function players_of(lobby)
 end
 
 -- Our own card: before the lobby is joined, the rating the queue already read.
-local left_el = MPAPI.ui_element(function()
+local function left_card()
 	local me = players_of(Q.reveal_lobby)
 	local rating = (me and Q.reveal_ratings[me.id]) or Q.rating
-	return { nodes = { player_card(localize("k_pvp_you"), rating, G.C.BLUE) } }
-end)
+	return player_card(localize("k_pvp_you"), rating, G.C.BLUE)
+end
 
-local right_el = MPAPI.ui_element(function()
+local function right_card()
 	local _, opp = players_of(Q.reveal_lobby)
 	if not opp then
-		return { nodes = { player_card("...", nil, G.C.UI.BACKGROUND_INACTIVE, true) } }
+		return player_card("...", nil, G.C.UI.BACKGROUND_INACTIVE, true)
 	end
-	return { nodes = { player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], G.C.RED) } }
-end)
+	return player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], G.C.RED)
+end
+
+local CARD_BUILDERS = { left = left_card, right = right_card }
+
+-- A player card wrapped in a container refresh_card can find again.
+local function card_node(side)
+	return { n = G.UIT.C, config = { id = "pvp_reveal_" .. side, align = "cm" }, nodes = { CARD_BUILDERS[side]() } }
+end
+
+-- Rebuilds a dealt player card in place. Not MPAPI.ui_element: its update() looks only in
+-- G.I.UIBOX, and the reveal's boxes are POPUPs.
+local function refresh_card(side)
+	local box = Q.rv and Q.rv[side]
+	local container = box and box:get_UIE_by_ID("pvp_reveal_" .. side)
+	if not container then
+		return
+	end
+	remove_all(container.children)
+	container.children = {}
+	box:set_parent_child(CARD_BUILDERS[side](), container)
+	box:recalculate()
+end
+
+local function refresh_cards()
+	refresh_card("left")
+	refresh_card("right")
+end
 
 local function room_box(definition, offset, popup)
 	return UIBox({
@@ -606,7 +633,7 @@ local function swap_card(area, old, center)
 	new.VT.x, new.VT.y, new.VT.r, new.VT.scale = old.VT.x, old.VT.y, old.VT.r, old.VT.scale
 	area:remove_card(old)
 	old:remove()
-	area:emplace(new)
+	area:emplace(new, nil, true)
 	return new
 end
 
@@ -635,7 +662,7 @@ local function scatter(cards, rv, gen, calm)
 	rv.table_area = free_area(W, H, #cards)
 	rv.table = room_box(clear_root({ { n = G.UIT.O, config = { object = rv.table_area } } }), { x = 0, y = 0 }, true)
 	for _, card in ipairs(cards) do
-		rv.table_area:emplace(card)
+		rv.table_area:emplace(card, nil, true)
 	end
 	local keeper = cards[#cards]
 	local from_x = keeper.T.x + keeper.T.w / 2
@@ -770,9 +797,9 @@ function Q.match_found()
 	end
 
 	-- 0.35s / 0.5s: the two cards fly in from either side, and land with a bump and a card sound.
-	local function deal(side, el, x, delay)
+	local function deal(side, x, delay)
 		after(delay, gen, function()
-			rv[side] = room_box(clear_root({ el.node }), { x = x * 5, y = 0.4 }, true)
+			rv[side] = room_box(clear_root({ card_node(side) }), { x = x * 5, y = 0.4 }, true)
 			slide(rv[side], x, nil)
 			after(0.3, gen, function()
 				juice(rv[side], 0.25, 0.1)
@@ -780,8 +807,8 @@ function Q.match_found()
 			end)
 		end)
 	end
-	deal("left", left_el, -CARD_X, 0.35)
-	deal("right", right_el, CARD_X, 0.5)
+	deal("left", -CARD_X, 0.35)
+	deal("right", CARD_X, 0.5)
 
 	-- 0.9s: VS stamps in between them.
 	after(0.9, gen, function()
@@ -826,8 +853,7 @@ local function read_reveal_ratings()
 					return
 				end
 				Q.reveal_ratings[id] = (not err and data) or { unknown = true }
-				left_el:update()
-				right_el:update()
+				refresh_cards()
 			end)
 		end
 	end
@@ -927,8 +953,7 @@ local function tick_reveal()
 			local had_opp = seen_players > 1
 			seen_players = n
 			read_reveal_ratings()
-			left_el:update()
-			right_el:update()
+			refresh_cards()
 			-- The opponent's card flipping from "?" to them.
 			if n > 1 and not had_opp and Q.rv and Q.rv.right then
 				juice(Q.rv.right, 0.35, 0.12)
