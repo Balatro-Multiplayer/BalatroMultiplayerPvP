@@ -223,6 +223,26 @@ local function count_key(mode)
 	return mode.gamemode_key
 end
 
+-- The account's own rating per Ranked pillar (only while the Ranked tab is built) (rating_get: rating, isPlacement, gamesPlayed,
+-- placementGames, rank), keyed by mode.key and read afresh each time the page opens, so a
+-- match played since shows. false while a read is in flight.
+local _own_ratings = {}
+local _rating_els = {}
+
+local function fetch_own_ratings()
+	_own_ratings = {}
+	for _, mode in ipairs(RANKED_MODES) do
+		local key = mode.key
+		_own_ratings[key] = false
+		MPAPI.matchmaking.get_rating(PVP.id, PVP.ranked_ticket(mode.ruleset_key), nil, nil, function(err, data)
+			_own_ratings[key] = (not err and data) or nil
+			if _rating_els[key] then
+				_rating_els[key]:update()
+			end
+		end)
+	end
+end
+
 local function stop_poller_only()
 	if _poller then
 		_poller.stop()
@@ -234,6 +254,9 @@ end
 function PVP.start_find_game_polling()
 	stop_poller_only()
 	_latest_counts = nil
+	if next(_rating_els) then
+		fetch_own_ratings()
+	end
 	_poller = MPAPI.matchmaking.create_queue_counts_poller(PVP.id, FIND_GAME_POLL_INTERVAL_SECONDS, function(err, game_modes)
 		_latest_counts = game_modes or {}
 		for _, el in pairs(_stat_els) do
@@ -246,6 +269,7 @@ end
 function PVP.stop_find_game_polling()
 	stop_poller_only()
 	_stat_els = {}
+	_rating_els = {}
 end
 
 -- One half (In Queue or In Game): a label above a darker inset value, like the HUD's Ante box.
@@ -271,6 +295,34 @@ local function build_stat_box(mode)
 		} }) } }
 	end)
 	_stat_els[mode.key] = el
+	return el.node
+end
+
+-- A Ranked pillar's own standing: Elo and leaderboard place, or placement progress while the
+-- account is still in its placement games (no rating or place shown yet), in the same two-half
+-- box as the queue counts below it.
+local function build_rating_box(mode)
+	local el = MPAPI.ui_element(function()
+		local r = _own_ratings[mode.key]
+		local left_label, left, right = "Elo", "-", "-"
+		if r == false then
+			left, right = "...", "..."
+		elseif r then
+			local placement = PVP.placement_progress(r)
+			if placement then
+				left_label, left = "Placement", placement
+			else
+				left = tostring(math.floor(r.rating + 0.5))
+				right = tonumber(r.rank) and ("#" .. r.rank) or "-"
+			end
+		end
+		return { nodes = { MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
+			build_count_half(left_label, left),
+			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
+			build_count_half("Rank", right),
+		} }) } }
+	end)
+	_rating_els[mode.key] = el
 	return el.node
 end
 
@@ -308,6 +360,7 @@ end
 local function build_items(modes, group)
 	_select_els = {}
 	_stat_els = {}
+	_rating_els = {}
 	local items = {}
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
@@ -325,7 +378,12 @@ local function build_items(modes, group)
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
-			stat_box = build_stat_box(mode),
+			stat_box = (mode.ruleset_key and not group)
+				and { n = G.UIT.C, config = { align = "cm" }, nodes = {
+					{ n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { build_rating_box(mode) } },
+					{ n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { build_stat_box(mode) } },
+				} }
+				or build_stat_box(mode),
 			extra = mode.uses_order and build_order_card() or nil,
 		}
 	end

@@ -13,6 +13,16 @@ PVP._rating_cache = PVP._rating_cache or {}
 -- Matches the server's PLACEMENT_GAMES, for a server that doesn't send it.
 local DEFAULT_PLACEMENT_GAMES = 5
 
+-- "2/5" while a rating_get record is still in its placement games, else nil. Shared with the
+-- Find Game page's Ranked pillars (ui/main_menu/find_game.lua).
+function PVP.placement_progress(record)
+	if not record.isPlacement and record.rating then
+		return nil
+	end
+	local total = tonumber(record.placementGames) or DEFAULT_PLACEMENT_GAMES
+	return math.min(tonumber(record.gamesPlayed) or 0, total) .. "/" .. total
+end
+
 local function text_row(text)
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = {
 		{ n = G.UIT.T, config = { text = text, scale = 0.35, colour = G.C.UI.TEXT_DARK } },
@@ -53,13 +63,13 @@ local function elo_row(lobby, player_data)
 		return text_row("Elo: ...")
 	end
 
-	if cached.isPlacement or not cached.rating then
-		local total = tonumber(cached.placementGames) or DEFAULT_PLACEMENT_GAMES
-		local played = math.min(tonumber(cached.gamesPlayed) or 0, total)
-		return text_row(localize({ type = "variable", key = "k_pvp_placement_progress", vars = { played, total } }))
+	local placement = PVP.placement_progress(cached)
+	if placement then
+		return text_row(localize({ type = "variable", key = "k_pvp_placement_progress", vars = { placement } }))
 	end
 
-	return text_row("Elo: " .. tostring(math.floor(cached.rating + 0.5)))
+	local elo = "Elo: " .. tostring(math.floor(cached.rating + 0.5))
+	return text_row(tonumber(cached.rank) and (elo .. " (#" .. cached.rank .. ")") or elo)
 end
 
 local function lives_row(player_data)
