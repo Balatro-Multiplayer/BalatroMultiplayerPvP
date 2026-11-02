@@ -16,6 +16,7 @@ local function read_lobby_info(args, bootstrap)
 	local options = args.options or {}
 	bootstrap.sleeve = options.sleeve
 	bootstrap.challenge = options.challenge
+	bootstrap.the_order_enabled = options.the_order_enabled
 end
 
 local function read_run_info(args, bootstrap)
