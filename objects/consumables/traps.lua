@@ -147,7 +147,8 @@ local TRAPS = {
 			if context.data.owner ~= PVP.TRAP.self_id() then
 				return
 			end
-			if context.data.key then
+			-- The copy needs a free Joker slot, else it is lost.
+			if context.data.key and #G.jokers.cards + G.GAME.joker_buffer < G.jokers.config.card_limit then
 				-- set required -- see glyph_of_warding's comment above (SMODS.add_card
 				-- never infers it from the target center).
 				SMODS.add_card({ key = context.data.key, set = "Joker", area = G.jokers })
