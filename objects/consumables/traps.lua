@@ -235,7 +235,7 @@ local TRAPS = {
 			if context.skip_blind then
 				-- Recorded by lib/trap_utils_snare.lua: other tags may be added before this context runs.
 				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key })
+				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key, orbital_hand = G.GAME.mp_skipped_tag_hand })
 			end
 		end,
 		receive = function(self, context)
@@ -243,7 +243,14 @@ local TRAPS = {
 				return
 			end
 			if context.data.tag_key then
-				add_tag(Tag(context.data.tag_key))
+				-- Same as the Double Tag: the copy keeps the original's poker hand.
+				G.orbital_hand = context.data.orbital_hand
+				local copy = Tag(context.data.tag_key)
+				G.orbital_hand = nil
+				add_tag(copy)
+				-- add_tag does not run a tag that acts at once (Economy, Orbital, ...): vanilla only does that
+				-- on a skip, which the Trapper has not made.
+				copy:apply_to_run({ type = "immediate" })
 			end
 			PVP.UI.show_trap_fired_animation("Snare")
 		end,
