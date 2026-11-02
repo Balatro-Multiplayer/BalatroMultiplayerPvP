@@ -67,7 +67,7 @@ steps[#steps + 1] = at(0.5, nil, function() SIM.match() end)
 burst(steps, 14, 0.1, "08_match")
 burst(steps, 4, 0.3, "09_match_late")
 steps[#steps + 1] = at(0.3, "10_joined_me", function() SIM.join(1.0) end)
-steps[#steps + 1] = at(1.5, "11_opponent", function(S) S.check(Q.rv ~= nil, "reveal up") end)
+steps[#steps + 1] = at(1.5, "11_opponent", function(S) S.check(PVP.QUEUE_REVEAL.view ~= nil, "reveal up") end)
 steps[#steps + 1] = at(1.5, "12_settled", function(S)
 	S.check(G.SPLASH_BACK.draw_steps[1].shader == "background", "reveal plays over the backdrop")
 	S.check(G.MAIN_MENU_UI and not G.MAIN_MENU_UI.states.visible, "main menu hidden")
@@ -113,7 +113,7 @@ burst(steps, 4, 0.3, "22_calm_match")
 steps[#steps + 1] = at(0.5, nil, function(S)
 	G.SETTINGS.reduced_motion = false
 	reset()
-	S.check(not Q.active and not Q.rv, "torn down")
+	S.check(not Q.active and not PVP.QUEUE_REVEAL.view, "torn down")
 end)
 steps[#steps + 1] = { wait = 1.0, run = function(S) S.check(true, "done") end }
 
