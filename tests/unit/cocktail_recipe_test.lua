@@ -66,6 +66,7 @@ G = {
 	},
 }
 
+dofile("lib/matchmaking_policy.lua")
 dofile("pvp_api/flow.lua")
 dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")
@@ -108,7 +109,11 @@ check(
 	recipe and #recipe.decks == 3 and recipe.decks[1] == "b_abandoned" and recipe.decks[2] == "b_erratic" and recipe.decks[3] == "b_checkered",
 	"Bean's Cocktail is Abandoned, Erratic and Checkered"
 )
-check(PVP.pvp_lobby_metadata("pvp_nemesis", A.CASUAL).cocktail_recipe == recipe, "a Casual lobby carries it too")
+local casual_recipe = PVP.pvp_lobby_metadata("pvp_nemesis", A.CASUAL).cocktail_recipe
+check(
+	casual_recipe.name == recipe.name and table.concat(casual_recipe.decks, ",") == table.concat(recipe.decks, ","),
+	"a Casual lobby carries the same recipe"
+)
 check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRIVATE).cocktail_recipe == nil, "a private lobby carries none")
 check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRACTICE).cocktail_recipe == nil, "practice carries none")
 
