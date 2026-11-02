@@ -484,6 +484,12 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- The session state itself was already ended by the lobby's teardown
 	-- (lib/session.lua), which knows whether a newer PvP lobby has taken over.
 	lobby:on(MPAPI.LobbyEvent.DISCONNECTED, function()
+		-- An old lobby's leave can be answered after the player is in a newer PvP
+		-- lobby: that lobby owns PVP.lobby and the match handle now.
+		local current = MPAPI.get_current_lobby()
+		if current ~= nil and current ~= lobby and current.mod_id == PVP.id then
+			return
+		end
 		if PVP.lobby then
 			PVP.lobby.ref = nil
 			PVP.lobby.ui_ref = nil
