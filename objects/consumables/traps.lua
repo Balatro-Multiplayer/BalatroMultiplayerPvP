@@ -297,7 +297,8 @@ local TRAPS = {
 		art = "Ganpan140",
 		code = "Virtualized",
 		calculate = function(self, card, context)
-			if context.using_consumeable then
+			-- A Trap card taken from a Trap pack is a plant, not a use: a copy would be a dead card.
+			if context.using_consumeable and context.consumeable.config.center.set ~= "Trap" then
 				PVP.TRAP.reveal_and_consume(card)
 				-- `set` must travel with the key: unlike sepia_snake_sigil/glyph_of_warding
 				-- (always one fixed type), Web can copy ANY consumable set (Tarot/Planet/
