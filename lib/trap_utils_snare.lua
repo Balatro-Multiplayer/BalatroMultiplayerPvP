@@ -8,7 +8,7 @@ function G.FUNCS.skip_blind(e)
 		-- An Orbital Tag carries its poker hand: the copy must level the same hand.
 		local shown = e and e.UIBox and e.UIBox:get_UIE_by_ID("tag_container")
 		local shown_tag = shown and shown.config.ref_table
-		G.GAME.mp_skipped_tag_hand = shown_tag and shown_tag.ability and shown_tag.ability.orbital_hand
+		G.GAME.mp_skipped_orbital_hand = shown_tag and shown_tag.ability and shown_tag.ability.orbital_hand
 	end
 	return skip_blind_ref(e)
 end

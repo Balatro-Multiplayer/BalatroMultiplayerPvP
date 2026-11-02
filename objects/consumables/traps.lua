@@ -236,7 +236,7 @@ local TRAPS = {
 			if context.skip_blind then
 				-- Recorded by lib/trap_utils_snare.lua: other tags may be added before this context runs.
 				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key, orbital_hand = G.GAME.mp_skipped_tag_hand })
+				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key, orbital_hand = G.GAME.mp_skipped_orbital_hand })
 			end
 		end,
 		receive = function(self, context)
