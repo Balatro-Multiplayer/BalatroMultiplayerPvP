@@ -418,20 +418,26 @@ function PVP.UI.update_matching_skip_timer(from_opponent)
 	if
 		not PVP.LOBBY.config.timer
 		or increment <= 0
-		or PVP.GAME.timer_started
-		or PVP.GAME.nemesis_timer_started
-		or PVP.GAME.timer_consumed
 		or PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" })
 	then
 		return
 	end
-	if PVP.UTILS.timer_display_threshold() > 0 then
+	local threshold = PVP.UTILS.timer_display_threshold() > 0
+	local change = 0
+	if not threshold then
+		-- The baseline moves even while the gate below is closed, so a skip made
+		-- during a running timer is not paid out again later.
+		local diff = math.max((PVP.GAME.skips_before_pvp or 0) - (PVP.GAME.enemy.skips_before_pvp or 0), 0)
+		change = diff - (PVP.GAME.skips_difference or 0)
+		PVP.GAME.skips_difference = diff
+	end
+	if PVP.GAME.timer_started or PVP.GAME.nemesis_timer_started or PVP.GAME.timer_consumed then
+		return
+	end
+	if threshold then
 		if not from_opponent then PVP.UI.restore_timer(increment) end
 		return
 	end
-	local diff = math.max((PVP.GAME.skips_before_pvp or 0) - (PVP.GAME.enemy.skips_before_pvp or 0), 0)
-	local change = diff - (PVP.GAME.skips_difference or 0)
-	PVP.GAME.skips_difference = diff
 	if change > 0 then
 		PVP.UI.restore_timer(increment)
 	elseif change < 0 then
