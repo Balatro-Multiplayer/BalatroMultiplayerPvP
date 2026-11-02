@@ -82,6 +82,7 @@ function PVP.on_game_start(params)
 
 	local lobby = MPAPI.get_current_lobby()
 	local meta = (lobby and lobby:get_metadata()) or {}
+	if meta.cocktail_recipe and not PVP.receive_cocktail_recipe(meta.cocktail_recipe) then return end
 	local gm_def = meta.queue_mode and MPAPI.GameModes[meta.queue_mode]
 
 	-- picked is a { key, stake } item (deck+stake Draft), a plain deck key/name, or nil.

@@ -142,33 +142,58 @@ local sticker_x_pos = {
 	b_mp_echodeck = 22,
 }
 
--- The Cocktail the lobby fixes for every player, { name, decks } from the lobby
--- metadata (see PVP.pvp_lobby_metadata), or nil to play the player's own picker.
--- Decks this client doesn't have are dropped, and at most 3 are mixed.
+-- Reject unsupported recipes as a whole: every player must apply the same decks.
+function PVP.receive_cocktail_recipe(recipe)
+	if recipe == nil or recipe == false then
+		PVP.LOBBY.deck.cocktail_recipe = nil
+		return true
+	end
+	local err
+	if
+		type(recipe) ~= "table"
+		or type(recipe.decks) ~= "table"
+		or #recipe.decks < 1
+		or #recipe.decks > 3
+		or (recipe.name ~= nil and type(recipe.name) ~= "string")
+	then
+		err = "Invalid Cocktail recipe."
+	else
+		local seen = {}
+		for _, key in ipairs(recipe.decks) do
+			local center = G.P_CENTERS[key]
+			if not center or center.set ~= "Back" or key == "b_mp_cocktail" or seen[key] then
+				err = "Unsupported Cocktail deck: " .. tostring(key)
+				break
+			end
+			seen[key] = true
+		end
+	end
+	if err then
+		PVP.pvp_leave_lobby()
+		PVP.UI.UTILS.overlay_message(err .. " Please check that all players have the same mods.")
+		return false
+	end
+	local decks = {}
+	for i, key in ipairs(recipe.decks) do
+		decks[i] = key
+	end
+	PVP.LOBBY.deck.cocktail_recipe = { name = recipe.name, decks = decks }
+	return true
+end
+
 function PVP.cocktail_recipe()
 	local recipe = PVP.LOBBY.code and PVP.LOBBY.deck.cocktail_recipe
-	if type(recipe) ~= "table" or type(recipe.decks) ~= "table" then return nil end
+	if not recipe then return nil end
 	local decks = {}
-	for _, key in ipairs(recipe.decks) do
-		if G.P_CENTERS[key] and #decks < 3 then decks[#decks + 1] = key end
+	for i, key in ipairs(recipe.decks) do
+		decks[i] = key
 	end
-	if #decks == 0 then return nil end
 	return { name = recipe.name, decks = decks }
 end
 
--- The host's Cocktail as a recipe { decks }, from the host's saved settings: the
--- forced decks, then random ones from the pool, up to 3. A private lobby sends it to
--- every player at the start of each game (PVP.pvp_start_match), so they all play the
--- same mix. nil when the settings pick no decks.
--- Balatro reseeds math.random during a run, so the roll keeps its own generator
--- (as lib/draft.lua does for the board).
-local recipe_rng
-local function roll(n)
-	if not (love and love.math) then return math.random(n) end
-	recipe_rng = recipe_rng or love.math.newRandomGenerator(os.time() + math.floor((love.timer.getTime() % 1) * 1e6))
-	return recipe_rng:random(n)
-end
+local roll = PVP.new_rng()
 
+-- Private lobbies share the host's forced decks plus random picks, up to three.
 function PVP.roll_cocktail_recipe()
 	local pool, decks = {}, {}
 	for i, key in ipairs(PVP.get_cocktail_decks()) do

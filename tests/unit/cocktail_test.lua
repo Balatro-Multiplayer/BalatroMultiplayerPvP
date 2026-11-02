@@ -39,6 +39,7 @@ generate_starting_seed = function() return "test" end
 pseudoseed = function(seed) return seed end
 pseudoshuffle = noop -- Stable order makes selection assertions exact.
 
+dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")
 local function check(name, got, want)
 	assert(got == want, name .. ": got " .. tostring(got) .. ", want " .. tostring(want))

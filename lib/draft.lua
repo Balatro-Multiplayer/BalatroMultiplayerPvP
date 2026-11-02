@@ -1,7 +1,7 @@
 PVP.DRAFT = {}
 local D = PVP.DRAFT
 
--- challenge is in the Back pool too; doesn't mean that we get to draft it
+-- Challenge Deck is only playable inside a challenge.
 local NON_DRAFT_BASE_DECKS = { b_challenge = true }
 
 local function key_set(list)
@@ -52,21 +52,11 @@ function D.tile_order(a, b)
 	return deck_order(a.key) < deck_order(b.key)
 end
 
--- i just wanted nine random tiles but Balatro reseeds math.random for the run
--- so we get our own generator. seed it once, leave it alone. please
--- the fractional clock bit is so two starts in the same second don't share a seed
-local board_rng
-local function default_rng()
-	if not (love and love.math) then return math.random end
-	board_rng = board_rng or love.math.newRandomGenerator(os.time() + math.floor((love.timer.getTime() % 1) * 1e6))
-	return function()
-		return board_rng:random()
-	end
-end
+local board_rng = PVP.new_rng()
 
 function D.board(decks, stakes, opts)
 	opts = opts or {}
-	local rng = opts.rng or default_rng()
+	local rng = opts.rng or board_rng
 	local size = opts.size or DRAFT_SIZE
 	local weights = opts.weights or {}
 	local options = {}
@@ -75,9 +65,7 @@ function D.board(decks, stakes, opts)
 			options[#options + 1] = { key = key, stake = stake, weight = weights[stake] or 1 }
 		end
 	end
-	-- "at most four of each stake" meets "the compat mod only lets us play White"
-	-- okay fine. loosen that cap so we can still fill the board
-	-- probably a hack
+	-- Relax the stake cap when too few stakes are available to fill the board.
 	local per_stake_max = math.max(MAX_PER_STAKE, math.ceil(size / math.max(#stakes, 1)))
 
 	local board, per_stake, per_deck, used = {}, {}, {}, {}
@@ -114,7 +102,7 @@ function D.board(decks, stakes, opts)
 		board[#board + 1] = { id = o.key .. "@" .. o.stake, key = o.key, stake = o.stake }
 	end
 
-	-- White gets a reserved seat. i am not rerolling entire boards until it shows up
+	-- Reserve one White tile when White is allowed.
 	local whites = open(true)
 	if #whites > 0 and size > 0 then take(whites) end
 	while #board < size do
@@ -137,8 +125,8 @@ function D.build(opts)
 	local function field(key)
 		return MPAPI.resolve_ruleset_field(opts.ruleset, key)
 	end
-	-- 8 is the vanilla default, not the ceiling. Spectral+ would like to exist
-	-- an actual compatibility cap still wins, hence the two different fallbacks
+	-- Explicitly allowed stakes may exceed the vanilla default of 8.
+	-- A compatibility cap still limits both explicit and default stakes.
 	local cap = opts.max_stake and opts.max_stake > 0 and opts.max_stake or nil
 	local stakes = D.stakes(field("allowed_stakes"), stake_keys, cap or math.huge)
 	if not stakes then
@@ -147,7 +135,6 @@ function D.build(opts)
 			stakes[i] = i
 		end
 	end
-	-- keys in the config, indices in the game. yes we get to translate
 	local declared_weights = field("stake_weights") or {}
 	local weights = {}
 	for i, key in ipairs(stake_keys) do

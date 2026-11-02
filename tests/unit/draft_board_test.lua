@@ -18,6 +18,7 @@ function localize(k)
 	return k
 end
 
+dofile("lib/_random.lua")
 dofile("lib/draft.lua")
 local D = PVP.DRAFT
 
@@ -166,19 +167,23 @@ check(not D.tile_order({ key = "b_red", stake = 1 }, { key = "b_red", stake = 1 
 
 print()
 print("-- the Draft config the host hands MPAPI.BanPick --")
--- The ruleset fields as rulesets/ and layers/ declare them (Small World lists the same stakes as Expanded).
-local FIELDS = {
-	ruleset_mp_balanced = { banned_backs = { "b_mp_orange", "b_mp_violet" }, allowed_backs = { "b_mp_orange", "b_mp_violet" } },
-	ruleset_mp_expanded = {
-		allowed_backs = { "b_mp_orange", "b_mp_violet", "b_mp_cocktail" },
-		allowed_stakes = { "stake_white", "stake_green", "stake_black", "stake_purple", "stake_gold", "stake_mp_spectralplus" },
-		stake_weights = { stake_mp_spectralplus = 0.5 },
-	},
-	ruleset_mp_smallworld = "ruleset_mp_expanded",
-}
-function MPAPI.resolve_ruleset_field(ruleset, field)
-	local fields = type(FIELDS[ruleset]) == "string" and FIELDS[FIELDS[ruleset]] or FIELDS[ruleset]
-	return fields and fields[field]
+-- Use the same layer composition and field resolution as the game.
+local api = os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/"
+if api:sub(-1) ~= "/" then api = api .. "/" end
+dofile(api .. "api/layers/registry.lua")
+dofile(api .. "api/layers/fields.lua")
+dofile(api .. "api/ruleset/current.lua")
+MPAPI.MODIFIERS, MPAPI.Rulesets = {}, {}
+function PVP.Ruleset(init)
+	MPAPI.Rulesets["ruleset_mp_" .. init.key] = MPAPI.resolve_layers(init)
+	return { inject = function() end }
+end
+SMODS, Tag, Back, Card = {}, {}, {}, {}
+for _, name in ipairs({ "balanced", "expanded", "expanded_draft", "pvp_timer", "smallworld" }) do
+	dofile("layers/" .. name .. ".lua")
+end
+for _, name in ipairs({ "balanced", "expanded", "smallworld" }) do
+	dofile("rulesets/" .. name .. ".lua")
 end
 local noop = function() end
 PVP._pvp_action_helpers = setmetatable({}, {

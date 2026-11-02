@@ -4,8 +4,8 @@
   A matchmade lobby (Ranked or Casual) carries a fixed Cocktail in its metadata,
   cocktail_recipe = { name, decks }. In that lobby the Cocktail deck forces the
   recipe's decks, whatever the player's own Cocktail settings say, and is named
-  and described by it. Without one (no lobby, a private lobby) the player's
-  Cocktail settings still apply.
+  and described by it. Private lobbies share the host's recipe at game start.
+  Without a recipe, the player's Cocktail settings apply.
 
   Run from the repo root:
     luajit tests/unit/cocktail_recipe_test.lua
@@ -45,7 +45,7 @@ function localize(args)
 	end
 end
 
-MPAPI = { Party = { KIND = "party" } }
+MPAPI = { Party = { KIND = "party" }, apply_default_modifiers = noop, modifiers_serialize = noop }
 PVP = {
 	id = "MultiplayerPvP",
 	-- The player's own Cocktail: only Red in the pool, nothing forced, shown.
@@ -67,7 +67,11 @@ G = {
 }
 
 dofile("pvp_api/flow.lua")
+dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")
+dofile("pvp_api/lobby_bridge.lua")
+PVP.force_lobby_options = noop
+PVP.SETUP = { apply_results = noop }
 G.P_CENTERS.b_mp_cocktail = { set = "Back", order = 99, deck_blacklist = { b_mp_cocktail = true }, mod_whitelist = {} }
 
 local failures = 0
@@ -84,7 +88,7 @@ end
 local function join(meta)
 	PVP.LOBBY.code = "ABCDE"
 	PVP.LOBBY.deck.cocktail = ""
-	PVP.LOBBY.deck.cocktail_recipe = meta.cocktail_recipe
+	return PVP.mirror_lobby_metadata({ get_metadata = function() return meta end })
 end
 local function leave()
 	PVP.LOBBY.code = nil
@@ -129,16 +133,47 @@ check(
 check(localize({ type = "name_text", set = "Back", key = "b_red" }) == "Red Deck", "other decks are untouched")
 
 print()
-print("-- a recipe from a newer server --")
-join({ cocktail_recipe = { name = "Weekly", decks = { "b_mp_unknown", "b_red", "b_blue", "b_yellow", "b_green" } } })
-forced = select(2, PVP.get_cocktail_decks(true))
-check(#forced == 3 and forced[1] == "b_red", "unknown decks are dropped and at most 3 mixed")
+print("-- unsupported recipes are rejected without substitution --")
+local real_leave = PVP.pvp_leave_lobby
+local rejected, rejection_message = 0, nil
+PVP.pvp_leave_lobby = function()
+	rejected = rejected + 1
+	leave()
+end
+PVP.UI = { UTILS = {
+	overlay_message = function(message)
+		rejection_message = message
+	end,
+} }
+for _, recipe in ipairs({
+	{ decks = { "b_red", "b_mp_unknown" } },
+	{ decks = { "b_red", "b_blue", "b_yellow", "b_green" } },
+	{ decks = {} },
+	{ decks = { "b_mp_cocktail" } },
+	{ decks = { "b_red", "b_red" } },
+	{ decks = { "j_test" } },
+	{ name = {}, decks = { "b_red" } },
+}) do
+	check(join({ cocktail_recipe = recipe }) == false, "unsupported recipe rejects the lobby")
+	check(PVP.LOBBY.code == nil, "rejection leaves the lobby")
+end
+check(rejected == 7 and rejection_message ~= nil, "rejections explain the incompatibility")
+PVP._pvp_action_helpers = { A = noop, relay = noop }
+dofile("pvp_api/actions/run_lifecycle.lua")
+MPAPI.get_current_lobby = function()
+	return {
+		get_metadata = function()
+			return { cocktail_recipe = { decks = { "b_mp_unknown" } } }
+		end,
+	}
+end
+PVP.on_game_start({ seed = "test" })
+check(rejected == 8, "a late start event cannot bypass recipe validation")
+PVP.pvp_leave_lobby = real_leave
 join({ cocktail_recipe = { decks = { "b_red", "b_blue" } } })
 check(localize({ type = "name_text", set = "Back", key = "b_mp_cocktail" }) == "Cocktail Deck", "no name keeps the usual one")
 nodes = description()
 check(nodes[1] == "Red Deck" and nodes[2] == "Blue Deck" and nodes[3] == "", "two decks fill two lines")
-join({ cocktail_recipe = { name = "Empty", decks = { "b_mp_unknown" } } })
-check(PVP.cocktail_recipe() == nil, "a recipe with no known decks is ignored")
 
 print()
 print("-- no recipe --")
