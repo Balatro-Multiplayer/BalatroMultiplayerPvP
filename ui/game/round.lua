@@ -69,7 +69,8 @@ end
 -- opponent would still wait in the PvP blind while this player plays a vanilla one.
 local reroll_boss_ref = G.FUNCS.reroll_boss
 function G.FUNCS.reroll_boss(e)
-	if G.GAME.round_resets.blind_choices.Boss == "bl_mp_nemesis" then
+	local blind_choices = G.GAME and G.GAME.round_resets and G.GAME.round_resets.blind_choices
+	if PVP.in_session() and blind_choices and blind_choices.Boss == "bl_mp_nemesis" then
 		G.from_boss_tag = nil
 		return true
 	end
