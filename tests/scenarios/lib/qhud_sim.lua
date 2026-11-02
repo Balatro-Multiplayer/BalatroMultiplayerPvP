@@ -14,12 +14,13 @@
 --   b  cycle the reveal's backdrop preset (PVP.QUEUE_BACKDROP.PRESETS, then off)
 
 local Q = PVP.QUEUE_HUD
+local Cards = PVP.QUEUE_CARDS
 local SIM = rawget(_G, "QHUD_SIM") or {}
 QHUD_SIM = SIM
 
 local M = MPAPI.matchmaking
 SIM.real = SIM.real or { get_rating = M.get_rating, get_queue_counts = M.get_queue_counts, cancel = G.FUNCS.mp_pvp_cancel_queue }
-SIM.real_eggs = SIM.real_eggs or { jimbo_peek = Q.EGGS.jimbo_peek, keeper_joker = Q.EGGS.keeper_joker, keeper_nope = Q.EGGS.keeper_nope }
+SIM.real_eggs = SIM.real_eggs or { jimbo_peek = Cards.EGGS.jimbo_peek, keeper_joker = Cards.EGGS.keeper_joker, keeper_nope = Cards.EGGS.keeper_nope }
 SIM.me_rating = SIM.me_rating or { rating = 1432, rank = 57, isPlacement = false }
 SIM.count = SIM.count or 7
 SIM.egg = SIM.egg or "off"
@@ -62,21 +63,21 @@ local function restore()
 	M.get_rating, M.get_queue_counts = SIM.real.get_rating, SIM.real.get_queue_counts
 	G.FUNCS.mp_pvp_cancel_queue = SIM.real.cancel
 	for k, v in pairs(SIM.real_eggs) do
-		Q.EGGS[k] = v
+		Cards.EGGS[k] = v
 	end
 	SIM.egg = "off"
 end
 
 local function apply_egg()
 	for k, v in pairs(SIM.real_eggs) do
-		Q.EGGS[k] = v
+		Cards.EGGS[k] = v
 	end
 	if SIM.egg == "jimbo" then
-		Q.EGGS.jimbo_peek = 1
+		Cards.EGGS.jimbo_peek = 1
 	elseif SIM.egg == "joker" then
-		Q.EGGS.keeper_nope, Q.EGGS.keeper_joker = 0, 1
+		Cards.EGGS.keeper_nope, Cards.EGGS.keeper_joker = 0, 1
 	elseif SIM.egg == "nope" then
-		Q.EGGS.keeper_nope = 1
+		Cards.EGGS.keeper_nope = 1
 	end
 end
 
