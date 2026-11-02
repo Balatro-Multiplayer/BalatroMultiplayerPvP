@@ -266,6 +266,7 @@ function PVP.reset_game_states()
 			-- " (catching up)" while the target is replaying its run after a crash, else "".
 			catching_up_text = "",
 			skips = 0,
+			skips_before_pvp = 0,
 			lives = PVP.LOBBY.config.starting_lives,
 			sells = 0,
 			sells_per_ante = {},
@@ -281,6 +282,8 @@ function PVP.reset_game_states()
 		duplicate_end = false,
 		misprint_display = "",
 		spent_total = 0,
+		skips_before_pvp = 0,
+		skips_difference = 0,
 		spent_before_shop = 0,
 		highest_score = PVP.Score.ZERO,
 		-- §17.10: PVP.GAME.highest_score above tracks the best SINGLE-BLIND
