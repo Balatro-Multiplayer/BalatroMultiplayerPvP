@@ -156,6 +156,36 @@ function PVP.cocktail_recipe()
 	return { name = recipe.name, decks = decks }
 end
 
+-- The host's Cocktail as a recipe { decks }, from the host's saved settings: the
+-- forced decks, then random ones from the pool, up to 3. A private lobby sends it to
+-- every player at the start of each game (PVP.pvp_start_match), so they all play the
+-- same mix. nil when the settings pick no decks.
+-- Balatro reseeds math.random during a run, so the roll keeps its own generator
+-- (as lib/draft.lua does for the board).
+local recipe_rng
+local function roll(n)
+	if not (love and love.math) then return math.random(n) end
+	recipe_rng = recipe_rng or love.math.newRandomGenerator(os.time() + math.floor((love.timer.getTime() % 1) * 1e6))
+	return recipe_rng:random(n)
+end
+
+function PVP.roll_cocktail_recipe()
+	local pool, decks = {}, {}
+	for i, key in ipairs(PVP.get_cocktail_decks()) do
+		local pos = PVP.cocktail_cfg_readpos(i)
+		if pos == "2" and #decks < 3 then
+			decks[#decks + 1] = key
+		elseif pos == "1" then
+			pool[#pool + 1] = key
+		end
+	end
+	while #decks < 3 and #pool > 0 do
+		decks[#decks + 1] = table.remove(pool, roll(#pool))
+	end
+	if #decks == 0 then return nil end
+	return { decks = decks }
+end
+
 function PVP.get_cocktail_decks(cull)
 	local recipe = cull and PVP.cocktail_recipe()
 	if recipe then return {}, recipe.decks end

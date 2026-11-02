@@ -38,7 +38,8 @@ end
 --
 -- `cocktail_recipe` is the Cocktail every player in a matchmade lobby plays
 -- (objects/decks/ZZ_cocktail.lua). The host stamps a fixed one until the server
--- seeds it into the lobby's metadata itself; then this line goes.
+-- seeds it into the lobby's metadata itself; then this line goes. A private lobby
+-- sends the host's own Cocktail at each game's start instead (PVP.pvp_start_match).
 local MATCH_COCKTAIL = { name = "Bean's Cocktail", decks = { "b_abandoned", "b_erratic", "b_checkered" } }
 local MATCHMADE = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.CASUAL] = true }
 
@@ -171,6 +172,12 @@ function PVP.pvp_start_match()
 	local gm_def = MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
 		lobby:set_gamemode_instance(gm_def:new_instance())
+	end
+	-- A private lobby plays the host's Cocktail, rolled fresh each game. It goes out
+	-- before the start so every player has it when the deck applies; false clears
+	-- the last game's recipe when the host's settings pick no decks.
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		lobby:set_metadata({ cocktail_recipe = PVP.roll_cocktail_recipe() or false })
 	end
 	if MPAPI.has_server_referee(lobby) then
 		-- The server checks who's ready and picks the seed; everyone starts off

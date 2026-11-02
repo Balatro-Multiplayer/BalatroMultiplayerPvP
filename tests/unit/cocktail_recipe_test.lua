@@ -153,6 +153,62 @@ nodes = description()
 check(#nodes == 2 and nodes[1] == "Copies the effects", "the usual description")
 
 print()
+print("-- a private lobby plays the host's Cocktail --")
+-- The host forces Checkered and Erratic and pools only Red; the guest's own
+-- settings (PVP.config above) pool only Red.
+local guest_cfg = PVP.config.cocktail
+PVP.config.cocktail = "1000022S"
+recipe = PVP.roll_cocktail_recipe()
+check(
+	recipe and #recipe.decks == 3 and recipe.decks[1] == "b_checkered" and recipe.decks[2] == "b_erratic" and recipe.decks[3] == "b_red",
+	"the host's forced decks, then a random one from its pool"
+)
+PVP.config.cocktail = "0000000S"
+check(PVP.roll_cocktail_recipe() == nil, "settings that pick no decks roll no recipe")
+PVP.config.cocktail = "2222222S"
+check(#PVP.roll_cocktail_recipe().decks == 3, "more than 3 forced decks mix only 3")
+
+-- Start a 2-player private lobby as its host and record what goes out, in order.
+local sent = {}
+local host_lobby = {
+	is_host = true,
+	get_players = function() return { {}, {} } end,
+	get_metadata = function() return {} end,
+	set_metadata = function(_, patch) sent[#sent + 1] = { metadata = patch } end,
+	start_game = function() sent[#sent + 1] = { start = true } end,
+}
+MPAPI.get_current_lobby = function() return host_lobby end
+MPAPI.has_server_referee = function() return true end
+MPAPI.GameModes = {}
+PVP.UTILS = { version_mismatches = function() return {} end }
+PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
+local function start(kind, host_cfg)
+	sent = {}
+	PVP._pvp_kind = kind
+	PVP.config.cocktail = host_cfg
+	PVP.pvp_start_match()
+	PVP.config.cocktail = guest_cfg
+end
+
+start(A.PRIVATE, "1100000H")
+local meta = sent[1] and sent[1].metadata
+check(meta and type(meta.cocktail_recipe) == "table" and sent[2] and sent[2].start, "the host sends its Cocktail before the game starts")
+local host_decks = meta and meta.cocktail_recipe.decks or {}
+join(meta or {})
+forced = select(2, PVP.get_cocktail_decks(true))
+check(
+	#forced == 2 and forced[1] == host_decks[1] and forced[2] == host_decks[2] and #host_decks == 2,
+	"the guest plays the host's decks, not its own settings"
+)
+start(A.PRIVATE, "0000000S")
+check(sent[1] and sent[1].metadata and sent[1].metadata.cocktail_recipe == false, "no decks clears the last game's recipe")
+join(sent[1].metadata)
+check(PVP.cocktail_recipe() == nil, "a cleared recipe falls back to the player's own settings")
+start(A.RANKED, "1100000H")
+check(#sent == 1 and sent[1].start, "a matchmade lobby keeps the recipe it queued with")
+leave()
+
+print()
 if failures == 0 then
 	print("ALL PASS")
 else
