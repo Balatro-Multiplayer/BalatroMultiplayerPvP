@@ -63,51 +63,6 @@ function S.rolled(results)
 	return S.ruleset_key(ruleset.option), traps ~= nil and traps.option == "on"
 end
 
--- Vanilla's Challenge Deck is a Back but only ever played inside a challenge.
-local NON_DRAFT_BASE_DECKS = { b_challenge = true }
-
-local function key_set(list)
-	local set = {}
-	for _, key in ipairs(list or {}) do
-		set[key] = true
-	end
-	return set
-end
-
--- The deck keys a Draft on `ruleset` may offer. Pure: backs = { { key,
--- mod_id }, ... } (mod_id nil for a base-game deck); allowed/banned are the
--- ruleset's resolved allowed_backs/banned_backs (nil when it declares none).
--- Base-game decks are always offered; any other deck needs allowed_backs, and
--- banned_backs beats it.
-function S.draft_candidates(backs, allowed, banned)
-	local allowed_set, banned_set = key_set(allowed), key_set(banned)
-	local keys = {}
-	for _, back in ipairs(backs) do
-		local base = back.mod_id == nil and not NON_DRAFT_BASE_DECKS[back.key]
-		if (base or allowed_set[back.key]) and not banned_set[back.key] then
-			keys[#keys + 1] = back.key
-		end
-	end
-	return keys
-end
-
--- The stake indices a Draft may roll: allowed_stakes is the ruleset's resolved
--- list of stake keys, stake_keys the stake pool in index order, cap the highest
--- playable stake. Pure. Nil means unrestricted: the server rolls 1..cap itself.
-function S.draft_stakes(allowed_stakes, stake_keys, cap)
-	if not allowed_stakes or #allowed_stakes == 0 then
-		return nil
-	end
-	local allowed_set = key_set(allowed_stakes)
-	local indices = {}
-	for index, key in ipairs(stake_keys) do
-		if index <= cap and allowed_set[key] then
-			indices[#indices + 1] = index
-		end
-	end
-	return #indices > 0 and indices or nil
-end
-
 local function setup_results(lobby)
 	local setup = lobby and lobby._game and lobby._game.setup
 	return setup and setup.results or {}

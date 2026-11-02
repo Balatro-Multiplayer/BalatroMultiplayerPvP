@@ -829,6 +829,15 @@ return {
 					"at random",
 				},
 			},
+			-- A lobby's fixed Cocktail (objects/decks/ZZ_cocktail.lua): its decks' names.
+			b_mp_cocktail_recipe = {
+				name = "Cocktail Deck",
+				text = {
+					"{C:attention}#1#{}",
+					"{C:attention}#2#{}",
+					"{C:attention}#3#{}",
+				},
+			},
 			b_mp_gradient = {
 				name = "Gradient Deck",
 				text = {

@@ -24,7 +24,7 @@ end
 for _, name in ipairs({ "sandbox", "smallworld", "speedlatro_timer", "classic", "wsob" }) do
 	MPAPI.Layer(name, {})
 end
-for _, name in ipairs({ "pvp_timer", "balanced", "expanded" }) do
+for _, name in ipairs({ "pvp_timer", "balanced", "expanded", "expanded_draft" }) do
 	dofile("layers/" .. name .. ".lua")
 end
 local ruleset_names = { "balanced", "expanded", "traditional", "speedlatro", "smallworld", "chaos" }

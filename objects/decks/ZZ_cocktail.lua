@@ -142,7 +142,78 @@ local sticker_x_pos = {
 	b_mp_echodeck = 22,
 }
 
+-- Reject unsupported recipes as a whole: every player must apply the same decks.
+function PVP.receive_cocktail_recipe(recipe)
+	if recipe == nil or recipe == false then
+		PVP.LOBBY.deck.cocktail_recipe = nil
+		return true
+	end
+	local err
+	if
+		type(recipe) ~= "table"
+		or type(recipe.decks) ~= "table"
+		or #recipe.decks < 1
+		or #recipe.decks > 3
+		or (recipe.name ~= nil and type(recipe.name) ~= "string")
+	then
+		err = "Invalid Cocktail recipe."
+	else
+		local seen = {}
+		for _, key in ipairs(recipe.decks) do
+			local center = G.P_CENTERS[key]
+			if not center or center.set ~= "Back" or key == "b_mp_cocktail" or seen[key] then
+				err = "Unsupported Cocktail deck: " .. tostring(key)
+				break
+			end
+			seen[key] = true
+		end
+	end
+	if err then
+		PVP.pvp_leave_lobby()
+		PVP.UI.UTILS.overlay_message(err .. " Please check that all players have the same mods.")
+		return false
+	end
+	local decks = {}
+	for i, key in ipairs(recipe.decks) do
+		decks[i] = key
+	end
+	PVP.LOBBY.deck.cocktail_recipe = { name = recipe.name, decks = decks }
+	return true
+end
+
+function PVP.cocktail_recipe()
+	local recipe = PVP.LOBBY.code and PVP.LOBBY.deck.cocktail_recipe
+	if not recipe then return nil end
+	local decks = {}
+	for i, key in ipairs(recipe.decks) do
+		decks[i] = key
+	end
+	return { name = recipe.name, decks = decks }
+end
+
+local roll = PVP.new_rng()
+
+-- Private lobbies share the host's forced decks plus random picks, up to three.
+function PVP.roll_cocktail_recipe()
+	local pool, decks = {}, {}
+	for i, key in ipairs(PVP.get_cocktail_decks()) do
+		local pos = PVP.cocktail_cfg_readpos(i)
+		if pos == "2" and #decks < 3 then
+			decks[#decks + 1] = key
+		elseif pos == "1" then
+			pool[#pool + 1] = key
+		end
+	end
+	while #decks < 3 and #pool > 0 do
+		decks[#decks + 1] = table.remove(pool, roll(#pool))
+	end
+	if #decks == 0 then return nil end
+	return { decks = decks }
+end
+
 function PVP.get_cocktail_decks(cull)
+	local recipe = cull and PVP.cocktail_recipe()
+	if recipe then return {}, recipe.decks end
 	local ret = {}
 	local forced = {}
 	for k, v in pairs(G.P_CENTERS) do
@@ -614,8 +685,24 @@ end
 local localize_ref = localize
 function localize(args, misc_cat)
 	if args and type(args) == "table" and args.key then
-		local ret = localize_ref(args, misc_cat)
 		local key = args.key or args.node and args.node.config.center.key or "NULL"
+		-- A lobby's Cocktail: its own name, and its decks' names as the description.
+		local recipe = key == "b_mp_cocktail" and PVP.cocktail_recipe()
+		if recipe and args.type == "name_text" and recipe.name then return recipe.name end
+		if recipe and args.type == "descriptions" then
+			local mix = {}
+			for k, v in pairs(args) do
+				mix[k] = v
+			end
+			mix.key = "b_mp_cocktail_recipe"
+			mix.vars = {}
+			for i = 1, 3 do
+				local deck = recipe.decks[i]
+				mix.vars[i] = deck and localize({ type = "name_text", set = "Back", key = deck }) or ""
+			end
+			return localize_ref(mix, misc_cat)
+		end
+		local ret = localize_ref(args, misc_cat)
 		if args.type == "name_text" and key == "b_mp_cocktail" then
 			if PVP.cocktail_check_edited() then return ret .. "*" end
 		end

@@ -159,6 +159,7 @@ end
 -- fields plus PvP keys (gamemode/ruleset/kind/deck/stake).
 local function mirror_metadata(lobby)
 	local meta = lobby:get_metadata() or {}
+	if meta.cocktail_recipe and not PVP.receive_cocktail_recipe(meta.cocktail_recipe) then return false end
 	-- `gamemode`/`ruleset` in metadata are already MPAPI's own content keys
 	-- ("gamemode_mp_attrition" / "ruleset_mp_balanced"), so they pass straight
 	-- through -- MPAPI.get_active_gamemode()/get_active_ruleset() read this same
@@ -201,6 +202,7 @@ local function mirror_metadata(lobby)
 	if meta.stake then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
+	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
 	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
 	-- arrives, so the queued kind stands in for it.
 	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
@@ -294,7 +296,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.ready:reset()
 		end
 	end
-	mirror_metadata(lobby)
+	if mirror_metadata(lobby) == false then return end
 	mirror_players(lobby)
 	PVP._version_mismatch_shown = false
 
@@ -330,7 +332,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		-- Skipped while the metadata is still empty (a fresh lobby's host,
 		-- whose own metadata write follows in flow.lua).
 		if next(lobby:get_metadata() or {}) ~= nil then
-			mirror_metadata(lobby)
+			if mirror_metadata(lobby) == false then return end
 		end
 		mirror_players(lobby)
 		-- A joiner's snapshot already holds the players (and their mods) who were
@@ -434,7 +436,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
-		mirror_metadata(lobby)
+		if mirror_metadata(lobby) == false then return end
 		-- Setup may wait for the host's write of the rolled ruleset.
 		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
@@ -515,6 +517,8 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_STARTED, function(started)
+		local recipe = (lobby:get_metadata() or {}).cocktail_recipe
+		if recipe and not PVP.receive_cocktail_recipe(recipe) then return end
 		if started.restarted then
 			PVP.on_reseed(started.seed)
 		else
