@@ -2,12 +2,12 @@
 -- hooks the two methods instead. A Blue or Purple Seal that fires always raises
 -- consumeable_buffer (it only fires with room), which is how a trigger is told from a miss.
 -- The reward card is made in a queued event; a later event queued here runs right after it,
--- takes the new card away from the Nemesis, and sends it to the Trapper.
+-- takes the new card away from the Nemesis, and sends it to the Trapper. The event must stay
+-- blockable: a non-blockable event jumps the queue and runs before the reward card exists.
 local function steal_seal_reward(trap, cards_before)
 	G.E_MANAGER:add_event(Event({
 		trigger = "before",
 		delay = 0,
-		blockable = false,
 		func = function()
 			if trap.ability.mp_trap_fired then
 				return true
