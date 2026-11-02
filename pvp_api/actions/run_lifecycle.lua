@@ -1,6 +1,122 @@
 local A = PVP._pvp_action_helpers.A
 local relay = PVP._pvp_action_helpers.relay
 
+-- Stake indices the hovered stake applies, easiest first. White (and anything
+-- else marked hide_from_run_info) is included only when it is the stake itself.
+local function stake_effect_indices(stake_index)
+	local center = G.P_CENTER_POOLS.Stake[stake_index]
+	local indices = {}
+	if center and SMODS.build_stake_chain then
+		for order in pairs(SMODS.build_stake_chain(center)) do
+			indices[#indices + 1] = order
+		end
+	else
+		for i = 1, stake_index do
+			indices[#indices + 1] = i
+		end
+	end
+	table.sort(indices)
+	local shown = {}
+	for _, index in ipairs(indices) do
+		local stake = G.P_CENTER_POOLS.Stake[index]
+		if stake and (index == stake_index or not stake.hide_from_run_info) then
+			shown[#shown + 1] = index
+		end
+	end
+	return shown
+end
+
+-- One stake's effect lines. The trailing "applies previous stakes" line is
+-- dropped, because the popup lists those stakes itself.
+local function stake_desc_rows(stake_index)
+	local center = G.P_CENTER_POOLS.Stake[stake_index]
+	if not center then
+		return {}
+	end
+	local vars, key, set = {}, center.key, center.set or "Stake"
+	if type(center.loc_vars) == "function" then
+		local ok, res = pcall(center.loc_vars, center, {})
+		if ok and type(res) == "table" then
+			vars = res.vars or {}
+			key = res.key or key
+			set = res.set or set
+		end
+	end
+	local nodes = {}
+	localize({ type = "descriptions", key = key, set = set, nodes = nodes, vars = vars })
+	if center.applied_stakes and #center.applied_stakes > 0 then
+		nodes[#nodes] = nil
+	end
+	local rows = {}
+	for _, line in ipairs(nodes) do
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = line }
+	end
+	return rows
+end
+
+-- Hover popup for a Draft stake chip: the stake's name, then every effect it
+-- applies, from the easiest stake up to this one.
+local function draft_stake_popup(stake_index)
+	local center = G.P_CENTER_POOLS.Stake[stake_index]
+	local name = center and localize({ type = "name_text", set = "Stake", key = center.key }) or ""
+	local blocks = {
+		{
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.04 },
+			nodes = {
+				{ n = G.UIT.T, config = { text = name, scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+			},
+		},
+	}
+	for _, index in ipairs(stake_effect_indices(stake_index)) do
+		local desc = stake_desc_rows(index)
+		if #desc > 0 then
+			blocks[#blocks + 1] = {
+				n = G.UIT.R,
+				config = { align = "cm", padding = 0.03 },
+				nodes = {
+					{
+						n = G.UIT.C,
+						config = {
+							align = "cm",
+							minw = 0.32,
+							minh = 0.32,
+							r = 0.08,
+							colour = get_stake_col(index),
+							emboss = 0.05,
+						},
+						nodes = {},
+					},
+					{ n = G.UIT.C, config = { minw = 0.08 } },
+					{
+						n = G.UIT.C,
+						config = {
+							align = "cm",
+							padding = 0.05,
+							colour = G.C.WHITE,
+							r = 0.08,
+							minw = 4.2,
+							maxw = 5.2,
+						},
+						nodes = desc,
+					},
+				},
+			}
+		end
+	end
+	return {
+		n = G.UIT.ROOT,
+		config = { align = "cm", colour = G.C.CLEAR, padding = 0.05 },
+		nodes = {
+			{
+				n = G.UIT.C,
+				config = { align = "cm", colour = G.C.L_BLACK, r = 0.1, padding = 0.08, emboss = 0.05 },
+				nodes = blocks,
+			},
+		},
+	}
+end
+
 -- Wire PvP's Draft policy and presentation into MPAPI.BanPick.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
@@ -21,15 +137,27 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 		tile_order = PVP.DRAFT.tile_order,
 		max_stake = max_stake,
 		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
-		-- to read at this tile size) and name the stake in the hover popup.
+		-- to read at this tile size). The chip is its own object: hovering it shows what the stake
+		-- does, and clicking it selects the deck. The deck's own tooltip still names the stake.
 		decorate_tile = function(card, item)
-			local stake = type(item) == "table" and item.stake and G.P_CENTER_POOLS.Stake[item.stake]
+			local stake_index = type(item) == "table" and tonumber(item.stake)
+			local stake = stake_index and G.P_CENTER_POOLS.Stake[stake_index]
 			if not stake then
 				return
 			end
 			local size = card.T.w * 0.5
-			local chip = get_stake_sprite(item.stake, size)
-			chip.states.collide.can = false
+			local chip = get_stake_sprite(stake_index, size)
+			-- The card hashes itself after drawing this chip, and the cursor picks the latest
+			-- hit. Hash the chip again afterwards so the corner wins over the deck under it.
+			-- Shiny stakes replace Sprite:draw and never hash themselves, so this covers those too.
+			local card_draw = card.draw
+			function card:draw(layer)
+				card_draw(self, layer)
+				add_to_drawhash(chip)
+			end
+			chip.states.collide.can = true
+			chip.states.drag.can = false
+			chip.config = chip.config or {}
 			chip:set_role({
 				major = card,
 				role_type = "Minor",
@@ -41,6 +169,27 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			})
 			card.children.mp_stake_chip = chip
 			card.mp_tile_note = localize({ type = "name_text", set = "Stake", key = stake.key })
+
+			function chip:click()
+				card:click()
+			end
+
+			function chip:hover()
+				self:juice_up(0.05, 0.03)
+				play_sound("paper1", math.random() * 0.2 + 0.9, 0.3)
+				local popup_direction = self.T.y < G.CARD_H * 0.8 and "bm" or "tm"
+				self.config.h_popup = draft_stake_popup(stake_index)
+				self.config.h_popup_config = {
+					major = self,
+					parent = self,
+					xy_bond = "Strong",
+					r_bond = "Weak",
+					wh_bond = "Weak",
+					offset = { x = 0, y = popup_direction == "tm" and -0.13 or 0.1 },
+					type = popup_direction,
+				}
+				Node.hover(self)
+			end
 		end,
 		on_refresh = function()
 			if PVP.lobby and PVP.lobby.refresh_mm_status then
