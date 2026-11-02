@@ -836,7 +836,7 @@ local function action_start_ante_timer(p)
 	if p.isPvP and (PVP.GAME.end_pvp or not PVP.is_pvp_boss() or G.GAME.current_round.hands_left <= 0) then return end
 	-- The opponent's ante timer, pressed as this player readied, can arrive after the
 	-- PvP started (its timers already reset): it would run as the PvP timer. Drop it.
-	local in_pvp = PVP.GAME.pvp_countdown_in_progress or (PVP.is_pvp_boss() and G.GAME.blind.in_blind)
+	local in_pvp = PVP.GAME.pvp_countdown_in_progress or (PVP.is_pvp_boss() and G.GAME.blind and G.GAME.blind.in_blind)
 	if not p.isPvP and p.fromNemesis ~= false and in_pvp then return end
 
 	local time = p.time
