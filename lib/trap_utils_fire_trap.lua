@@ -7,14 +7,3 @@ function PVP.TRAP.decrease_rank(playing_card)
 	local rank_suffix = RANK_SUFFIX[id] or tostring(id)
 	playing_card:set_base(G.P_CARDS[suit_prefix .. rank_suffix])
 end
-
--- The trap itself answers only one destroy_card context (fire_once), so a trap that must break
--- several cards marks them with mp_trap_break and the cards answer for themselves.
-local calculate_enhancement_ref = Card.calculate_enhancement
-function Card:calculate_enhancement(context)
-	if self.ability and self.ability.mp_trap_break and context.destroy_card == self and context.cardarea == G.play then
-		return { remove = true }
-	end
-	return calculate_enhancement_ref(self, context)
-end
-
