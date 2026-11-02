@@ -90,17 +90,9 @@ G.FUNCS.skip_blind = function(e)
 		-- a blind this player went past, so there is nothing left to beat.
 		PVP.ACTIONS.blind_result(true, skipped_blind)
 
-		-- Old timer: add time from skipping to own timer when not timered and not timering
-		if
-            PVP.LOBBY.config.timer
-			and not PVP.GAME.timer_started
-			and not PVP.GAME.nemesis_timer_started
-            and not PVP.GAME.timer_consumed
-            and not PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" })
-			and (PVP.LOBBY.config.timer_increment_seconds or 0) > 0
-        then
-            PVP.UI.restore_timer(PVP.LOBBY.config.timer_increment_seconds)
-		end
+		-- Old timer: skip time matches how far ahead of the opponent this player is.
+		PVP.GAME.skips_before_pvp = (PVP.GAME.skips_before_pvp or 0) + 1
+		PVP.UI.update_matching_skip_timer(false)
 
 		PVP.ACTIONS.skip(G.GAME.skips)
 		-- RLOG's skip_blind opcode is now recorded once, generically, by

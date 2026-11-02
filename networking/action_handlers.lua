@@ -442,6 +442,9 @@ local function action_start_blind(p)
 	stop_timers()
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer = PVP.UTILS.pvp_timer_base()
+	PVP.GAME.skips_before_pvp = 0
+	PVP.GAME.enemy.skips_before_pvp = 0
+	PVP.GAME.skips_difference = 0
 	PVP.GAME.pvp_reached_first = (PVP.LOBBY.is_host and "host" or "guest") == first_player
 	PVP.UI.start_pvp_countdown(begin_pvp_blind)
 end
@@ -476,6 +479,9 @@ local function action_end_pvp(p)
 	PVP.GAME.pvp_reached = false
     PVP.GAME.pvp_reached_first = false
 	PVP.GAME.score = nil
+	PVP.GAME.skips_before_pvp = 0
+	PVP.GAME.enemy.skips_before_pvp = 0
+	PVP.GAME.skips_difference = 0
 	-- The PvP is over: clear the referee's lives blocker now, not at the next blind
 	-- select, so an ante timer running out on the cash out or in the shop costs a life.
 	Client.send({ action = "newRound" })

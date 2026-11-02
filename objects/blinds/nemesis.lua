@@ -54,10 +54,20 @@ MPAPI.Blind({
 		local hands_left = tonumber(d.handsLeft)
 		local skips = tonumber(d.skips)
 
+		-- enemy.skips is the last sender's run total: a new opponent's first update
+		-- (Nemesis rotation, Royale target) is a different player's count, not skips.
+		local same_opponent = PVP.GAME.enemy.skips_from == nil or PVP.GAME.enemy.skips_from == context.from
+		if skips then PVP.GAME.enemy.skips_from = context.from end
+
 		-- No-animation timer: opponent skip adds time immediately.
 		if skips and PVP.GAME.enemy.skips ~= skips then
 			for _ = 1, skips - PVP.GAME.enemy.skips do
 				PVP.GAME.enemy.spent_in_shop[#PVP.GAME.enemy.spent_in_shop + 1] = 0
+				-- Old timer: the opponent catching up takes back this player's skip time.
+				if same_opponent then
+					PVP.GAME.enemy.skips_before_pvp = (PVP.GAME.enemy.skips_before_pvp or 0) + 1
+					PVP.UI.update_matching_skip_timer(true)
+				end
 				if
 					PVP.GAME.enemy.skips < skips
 					and PVP.LOBBY.config.timer
