@@ -15,7 +15,7 @@
 -- attention, and the fan scatters: four cards spin off-screen, and the top one
 -- glides into a random corner, half off the screen, and stays there framing the reveal. MATCH
 -- FOUND drops in, and two player cards slide in from the sides with VS stamped between them. The opponent's card shows a wobbling "?" until they're in
--- the lobby, then flips to their name, Elo or placement progress and board rank. It all goes
+-- the lobby, then flips to their avatar Joker, name, Elo or placement progress and board rank. It all goes
 -- when the run starts, the lobby goes, or after REVEAL_MAX_SECONDS.
 --
 -- Easter eggs, rare and never announced (odds in Q.EGGS, rolled on LÖVE's generator so the
@@ -61,6 +61,8 @@ local REVEAL_MAX_SECONDS = 15
 local HUD_OFFSET = { x = -0.25, y = 0.25 }
 local OFFSCREEN_Y = -5
 local CARD_X = 2.6
+-- A reveal player card's avatar Joker, against a real card.
+local AVATAR_SCALE = 0.6
 -- How fast the menu swirl runs while searching (x its normal speed): the first step and the
 -- cap, eased between by step. Then the reveal background's spin spike on a match.
 local SWIRL_MIN, SWIRL_MAX, SPIN_FOUND = 1.25, 2.5, 1.2
@@ -543,14 +545,25 @@ local function remove_reveal()
 	end
 end
 
-local function face(letter, colour, unknown)
-	local glyph = unknown
-			and text_object(nil, { "?" }, 0.9, G.C.WHITE, { float = true, bump = true })
-		or { n = G.UIT.T, config = { text = letter, scale = 0.9, colour = G.C.WHITE, shadow = true } }
-	return { n = G.UIT.R, config = { align = "cm", minw = 1.4, minh = 1.2, r = 0.1, colour = colour }, nodes = { glyph } }
+-- A player's face: their chosen avatar Joker (MPAPI's preferredJoker), or a wobbling "?" the
+-- same size while the opponent isn't in the lobby yet. Shown whether or not this profile has
+-- discovered that Joker, like MPAPI.create_account_avatar.
+local function face(avatar, unknown)
+	local w, h = G.CARD_W * AVATAR_SCALE, G.CARD_H * AVATAR_SCALE
+	if unknown then
+		return { n = G.UIT.R, config = { align = "cm", minw = w, minh = h, r = 0.1, colour = G.C.UI.BACKGROUND_INACTIVE }, nodes = {
+			text_object(nil, { "?" }, 0.9, G.C.WHITE, { float = true, bump = true }),
+		} }
+	end
+	local center = G.P_CENTERS[avatar or "j_joker"] or G.P_CENTERS.j_joker
+	local card = Card(0, 0, w, h, nil, center, { bypass_discovery_center = true, bypass_discovery_ui = true, bypass_lock = true })
+	card.no_ui = true
+	card.states.drag.can = false
+	card.states.hover.can = false
+	return { n = G.UIT.R, config = { align = "cm" }, nodes = { { n = G.UIT.O, config = { object = card } } } }
 end
 
-local function player_card(name, rating, colour, unknown)
+local function player_card(name, rating, avatar, unknown)
 	-- A casual match has no ratings to show.
 	local elo_line, rank_line = "", ""
 	if Q.reveal_ranked and not unknown then
@@ -560,7 +573,7 @@ local function player_card(name, rating, colour, unknown)
 		{ n = G.UIT.R, config = { align = "cm", maxw = 2.2 }, nodes = {
 			{ n = G.UIT.T, config = { text = name, scale = 0.42, colour = G.C.UI.TEXT_DARK } },
 		} },
-		face(string.upper(string.sub(name, 1, 1)), colour, unknown),
+		face(avatar, unknown),
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.T, config = { text = elo_line, scale = 0.36, colour = G.C.UI.TEXT_DARK } },
 		} },
@@ -589,15 +602,16 @@ end
 local function left_card()
 	local me = players_of(Q.reveal_lobby)
 	local rating = (me and Q.reveal_ratings[me.id]) or Q.rating
-	return player_card(localize("k_pvp_you"), rating, G.C.BLUE)
+	local avatar = (me and me.preferredJoker) or MPAPI.connection_state.preferred_joker
+	return player_card(localize("k_pvp_you"), rating, avatar)
 end
 
 local function right_card()
 	local _, opp = players_of(Q.reveal_lobby)
 	if not opp then
-		return player_card("...", nil, G.C.UI.BACKGROUND_INACTIVE, true)
+		return player_card("...", nil, nil, true)
 	end
-	return player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], G.C.RED)
+	return player_card(opp.displayName or "?", Q.reveal_ratings[opp.id], opp.preferredJoker)
 end
 
 local CARD_BUILDERS = { left = left_card, right = right_card }
