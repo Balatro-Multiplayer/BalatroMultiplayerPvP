@@ -117,9 +117,11 @@ end
 -- reading PVP.* globals directly. Playback uses the recorded The Order setting;
 -- practice and live lobbies use their own config.
 MPAPI.register_order_gate(function()
-	return (PVP.is_practice_mode and PVP.is_practice_mode() and PVP.LOBBY.config.the_order)
-		or (PVP.LOBBY and PVP.LOBBY.config and PVP.LOBBY.config.the_order and PVP.LOBBY.code ~= nil)
-		or false
+	local config = PVP.LOBBY and PVP.LOBBY.config
+	if not (config and config.the_order) then
+		return false
+	end
+	return (PVP.is_practice_mode() or PVP.LOBBY.code ~= nil) and true or false
 end)
 
 -- MLBa plays without The Order, but its voucher queue and The Idol's card follow it.

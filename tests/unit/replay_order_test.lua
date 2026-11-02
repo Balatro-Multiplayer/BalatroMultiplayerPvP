@@ -1,28 +1,53 @@
 -- Run from the repo root: luajit tests/unit/replay_order_test.lua
 local function noop() end
-SMODS = { current_mod = {
-	id = "MultiplayerPvP", path = ".",
-	config = { integrations = {}, preview = {} },
-	Score = { ZERO = 0 },
-	UTILS = { timer_base = noop, get_username = noop, get_blind_col = noop, get_weekly = noop },
-} }
-NFS = { getInfo = noop, getDirectoryItemsInfo = function() return {} end }
+SMODS = {
+	current_mod = {
+		id = "MultiplayerPvP",
+		path = ".",
+		config = { integrations = {}, preview = {} },
+		Score = { ZERO = 0 },
+		UTILS = {
+			timer_base = noop,
+			get_username = noop,
+			get_blind_col = noop,
+			get_weekly = noop,
+		},
+	},
+}
+NFS = {
+	getInfo = noop,
+	getDirectoryItemsInfo = function()
+		return {}
+	end,
+}
 G = { C = {}, E_MANAGER = { add_event = noop } }
-HEX, Event, localize = noop, noop, function(key) return key end
+HEX = noop
+Event = noop
+function localize(key)
+	return key
+end
 sendDebugMessage = noop
 local order_gate, rejoin_hooks
 MPAPI = {
 	OPCODE = { MATCH_MANIFEST = "match_manifest", LOBBY_INFO = "lobby_info", RUN_INFO = "run_info" },
-	register_order_gate = function(fn) order_gate = fn end,
+	register_order_gate = function(fn)
+		order_gate = fn
+	end,
 	register_voucher_queue_gate = noop,
 	register_idol_gate = noop,
-	playback = { register_rejoin_hooks = function(_, hooks) rejoin_hooks = hooks end },
+	playback = {
+		register_rejoin_hooks = function(_, hooks)
+			rejoin_hooks = hooks
+		end,
+	},
 }
 dofile("core.lua")
 dofile("lib/replay_bootstrap.lua")
 dofile("lib/rejoin.lua")
 local practice = false
-PVP.is_practice_mode = function() return practice end
+PVP.is_practice_mode = function()
+	return practice
+end
 
 local function check(name, got, want)
 	assert(got == want, name .. ": got " .. tostring(got) .. ", want " .. tostring(want))
@@ -30,11 +55,20 @@ local function check(name, got, want)
 end
 local function recording(enabled)
 	return {
-		{ player_id = "me", opcode = "lobby_info", args = {
-			ruleset = "ruleset_mp_vanilla", gamemode = "gamemode_mp_attrition",
-			options = { the_order_enabled = enabled },
-		} },
-		{ player_id = "me", opcode = "run_info", args = { seed = "REJOIN01", deck = "Red Deck", stake = 1 } },
+		{
+			player_id = "me",
+			opcode = "lobby_info",
+			args = {
+				ruleset = "ruleset_mp_vanilla",
+				gamemode = "gamemode_mp_attrition",
+				options = { the_order_enabled = enabled },
+			},
+		},
+		{
+			player_id = "me",
+			opcode = "run_info",
+			args = { seed = "REJOIN01", deck = "Red Deck", stake = 1 },
+		},
 	}
 end
 
