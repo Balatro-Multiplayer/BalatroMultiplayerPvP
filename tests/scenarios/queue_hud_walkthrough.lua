@@ -1,5 +1,5 @@
 -- Walks the queue HUD and match-found reveal with no server, saving screenshots along the way.
--- Drives .context/qhud_sim.lua (faked ratings and counts). Shots go to $QHUD_SHOTS (default /tmp/qhud).
+-- Drives tests/scenarios/lib/qhud_sim.lua (faked ratings and counts). Shots go to $QHUD_SHOTS (default /tmp/qhud).
 local REPO = SMODS.Mods.MultiplayerPvP.path
 local OUT = os.getenv("QHUD_SHOTS") or "/tmp/qhud"
 local Q = PVP.QUEUE_HUD
@@ -42,7 +42,7 @@ end
 local steps = {
 	at(1.0, "00_menu", function(S)
 		os.execute("mkdir -p '" .. OUT .. "'")
-		dofile(REPO .. ".context/qhud_sim.lua")
+		dofile(REPO .. "tests/scenarios/lib/qhud_sim.lua")
 		SIM = QHUD_SIM
 		SIM.quiet = true
 		S.check(Q ~= nil and SIM.start ~= nil, "sim loaded")

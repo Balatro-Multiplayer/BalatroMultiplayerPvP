@@ -152,9 +152,11 @@ do
 		return a
 	end
 	flips = 0
-	Card = function(_, _, w, h, _, center)
+	avatars = {}
+	Card = function(_, _, w, h, _, center, params)
 		local c = moveable(w, h)
 		c.center = center
+		if params and params.bypass_lock then avatars[#avatars + 1] = center.key end
 		function c:flip()
 			flips = flips + 1
 			self.facing = self.facing == "back" and "front" or "back"
@@ -178,7 +180,7 @@ do
 		TIMERS = { REAL_SHADER = 12 },
 		CARD_W = 2, CARD_H = 2.7,
 		P_CARDS = { S_A = {} },
-		P_CENTERS = { c_base = {}, b_red = { pos = {} }, j_joker = { key = "j_joker" }, c_wheel_of_fortune = { key = "c_wheel_of_fortune", discovered = true } },
+		P_CENTERS = { c_base = {}, b_red = { pos = {} }, j_joker = { key = "j_joker" }, j_blueprint = { key = "j_blueprint" }, j_turtle_bean = { key = "j_turtle_bean" }, c_wheel_of_fortune = { key = "c_wheel_of_fortune", discovered = true } },
 		P_CENTER_POOLS = { Joker = { { key = "j_joker", discovered = true }, { key = "j_blueprint", discovered = true }, { key = "j_secret", discovered = false } } },
 		SETTINGS = {},
 		E_MANAGER = { add_event = function(_, e) if e.trigger == "after" then e.func() end end },
@@ -188,6 +190,7 @@ do
 	PVP.ranked_ticket = function(key) return "ranked:pvp_ranked_" .. key end
 	PVP.PVP_GAMEMODES = {}
 	PVP.id = "MultiplayerPvP"
+	MPAPI.connection_state = { preferred_joker = "j_blueprint" }
 	MPAPI.matchmaking.ranked_spread = function(t)
 		return math.min(150 + math.floor(t / 30) * 50, 600)
 	end
@@ -253,11 +256,13 @@ do
 	local lobby = { player_id = "me", get_players = function() return players end }
 	Q.lobby_ready(lobby)
 	Game.update({}, 0)
-	players[2] = { id = "opp", displayName = "Rival" }
+	eq(avatars[#avatars], "j_blueprint", "our card shows our chosen avatar")
+	players[2] = { id = "opp", displayName = "Rival", preferredJoker = "j_turtle_bean" }
 	local rebuilds_before = rebuilds
 	Game.update({}, 0)
 	eq(Q.reveal_ratings.opp.rating, 1500, "opponent rating read once they joined")
 	assert(rebuilds > rebuilds_before, "the player cards were rebuilt when the opponent joined")
+	eq(avatars[#avatars], "j_turtle_bean", "the opponent's card shows their avatar")
 
 	Game.start_run({}, {})
 	eq(Q.rv, nil, "the run starting ends the reveal")
