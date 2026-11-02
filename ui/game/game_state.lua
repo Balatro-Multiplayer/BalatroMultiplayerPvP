@@ -95,6 +95,16 @@ local function eval_hand_and_jokers()
 				})
 				if eval then table.insert(effects, eval) end
 			end
+			-- Consumables (planted Trap cards) hear the same held-card payout as jokers, as in a normal round.
+			for k = 1, #G.consumeables.cards do
+				local eval = G.consumeables.cards[k]:calculate_joker({
+					cardarea = G.hand,
+					other_card = G.hand.cards[i],
+					individual = true,
+					end_of_round = true,
+				})
+				if type(eval) == "table" and next(eval) then table.insert(effects, eval) end
+			end
 
 			if reps[j] == 1 then
 				--Check for hand doubling
