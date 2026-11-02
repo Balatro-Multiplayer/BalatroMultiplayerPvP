@@ -1288,8 +1288,9 @@ return {
 				name = "Sepia Snake Sigil",
 				text = {
 					"When your {X:purple,C:white}Nemesis{} buys a",
-					"{C:attention}Rare{} Joker, gain a",
-					"copy of it",
+					"{C:attention}Rare{} Joker, gain a copy",
+					"of it (needs a free",
+					"{C:attention}Joker{} slot)",
 				},
 			},
 			c_mp_trap_snare = {
@@ -1313,8 +1314,9 @@ return {
 				name = "Glyph of Warding",
 				text = {
 					"When your {X:purple,C:white}Nemesis{} uses a",
-					"{C:attention}Spectral{} card, open a",
-					"{C:attention}Jumbo{} Spectral pack",
+					"{C:attention}Spectral{} card, gain a Tag",
+					"that opens a {C:attention}Jumbo{}",
+					"Spectral pack",
 				},
 			},
 			c_mp_trap_web = {
@@ -1323,6 +1325,7 @@ return {
 					"When your {X:purple,C:white}Nemesis{} uses a",
 					"consumable, gain a",
 					"{C:attention}Negative{} copy of it",
+					"({C:attention}Trap{} cards do not count)",
 				},
 			},
 		},
