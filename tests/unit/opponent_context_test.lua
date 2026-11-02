@@ -16,8 +16,16 @@ local at = {
 		original_calls = original_calls + 1
 	end,
 }
-MPAPI = { ActionTypes = { mpapi_opponent_context = at }, sendWarnMessage = function() end }
+local lobby = { mod_id = "pvp" }
+MPAPI = {
+	ActionTypes = { mpapi_opponent_context = at },
+	sendWarnMessage = function() end,
+	get_current_lobby = function()
+		return lobby
+	end,
+}
 PVP = {
+	id = "pvp",
 	GAME = { enemy = { sells = 0, sells_per_ante = {}, spent_in_shop = {} } },
 	self_player_id = function()
 		return "me"
@@ -54,11 +62,27 @@ check("own event still reaches the original handler", original_calls, 3)
 at.on_receive(at, "other", { opponent_selling_card = true })
 check("non-target event is ignored", enemy.sells, 1)
 
+-- Another mod's lobby shares the action type but must not write into PvP's record.
+lobby.mod_id = "other"
+at.on_receive(at, "target", { opponent_selling_card = true })
+check("other mod's lobby is not recorded", enemy.sells, 1)
+check("other mod's lobby still reaches the original handler", original_calls, 5)
+lobby.mod_id = "pvp"
+
+-- A throwing recording must not stop the original handler.
+local real_target = PVP.current_target_id
+PVP.current_target_id = function()
+	error("boom")
+end
+at.on_receive(at, "target", { opponent_selling_card = true })
+check("throwing recorder: original handler still ran", original_calls, 6)
+PVP.current_target_id = real_target
+
 -- Loading the wrapper again must not stack a second recorder.
 dofile("pvp_api/actions/opponent_context.lua")
 at.on_receive(at, "target", { opponent_selling_card = true })
 check("double load: still +1 per event", enemy.sells, 2)
-check("double load: original handler once per call", original_calls, 5)
+check("double load: original handler once per call", original_calls, 7)
 
 if failures > 0 then
 	print(failures .. " failure(s)")

@@ -63,7 +63,10 @@ do
 	check("spend coerces strings", rec.spent_in_shop[2], 4)
 	check("spend list length", #rec.spent_in_shop, 2)
 	rec = R.apply(rec, { opponent_spent_in_shop = "oops", from = TARGET }, 1, TARGET, false)
-	check("unparseable spend is dropped", #rec.spent_in_shop, 2)
+	check("unparseable spend records 0", #rec.spent_in_shop, 3)
+	check("unparseable spend value", rec.spent_in_shop[3], 0)
+	rec = R.apply(rec, { opponent_spent_in_shop = true, from = TARGET }, 1, TARGET, false)
+	check("non-number spend records 0", rec.spent_in_shop[4], 0)
 end
 
 do
@@ -76,13 +79,13 @@ do
 end
 
 -- Hostile or broken spend values record 0, never inf / nan / negative.
-for _, bad in ipairs({ "inf", "nan", "1e999", -5, "-5" }) do
+for _, bad in ipairs({ "inf", "nan", "1e999", -5, "-5", 1e300, 5e9 }) do
 	local rec = R.apply(empty(), { opponent_spent_in_shop = bad, from = TARGET }, 1, TARGET, false)
 	check("bad spend " .. tostring(bad) .. " records 0", rec.spent_in_shop[1], 0)
 end
 do
-	local rec = R.apply(empty(), { opponent_spent_in_shop = 5e9, from = TARGET }, 1, TARGET, false)
-	check("spend is capped", rec.spent_in_shop[1], 1e9)
+	local rec = R.apply(empty(), { opponent_spent_in_shop = R.MAX_SPEND, from = TARGET }, 1, TARGET, false)
+	check("spend at the cap is kept", rec.spent_in_shop[1], R.MAX_SPEND)
 	rec = R.apply(empty(), { opponent_spent_in_shop = 0, from = TARGET }, 1, TARGET, false)
 	check("zero spend is kept", rec.spent_in_shop[1], 0)
 end

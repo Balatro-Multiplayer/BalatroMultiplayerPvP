@@ -11,23 +11,36 @@ if not at then
 elseif not at._pvp_records_opponent then
 	local original = at.on_receive
 	at._pvp_records_opponent = true
-	at.on_receive = function(action_type, from, params)
+	local function record(from, params)
 		local enemy = PVP.GAME and PVP.GAME.enemy
 		-- Our own broadcast loops back to us; it is not the opponent's action.
-		if enemy and from ~= PVP.self_player_id() then
-			local context = { from = from }
-			for k, v in pairs(params or {}) do
-				context[k] = v
+		if not enemy or from == PVP.self_player_id() then
+			return
+		end
+		local context = { from = from }
+		for k, v in pairs(params or {}) do
+			context[k] = v
+		end
+		local ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante or 0
+		local result = PVP.OPPONENT_RECORD.apply({
+			sells = enemy.sells,
+			sells_per_ante = enemy.sells_per_ante,
+			spent_in_shop = enemy.spent_in_shop,
+		}, context, ante, PVP.current_target_id(), PVP.is_byed())
+		enemy.sells = result.sells
+		enemy.sells_per_ante = result.sells_per_ante
+		enemy.spent_in_shop = result.spent_in_shop
+	end
+
+	at.on_receive = function(action_type, from, params)
+		-- The action type belongs to the API, so another mod's lobby reaches it too.
+		local lobby = MPAPI.get_current_lobby()
+		if lobby and lobby.mod_id == PVP.id then
+			-- A failed recording must not stop the original handler from reaching the jokers.
+			local ok, err = pcall(record, from, params)
+			if not ok then
+				MPAPI.sendWarnMessage("could not record the opponent context: " .. tostring(err))
 			end
-			local ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante or 0
-			local record = PVP.OPPONENT_RECORD.apply({
-				sells = enemy.sells,
-				sells_per_ante = enemy.sells_per_ante,
-				spent_in_shop = enemy.spent_in_shop,
-			}, context, ante, PVP.current_target_id(), PVP.is_byed())
-			enemy.sells = record.sells
-			enemy.sells_per_ante = record.sells_per_ante
-			enemy.spent_in_shop = record.spent_in_shop
 		end
 		return original(action_type, from, params)
 	end

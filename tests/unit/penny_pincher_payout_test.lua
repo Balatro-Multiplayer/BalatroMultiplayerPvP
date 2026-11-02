@@ -31,12 +31,16 @@ local pincher
 MPAPI = {
 	ActionTypes = { mpapi_opponent_context = { on_receive = api_on_receive } },
 	sendWarnMessage = function() end,
+	get_current_lobby = function()
+		return { mod_id = "pvp" }
+	end,
 	Joker = function(def)
 		pincher = def
 	end,
 }
 SMODS = { Atlas = function() end }
 PVP = {
+	id = "pvp",
 	UTILS = { add_nemesis_info = function() end },
 	self_player_id = function()
 		return "me"
