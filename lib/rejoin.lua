@@ -32,6 +32,9 @@ local function attach(lobby, _ctx)
 	-- The same wiring PVP.pvp_join_lobby does (opponent mirror, HUD, lobby events). It runs before
 	-- MPAPI plays the held messages, so the host's lives and target resend lands on a reset state.
 	PVP.setup_lobby_mirror(lobby)
+	-- The rebuilt state knows none of the opponent's skips. Their first update carries the whole
+	-- run's total, which must be taken as the baseline, not counted as skips since the last PvP.
+	PVP.GAME.enemy.skips_resync = true
 end
 
 MPAPI.playback.register_rejoin_hooks(PVP.id, {

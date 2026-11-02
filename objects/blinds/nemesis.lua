@@ -58,6 +58,10 @@ MPAPI.Blind({
 		-- (Nemesis rotation, Royale target) is a different player's count, not skips.
 		local same_opponent = PVP.GAME.enemy.skips_from == nil or PVP.GAME.enemy.skips_from == context.from
 		if skips then PVP.GAME.enemy.skips_from = context.from end
+		if skips and PVP.GAME.enemy.skips_resync then
+			PVP.GAME.enemy.skips_resync = nil
+			PVP.GAME.enemy.skips = skips
+		end
 
 		-- No-animation timer: opponent skip adds time immediately.
 		if skips and PVP.GAME.enemy.skips ~= skips then
