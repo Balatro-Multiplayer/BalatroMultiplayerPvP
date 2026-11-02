@@ -1026,8 +1026,9 @@ local READY_CHECK_TIMEOUT = 2
 local ready_check_count = 0
 
 -- Whether the referee still holds `id` as ready (the tracker in matches of 3 or more).
-local function marked_ready(id)
-	if #both_players() > 2 then
+-- `many` is the path the check opened on; the lobby may shrink while it runs.
+local function marked_ready(id, many)
+	if many then
 		return PVP.REF.ready_tracker ~= nil and PVP.REF.ready_tracker:is_ready(id)
 	end
 	return ref_player(id).is_ready
@@ -1080,18 +1081,28 @@ end
 -- may have come in while they were out).
 local function finish_ready_check(check)
 	PVP.REF.ready_check = nil
-	if #both_players() > 2 then
+	if check.many then
 		local alive = alive_ids()
 		for _, id in ipairs(alive) do
-			if not marked_ready(id) then
+			if not marked_ready(id, true) then
 				return
 			end
 		end
 		start_blind_many(alive)
 		return
 	end
+	-- Someone who was asked and left must not have the blind start against them.
+	local present = {}
+	for _, id in ipairs(both_players()) do
+		present[id] = true
+	end
+	for _, id in ipairs(check.ids) do
+		if not present[id] or not marked_ready(id, false) then
+			return
+		end
+	end
 	local opp = opponent_of(check.trigger)
-	if opp and marked_ready(check.trigger) and marked_ready(opp) then
+	if opp then
 		start_blind_2p(check.trigger, opp)
 	end
 end
@@ -1105,6 +1116,7 @@ local function settle_ready_check(check, outcome, refuser)
 		-- The others stay ready and the blind waits for a Ready that is real.
 		PVP.REF.ready_check = nil
 		clear_ready(refuser)
+		ref_player(refuser).first_ready = false
 		sendDebugMessage("[pvp] ready check refused by " .. tostring(refuser) .. ": dropped its stale ready", "MULTIPLAYER")
 		return
 	end
@@ -1115,11 +1127,15 @@ local function open_ready_check(trigger, ids)
 	ready_check_count = ready_check_count + 1
 	local nonce = tostring(os.time()) .. "-" .. ready_check_count
 	local check = PVP.ReadyCheck.new(nonce, ids, trigger)
+	-- Which readiness record applies is fixed now: players leaving mid-check must not switch it.
+	check.many = #both_players() > 2
 	PVP.REF.ready_check = check
 	broadcast("pvp_ready_check", { nonce = nonce, players = ids })
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
 		delay = READY_CHECK_TIMEOUT,
+		timer = "REAL",
+		pause_force = true,
 		blocking = false,
 		blockable = false,
 		func = function()
@@ -1190,6 +1206,22 @@ function PVP.referee_on_ready_ack(from, nonce, ready)
 		return
 	end
 	settle_ready_check(check, PVP.ReadyCheck.answer(check, nonce, from, ready))
+end
+
+-- A new host keeps the checkpoint's Ready flags but not the check that was open, so it
+-- asks again instead of leaving everyone on Ready.
+local function resume_ready_check()
+	local many = #both_players() > 2
+	local ids = many and alive_ids() or both_players()
+	if #ids < 2 or PVP.REF.ready_check then
+		return
+	end
+	for _, id in ipairs(ids) do
+		if not marked_ready(id, many) then
+			return
+		end
+	end
+	open_ready_check(ids[1], ids)
 end
 
 -- Pure: given the 2-player round-end state, decides whether the round is over
@@ -2290,6 +2322,7 @@ function PVP.referee_take_over()
 	resolve_team_pending()
 	settle_many_pending()
 	forfeit_departed(lobby)
+	resume_ready_check()
 	PVP.referee_checkpoint()
 	return source
 end
