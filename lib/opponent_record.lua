@@ -3,8 +3,8 @@
 -- The recording used to sit inside the jokers' calculate, so it depended on
 -- holding a copy (and ran once per copy, per Blueprint, and never when debuffed).
 PVP.OPPONENT_RECORD = {}
--- A shop spend is bounded by the player's money, far below this. Anything above it
--- is a bad value, not a big spend.
+-- A shop spend is bounded by the player's money, far below this. A larger finite
+-- spend counts as this much.
 PVP.OPPONENT_RECORD.MAX_SPEND = 1e6
 
 local function copy_list(t)
@@ -35,11 +35,13 @@ function PVP.OPPONENT_RECORD.apply(record, context, ante, target_id, byed)
 		out.sells_per_ante[ante] = (out.sells_per_ante[ante] or 0) + 1
 	end
 	if context.opponent_spent_in_shop ~= nil then
-		-- The amount comes from a peer. Only a finite number from 0 to MAX_SPEND counts;
-		-- anything else is recorded as 0 so the shop index stays aligned.
+		-- The amount comes from a peer. A finite number above MAX_SPEND counts as MAX_SPEND;
+		-- anything not a finite number from 0 up is recorded as 0 so the shop index stays aligned.
 		local spent = tonumber(context.opponent_spent_in_shop)
-		if not spent or spent ~= spent or spent < 0 or spent > PVP.OPPONENT_RECORD.MAX_SPEND then
+		if not spent or spent ~= spent or spent < 0 or spent == math.huge then
 			spent = 0
+		elseif spent > PVP.OPPONENT_RECORD.MAX_SPEND then
+			spent = PVP.OPPONENT_RECORD.MAX_SPEND
 		end
 		out.spent_in_shop[#out.spent_in_shop + 1] = spent
 	end

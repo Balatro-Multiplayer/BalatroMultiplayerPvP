@@ -79,9 +79,14 @@ do
 end
 
 -- Hostile or broken spend values record 0, never inf / nan / negative.
-for _, bad in ipairs({ "inf", "nan", "1e999", -5, "-5", 1e300, 5e9 }) do
+for _, bad in ipairs({ "inf", "nan", "1e999", -5, "-5", math.huge, "abc" }) do
 	local rec = R.apply(empty(), { opponent_spent_in_shop = bad, from = TARGET }, 1, TARGET, false)
 	check("bad spend " .. tostring(bad) .. " records 0", rec.spent_in_shop[1], 0)
+end
+-- A finite spend above the cap counts as the cap.
+for _, big in ipairs({ 1e300, 5e9, "5e9", R.MAX_SPEND + 1 }) do
+	local rec = R.apply(empty(), { opponent_spent_in_shop = big, from = TARGET }, 1, TARGET, false)
+	check("spend " .. tostring(big) .. " is clamped to the cap", rec.spent_in_shop[1], R.MAX_SPEND)
 end
 do
 	local rec = R.apply(empty(), { opponent_spent_in_shop = R.MAX_SPEND, from = TARGET }, 1, TARGET, false)
