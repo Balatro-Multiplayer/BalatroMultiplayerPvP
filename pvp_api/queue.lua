@@ -19,13 +19,6 @@ PVP._searching = false
 -- from inside _show_searching) always sees the correct value at the moment it re-renders.
 PVP._active_queue_id = nil
 
--- Audible cue for long queues so players don't have to keep checking the game. Reuses the
--- run-win sound for now; on by default (queue_match_sound in config.lua).
-function PVP._play_match_found_sound()
-	if PVP.config.queue_match_sound == false then return end
-	play_sound("win")
-end
-
 function PVP._show_searching(on)
 	PVP._searching = on and true or false
 	if PVP.QUEUE_HUD then
@@ -107,7 +100,6 @@ function PVP._join_queue(kind, gamemode_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
-		PVP._play_match_found_sound()
 		PVP.QUEUE_HUD.match_found()
 	end)
 
@@ -257,7 +249,6 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
-		PVP._play_match_found_sound()
 		PVP.QUEUE_HUD.match_found()
 	end)
 

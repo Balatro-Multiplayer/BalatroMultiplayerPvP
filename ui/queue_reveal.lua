@@ -1,6 +1,13 @@
 -- Match reveal: player data, animation lifetime, and temporary UI visibility.
 local Reveal = { generation = 0, ratings = {} }
 PVP.QUEUE_REVEAL = Reveal
+-- The engine crossfades music and applies the player's music volume.
+local get_current_music = SMODS.Sound.get_current_music
+function SMODS.Sound:get_current_music(...)
+	if Reveal.view then return "music3" end
+	return get_current_music(self, ...)
+end
+
 local Cards, Backdrop, Widgets = PVP.QUEUE_CARDS, PVP.QUEUE_BACKDROP, PVP.QUEUE_WIDGETS
 local now, reduced_motion = Widgets.now, Widgets.reduced_motion
 local slide, juice, remove_box = Widgets.slide, Widgets.juice, Widgets.remove_box
@@ -200,6 +207,12 @@ function Reveal.start(search, fan_cards)
 	Reveal.expires_at = now() + REVEAL_MAX_SECONDS
 	local view = Reveal.view
 	local calm = reduced_motion()
+	if PVP.config.queue_match_sound ~= false then
+		play_sound("explosion_buildup1")
+		after(1.17, generation, function()
+			play_sound("explosion_release1")
+		end)
+	end
 	pcall(love.window.requestAttention, false)
 	hide_ui(view)
 	Backdrop.reveal(SPIN_FOUND)
