@@ -10,6 +10,16 @@ local function copy(value)
 end
 
 local lobby, sent, notices, sequence
+
+-- The referee asks everyone who looks ready to confirm before it starts the blind.
+local function confirm_ready_check()
+	local check = PVP.REF.ready_check
+	if not check then return end
+	for _, id in ipairs(check.ids) do
+		PVP.referee_on_ready_ack(id, check.nonce, true)
+	end
+end
+
 local function setup(mode, count, lives, legacy)
 	sent, notices, sequence = {}, {}, 0
 	PVP = {
@@ -35,7 +45,12 @@ local function setup(mode, count, lives, legacy)
 		STAGES = { RUN = "run" },
 		STATES = { GAME_OVER = "over", HAND_PLAYED = "hand" },
 		STATE = "hand",
+		E_MANAGER = { add_event = function() end },
 	}
+	Event = function(spec)
+		return spec
+	end
+	sendDebugMessage = function() end
 	Game = { update = function() end }
 	love = { timer = {
 		getTime = function()
@@ -128,6 +143,7 @@ local function setup(mode, count, lives, legacy)
 	dofile((os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/") .. "lib/big_score.lua")
 	dofile("lib/score.lua")
 	dofile("lib/pending_death.lua")
+	dofile("lib/ready_check.lua")
 	dofile("pvp_api/server_hold.lua")
 	dofile("pvp_api/referee.lua")
 	dofile("pvp_api/round_sync.lua")
@@ -135,6 +151,7 @@ local function setup(mode, count, lives, legacy)
 	for _, p in ipairs(lobby.players) do
 		PVP.referee_on_ready_blind(p.id, 4, not legacy and 1 or nil)
 	end
+	confirm_ready_check()
 	if mode == "nemesis_pairing" then PVP.REF.nemesis_of = { a = "b", b = "a", c = "d", d = "c" } end
 	PVP.begin_round_sync(PVP.REF.round.enabled and PVP.REF.round.id or nil, "a")
 	sent = {}
@@ -304,6 +321,7 @@ test("new round rejects previous round reports and responses", function()
 	for _, p in ipairs(lobby.players) do
 		PVP.referee_on_ready_blind(p.id, 4, 1)
 	end
+	confirm_ready_check()
 	PVP.begin_round_sync(PVP.REF.round.id, "a")
 	report("a", 2, 999, 0, old.round_id)
 	PVP.receive_round_state("a", old)
@@ -399,6 +417,7 @@ test("the final result still reaches players eliminated in an earlier round", fu
 		PVP.referee_on_new_round(id)
 		PVP.referee_on_ready_blind(id, 4, 1)
 	end
+	confirm_ready_check()
 	local active = PVP.REF.round.id
 	-- c missed both its elimination and the old round's end. The survivors moved on.
 	report("c", 1, 100, 0, retired)
@@ -487,6 +506,7 @@ test("a new run clears archived results and rejects a previous run's report", fu
 	for _, p in ipairs(lobby.players) do
 		PVP.referee_on_ready_blind(p.id, 4, 1)
 	end
+	confirm_ready_check()
 	assert(old ~= PVP.REF.round.id)
 	report("a", 1, 999, 0, old)
 	equal(PVP.REF.players.a.hands_left, 4)
@@ -504,4 +524,31 @@ test("outgoing router advertises the protocol and retains the exact committed re
 	equal(report_sent.score, "1e100")
 	equal(report_sent.handsLeft, 0)
 	equal(PVP.GAME.round_sync.report.score, "1e100")
+end)
+
+test("a ready that outlived its blind does not start the next one under a player still in it", function()
+	setup("pair")
+	local function starts()
+		local n = 0
+		for _, message in ipairs(sent) do
+			if message.key == "pvp_start_blind" then n = n + 1 end
+		end
+		return n
+	end
+	-- b's Ready arrived after the blind it belonged to had started, so it stayed set.
+	PVP.referee_on_ready_blind("b", 4, 1)
+	PVP.referee_on_ready_blind("a", 4, 1)
+	local check = last("pvp_ready_check")
+	equal(starts(), 0)
+	PVP.referee_on_ready_ack("a", check.nonce, true)
+	PVP.referee_on_ready_ack("b", check.nonce, false) -- b is still inside the previous blind
+	equal(starts(), 0)
+	equal(PVP.REF.players.b.is_ready, false)
+	equal(PVP.REF.players.a.is_ready, true)
+	-- b readies for real; the blind starts once both confirm.
+	PVP.referee_on_ready_blind("b", 4, 1)
+	check = last("pvp_ready_check")
+	PVP.referee_on_ready_ack("a", check.nonce, true)
+	PVP.referee_on_ready_ack("b", check.nonce, true)
+	equal(starts(), 1)
 end)
