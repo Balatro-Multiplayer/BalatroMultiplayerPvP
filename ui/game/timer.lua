@@ -450,31 +450,27 @@ end
 -- G.FUNCS.play_cards_from_highlighted hook -- this override stays for
 -- the double-play guard and PvP's own timer-increment logic below.
 local old_play = G.FUNCS.play_cards_from_highlighted
--- Vanilla only stops a second play once the first hand's cards reach G.play, which
--- can take a while when the event queue is busy. A second click before then plays
--- the same cards again, and both hands score from the same chips, so one hand's
--- score is lost. Ignore it until the first play's events have run (or 10s pass, or
--- a new run starts: leaving clears the event queue, unlock included).
-local play_pending = nil
+-- A second Play before the first hand has been played is ignored (lib/play_lock.lua).
 function G.FUNCS.play_cards_from_highlighted(...)
-    if play_pending and play_pending.game == G.GAME and love.timer.getTime() - play_pending.at < 10 then return end
-    play_pending = { game = G.GAME, at = love.timer.getTime() }
-    old_play(...)
-    G.E_MANAGER:add_event(Event({ func = function() play_pending = nil; return true end }))
-    if G.play and G.play.cards[1] then return end
-    if PVP.LOBBY.code and PVP.LOBBY.config.timer and not PVP.GAME.timer_consumed then
-        if PVP.is_pvp_boss() then
-            -- PvP timer: Increment timer when hand is played during pvp
-            if PVP.is_layer_active("pvp_timer") then
-                local increment = PVP.LOBBY.config.pvp_timer_hand_played_increment_seconds or PVP.current_ruleset().pvp_timer_hand_played_increment_seconds or 0
-                PVP.UI.restore_timer(increment)
-            end
-        else
-            -- No-animation, Pressure timers: Increment timer when hand is played during regular blinds
-            if PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" }) then
-                local increment = PVP.LOBBY.config.timer_hand_played_increment_seconds or PVP.current_ruleset().timer_hand_played_increment_seconds or 0
-                PVP.UI.restore_timer(increment)
-            end
-        end
-    end
+	if not PVP.PlayLock.run(old_play, ...) then
+		return
+	end
+	if G.play and G.play.cards[1] then
+		return
+	end
+	if PVP.LOBBY.code and PVP.LOBBY.config.timer and not PVP.GAME.timer_consumed then
+		if PVP.is_pvp_boss() then
+			-- PvP timer: Increment timer when hand is played during pvp
+			if PVP.is_layer_active("pvp_timer") then
+				local increment = PVP.LOBBY.config.pvp_timer_hand_played_increment_seconds or PVP.current_ruleset().pvp_timer_hand_played_increment_seconds or 0
+				PVP.UI.restore_timer(increment)
+			end
+		else
+			-- No-animation, Pressure timers: Increment timer when hand is played during regular blinds
+			if PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" }) then
+				local increment = PVP.LOBBY.config.timer_hand_played_increment_seconds or PVP.current_ruleset().timer_hand_played_increment_seconds or 0
+				PVP.UI.restore_timer(increment)
+			end
+		end
+	end
 end
