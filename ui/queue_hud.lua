@@ -1,5 +1,6 @@
 -- Queue lifecycle, polling, and the searching HUD. Public entry points serve pvp_api/queue.lua.
-local Hud = { active = false, started_at = 0, ranked = false, label = "", next_poll = 0, last_minute = 0 }
+local Hud =
+	{ active = false, started_at = 0, ranked = false, label = "", next_poll = 0, last_minute = 0, generation = 0 }
 PVP.QUEUE_HUD = Hud
 local Cards, Backdrop, Widgets = PVP.QUEUE_CARDS, PVP.QUEUE_BACKDROP, PVP.QUEUE_WIDGETS
 local now, after = Widgets.now, Widgets.after
@@ -178,9 +179,9 @@ local function title_for(queue_id)
 end
 
 local function poll_counts()
-	local key = Hud.count_key
+	local key, generation = Hud.count_key, Hud.generation
 	MPAPI.matchmaking.get_queue_counts(PVP.id, function(err, game_modes)
-		if err or not Hud.active or Hud.count_key ~= key then return end
+		if err or not Hud.active or Hud.generation ~= generation then return end
 		local c = game_modes and game_modes[key]
 		local n = c and tonumber(c.queued)
 		if n and n ~= Hud.in_queue then
@@ -197,6 +198,7 @@ function Hud.start(queue_id)
 	if Hud.active and Hud.queue_id and Hud.queue_id.kind == queue_id.kind and Hud.queue_id.key == queue_id.key then
 		return
 	end
+	Hud.generation = Hud.generation + 1
 	Hud.active = true
 	Hud.queue_id = { kind = queue_id.kind, key = queue_id.key }
 	Hud.started_at = now()
@@ -211,9 +213,9 @@ function Hud.start(queue_id)
 	Hud.rating = nil
 	if Hud.ranked then
 		Hud.rating = false
-		local ticket = Hud.ticket
+		local ticket, generation = Hud.ticket, Hud.generation
 		MPAPI.matchmaking.get_rating(PVP.id, ticket, nil, nil, function(err, data)
-			if Hud.ticket == ticket then Hud.rating = (not err and data) or nil end
+			if Hud.active and Hud.generation == generation then Hud.rating = (not err and data) or nil end
 		end)
 	end
 	play_sound("highlight2", 1.1, 0.6)

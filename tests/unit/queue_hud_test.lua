@@ -19,7 +19,12 @@ G = {
 darken = function(c)
 	return c
 end
-PVP = {}
+PVP = { config = {} }
+SMODS = { Sound = {
+	get_current_music = function()
+		return "other_mod_music"
+	end,
+} }
 MPAPI = {
 	register_card_info_provider = noop,
 	ui_element = function()
@@ -254,7 +259,10 @@ do
 	mix_colours = function(a)
 		return a
 	end
-	play_sound = noop
+	local sounds = {}
+	play_sound = function(key)
+		sounds[#sounds + 1] = key
+	end
 	sendWarnMessage = function(msg)
 		error(msg)
 	end
@@ -392,6 +400,7 @@ do
 
 	Game.start_run({}, {})
 	eq(Reveal.view, nil, "the run starting ends the reveal")
+	eq(SMODS.Sound:get_current_music(), "other_mod_music", "run start restores music selection")
 	eq(menu_box.states.visible, true, "the menu's UI comes back with the reveal's end")
 	eq(menu_area.cards[1].states.visible, true, "and its cards")
 	eq(shader(), "splash", "the menu's swirl is back")
@@ -452,10 +461,13 @@ do
 	eq(#old_area.cards, 0, "fan relinquishes cards before HUD removal")
 	eq(#scene.area.cards, 5, "scatter owns transferred cards")
 	Q.dismiss_reveal()
+	eq(SMODS.Sound:get_current_music(), "other_mod_music", "dismissal restores music selection")
+	local sounds_after_dismiss = #sounds
 	local box_count = #boxes
 	for _, event in ipairs(events) do
 		if event.trigger == "after" then event.func() end
 	end
+	eq(#sounds, sounds_after_dismiss, "dismissed reveal cannot play delayed opening release")
 	eq(#boxes, box_count, "dismissed reveal cannot create delayed player panels")
 	eq(old_area.removals, 1, "old HUD recursively removes its area once")
 	eq(scene.area.removals, 1, "reveal recursively removes its scatter area once")
@@ -465,5 +477,40 @@ do
 	for _, object in ipairs(owned) do
 		eq(object.removals, 1, "all cards and areas are removed exactly once")
 	end
+	-- Responses from a cancelled search must not overwrite a restart on the same board.
+	G.E_MANAGER.add_event = function(_, event)
+		if event.trigger == "after" then event.func() end
+	end
+	local ratings, counts = {}, {}
+	MPAPI.matchmaking.get_rating = function(_, _, _, _, callback)
+		ratings[#ratings + 1] = callback
+	end
+	MPAPI.matchmaking.get_queue_counts = function(_, callback)
+		counts[#counts + 1] = callback
+	end
+	Q.start({ kind = "ranked", key = "balanced" })
+	Game.update({}, 0)
+	Q.stop()
+	Q.start({ kind = "ranked", key = "balanced" })
+	Game.update({}, 0)
+	ratings[2](nil, { rating = 1600 })
+	ratings[1](nil, { rating = 1200 })
+	counts[2](nil, { [Q.count_key] = { queued = 9 } })
+	counts[1](nil, { [Q.count_key] = { queued = 3 } })
+	eq(Q.rating.rating, 1600, "old rating response ignored after restart")
+	eq(Q.in_queue, 9, "old count response ignored after restart")
+	Q.stop()
+	ratings[2](nil, { rating = 1000 })
+	eq(Q.rating.rating, 1600, "rating response ignored after stop")
+	PVP.config.queue_match_sound = false
+	local first_sound = #sounds + 1
+	Q.match_found()
+	for i = first_sound, #sounds do
+		assert(not sounds[i]:match("^explosion_"), "match sound toggle suppresses pack opening")
+	end
+	eq(SMODS.Sound:get_current_music(), "music3", "music selection is independent of effect toggle")
+	clock = clock + 16
+	Game.update({}, 0)
+	eq(SMODS.Sound:get_current_music(), "other_mod_music", "timeout restores music selection")
 	print("queue_hud_test smoke: ok")
 end
