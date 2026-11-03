@@ -2205,7 +2205,28 @@ end
 -- are the part that decides the match, and every client hears every change to
 -- its own and its opponent's (pvp_player_lives). Scores and hands come back as
 -- each player plays its next hand.
+-- Everyone the match started with, so a player who already left still counts as a
+-- player of it (the 2-player rules and a pending death need both). The lobby's
+-- game record is the fallback when this client has no start snapshot.
+local function match_player_ids(lobby)
+	local players = PVP._match_players
+	if not (players and #players > 0) then
+		local started = lobby._game and lobby._game.started
+		players = started and started.players
+	end
+	if not (players and #players > 0) then
+		players = lobby:get_players()
+	end
+	local ids = {}
+	for _, p in ipairs(players) do
+		ids[#ids + 1] = p.id
+	end
+	return ids
+end
+
 local function rebuild_from_local(lobby)
+	-- Only the old host knew it had asked for the hold; the server's own flag is what is true.
+	local held = lobby:is_result_pending()
 	PVP.REF.players = {}
 	PVP.REF.round = nil
 	PVP.REF.retired_rounds = {}
@@ -2216,14 +2237,14 @@ local function rebuild_from_local(lobby)
 	PVP.REF.many_hold = nil
 	for id, blind_key in pairs(PVP.GAME.pending_deaths or {}) do
 		PVP.PendingDeath.add_pending(PVP.REF.pending_deaths, id, blind_key, {})
-		PVP.REF.many_hold = PVP.GAME.result_held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
+		PVP.REF.many_hold = held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
 	end
 	PVP.REF.team_pending = nil
 	if PVP.GAME.team_pending then
 		PVP.REF.team_pending = {
 			team_id = PVP.GAME.team_pending.team_id,
 			blind_key = PVP.GAME.team_pending.blind_key,
-			held = PVP.GAME.result_held and 1 or 0,
+			held = held and 1 or 0,
 		}
 	end
 	local seen = PVP.GAME.pending_death
@@ -2233,19 +2254,19 @@ local function rebuild_from_local(lobby)
 			player_id = seen.player_id,
 			opponent_id = seen.opponent_id,
 			blind_key = seen.blind_key,
-			held = PVP.GAME.result_held and 1 or 0,
+			held = held and 1 or 0,
 		}
 	end
 	local target = PVP.current_target_id()
-	for _, p in ipairs(lobby:get_players()) do
-		local pl = ref_player(p.id)
-		pl.team_id = PVP.LOBBY.roster and PVP.LOBBY.roster[p.id] or nil
+	for _, id in ipairs(match_player_ids(lobby)) do
+		local pl = ref_player(id)
+		pl.team_id = PVP.LOBBY.roster and PVP.LOBBY.roster[id] or nil
 		local lives
-		if p.id == lobby.player_id then
+		if id == lobby.player_id then
 			lives = PVP.GAME.lives
-		elseif PVP._player_lives_cache and PVP._player_lives_cache[p.id] then
-			lives = PVP._player_lives_cache[p.id]
-		elseif p.id == target and PVP.GAME.enemy then
+		elseif PVP._player_lives_cache and PVP._player_lives_cache[id] then
+			lives = PVP._player_lives_cache[id]
+		elseif id == target and PVP.GAME.enemy then
 			lives = PVP.GAME.enemy.lives
 		end
 		if tonumber(lives) and tonumber(lives) > 0 then
