@@ -23,15 +23,46 @@ PVP = {
 	QUEUE_HUD = hud,
 	QUEUE_CARDS = { EGGS = {} },
 	LobbyAccess = { RANKED = "ranked", CASUAL = "casual" },
-	RulesetKey = { VANILLA = "vanilla" },
+	RulesetKey = { VANILLA = "vanilla", EXPANDED = "expanded" },
+	QUEUE_REVEAL = { HOLD_SECONDS = 4 },
+	lobby = {},
+	_ban_pick_config_for = function()
+		return {}
+	end,
 }
+local drafts, draft_done, practice, pages = 0, nil, nil, {}
+PVP._start_practice = function(ruleset, loadout)
+	practice = { ruleset = ruleset, loadout = loadout }
+end
+local real_lobby = function() end
 MPAPI = {
+	connection_state = { preferred_joker = "j_blueprint" },
+	LobbyEvent = { SETUP_CHANGED = "setup", GAME_ENDED = "ended" },
+	get_current_lobby = real_lobby,
+	pages = {
+		show = function(key)
+			pages[#pages + 1] = key
+		end,
+	},
+	_internal = { mod_registry = { registered_mods = { pvp = { lobby_ui = "pvp_lobby", main_menu_ui = "pvp_menu" } } } },
+	GameModes = { pvp_nemesis = {} },
+	BanPick = {
+		start = function(_, _, on_complete)
+			drafts = drafts + 1
+			draft_done = on_complete
+		end,
+	},
 	matchmaking = { get_rating = real_rating, get_queue_counts = real_counts },
 	get_focused_mod = function()
 		return "pvp"
 	end,
 }
+localize = function(args)
+	return args.key
+end
 G = {
+	P_CENTERS = { b_red = { key = "b_red", name = "Red Deck" } },
+	P_CENTER_POOLS = { Stake = { { key = "stake_white" } } },
 	STAGE = 1,
 	STAGES = { MAIN_MENU = 1 },
 	FUNCS = { mp_pvp_cancel_queue = real_cancel },
@@ -66,7 +97,7 @@ NFS = {
 	end,
 }
 PVP.load_mp_file = function(path)
-	loads = loads + 1
+	if path:match("qhud_sim") then loads = loads + 1 end
 	return dofile(path)
 end
 local function boot()
@@ -92,6 +123,26 @@ for _, event in ipairs(pending) do
 	event.func()
 end
 assert(matches == 1 and joins == 1, "only latest playback reaches match and join")
+pending = events
+events = {}
+for _, event in ipairs(pending) do
+	event.func()
+end
+assert(drafts == 1, "the countdown after the opponent's arrival opens the Draft")
+assert(MPAPI.get_current_lobby() ~= nil and MPAPI.get_current_lobby() ~= real_lobby, "the Draft's lobby is current")
+assert(pages[#pages] == "pvp_lobby", "the Draft shows in the lobby view")
+draft_done({ { key = "b_red", stake = 1 } })
+for _ = 1, 2 do
+	pending = events
+	events = {}
+	for _, event in ipairs(pending) do
+		event.func()
+	end
+end
+assert(practice and practice.ruleset == "ruleset_mp_expanded", "the pick starts an Expanded practice run")
+assert(practice.loadout.back == "Red Deck" and practice.loadout.stake == 1, "on the drafted deck and stake")
+assert(MPAPI.get_current_lobby == real_lobby, "the real lobby lookup is back before the run")
+assert(not QHUD_SIM.active, "the simulator stopped for the run")
 love.keypressed("p", nil, false)
 love.keypressed("x", nil, false)
 pending = events
@@ -100,6 +151,10 @@ for _, event in ipairs(pending) do
 	event.func()
 end
 assert(matches == 1 and joins == 1, "Alt+X invalidates pending playback")
+love.keypressed("d", nil, false)
+assert(drafts == 2 and MPAPI.get_current_lobby() ~= nil, "Alt+D goes straight to the Draft")
+love.keypressed("x", nil, false)
+assert(MPAPI.get_current_lobby == real_lobby and pages[#pages] == "pvp_menu", "Alt+X leaves the Draft for the menu")
 assert(
 	MPAPI.matchmaking.get_rating == real_rating and MPAPI.matchmaking.get_queue_counts == real_counts,
 	"stop restores real API"
@@ -107,16 +162,16 @@ assert(
 assert(G.FUNCS.mp_pvp_cancel_queue == real_cancel, "stop restores cancel handler")
 PVP._match_handle = {}
 love.keypressed("p", nil, false)
-assert(starts == 3, "simulator does not take over a live queue")
+assert(starts == 4, "simulator does not take over a live queue")
 PVP._match_handle = nil
 G.STAGE = 2
 love.keypressed("p", nil, false)
-assert(starts == 3 and forwarded == 1, "hotkeys pass through during a run")
+assert(starts == 4 and forwarded == 1, "hotkeys pass through during a run")
 G.STAGE = 1
 boot()
 QHUD_SIM.quiet = true
 love.keypressed("p", nil, false)
-assert(starts == 4, "reloading does not stack hotkey handlers")
+assert(starts == 5, "reloading does not stack hotkey handlers")
 G.FUNCS.mp_pvp_cancel_queue()
 assert(
 	not QHUD_SIM.active and MPAPI.matchmaking.get_rating == real_rating,
