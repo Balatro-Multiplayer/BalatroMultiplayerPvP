@@ -14,9 +14,12 @@ MPAPI.run_save.register_state(PVP.id, {
 		return state
 	end,
 	-- Puts the saved match state over a fresh match, so no key of the live state (or of a player
-	-- watched before) survives. The blind button is always cleared.
+	-- watched before) survives. The blind button is always cleared. The match roster and the
+	-- collected results belong to the match, not to the run, so the load keeps them.
 	load = function(state)
+		local match_players, collected_results = PVP._match_players, PVP._collected_results
 		PVP.reset_game_states()
+		PVP._match_players, PVP._collected_results = match_players, collected_results
 		for key, value in pairs(state) do
 			PVP.GAME[key] = value
 		end
