@@ -22,7 +22,15 @@ function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominato
 				and PVP._end_screen_selected_player_id ~= MPAPI.connection_state.player_id
 			)
 		)
-	return get_probability_vars_ref(trigger_obj, base_numerator, base_denominator, identifier, from_roll, no_mod or opponents)
+	-- Only the shown odds change: a roll (from_roll) keeps this player's own modifiers.
+	return get_probability_vars_ref(
+		trigger_obj,
+		base_numerator,
+		base_denominator,
+		identifier,
+		from_roll,
+		no_mod or (opponents and not from_roll)
+	)
 end
 
 -- The eternal sticker alone does not stop a sale: Steamodded ignores it on jokers that are not eternal-compatible.
@@ -94,6 +102,8 @@ end
 local delete_run_ref = Game.delete_run
 function Game:delete_run()
 	remove_nemesis_slots()
+	-- The end screen's Nemesis deck area dies with the run too, so a late deck reply finds nothing to load into.
+	PVP.nemesis_deck, PVP.nemesis_cards = nil, nil
 	return delete_run_ref(self)
 end
 
