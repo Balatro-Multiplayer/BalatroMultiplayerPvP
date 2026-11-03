@@ -812,16 +812,19 @@ function G.FUNCS.load_nemesis_deck()
 			seal = "none"
 		end
 
-		-- Create the card
-		local card = create_playing_card({
-			front = G.P_CARDS[front_key],
-			center = enhancement ~= "none" and G.P_CENTERS[enhancement] or nil,
-		}, PVP.nemesis_deck, true, true, nil, false)
+		-- A bare Card, not create_playing_card: the nemesis card must never join our own deck.
+		local area = PVP.nemesis_deck
+		local card = Card(
+			area.T.x,
+			area.T.y,
+			G.CARD_W,
+			G.CARD_H,
+			G.P_CARDS[front_key],
+			enhancement ~= "none" and G.P_CENTERS[enhancement] or G.P_CENTERS.c_base
+		)
+		area:emplace(card)
 		if edition ~= "none" then card:set_edition({ [edition] = true }, true, true) end
 		if seal ~= "none" then card:set_seal(seal, true, true) end
-
-		-- Remove the card from G.playing_cards and insert into PVP.nemesis_cards
-		table.remove(G.playing_cards, #G.playing_cards)
 		table.insert(PVP.nemesis_cards, card)
 
 		::continue::
