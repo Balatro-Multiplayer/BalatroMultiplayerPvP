@@ -839,7 +839,8 @@ end
 
 local function action_receive_nemesis_deck(p)
 	PVP.nemesis_deck_string = p.cards
-	PVP.nemesis_deck_received = true
+	-- A reply with no live deck area is not loaded, so it does not count as received.
+	PVP.nemesis_deck_received = PVP.nemesis_deck ~= nil and PVP.nemesis_deck.cards ~= nil
 	G.FUNCS.load_nemesis_deck()
 end
 
