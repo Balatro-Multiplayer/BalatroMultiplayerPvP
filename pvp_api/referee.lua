@@ -846,14 +846,21 @@ function PVP.roster_from_team_plan(plan)
 	return roster
 end
 
+-- What the referee last announced belongs to one match. Any client may have hosted an
+-- earlier one, and could become host again by takeover.
+local function forget_announced_outcome()
+	PVP.REF.last_outcome = nil
+	PVP.REF.many_result_sent = nil
+end
+
 function PVP.referee_reset(starting_lives)
+	forget_announced_outcome()
 	if not is_host() then
 		return
 	end
 	PVP.REF.players = {}
 	PVP.REF.round = nil
 	PVP.REF.retired_rounds = {}
-	PVP.REF.last_outcome = nil
 	PVP.REF.first_ready_at = nil
 	PVP.REF.ready_check = nil
 	if PVP.REF.ready_tracker then
@@ -871,7 +878,6 @@ function PVP.referee_reset(starting_lives)
 	PVP.REF.pending_deaths = {}
 	PVP.REF.many_hold = nil
 	PVP.REF.team_pending = nil
-	PVP.REF.many_result_sent = nil
 	PVP.REF.blind_results = {}
 	local lives = starting_lives or PVP.LOBBY.config.starting_lives or 4
 	local total = both_players()
@@ -2319,6 +2325,7 @@ function PVP.referee_take_over()
 	if not lobby then
 		return nil
 	end
+	forget_announced_outcome()
 	local snap = (lobby:get_metadata() or {})[CHECKPOINT_KEY]
 	local source
 	if type(snap) == "table" and snap.v == 1 and snap.tag ~= nil and snap.tag == run_tag() then
