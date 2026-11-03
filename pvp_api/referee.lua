@@ -973,15 +973,19 @@ function PVP.referee_reset(starting_lives)
 end
 
 -- loseLife(): decrement once per round (guarded by lives_blocker, re-armed by
--- newRound). Broadcasts the loser's new life count to everyone. `lost` marks a
+-- newRound). An Ante timer run-out passes `unguarded`: it costs a life every time
+-- and leaves the guard alone, so a failed blind in the same round still costs one.
+-- Broadcasts the loser's new life count to everyone. `lost` marks a
 -- real loss (as opposed to the setup/restore/takeover broadcasts of a count),
 -- so the loser's client can log life_lost for the achievements.
-local function lose_life(pl)
-	if pl.lives_blocker or pl.lives <= 0 then
+local function lose_life(pl, unguarded)
+	if (pl.lives_blocker and not unguarded) or pl.lives <= 0 then
 		return
 	end
 	pl.lives = pl.lives - 1
-	pl.lives_blocker = true
+	if not unguarded then
+		pl.lives_blocker = true
+	end
 	broadcast("pvp_player_lives", { player_id = pl.id, lives = pl.lives, lost = 1 })
 end
 
@@ -991,15 +995,17 @@ end
 -- unchanged); Teams must decrement its SHARED pool once and mirror the new value
 -- onto every teammate, or these paths would desync an individual's pl.lives from
 -- their team's actual pool (the pool is the only thing check_team_win reads).
-local function team_lose_life(pl)
+local function team_lose_life(pl, unguarded)
 	if not PVP.LOBBY.config.team_based then
-		lose_life(pl)
+		lose_life(pl, unguarded)
 		return
 	end
-	if pl.lives_blocker then
+	if pl.lives_blocker and not unguarded then
 		return
 	end
-	pl.lives_blocker = true
+	if not unguarded then
+		pl.lives_blocker = true
+	end
 	local team = pl.team_id
 	PVP.REF.team_lives[team] = (PVP.REF.team_lives[team] or 1) - 1
 	broadcast("pvp_team_lives", { team_id = team, lives = PVP.REF.team_lives[team] })
@@ -1816,7 +1822,7 @@ function PVP.referee_on_fail_timer(from)
 		return
 	end
 	local pl = ref_player(from)
-	team_lose_life(pl)
+	team_lose_life(pl, true)
 	if PVP.REF.pending_death then
 		resolve_pending_death()
 		return
