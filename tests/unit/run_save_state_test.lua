@@ -24,6 +24,10 @@ assert(saved and saved.lives == 4 and saved.enemy.score == "0", "gives the match
 PVP.GAME.next_blind_context = { UIBox = {} }
 assert(registered.hooks.save().next_blind_context == nil, "leaves out the blind button, a UI node that cannot be saved")
 assert(PVP.GAME.next_blind_context ~= nil, "and does not touch the live state")
+PVP.GAME.round_sync = { lobby = { send = function() end } }
+assert(registered.hooks.save().round_sync == nil, "leaves out the round sync, which holds the live lobby object")
+assert(PVP.GAME.round_sync ~= nil, "and keeps it in the live state")
+PVP.GAME.round_sync = nil
 in_session = false
 assert(registered.hooks.save() == nil, "gives nothing outside a session")
 
