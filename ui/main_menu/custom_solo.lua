@@ -112,17 +112,19 @@ function C.build()
 			deck_labels[#deck_labels + 1] = localize({ type = "name_text", set = "Back", key = center.key })
 		end
 	end
+	C.decks[#C.decks + 1] = "b_mp_chaos"
+	deck_labels[#deck_labels + 1] = "Chaos (deck draft)"
 	for _, stake in ipairs(G.P_CENTER_POOLS.Stake) do
 		stake_labels[#stake_labels + 1] = localize({ type = "name_text", set = "Stake", key = stake.key })
 	end
 	local columns = {}
 	for _, category in ipairs(CATEGORIES) do
-		local cells = { text_row(localize("k_solo_category_" .. category), 0.32) }
+		local cells = { text_row(localize("k_solo_category_" .. category), 0.28) }
 		for _, definition in ipairs(PVP.mutators_in(category)) do
 			local label = localize("k_mutator_" .. definition.key)
 			cells[#cells + 1] = {
 				n = G.UIT.R,
-				config = { align = "cm", padding = 0.03 },
+				config = { align = "cm", padding = 0.02 },
 				nodes = {
 					{
 						n = G.UIT.C,
@@ -130,8 +132,8 @@ function C.build()
 							id = "pvp_solo_" .. definition.key,
 							align = "cm",
 							minw = 2.3,
-							minh = 0.48,
-							padding = 0.06,
+							minh = 0.4,
+							padding = 0.04,
 							r = 0.1,
 							colour = G.C.BLACK,
 							hover = true,
