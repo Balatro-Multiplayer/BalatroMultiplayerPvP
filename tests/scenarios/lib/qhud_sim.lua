@@ -3,18 +3,22 @@
 -- The scenario runner may also load this file directly.
 --
 -- Hold alt (option) and press:
---   p  play the whole thing (ranked): search, 3 widening steps, match, opponent joins
+--   p  play the whole thing (Ranked Expanded): search, 3 widening steps, match, opponent joins,
+--      the reveal's countdown, the Draft against a bot (qhud_draft.lua), then a practice run
+--      on the drafted deck and stake
 --   1  start Ranked (placed, Elo 1432 #57)   2  start Ranked (placing, 3/10)   3  start Casual (Nemesis)
 --   s  skip 30s (next widening step)          c  bump the in-queue count
---   m  match found                            j  lobby joined (opponent arrives 1.5s later)
---   d  lobby destroyed (reveal teardown)      e  cycle forced egg: off > jimbo > joker > nope
---   r  toggle reduced motion                  x  stop everything, restore real API calls
+--   m  match found                            j  lobby joined (opponent 1.5s later, Draft after the countdown)
+--   d  straight to the Draft                  k  lobby destroyed (reveal teardown)
+--   e  cycle forced egg: off > jimbo > joker > nope
+--   x  stop everything, restore real API calls
 --   b  cycle the reveal's backdrop preset (PVP.QUEUE_BACKDROP.PRESETS, then off)
 
 local Q = PVP.QUEUE_HUD
 local Cards = PVP.QUEUE_CARDS
 local SIM = rawget(_G, "QHUD_SIM") or {}
 QHUD_SIM = SIM
+local DRAFT = PVP.load_mp_file("tests/scenarios/lib/qhud_draft.lua")
 
 local M = MPAPI.matchmaking
 SIM.generation = SIM.generation or 0
@@ -114,6 +118,7 @@ local function start(kind)
 	end
 	SIM.generation = SIM.generation + 1
 	SIM.active, SIM.lobby = true, nil
+	DRAFT.stop({ keep_page = true })
 	install_fakes()
 	Q.stop()
 	Q.dismiss_reveal()
@@ -123,7 +128,7 @@ local function start(kind)
 	else
 		SIM.me_rating = kind == "placing" and { isPlacement = true, gamesPlayed = 3, placementGames = 10 }
 			or { rating = 1432, rank = 57, isPlacement = false }
-		Q.start({ kind = PVP.LobbyAccess.RANKED, key = PVP.RulesetKey.VANILLA })
+		Q.start({ kind = PVP.LobbyAccess.RANKED, key = PVP.RulesetKey.EXPANDED })
 	end
 	log("start " .. kind)
 	return true
@@ -152,9 +157,55 @@ local OPPONENTS = {
 	{ "Twelve", "j_stone" },
 }
 
+local function me()
+	return { id = "me", displayName = "You", preferredJoker = MPAPI.connection_state.preferred_joker }
+end
+
+local function opponent()
+	local opp = OPPONENTS[love.math.random(#OPPONENTS)]
+	return { id = "opp", displayName = opp[1], preferredJoker = opp[2] }
+end
+
+-- After the Draft: a practice run on the drafted deck and stake, as the match would have been.
+local function picked(item)
+	local center = item and G.P_CENTERS[item.key]
+	local stake = item and G.P_CENTER_POOLS.Stake[item.stake]
+	if not (center and stake) then return log("the Draft ended with no pick") end
+	log(
+		"drafted "
+			.. localize({ type = "name_text", set = "Back", key = center.key })
+			.. " on "
+			.. localize({ type = "name_text", set = "Stake", key = stake.key })
+	)
+	after(1.5, function()
+		SIM.stop()
+		G.E_MANAGER:add_event(Event({
+			trigger = "after",
+			delay = 0.2,
+			timer = "REAL",
+			blockable = false,
+			blocking = false,
+			func = function()
+				PVP._start_practice(DRAFT.RULESET, { back = center.name, stake = item.stake })
+				return true
+			end,
+		}))
+	end)
+end
+
+-- What the game start does in a matchmade lobby: the reveal ends and the Draft opens.
+local function draft(players)
+	if not SIM.active then
+		if not start("ranked") then return end
+		Q.stop()
+	end
+	Q.dismiss_reveal()
+	DRAFT.start(players or { me(), opponent() }, picked)
+end
+
 local function join(opp_delay)
 	if not SIM.active then return end
-	local players = { { id = "me", displayName = "You" } }
+	local players = { me() }
 	local lobby = {
 		player_id = "me",
 		_destroyed = false,
@@ -165,10 +216,11 @@ local function join(opp_delay)
 	SIM.lobby = lobby
 	Q.lobby_ready(lobby)
 	after(opp_delay or 1.5, function()
-		if SIM.lobby == lobby then
-			local opp = OPPONENTS[love.math.random(#OPPONENTS)]
-			players[2] = { id = "opp", displayName = opp[1], preferredJoker = opp[2] }
-		end
+		if SIM.lobby == lobby then players[2] = opponent() end
+	end)
+	-- The host's start hold (ui/lobby/_ready.lua) runs from the opponent's arrival.
+	after((opp_delay or 1.5) + PVP.QUEUE_REVEAL.HOLD_SECONDS, function()
+		if SIM.lobby == lobby and not lobby._destroyed then draft(players) end
 	end)
 end
 
@@ -192,6 +244,7 @@ end
 function SIM.stop()
 	SIM.generation = SIM.generation + 1
 	SIM.active, SIM.lobby = false, nil
+	DRAFT.stop()
 	Q.stop()
 	Q.dismiss_reveal()
 	restore()
@@ -221,6 +274,9 @@ local keys = {
 		join(1.5)
 	end,
 	d = function()
+		draft()
+	end,
+	k = function()
 		if SIM.lobby then SIM.lobby._destroyed = true end
 	end,
 	e = function()
@@ -252,7 +308,8 @@ local keys = {
 }
 
 SIM.keys = keys
-SIM.start, SIM.skip, SIM.match, SIM.join = start, skip, match, join
+SIM.start, SIM.skip, SIM.match, SIM.join, SIM.draft = start, skip, match, join, draft
+DRAFT.on_leave = SIM.stop
 
 SIM.orig_keypressed = SIM.orig_keypressed or love.keypressed
 love.keypressed = function(key, scancode, isrepeat)
