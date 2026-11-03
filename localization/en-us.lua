@@ -1,5 +1,27 @@
 return {
 	descriptions = {
+		Voucher = {
+			v_mp_hieroglyph_manhunt = {
+				name = "Hieroglyph",
+				text = {
+					"{C:attention}-#1#{} Ante,",
+					"{C:blue}-#1#{} hand",
+					"each round",
+					"If the {C:attention}Runner{} redeems this,",
+					"each {C:attention}Hunter{} gains {C:red}+1{} life",
+				},
+			},
+			v_mp_petroglyph_manhunt = {
+				name = "Petroglyph",
+				text = {
+					"{C:attention}-#1#{} Ante,",
+					"{C:red}-#1#{} discard",
+					"each round",
+					"If the {C:attention}Runner{} redeems this,",
+					"each {C:attention}Hunter{} gains {C:red}+1{} life",
+				},
+			},
+		},
 		Tag = {
 			tag_mp_gambling_sandbox = {
 				name = "Gambling Tag",
