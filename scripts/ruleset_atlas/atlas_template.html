@@ -1,0 +1,675 @@
+<title>PvP Ruleset Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a rail of rulesets beside one ruleset's sheet; the sheet reads top-down
+   from what changes (bans, reworks) to what rolls (the pool) to plumbing (layers, lint). */
+:root {
+	--felt: #e6ece6;        /* page ground: a pale, slightly green paper */
+	--table: #f6f8f5;       /* raised surfaces */
+	--ink: #17221c;
+	--ink-soft: #4d5d54;
+	--rule: #cbd6cd;
+	--chips: #0a6fc2;       /* Chips blue: added / reworked */
+	--chips-wash: #dcebf8;
+	--mult: #c8312a;        /* Mult red: banned */
+	--mult-wash: #f8e0de;
+	--gold: #8a6400;        /* silent / conditional */
+	--gold-wash: #f4ead0;
+	--accent: #1f6b4a;      /* felt green */
+	--accent-wash: #d3e6db;
+	--font-display: "Pixelify Sans", "Courier New", monospace;
+	--font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+	--font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+	--step--1: 0.8125rem;
+	--step-0: 0.9375rem;
+	--step-1: 1.125rem;
+	--step-2: 1.5rem;
+	--step-3: 2.125rem;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--felt: #10241b; --table: #173226; --ink: #e8efe9; --ink-soft: #a5b8ac; --rule: #2b4a3b;
+		--chips: #59b3ff; --chips-wash: #15344b; --mult: #ff6f63; --mult-wash: #47201e;
+		--gold: #e9bd52; --gold-wash: #3e3317; --accent: #6fd09f; --accent-wash: #1d4733;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--felt: #10241b; --table: #173226; --ink: #e8efe9; --ink-soft: #a5b8ac; --rule: #2b4a3b;
+	--chips: #59b3ff; --chips-wash: #15344b; --mult: #ff6f63; --mult-wash: #47201e;
+	--gold: #e9bd52; --gold-wash: #3e3317; --accent: #6fd09f; --accent-wash: #1d4733;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+	background: var(--felt);
+	color: var(--ink);
+	font-family: var(--font-body);
+	font-size: var(--step-0);
+	line-height: 1.5;
+}
+.wrap {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding-block: 24px 64px;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	display: grid;
+	gap: 24px;
+}
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: var(--step-3); letter-spacing: 0.01em; }
+h2 { font-size: var(--step-2); }
+h3 { font-size: var(--step-1); font-weight: 500; }
+.meta { color: var(--ink-soft); font-size: var(--step--1); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+	font: inherit; font-family: var(--font-display); font-size: var(--step-0);
+	border: 1px solid var(--rule); background: var(--table); color: var(--ink);
+	padding: 6px 14px; border-radius: 4px; cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--felt); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--chips); outline-offset: 2px; }
+
+.layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+nav.rail { display: grid; gap: 18px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 820px) { nav.rail { position: static; } }
+.rail-group { display: grid; gap: 2px; }
+.rail-label { font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 4px; }
+.rail button {
+	all: unset; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+	padding: 6px 10px; border-radius: 4px; font-size: var(--step-0);
+}
+.rail button:hover { background: var(--accent-wash); }
+.rail button[aria-current="true"] { background: var(--accent); color: var(--felt); }
+.rail button .count { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: var(--step--1); opacity: 0.8; }
+@media (max-width: 820px) {
+	.rail-group { display: flex; flex-wrap: wrap; gap: 4px; }
+	.rail-label { width: 100%; }
+	.rail button { border: 1px solid var(--rule); }
+}
+
+.sheet { display: grid; gap: 28px; min-width: 0; }
+.sheet > * { min-width: 0; }
+.sheet-head { display: grid; gap: 10px; }
+.desc { white-space: pre-line; max-width: 65ch; color: var(--ink-soft); margin: 0; }
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chain .arrow { color: var(--ink-soft); font-family: var(--font-mono); }
+.layer-chip {
+	font: inherit; font-family: var(--font-mono); font-size: var(--step--1);
+	border: 1px solid var(--accent); color: var(--accent); background: transparent;
+	padding: 2px 8px; border-radius: 3px; cursor: pointer;
+}
+.layer-chip[aria-pressed="true"] { background: var(--accent); color: var(--felt); }
+.layer-chip.hook::after { content: " ⟳"; }
+.dim { opacity: 0.28; }
+
+section.block { display: grid; gap: 12px; min-width: 0; }
+.block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+.block-head .meta { flex: 1 1 auto; }
+.empty { color: var(--ink-soft); font-style: italic; margin: 0; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.card {
+	display: grid; gap: 2px; align-content: start; padding: 8px 10px; border-radius: 4px;
+	background: var(--table); border: 1px solid var(--rule); border-left-width: 4px; min-width: 0;
+}
+.card.ban { border-left-color: var(--mult); }
+.card.add { border-left-color: var(--chips); }
+.card.silent { border-left-color: var(--gold); }
+.card .name { font-weight: 700; overflow-wrap: anywhere; }
+.card .key { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-soft); overflow-wrap: anywhere; }
+.card .src { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.card .text { font-size: var(--step--1); color: var(--ink-soft); }
+.tag-src {
+	font-family: var(--font-mono); font-size: 0.72rem; padding: 0 5px; border-radius: 3px;
+	background: var(--accent-wash); color: var(--ink);
+}
+.tag-src.gm { background: var(--mult-wash); }
+.tag-src.cond { background: var(--gold-wash); }
+
+.swaps { display: grid; gap: 6px; }
+.swap { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 8px; }
+.swap .to { color: var(--ink-soft); align-self: center; font-family: var(--font-mono); }
+@media (max-width: 520px) { .swap { grid-template-columns: minmax(0, 1fr); } .swap .to { display: none; } }
+
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 4px 16px; font-size: var(--step-0); }
+.kv dt { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-soft); padding-top: 2px; }
+.kv dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.kv .from { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-soft); }
+@media (max-width: 520px) { .kv { grid-template-columns: minmax(0, 1fr); } .kv dd { margin-bottom: 6px; } }
+
+.set-group { display: grid; gap: 6px; }
+.set-label { font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+select, input[type="search"] {
+	font: inherit; color: var(--ink); background: var(--table); border: 1px solid var(--rule);
+	border-radius: 4px; padding: 6px 10px; min-width: 0; max-width: 100%;
+}
+input[type="search"] { width: min(420px, 100%); }
+
+.diff-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .diff-cols { grid-template-columns: minmax(0, 1fr); } }
+.diff-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.diff-list li { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.diff-list .sign { font-family: var(--font-mono); font-weight: 500; width: 1ch; flex: none; }
+.diff-list .plus .sign { color: var(--chips); }
+.diff-list .minus .sign { color: var(--mult); }
+.diff-list .lbl { overflow-wrap: anywhere; min-width: 0; }
+
+.scroll-x { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--table); }
+table.matrix { border-collapse: collapse; font-size: var(--step--1); min-width: 100%; }
+.matrix th, .matrix td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: left; white-space: nowrap; }
+.matrix thead th { font-family: var(--font-display); font-weight: 500; position: sticky; top: 0; background: var(--table); }
+.matrix th.row { font-weight: 700; font-family: var(--font-body); position: sticky; left: 0; background: var(--table); }
+.pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: 0.72rem; }
+.pill.ban { background: var(--mult-wash); color: var(--mult); }
+.pill.silent { background: var(--gold-wash); color: var(--gold); }
+.pill.add { background: var(--chips-wash); color: var(--chips); }
+.pill.in { background: var(--accent-wash); color: var(--accent); }
+.pill.none { color: var(--ink-soft); }
+
+.lint { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lint li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; font-size: var(--step--1); }
+.lint .lvl { font-family: var(--font-mono); text-transform: uppercase; }
+.lint .error .lvl { color: var(--mult); }
+.lint .warning .lvl { color: var(--gold); }
+.lint .note .lvl { color: var(--ink-soft); }
+.lint .msg { overflow-wrap: anywhere; }
+
+footer { color: var(--ink-soft); font-size: var(--step--1); max-width: 75ch; }
+</style>
+
+<div class="wrap">
+	<header class="top">
+		<div>
+			<h1>PvP Ruleset Atlas</h1>
+			<div class="meta" id="build-meta"></div>
+		</div>
+		<div class="tabs" role="tablist" aria-label="View">
+			<button class="tab" role="tab" id="tab-ruleset" data-view="ruleset">Ruleset</button>
+			<button class="tab" role="tab" id="tab-compare" data-view="compare">Compare</button>
+			<button class="tab" role="tab" id="tab-cards" data-view="cards">Find a card</button>
+			<button class="tab" role="tab" id="tab-lint" data-view="lint">Lint</button>
+		</div>
+	</header>
+
+	<div id="view-ruleset" class="layout">
+		<nav class="rail" id="rail" aria-label="Rulesets"></nav>
+		<main class="sheet" id="sheet"></main>
+	</div>
+
+	<div id="view-compare" class="sheet" hidden>
+		<div class="controls">
+			<label for="cmp-a">From</label><select id="cmp-a"></select>
+			<label for="cmp-b">to</label><select id="cmp-b"></select>
+		</div>
+		<div id="cmp-out" class="sheet"></div>
+	</div>
+
+	<div id="view-cards" class="sheet" hidden>
+		<div class="controls">
+			<label for="card-q">Card</label>
+			<input type="search" id="card-q" placeholder="Bloodstone, Glass, j_mp_taxes…" autocomplete="off">
+		</div>
+		<div id="card-out"></div>
+	</div>
+
+	<div id="view-lint" class="sheet" hidden>
+		<div id="lint-out"></div>
+	</div>
+
+	<footer id="foot"></footer>
+</div>
+
+<script id="atlas-data" type="application/json">/*ATLAS_DATA*/</script>
+<script>
+(function () {
+	"use strict";
+	var DATA = JSON.parse(document.getElementById("atlas-data").textContent);
+	var M = DATA.model;
+	var CARDS = M.cards;
+	var POOLED = { Joker: 1, Tarot: 1, Planet: 1, Spectral: 1, Consumable: 1, Tag: 1, Voucher: 1, Booster: 1, Enhanced: 1 };
+	var SET_ORDER = ["Joker", "Tarot", "Planet", "Spectral", "Consumable", "Voucher", "Tag", "Booster", "Enhanced", "Blind", "Back", "Unknown"];
+	var SET_LABEL = { Joker: "Jokers", Tarot: "Tarot", Planet: "Planets", Spectral: "Spectrals", Consumable: "Consumables", Voucher: "Vouchers", Tag: "Tags", Booster: "Packs", Enhanced: "Enhancements", Blind: "Blinds", Back: "Decks", Unknown: "Other" };
+	var OPTION_LABEL = {
+		the_order: "The Order", timer_base_seconds: "Timer (seconds)", timer_forgiveness: "Timeouts forgiven",
+		preview_disabled: "Score preview off", starting_lives: "Starting lives", timer: "Timer on"
+	};
+
+	function el(tag, attrs, kids) {
+		var n = document.createElement(tag);
+		if (attrs) for (var k in attrs) {
+			if (k === "text") n.textContent = attrs[k];
+			else if (k === "cls") n.className = attrs[k];
+			else n.setAttribute(k, attrs[k]);
+		}
+		(kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+		return n;
+	}
+	function arr(v) { return Array.isArray(v) ? v : []; }
+	function obj(v) { return v && typeof v === "object" && !Array.isArray(v) ? v : {}; }
+	function card(key) { return CARDS[key] || { key: key, set: "Unknown" }; }
+	function cardName(key) { var c = card(key); return c.name || key; }
+	function fmt(v) {
+		if (v === true) return "yes";
+		if (v === false) return "no";
+		if (typeof v === "object") return Array.isArray(v) ? v.join(", ") : JSON.stringify(v);
+		return String(v);
+	}
+
+	// Same buckets as model.lua's M.summary.
+	function summary(rs) {
+		var out = { banned: {}, silent: {}, reworked: {}, included: {}, spectral: {}, pool: {} };
+		var entries = obj(rs.entries);
+		Object.keys(entries).forEach(function (field) {
+			var bucket = field === "banned_silent" ? "silent"
+				: field === "spectral_banned_enhancements" ? "spectral"
+				: /^banned_/.test(field) ? "banned"
+				: /^reworked_/.test(field) ? "reworked" : "included";
+			arr(entries[field]).forEach(function (e) { out[bucket][e.key] = arr(e.sources); });
+		});
+		arr(rs.gamemode_bans).forEach(function (g) { if (!out.banned[g.key]) out.banned[g.key] = ["gamemode"]; });
+		arr(rs.center_reworks).forEach(function (r) { if (!out.reworked[r.key]) out.reworked[r.key] = [r.layer]; });
+		var pool = obj(rs.pool);
+		Object.keys(pool).forEach(function (k) {
+			if (pool[k].status === "in" && POOLED[card(k).set]) out.pool[k] = pool[k].why;
+		});
+		return out;
+	}
+	var RULESETS = arr(M.rulesets);
+	var SUMMARIES = {};
+	RULESETS.forEach(function (rs) { SUMMARIES[rs.short] = summary(rs); });
+	function find(short) { return RULESETS.filter(function (r) { return r.short === short; })[0]; }
+
+	function sortKeys(keys) {
+		return keys.slice().sort(function (a, b) {
+			var sa = SET_ORDER.indexOf(card(a).set), sb = SET_ORDER.indexOf(card(b).set);
+			if (sa !== sb) return sa - sb;
+			return cardName(a).localeCompare(cardName(b));
+		});
+	}
+
+	function srcTags(sources, extraCls) {
+		return el("div", { cls: "src" }, arr(sources).map(function (s) {
+			var t = el("span", { cls: "tag-src" + (s === "gamemode" ? " gm" : ""), text: s, "data-layer": s });
+			return t;
+		}).concat(extraCls ? [el("span", { cls: "tag-src cond", text: extraCls })] : []));
+	}
+
+	function cardTile(key, kind, sources, opts) {
+		opts = opts || {};
+		var c = card(key);
+		var kids = [
+			el("span", { cls: "name", text: c.name || key }),
+			el("span", { cls: "key", text: key + (c.set && c.set !== "Unknown" ? " · " + c.set : "") })
+		];
+		if (opts.text && c.text) kids.push(el("span", { cls: "text", text: c.text }));
+		var cond = c.has_in_pool ? "own in_pool" : (c.modifier_only ? "modifier: " + c.modifier_only.join(", ") : null);
+		if (sources || cond) kids.push(srcTags(sources, cond));
+		var tile = el("div", { cls: "card " + kind }, kids);
+		tile.dataset.layers = arr(sources).join(" ");
+		return tile;
+	}
+
+	function block(title, meta, body) {
+		return el("section", { cls: "block" }, [
+			el("div", { cls: "block-head" }, [el("h2", { text: title }), meta ? el("span", { cls: "meta", text: meta }) : null]),
+			body
+		]);
+	}
+
+	function groupedCards(keys, kind, sourceOf, opts) {
+		if (!keys.length) return el("p", { cls: "empty", text: "None." });
+		var groups = {};
+		sortKeys(keys).forEach(function (k) { var s = card(k).set; (groups[s] = groups[s] || []).push(k); });
+		var wrap = el("div", { cls: "sheet", style: "gap:14px" });
+		SET_ORDER.forEach(function (set) {
+			if (!groups[set]) return;
+			wrap.appendChild(el("div", { cls: "set-group" }, [
+				el("span", { cls: "set-label", text: (SET_LABEL[set] || set) + " · " + groups[set].length }),
+				el("div", { cls: "cards" }, groups[set].map(function (k) { return cardTile(k, kind, sourceOf(k), opts); }))
+			]));
+		});
+		return wrap;
+	}
+
+	// Silent bans next to the rework that replaces each one, matched by name, then by key.
+	function swaps(s) {
+		var silent = Object.keys(s.silent);
+		var reworks = Object.keys(s.reworked);
+		var used = {};
+		var pairs = sortKeys(silent).map(function (k) {
+			var name = cardName(k);
+			var stem = k.replace(/^(\w+?)_/, "");
+			var match = reworks.filter(function (r) { return !used[r] && card(r).origin === "mp" && cardName(r) === name; })[0]
+				|| reworks.filter(function (r) { return !used[r] && r.indexOf("_mp_" + stem) > 0; })[0];
+			if (match) used[match] = true;
+			return [k, match];
+		});
+		var rest = reworks.filter(function (r) { return !used[r]; });
+		return { pairs: pairs, rest: rest };
+	}
+
+	// --------------------------------------------------------------- ruleset view
+	var current = null;
+	var focusLayer = null;
+
+	function renderRail() {
+		var rail = document.getElementById("rail");
+		rail.textContent = "";
+		var offered = RULESETS.filter(function (r) { return arr(r.offered_at).length > 0; });
+		var other = RULESETS.filter(function (r) { return arr(r.offered_at).length === 0; });
+		[["Offered in game", offered], ["Registered, not offered", other]].forEach(function (g) {
+			if (!g[1].length) return;
+			var group = el("div", { cls: "rail-group" }, [el("span", { cls: "rail-label", text: g[0] })]);
+			g[1].forEach(function (rs) {
+				var s = SUMMARIES[rs.short];
+				var changes = Object.keys(s.banned).length + Object.keys(s.silent).length;
+				var b = el("button", { type: "button", "aria-current": String(rs.short === current), title: rs.key }, [
+					el("span", { text: rs.name }),
+					el("span", { cls: "count", text: changes + " bans" })
+				]);
+				b.addEventListener("click", function () { go("ruleset", rs.short); });
+				group.appendChild(b);
+			});
+			rail.appendChild(group);
+		});
+	}
+
+	function applyFocus() {
+		document.querySelectorAll("#sheet .card").forEach(function (t) {
+			var ls = (t.dataset.layers || "").split(" ");
+			t.classList.toggle("dim", !!focusLayer && ls.indexOf(focusLayer) < 0);
+		});
+		document.querySelectorAll("#sheet .layer-chip").forEach(function (c) {
+			c.setAttribute("aria-pressed", String(c.dataset.layer === focusLayer));
+		});
+	}
+
+	function renderSheet() {
+		var rs = find(current) || RULESETS[0];
+		current = rs.short;
+		var s = SUMMARIES[rs.short];
+		var sheet = document.getElementById("sheet");
+		sheet.textContent = "";
+		focusLayer = null;
+
+		// Head
+		var chain = el("div", { cls: "chain", "aria-label": "Layer chain" });
+		if (!arr(rs.chain).length) chain.appendChild(el("span", { cls: "meta", text: "No layers: plain Balatro content with this ruleset's own settings." }));
+		arr(rs.chain).forEach(function (name, i) {
+			if (i) chain.appendChild(el("span", { cls: "arrow", text: "›", "aria-hidden": "true" }));
+			var hook = arr(rs.runtime_hooks).indexOf(name) >= 0;
+			var chip = el("button", { type: "button", cls: "layer-chip" + (hook ? " hook" : ""), "data-layer": name, "aria-pressed": "false",
+				title: hook ? name + ": also changes the run when it starts" : name, text: name });
+			chip.addEventListener("click", function () { focusLayer = focusLayer === name ? null : name; applyFocus(); });
+			chain.appendChild(chip);
+		});
+		var offered = arr(rs.offered_at);
+		sheet.appendChild(el("div", { cls: "sheet-head" }, [
+			el("h2", { text: rs.name, style: "font-size:var(--step-3)" }),
+			el("div", { cls: "meta" }, [el("code", { text: rs.key }), " · ", el("code", { text: rs.file || "" }),
+				" · " + (offered.length ? "named at " + offered.slice(0, 3).join(", ") + (offered.length > 3 ? " +" + (offered.length - 3) : "") : "no menu, queue or vote names it")]),
+			rs.description ? el("p", { cls: "desc", text: rs.description }) : null,
+			chain,
+			arr(rs.runtime_hooks).length ? el("span", { cls: "meta", text: "⟳ " + rs.runtime_hooks.join(", ") + " also run code when the run starts (random bans, shop size, stickers…), which this page can't list." }) : null,
+			el("span", { cls: "meta", text: "Tap a layer to light up what it contributes." })
+		]));
+
+		// Banned
+		var banned = Object.keys(s.banned);
+		sheet.appendChild(block("Banned", banned.length + " · players see these as banned",
+			groupedCards(banned, "ban", function (k) { return s.banned[k]; })));
+
+		// Swapped
+		var sw = swaps(s);
+		var swapBody = el("div", { cls: "swaps" });
+		sw.pairs.forEach(function (p) {
+			var src = s.silent[p[0]];
+			swapBody.appendChild(el("div", { cls: "swap" }, [
+				cardTile(p[0], "silent", src),
+				el("span", { cls: "to", text: "→", "aria-hidden": "true" }),
+				p[1] ? cardTile(p[1], "add", s.reworked[p[1]], { text: true }) : el("div", { cls: "card ban" }, [el("span", { cls: "name", text: "No replacement" }), el("span", { cls: "key", text: "removed without a notice" })])
+			]));
+		});
+		if (!sw.pairs.length) swapBody.appendChild(el("p", { cls: "empty", text: "No silent bans." }));
+		sheet.appendChild(block("Swapped for a rework", sw.pairs.length + " · banned without a notice, replaced by the card on the right", swapBody));
+
+		if (sw.rest.length) {
+			sheet.appendChild(block("Reworked or added", sw.rest.length + " · no vanilla card banned for these",
+				groupedCards(sw.rest, "add", function (k) { return s.reworked[k]; }, { text: true })));
+		}
+		var spectral = Object.keys(s.spectral);
+		if (spectral.length) {
+			sheet.appendChild(block("Spectrals can't create", String(spectral.length),
+				groupedCards(spectral, "ban", function (k) { return s.spectral[k]; })));
+		}
+
+		// Settings
+		var kv = el("dl", { cls: "kv" });
+		var fo = obj(rs.forced_options);
+		Object.keys(fo).sort().forEach(function (k) {
+			kv.appendChild(el("dt", { text: OPTION_LABEL[k] || k }));
+			kv.appendChild(el("dd", { text: fmt(fo[k]) }));
+			kv.appendChild(el("span", { cls: "from", text: "forced by " + (rs.forced_options_source || "?") }));
+		});
+		var sc = obj(rs.scalars), ss = obj(rs.scalar_source);
+		Object.keys(sc).sort().forEach(function (k) {
+			var v = sc[k];
+			var shown = (k === "allowed_backs" || k === "banned_backs" || k === "allowed_stakes")
+				? arr(v).map(function (x) { return cardName(x) === x ? x : cardName(x); }).join(", ") : fmt(v);
+			kv.appendChild(el("dt", { text: k }));
+			kv.appendChild(el("dd", { text: shown }));
+			kv.appendChild(el("span", { cls: "from", text: ss[k] || "" }));
+		});
+		if (arr(rs.stickers).length) {
+			kv.appendChild(el("dt", { text: "stickers" }));
+			kv.appendChild(el("dd", { text: rs.stickers.join(", ") }));
+			kv.appendChild(el("span", { cls: "from", text: "rolled per match" }));
+		}
+		sheet.appendChild(block("Settings", Object.keys(fo).length ? "Forced options apply in Ranked and private lobbies and after the Casual vote" : null,
+			kv.childNodes.length ? kv : el("p", { cls: "empty", text: "Nothing beyond the lobby defaults." })));
+
+		// Pool
+		var pool = Object.keys(s.pool);
+		sheet.appendChild(block("Multiplayer cards that can roll", pool.length + " · after bans; vanilla cards roll unless banned above",
+			groupedCards(pool, "add", function (k) { var why = s.pool[k]; return [why.indexOf("layer:") === 0 ? "layer" : why]; }, { text: true })));
+
+		applyFocus();
+		renderRail();
+	}
+
+	// --------------------------------------------------------------- compare view
+	function fillSelect(sel, value) {
+		sel.textContent = "";
+		RULESETS.forEach(function (rs) { sel.appendChild(el("option", { value: rs.short, text: rs.name })); });
+		sel.value = value;
+	}
+
+	function renderCompare(a, b) {
+		var A = find(a) || RULESETS[0], B = find(b) || RULESETS[1];
+		var sa = SUMMARIES[A.short], sb = SUMMARIES[B.short];
+		document.getElementById("cmp-a").value = A.short;
+		document.getElementById("cmp-b").value = B.short;
+		var out = document.getElementById("cmp-out");
+		out.textContent = "";
+		var total = 0;
+
+		function list(items) {
+			return el("ul", { cls: "diff-list" }, items.map(function (it) {
+				return el("li", { cls: it[0] === "+" ? "plus" : "minus" }, [el("span", { cls: "sign", text: it[0] === "+" ? "+" : "−" }), el("span", { cls: "lbl" }, it.slice(1))]);
+			}));
+		}
+		function setDiff(bucket) {
+			var items = [];
+			sortKeys(Object.keys(sb[bucket])).forEach(function (k) { if (!sa[bucket][k]) items.push(["+", cardName(k) + " ", el("code", { text: k })]); });
+			sortKeys(Object.keys(sa[bucket])).forEach(function (k) { if (!sb[bucket][k]) items.push(["-", cardName(k) + " ", el("code", { text: k })]); });
+			return items;
+		}
+		function mapDiff(ma, mb) {
+			var keys = {}, items = [];
+			Object.keys(ma).forEach(function (k) { keys[k] = 1; });
+			Object.keys(mb).forEach(function (k) { keys[k] = 1; });
+			Object.keys(keys).sort().forEach(function (k) {
+				var va = ma[k] === undefined ? "—" : fmt(ma[k]), vb = mb[k] === undefined ? "—" : fmt(mb[k]);
+				if (va !== vb) items.push(["+", el("code", { text: OPTION_LABEL[k] || k }), " " + va + " → " + vb]);
+			});
+			return items;
+		}
+		var sections = [
+			["Banned", setDiff("banned")],
+			["Banned silently", setDiff("silent")],
+			["Reworked or added", setDiff("reworked")],
+			["Multiplayer cards that can roll", setDiff("pool")],
+			["Forced lobby options", mapDiff(obj(A.forced_options), obj(B.forced_options))],
+			["Settings", mapDiff(obj(A.scalars), obj(B.scalars))]
+		];
+		out.appendChild(el("div", { cls: "sheet-head" }, [
+			el("h2", { text: A.name + " → " + B.name }),
+			el("span", { cls: "meta", text: "+ is what " + B.name + " has that " + A.name + " doesn't; − the reverse." }),
+			el("div", { cls: "chain" }, [el("code", { text: arr(A.chain).join(" › ") || "(no layers)" }), el("span", { cls: "arrow", text: "  ⇢  " }), el("code", { text: arr(B.chain).join(" › ") || "(no layers)" })])
+		]));
+		var grid = el("div", { cls: "diff-cols" });
+		sections.forEach(function (sec) {
+			if (!sec[1].length) return;
+			total += sec[1].length;
+			grid.appendChild(block(sec[0], String(sec[1].length), list(sec[1])));
+		});
+		out.appendChild(total ? grid : el("p", { cls: "empty", text: "These two rulesets have the same bans, reworks, pool and settings." }));
+	}
+
+	// --------------------------------------------------------------- card lookup
+	function statusIn(rs, key) {
+		var s = SUMMARIES[rs.short];
+		if (s.banned[key]) return ["ban", "banned", s.banned[key]];
+		if (s.silent[key]) return ["silent", "swapped", s.silent[key]];
+		if (s.reworked[key] || s.included[key]) {
+			var p = obj(rs.pool)[key];
+			if (p && p.status === "out") return ["none", "listed, never rolls", s.reworked[key] || s.included[key]];
+			return ["add", "reworked", s.reworked[key] || s.included[key]];
+		}
+		if (s.pool[key]) return ["in", "rolls", []];
+		if (card(key).origin === "vanilla") return ["in", "vanilla", []];
+		return ["none", "—", []];
+	}
+
+	function renderCards(q) {
+		var out = document.getElementById("card-out");
+		out.textContent = "";
+		q = (q || "").trim().toLowerCase();
+		var keys = Object.keys(CARDS).filter(function (k) {
+			var c = CARDS[k];
+			if (!q) return false;
+			return k.toLowerCase().indexOf(q) >= 0 || (c.name || "").toLowerCase().indexOf(q) >= 0;
+		});
+		keys = sortKeys(keys).slice(0, 40);
+		if (!q) {
+			out.appendChild(el("p", { cls: "empty", text: "Type a card name or key to see what every ruleset does with it." }));
+			return;
+		}
+		if (!keys.length) {
+			out.appendChild(el("p", { cls: "empty", text: "No vanilla or Multiplayer card matches “" + q + "”." }));
+			return;
+		}
+		var head = el("tr", null, [el("th", { text: "Card" })].concat(RULESETS.map(function (rs) { return el("th", { text: rs.name, title: rs.key }); })));
+		var body = el("tbody");
+		keys.forEach(function (k) {
+			var c = card(k);
+			var row = el("tr", null, [el("th", { cls: "row", scope: "row", title: k }, [c.name || k, el("div", { cls: "meta mono", text: k })])]);
+			RULESETS.forEach(function (rs) {
+				var st = statusIn(rs, k);
+				row.appendChild(el("td", { title: arr(st[2]).join(", ") }, [el("span", { cls: "pill " + st[0], text: st[1] })]));
+			});
+			body.appendChild(row);
+		});
+		out.appendChild(el("div", { cls: "scroll-x" }, [el("table", { cls: "matrix" }, [el("thead", null, [head]), body])]));
+		out.appendChild(el("p", { cls: "meta", text: "banned: players see it banned · swapped: banned silently for a rework · reworked: the ruleset's version · rolls: in the pool · vanilla: untouched vanilla card · —: not in this ruleset. Showing up to 40 matches." }));
+	}
+
+	// --------------------------------------------------------------- lint
+	function renderLint() {
+		var out = document.getElementById("lint-out");
+		out.textContent = "";
+		var L = DATA.lint || { errors: [], warnings: [], notes: [] };
+		var items = [];
+		arr(L.errors).forEach(function (m) { items.push(["error", m]); });
+		arr(L.warnings).forEach(function (m) { items.push(["warning", m]); });
+		arr(L.notes).forEach(function (m) { items.push(["note", m]); });
+		out.appendChild(block("Lint", arr(L.errors).length + " errors · " + arr(L.warnings).length + " warnings · " + arr(L.notes).length + " notes · luajit scripts/ruleset_atlas/atlas.lua lint",
+			items.length ? el("ul", { cls: "lint" }, items.map(function (it) {
+				return el("li", { cls: it[0] }, [el("span", { cls: "lvl", text: it[0] }), el("span", { cls: "msg", text: it[1] })]);
+			})) : el("p", { cls: "empty", text: "Nothing to report." })));
+	}
+
+	// --------------------------------------------------------------- routing
+	// #<ruleset>, #compare-<a>--<b>, #cards, #lint; a ruleset's "_" is "-" in the hash.
+	function toHash(short) { return String(short).replace(/_/g, "-"); }
+	function fromHash(h) { return String(h).replace(/-/g, "_"); }
+	function go(view, a, b) {
+		var hash = view === "ruleset" ? toHash(a) : view === "compare" ? "compare-" + toHash(a) + "--" + toHash(b) : view;
+		if (location.hash.slice(1) !== hash) location.hash = hash; else route();
+	}
+	function show(view) {
+		["ruleset", "compare", "cards", "lint"].forEach(function (v) {
+			document.getElementById("view-" + v).hidden = v !== view;
+			document.getElementById("tab-" + v).setAttribute("aria-selected", String(v === view));
+		});
+	}
+	function route() {
+		var h = decodeURIComponent(location.hash.slice(1));
+		var m = /^compare-(.+?)--(.+)$/.exec(h);
+		if (m) { show("compare"); renderCompare(fromHash(m[1]), fromHash(m[2])); return; }
+		if (h === "compare") { show("compare"); renderCompare("balanced", "expanded"); return; }
+		if (h === "cards") { show("cards"); renderCards(document.getElementById("card-q").value); return; }
+		if (h === "lint") { show("lint"); renderLint(); return; }
+		show("ruleset");
+		current = find(fromHash(h)) ? fromHash(h) : (find("balanced") ? "balanced" : RULESETS[0].short);
+		renderSheet();
+		window.scrollTo(0, 0);
+	}
+
+	document.querySelectorAll(".tab").forEach(function (t) {
+		t.addEventListener("click", function () {
+			var v = t.dataset.view;
+			if (v === "ruleset") go("ruleset", current || "balanced");
+			else if (v === "compare") go("compare", document.getElementById("cmp-a").value || "balanced", document.getElementById("cmp-b").value || "expanded");
+			else go(v);
+		});
+	});
+	fillSelect(document.getElementById("cmp-a"), "balanced");
+	fillSelect(document.getElementById("cmp-b"), "expanded");
+	["cmp-a", "cmp-b"].forEach(function (id) {
+		document.getElementById(id).addEventListener("change", function () {
+			go("compare", document.getElementById("cmp-a").value, document.getElementById("cmp-b").value);
+		});
+	});
+	var qTimer;
+	document.getElementById("card-q").addEventListener("input", function (e) {
+		clearTimeout(qTimer);
+		qTimer = setTimeout(function () { renderCards(e.target.value); }, 80);
+	});
+
+	document.getElementById("build-meta").textContent =
+		RULESETS.length + " rulesets · " + Object.keys(obj(M.layers)).length + " layers · " + arr(M.mp_content).length + " Multiplayer objects · read from BalatroMultiplayerPvP @ " + (DATA.commit || "?");
+	document.getElementById("foot").textContent =
+		"Generated by scripts/ruleset_atlas from the mod's own layer, ruleset and card files, with no game running. " +
+		"Pool membership is each card's own gate (mp_include, layer membership, or Multiplayer content on/off) evaluated for the ruleset; " +
+		"layers marked ⟳ also change the run at start in ways a static read can't list, and a card's own in_pool (e.g. Manhunt-only) can still keep it out.";
+
+	window.addEventListener("hashchange", route);
+	route();
+})();
+</script>

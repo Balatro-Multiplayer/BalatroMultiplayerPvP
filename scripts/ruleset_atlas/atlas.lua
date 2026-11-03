@@ -215,7 +215,8 @@ local function html(out_path)
 	local template = f:read("*a")
 	f:close()
 	local commit = io.popen("git -C '" .. pvp_dir .. "' rev-parse --short HEAD 2>/dev/null"):read("*l") or "?"
-	local data = to_json({ model = model, commit = commit })
+	local lint_result = dofile(here .. "/lint.lua")(world, model)
+	local data = to_json({ model = model, commit = commit, lint = lint_result })
 	-- Keep "</script>" in card text from closing the data block.
 	data = data:gsub("</", "<\\/")
 	local page = template:gsub("/%*ATLAS_DATA%*/", function() return data end)
