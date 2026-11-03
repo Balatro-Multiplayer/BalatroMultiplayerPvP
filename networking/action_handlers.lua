@@ -849,6 +849,9 @@ local function action_start_ante_timer(p)
 	local in_pvp = PVP.GAME.pvp_countdown_in_progress or (PVP.is_pvp_boss() and G.GAME.blind and G.GAME.blind.in_blind)
 	if not p.isPvP and p.fromNemesis ~= false and in_pvp then return end
 
+	-- One Ante timer per opponent: a second start while it runs would reset it.
+	if p.fromNemesis ~= false and PVP.GAME.nemesis_timer_started then return end
+
 	local time = p.time
 	local from_nemesis = p.fromNemesis
 	if from_nemesis == nil then from_nemesis = true end
@@ -883,6 +886,12 @@ local function action_start_ante_timer(p)
 	else
 		PVP.GAME.timer_started = true
 	end
+end
+
+local function action_restart_ante_timer(p)
+	local time = p.time
+	if type(time) == "string" then time = tonumber(time) end
+	if time then PVP.AnteTimer.receive_restart(time, p.resume) end
 end
 
 local function action_pause_ante_timer(p)
@@ -1168,6 +1177,15 @@ function PVP.ACTIONS.pause_ante_timer()
 	action_pause_ante_timer({ time = PVP.GAME.timer, fromNemesis = false })
 end
 
+-- The timered side restarts its Ante timer after a run-out; the waiting side copies it.
+function PVP.ACTIONS.announce_ante_timer_restart(time, resume)
+	Client.send({
+		action = "restartAnteTimer",
+		time = time,
+		resume = resume or nil,
+	})
+end
+
 function PVP.ACTIONS.fail_timer()
 	-- Out of time on the cash out after the Boss: the ante has gone up but the Boss is
 	-- still on deck until cash_out resets the blinds. The Boss is the PvP, which never
@@ -1271,6 +1289,7 @@ local HANDLERS = {
 	nemesisEndGameStats = noop, -- logged only, no handler
 	startAnteTimer = action_start_ante_timer,
 	pauseAnteTimer = action_pause_ante_timer,
+	restartAnteTimer = action_restart_ante_timer,
 	moddedAction = action_modded_action,
 	error = action_error,
 	keepAlive = action_keep_alive,
