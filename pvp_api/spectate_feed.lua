@@ -15,19 +15,11 @@
 -- (BalatroMultiplayerServer nakama/src/lobby/spectate.ts) forwards only the
 -- participants' replay events, already driver-ready.
 --
--- §22.3 full-fidelity update: S.start bootstraps its own seeded local run via
--- PVP._start_playback (lib/playback_launch.lua), using the manifest the
--- server's snapshot carries -- the same seed/deck/stake/ruleset a post-hoc
--- replay uses, so a spectator sees the real, deterministic cards too, not
--- just score/ante text. Known gap, not solved here: this only gives full
--- fidelity for a spectator who joins from the very start of a match -- one
--- joining mid-match has no way to replay the ALREADY-MISSED actions (only the
--- aggregated latest ante/score the snapshot carries), so their local run
--- starts at ante 1/blind-select while the live feed's next real event may be
--- from a much later point -- the display baseline (_apply_snapshot) still
--- shows the right ballpark score/ante, but the actual cards on screen won't
--- reflect a mid-match join. Same class of gap as the already-flagged missing
--- `lives` field.
+-- A spectator who joins mid-match starts from the real board of the player in view: the server
+-- gives that player's latest Run save and the events after it (MPAPI.replay.request_spectate_run).
+-- The local run is started from the save (or, with no save yet, from the first event), the later
+-- events are fast-forwarded, and the live feed follows. Switching to another player loads that
+-- player's run the same way. A save that does not read or load is asked for again as the whole log.
 PVP.SPECTATE = PVP.SPECTATE or {}
 local S = PVP.SPECTATE
 S._driver = nil
@@ -35,43 +27,142 @@ S._driver = nil
 -- starting wait in _pending.
 S._active = false
 S._pending = nil
+-- The player in view, and the player whose run the server has been asked for (nil once it came).
+S._pov = nil
+S._awaiting = nil
+-- Bumped by every request, so an answer or a load that belongs to an earlier one is dropped.
+S._generation = 0
+S._snapshot = nil
 
--- Applies the one-time join snapshot (MPAPI.replay.spectate_lobby's
--- {snapshot, ...} answer) as a baseline, through the SAME registered
--- handlers Phase 3 already tests (set_ante_key/hand_result) rather than
--- duplicating their projection logic here. The first player id in the
--- snapshot is picked as the nominal POV (drives PVP.GAME, the "own board"
--- side) -- a spectator has no real self in the match, this is a display
--- choice, not an identity claim. Known gap (flagged in the approved plan,
--- not solved here): the snapshot has no `lives` field, since the server's
--- getSpectatorSnapshot only derives ante/score/handsRemaining from buffered
--- carbon events -- live lives changes flow through pvp_player_lives, a
--- separate broadcast this file doesn't touch yet.
--- Exposed as a module field (not a local), same reasoning as
--- MPAPI.playback._queues_empty -- so a test can call it directly with a
--- synthetic snapshot, without needing a real spectate_lobby round trip.
-function S._apply_snapshot(snapshot)
-	local pov_player_id = snapshot[1] and snapshot[1].playerId
+-- Applies the one-time join snapshot (MPAPI.replay.spectate_lobby's {snapshot, ...} answer) as a
+-- baseline for the players not in view, through the SAME registered handlers Phase 3 already
+-- tests (set_ante_key/hand_result). The player in view gets their real board from their own run.
+-- Known gap: the snapshot has no `lives` field; live lives changes flow through
+-- pvp_player_lives, a separate broadcast this file doesn't touch.
+-- Exposed as a module field (not a local) so a test can call it with a synthetic snapshot.
+function S._apply_snapshot(snapshot, pov_player_id)
 	for _, entry in ipairs(snapshot) do
-		local ctx = { is_pov = entry.playerId == pov_player_id, player_id = entry.playerId }
-		if entry.ante then
-			MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.SET_ANTE_KEY, entry.ante, ctx)
-		end
-		if entry.score or entry.handsRemaining then
-			MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.HAND_RESULT, { entry.score, entry.handsRemaining }, ctx)
+		if entry.playerId ~= pov_player_id then
+			local ctx = { is_pov = false, player_id = entry.playerId }
+			if entry.ante then
+				MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.SET_ANTE_KEY, entry.ante, ctx)
+			end
+			if entry.score or entry.handsRemaining then
+				MPAPI.playback.dispatch('pvp', MPAPI.OPCODE.HAND_RESULT, { entry.score, entry.handsRemaining }, ctx)
+			end
 		end
 	end
-	return pov_player_id
+end
+
+local function manifest_of(player_id)
+	local fallback
+	for _, entry in ipairs(S._snapshot or {}) do
+		if entry.manifest then
+			if entry.playerId == player_id then
+				return entry.manifest
+			end
+			fallback = fallback or entry.manifest
+		end
+	end
+	return fallback
+end
+
+-- Asks the server for `player_id`'s run and drops what was playing. The live events that come
+-- before the answer are in the answer already, so they are not kept.
+function S._request(player_id, from_start)
+	S._generation = S._generation + 1
+	S._pov = player_id
+	S._awaiting = player_id
+	S._pending = nil
+	if S._driver then
+		S._driver:stop()
+		S._driver = nil
+	end
+	if not MPAPI.replay.request_spectate_run(player_id, from_start) then
+		MPAPI.sendWarnMessage('[spectate] could not ask for the run of ' .. tostring(player_id))
+	end
+end
+
+-- The server's answer: start a local run from the Run save (if any) and play the events after it.
+function S._on_run(data)
+	if not S._active or data.playerId ~= S._awaiting then
+		return
+	end
+	local player_id = data.playerId
+	S._awaiting = nil
+	local manifest = manifest_of(player_id)
+	if not manifest then
+		S.stop()
+		return
+	end
+	local generation = S._generation
+
+	local timeline = {}
+	for _, ev in ipairs(data.events or {}) do
+		timeline[#timeline + 1] = { t = ev.t, player_id = player_id, opcode = ev.opcode, args = ev.args }
+	end
+	local session = { bootstrap = manifest, timeline = timeline, my_id = player_id }
+	local opts = {
+		mod_id = 'pvp',
+		live = true,
+		start_run = function(bootstrap, on_ready)
+			PVP._start_playback(bootstrap, on_ready)
+		end,
+	}
+	if data.runSave then
+		local envelope, err = MPAPI.run_save.decode(data.runSave.data)
+		if not envelope then
+			MPAPI.sendWarnMessage('[spectate] Run save not used, playing the whole log: ' .. tostring(err))
+			S._request(player_id, true)
+			return
+		end
+		opts.run_save = { envelope = envelope, pos = data.runSave.pos, events_follow = true }
+		opts.on_load_failed = function(reason)
+			if generation ~= S._generation or not S._active then
+				return
+			end
+			MPAPI.sendWarnMessage('[spectate] Run save not used, playing the whole log: ' .. tostring(reason))
+			S._request(player_id, true)
+		end
+	end
+
+	S._pending = {}
+	MPAPI.playback.restart_session_and_seek(session, #timeline + 1, function(driver)
+		if generation ~= S._generation or not S._active then
+			driver:stop()
+			return
+		end
+		session.driver = driver
+		S._driver = driver
+		S._apply_snapshot(S._snapshot or {}, player_id)
+		driver:play()
+		local pending = S._pending or {}
+		S._pending = nil
+		for _, entry in ipairs(pending) do
+			driver:push_event(entry)
+		end
+		local on_ready = S._on_ready
+		S._on_ready = nil
+		if on_ready then
+			on_ready(nil)
+		end
+	end, opts)
 end
 
 -- The feed's handlers: entries are already driver-ready.
 local feed_handlers = {
 	event = function(entry)
+		if S._awaiting then
+			return
+		end
 		if S._driver then
 			S._driver:push_event(entry)
 		elseif S._pending then
 			S._pending[#S._pending + 1] = entry
 		end
+	end,
+	run = function(data)
+		S._on_run(data)
 	end,
 	ended = function(reason)
 		if S._active then
@@ -81,11 +172,9 @@ local feed_handlers = {
 	end,
 }
 
--- Starts spectating `code`. on_ready(err) reports whether the feed connected
--- (nil err = success); once it does, the driver is playing and PVP.GAME/
--- enemy already reflect the join-time snapshot, updating live as further
--- replay events arrive. Bootstraps its own seeded local run first (see file
--- header) -- this can take a moment (a real run start).
+-- Starts spectating `code`. on_ready(err) reports whether the feed connected and the first
+-- player's board is up (nil err = success); the driver then plays, and further replay events
+-- arrive live. Bootstraps its own seeded local run (see file header), which can take a moment.
 function S.start(code, on_ready)
 	MPAPI.replay.spectate_lobby(code, function(err, data)
 		if err or not data then
@@ -106,29 +195,27 @@ function S.start(code, on_ready)
 		end
 
 		S._active = true
-		S._pending = {}
-
-		PVP._start_playback(manifest, function()
-			local pov_player_id = S._apply_snapshot(snapshot)
-			S._driver = MPAPI.playback.new_driver({}, { mod_id = 'pvp', pov_player_id = pov_player_id })
-			S._driver:play()
-
-			local pending = S._pending or {}
-			S._pending = nil
-			for _, entry in ipairs(pending) do
-				S._driver:push_event(entry)
-			end
-			if on_ready then
-				on_ready(nil)
-			end
-		end)
+		S._snapshot = snapshot
+		S._on_ready = on_ready
+		S._request(snapshot[1].playerId, false)
 	end, feed_handlers, PVP.id)
+end
+
+-- Shows another player's board. Their run is loaded from their latest Run save, as on joining.
+function S.switch_to(player_id)
+	if not S._active or (player_id == S._pov and (S._driver or S._awaiting)) then
+		return
+	end
+	S._request(player_id, false)
 end
 
 function S.stop()
 	if S._active then
 		S._active = false
 		S._pending = nil
+		S._awaiting = nil
+		S._on_ready = nil
+		S._generation = S._generation + 1
 		MPAPI.replay.stop_spectating()
 	end
 	if S._driver then
