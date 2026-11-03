@@ -6,6 +6,17 @@ example-poc.lua; the others below are design-only. None enter gameplay.
 
 ## Approved concepts to stub
 
+### All In — parked ante-wide concept
+
+- Removed from the manual wall; reserve it for an ante-wide Chaos Clock event.
+- Starting concept: +1 hand and -1 discard per round for the affected ante.
+- Optional variant: no discards, rather than merely one fewer discard.
+- Neither ante-wide variant is implemented as a production Clock event. The debug
+  lab has a one-blind +1 hand/-1 discard recipe; that is not the ante-wide contract.
+  The old run-long layer remains available for existing Custom Solo saves.
+- Before implementation: settle the discard variant, forecast/activation timing,
+  expiry and deck-relative restoration, save/reload, and preset eligibility.
+
 ### Loaded Dice
 
 - Forecasted blind: listed probabilities are doubled, including adverse outcomes.

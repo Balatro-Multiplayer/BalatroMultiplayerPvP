@@ -3,21 +3,31 @@
 PVP.MUTATORS = {}
 PVP.MutatorCategory = {
 	ECONOMY = "economy",
-	MAYHEM = "mayhem",
-	HAZARDS = "hazards",
+	CONSTRAINTS = "constraints",
+	POOL = "pool",
+	SCORING = "scoring",
 	CHAOS = "chaos",
-	RESOURCES = "resources",
 	BALANCE = "balance",
 	CONTENT = "content",
 }
 PVP.MUTATOR_CATEGORIES = {
 	PVP.MutatorCategory.ECONOMY,
-	PVP.MutatorCategory.MAYHEM,
-	PVP.MutatorCategory.HAZARDS,
+	PVP.MutatorCategory.CONSTRAINTS,
+	PVP.MutatorCategory.POOL,
+	PVP.MutatorCategory.SCORING,
 	PVP.MutatorCategory.CHAOS,
-	PVP.MutatorCategory.RESOURCES,
 	PVP.MutatorCategory.BALANCE,
 	PVP.MutatorCategory.CONTENT,
+}
+
+-- Removed from the editor, but still valid in existing Custom Solo saves.
+PVP.RETIRED_MUTATORS = {
+	second_wind = true,
+	fresh_start = true,
+	all_in = true,
+	paid_overtime = true,
+	discard_dividend = true,
+	working_capital = true,
 }
 
 function PVP.Mutator(key, category, order)

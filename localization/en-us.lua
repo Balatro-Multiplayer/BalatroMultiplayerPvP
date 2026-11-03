@@ -1342,10 +1342,10 @@ return {
 			k_solo_base_sandbox = "Sandbox",
 			k_solo_base_experimental = "Experimental",
 			k_solo_category_economy = "ECONOMY",
-			k_solo_category_mayhem = "MAYHEM",
-			k_solo_category_hazards = "HAZARDS",
+			k_solo_category_constraints = "CONSTRAINTS",
+			k_solo_category_pool = "POOL",
+			k_solo_category_scoring = "SCORING",
 			k_solo_category_chaos = "CHAOS",
-			k_solo_category_resources = "RESOURCES",
 			k_solo_category_balance = "BALANCE",
 			k_solo_category_content = "JOKERS",
 			ml_solo_content = {
@@ -1466,7 +1466,7 @@ return {
 				"Replace Wraith with Kind Wraith:",
 				"an Uncommon Joker and $5.",
 			},
-			k_mutator_dice_patch = "Dice Patch",
+			k_mutator_dice_patch = "The Dice Patch",
 			ml_mutator_dice_patch = {
 				"Oops! All 6s: X1.75 probabilities.",
 				"Lucky $20: 1 in 10.",

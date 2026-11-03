@@ -28,9 +28,9 @@ end
 return {
 	{
 		run = function(S)
-			local balance = PVP.mutators_in(PVP.MutatorCategory.BALANCE)
+			local reworks = PVP.mutators_in(PVP.MutatorCategory.BALANCE)
 			S.check(
-				#balance == 2 and balance[1].key == "wraith_rework" and balance[2].key == "dice_patch",
+				#reworks == 2 and reworks[1].key == "wraith_rework" and reworks[2].key == "dice_patch",
 				"Balance contains Kind Wraith and Dice Patch"
 			)
 			S.check(PVP.MUTATORS.wraith_rework.category ~= PVP.MutatorCategory.CHAOS, "Kind Wraith moved out of Chaos")

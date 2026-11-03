@@ -16,6 +16,7 @@ function PVP.SOLO.validate(config)
 		if type(key) ~= "string" then return nil, "modifiers" end
 		if
 			not PVP.MUTATORS[key]
+			and not PVP.RETIRED_MUTATORS[key]
 			and key ~= "multiplayer_jokers"
 			and key ~= "no_multiplayer_jokers"
 			and key ~= "multiplayer_content"

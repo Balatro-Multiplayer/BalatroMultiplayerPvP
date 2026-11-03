@@ -47,6 +47,8 @@ function pseudoseed()
 end
 
 dofile("lib/mutators.lua")
+dofile("lib/chaos_clock.lua")
+dofile("lib/chaos_effects.lua")
 dofile("layers/glass_cannon.lua")
 dofile("layers/resource_mutators.lua")
 dofile("layers/ban_mutators.lua")
@@ -199,9 +201,13 @@ check(removed == 1, "center absent from pool terminates without mutation")
 
 dofile("lib/singleplayer.lua")
 PVP.Rulesets = { ruleset_mp_vanilla = {} }
-PVP.Mutator("glass_cannon", "chaos", 1)
+PVP.Mutator("glass_cannon", PVP.MutatorCategory.SCORING, 1)
 local config = { ruleset = "ruleset_mp_vanilla", modifiers = { "glass_cannon" }, stake = 1 }
 check(PVP.SOLO.validate(config), "valid solo configuration")
+for key in pairs(PVP.RETIRED_MUTATORS) do
+	config.modifiers = { key }
+	check(PVP.SOLO.validate(config), "legacy resource recipe remains loadable: " .. key)
+end
 for _, invalid in ipairs({ "clock_mayhem", "not_a_layer", 5 }) do
 	config.modifiers = { invalid }
 	check(not PVP.SOLO.validate(config), "reject unavailable modifier " .. tostring(invalid))
@@ -216,16 +222,16 @@ check(not PVP.SOLO.validate(config), "reject non-string seed")
 -- Draft computation is testable without pretending to render the game UI.
 dofile("ui/main_menu/custom_solo.lua")
 PVP.Mutator("no_interest", PVP.MutatorCategory.ECONOMY, 1)
-PVP.Mutator("fresh_start", PVP.MutatorCategory.RESOURCES, 1)
+PVP.Mutator("shared_pockets", PVP.MutatorCategory.CONSTRAINTS, 1)
 PVP.Mutator("sandbox_rotation", PVP.MutatorCategory.CONTENT, 1)
 PVP.MUTATORS.sandbox_rotation.implied_by = "sandbox"
 PVP.Rulesets.ruleset_mp_sandbox = { _layer_order = { "sandbox" } }
 local C = PVP.CUSTOM
 C.decks = { "b_red" }
 C.draft = C.new_draft()
-C.draft.selected = { fresh_start = true, glass_cannon = true, no_interest = true }
+C.draft.selected = { shared_pockets = true, glass_cannon = true, no_interest = true }
 local selected = C.config()
-check(table.concat(selected.modifiers, ",") == "no_interest,glass_cannon,fresh_start", "deterministic wall order")
+check(table.concat(selected.modifiers, ",") == "no_interest,shared_pockets,glass_cannon", "deterministic wall order")
 check(not PVP.is_singleplayer(), "draft does not start a session")
 C.draft.base = 4
 check(C.inherited("sandbox_rotation"), "Sandbox subgroup is inherited")

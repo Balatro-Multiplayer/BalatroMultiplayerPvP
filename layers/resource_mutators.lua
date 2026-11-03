@@ -9,9 +9,15 @@ local function resource_layer(key, deltas, modifiers)
 	})
 end
 
-resource_layer("second_wind", { hands = 1 })
-resource_layer("fresh_start", { discards = 1 })
-resource_layer("all_in", { hands = 1, discards = -1 })
-resource_layer("paid_overtime", { hands = 1 }, { no_extra_hand_money = true })
-resource_layer("discard_dividend", { discards = 1 }, { discard_cost = 1, money_per_discard = 2 })
-resource_layer("working_capital", { hands = 1 }, { no_interest = true })
+-- Manual and timed forms use the same recipe, with different lifecycles.
+for _, key in ipairs({
+	"second_wind",
+	"fresh_start",
+	"all_in",
+	"paid_overtime",
+	"discard_dividend",
+	"working_capital",
+}) do
+	local payload = PVP.CHAOS.effects[key].payload
+	resource_layer(key, payload.round_deltas, payload.modifiers)
+end

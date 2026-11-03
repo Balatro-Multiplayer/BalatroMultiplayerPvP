@@ -1,5 +1,38 @@
 # Manual mutators and Custom Solo
 
+## Chaos Clock lab
+
+See [the runtime notes](../docs/chaos-clock-runtime.md) for controls, catalogue,
+scope boundaries and remaining work.
+
+```sh
+lua tests/test_chaos_clock.lua
+luajit tests/test_chaos_clock.lua
+bash <MPAPI-checkout>/scripts/run_scenario.sh MultiplayerPvP:chaos_clock
+```
+
+These are offline lifecycle, save-state, adapter and debug-callback contracts,
+not live gameplay validation. The live scenario checks the rendered lab controls,
+save reconstruction, Everybody Counts in an actual played hand, and cash-out expiry.
+
+## Chaos deck draft
+
+See [the prototype contract](../docs/chaos-deck-draft.md) for acquisition
+semantics and limitations.
+
+```sh
+lua tests/test_chaos_draft.lua
+luajit tests/test_chaos_draft.lua
+lua tests/test_chaos_backs.lua
+luajit tests/test_chaos_backs.lua
+bash <MPAPI-checkout>/scripts/run_scenario.sh MultiplayerPvP:chaos_draft
+bash <MPAPI-checkout>/scripts/run_scenario.sh MultiplayerPvP:chaos_backs
+```
+
+The offline test exercises all deck adapters, seeded offers, duplicate prevention,
+ante gating and save checkpoints with stubbed engine boundaries. The live scenario
+checks the rendered picker and real save/reload, using fixture ante advancement.
+
 ## Explicit multiplayer content
 
 From the PvP root, point the content contracts at the matching MPAPI checkout:
@@ -23,7 +56,12 @@ Offline contracts (not a substitute for the real game):
 ```sh
 lua tests/test_mutators.lua
 luajit tests/test_mutators.lua
+lua tests/test_mutator_catalogue.lua
+luajit tests/test_mutator_catalogue.lua
 ```
+
+The catalogue checks all 26 placements, retired recipe exclusion, row/column order, localized headings and
+Sandbox inheritance. They do not verify the rendered wall's fit.
 
 Real-game scenarios require MultiplayerAPI's scenario runner (`c677a0a` or later).
 Dice Patch also requires the accompanying MPAPI `ReworkCenter` baseline fix:
@@ -60,3 +98,21 @@ client-only local lobbies and need neither Steam registration nor a server.
 Live validation on 2026-10-24: `custom_solo` 19/19, `custom_solo_save` 11/11,
 `dice_patch` 36/36. Tested against the installed Steamodded BETA-1620a and both
 worktrees, including the MPAPI baseline fix.
+
+Combined validation on 2026-11-03 with Steamodded BETA-1814a, using the collection
+thread's installed PvP and MPAPI worktrees:
+
+| Scenario | Passed |
+|---|---:|
+| `chaos_clock` | 14 |
+| `chaos_draft` | 16 |
+| `chaos_backs` | 7 |
+| `custom_solo` | 19 |
+| `custom_solo_save` | 11 |
+| `dice_patch` | 36 |
+| `multiplayer_content` | 44 |
+
+The Clock fixture originally raced blind-selector reconstruction after reload.
+It now waits for the live selector and unlocked controller before selecting.
+These checks do not prove full multiplayer/rejoin/replay fidelity, every deck
+adapter in live play, or shop-state restoration.
