@@ -53,6 +53,7 @@ MPAPI = {
 		end,
 	},
 	run_save = {
+		SKIP = { UNREADABLE = "unreadable" },
 		register_state = function(_, hooks) run_save_hooks = hooks end,
 		decode = function(text)
 			if decode_ok then return { text = text, mods = { MultiplayerPvP = saved_state[text] } } end
@@ -70,7 +71,7 @@ MPAPI = {
 					run_save_hooks.load(opts.run_save.envelope.mods.MultiplayerPvP or {})
 				end
 				if fail_load_with and opts.run_save then
-					opts.on_load_failed(fail_load_with)
+					opts.on_load_failed("load_failed", fail_load_with)
 					return
 				end
 				on_ready(driver)

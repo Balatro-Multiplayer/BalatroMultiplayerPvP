@@ -27,6 +27,8 @@ S._driver = nil
 -- starting wait in _pending.
 S._active = false
 S._pending = nil
+-- Called once, when the first player's board is up (the callback S.start was given).
+S._on_ready = nil
 -- The player in view, and the player whose run the server has been asked for (nil once it came).
 S._pov = nil
 S._awaiting = nil
@@ -35,8 +37,8 @@ S._generation = 0
 S._snapshot = nil
 
 -- Applies the one-time join snapshot (MPAPI.replay.spectate_lobby's {snapshot, ...} answer) as a
--- baseline for the players not in view, through the SAME registered handlers Phase 3 already
--- tests (set_ante_key/hand_result). The player in view gets their real board from their own run.
+-- baseline for the players not in view, through the registered playback handlers
+-- (set_ante_key/hand_result). The player in view gets their real board from their own run.
 -- Known gap: the snapshot has no `lives` field; live lives changes flow through
 -- pvp_player_lives, a separate broadcast this file doesn't touch.
 -- Exposed as a module field (not a local) so a test can call it with a synthetic snapshot.
@@ -54,17 +56,29 @@ function S._apply_snapshot(snapshot, pov_player_id)
 	end
 end
 
-local function manifest_of(player_id)
-	local fallback
+local function snapshot_entry(player_id)
 	for _, entry in ipairs(S._snapshot or {}) do
-		if entry.manifest then
-			if entry.playerId == player_id then
-				return entry.manifest
-			end
-			fallback = fallback or entry.manifest
+		if entry.playerId == player_id then
+			return entry
 		end
 	end
-	return fallback
+end
+
+-- The run start a player's board is built from. A player the snapshot has no manifest for starts
+-- from the first player's: all players of a match share the seed, deck and ruleset.
+local function manifest_of(player_id)
+	local entry = snapshot_entry(player_id)
+	local first = S._snapshot and S._snapshot[1]
+	return (entry and entry.manifest) or (first and first.manifest)
+end
+
+-- The driver timeline for a server answer's events: all of them are `player_id`'s.
+function S._timeline_of(events, player_id)
+	local timeline = {}
+	for _, ev in ipairs(events or {}) do
+		timeline[#timeline + 1] = { t = ev.t, player_id = player_id, opcode = ev.opcode, args = ev.args }
+	end
+	return timeline
 end
 
 -- Asks the server for `player_id`'s run and drops what was playing. The live events that come
@@ -83,6 +97,12 @@ function S._request(player_id, from_start)
 	end
 end
 
+-- Asks again for the player's whole log, without a Run save, when the save could not be used.
+local function fall_back_to_whole_log(player_id, reason)
+	MPAPI.sendWarnMessage('[spectate] Run save not used, playing the whole log: ' .. tostring(reason))
+	S._request(player_id, true)
+end
+
 -- The server's answer: start a local run from the Run save (if any) and play the events after it.
 function S._on_run(data)
 	if not S._active or data.playerId ~= S._awaiting then
@@ -97,10 +117,7 @@ function S._on_run(data)
 	end
 	local generation = S._generation
 
-	local timeline = {}
-	for _, ev in ipairs(data.events or {}) do
-		timeline[#timeline + 1] = { t = ev.t, player_id = player_id, opcode = ev.opcode, args = ev.args }
-	end
+	local timeline = S._timeline_of(data.events, player_id)
 	local session = { bootstrap = manifest, timeline = timeline, my_id = player_id }
 	local opts = {
 		mod_id = 'pvp',
@@ -112,17 +129,15 @@ function S._on_run(data)
 	if data.runSave then
 		local envelope, err = MPAPI.run_save.decode(data.runSave.data)
 		if not envelope then
-			MPAPI.sendWarnMessage('[spectate] Run save not used, playing the whole log: ' .. tostring(err))
-			S._request(player_id, true)
+			fall_back_to_whole_log(player_id, MPAPI.run_save.SKIP.UNREADABLE .. ': ' .. tostring(err))
 			return
 		end
 		opts.run_save = { envelope = envelope, pos = data.runSave.pos, events_follow = true }
-		opts.on_load_failed = function(reason)
+		opts.on_load_failed = function(code, detail)
 			if generation ~= S._generation or not S._active then
 				return
 			end
-			MPAPI.sendWarnMessage('[spectate] Run save not used, playing the whole log: ' .. tostring(reason))
-			S._request(player_id, true)
+			fall_back_to_whole_log(player_id, code .. ': ' .. tostring(detail))
 		end
 	end
 
