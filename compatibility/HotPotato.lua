@@ -1,5 +1,5 @@
 if SMODS.Mods["HotPotato"] and SMODS.Mods["HotPotato"].can_load then
-	sendDebugMessage("HotPotato compatibility detected", "MULTIPLAYER")
+	MPAPI.match_log("debug", "HotPotato compatibility detected", "MULTIPLAYER")
 	PVP.DECK.ban_card("j_hpot_antidsestablishmentarianism") -- sic
 	PVP.DECK.ban_card("j_hpot_brainfuck")
 	PVP.DECK.ban_card("j_hpot_goldenchicot")

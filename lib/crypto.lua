@@ -32,16 +32,6 @@ function PVP.UTILS.joker_hash(str)
 	return string.format("%08x", b * 65536 + a)
 end
 
-function PVP.UTILS.emit_log_checksum()
-	local logFile = io.open(require("lovely").log_path, "rb")
-	if not logFile then return end
-	local logData = logFile:read("*a")
-	logFile:close()
-	sendTraceMessage(
-		string.format("Log checksum v1 @ %d - %s", #logData, PVP.UTILS.joker_hash(logData))
-	)
-end
-
 function PVP.UTILS.server_connection_ID()
 	local os_name = love.system.getOS()
 	local raw_id

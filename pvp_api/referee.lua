@@ -135,7 +135,7 @@ local OUTCOME_RESENDS = { 3, 8 }
 
 local function declare_outcome(params)
 	PVP.REF.last_outcome = params
-	sendDebugMessage(
+	MPAPI.match_log("debug",
 		"[pvp] referee declares pvp_win winner="
 			.. tostring(params.winner_id or params.winner_team_id or (params.draw and "draw")),
 		"MULTIPLAYER"
@@ -166,7 +166,7 @@ function PVP.referee_on_result_request(from)
 	if not is_host() or not PVP.REF.last_outcome then
 		return
 	end
-	sendDebugMessage("[pvp] resending pvp_win on request from " .. tostring(from), "MULTIPLAYER")
+	MPAPI.match_log("debug", "[pvp] resending pvp_win on request from " .. tostring(from), "MULTIPLAYER")
 	broadcast("pvp_win", PVP.REF.last_outcome)
 end
 
@@ -1117,7 +1117,7 @@ local function settle_ready_check(check, outcome, refuser)
 		PVP.REF.ready_check = nil
 		clear_ready(refuser)
 		ref_player(refuser).first_ready = false
-		sendDebugMessage("[pvp] ready check refused by " .. tostring(refuser) .. ": dropped its stale ready", "MULTIPLAYER")
+		MPAPI.match_log("debug", "[pvp] ready check refused by " .. tostring(refuser) .. ": dropped its stale ready", "MULTIPLAYER")
 		return
 	end
 	finish_ready_check(check)
@@ -2306,7 +2306,7 @@ function PVP.referee_take_over()
 	PVP.GAME.result_held = (PVP.REF.pending_death ~= nil and PVP.REF.pending_death.held == 1)
 		or PVP.REF.many_hold == PVP.ManyHold.HELD
 		or (PVP.REF.team_pending ~= nil and PVP.REF.team_pending.held == 1)
-	sendDebugMessage("[pvp] took over the referee from " .. source, "MULTIPLAYER")
+	MPAPI.match_log("debug", "[pvp] took over the referee from " .. source, "MULTIPLAYER")
 	PVP._ref_takeover = { source = source, at = love.timer and love.timer.getTime() or os.time() }
 	-- Everyone's Lives box reads the referee's record from here on.
 	for id, pl in pairs(PVP.REF.players) do

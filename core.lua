@@ -92,7 +92,7 @@ if env_info then
 				end
 			end
 		end
-		sendDebugMessage("Loaded .env overrides", "MULTIPLAYER")
+		MPAPI.match_log("debug", "Loaded .env overrides", "MULTIPLAYER")
 	end
 end
 
@@ -198,7 +198,7 @@ PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
-	sendDebugMessage("Resetting lobby options", "MULTIPLAYER")
+	MPAPI.match_log("debug", "Resetting lobby options", "MULTIPLAYER")
 	PVP.LOBBY.config = {
 		gold_on_life_loss = true,
 		no_gold_on_round_loss = false,
@@ -239,7 +239,7 @@ end
 PVP.reset_lobby_config()
 
 function PVP.reset_game_states()
-	sendDebugMessage("Resetting game states", "MULTIPLAYER")
+	MPAPI.match_log("debug", "Resetting game states", "MULTIPLAYER")
 	-- §17.10: fresh per-match roster collection -- must not carry over from
 	-- whatever match (if any) this player was previously in.
 	PVP._collected_results = {}
@@ -511,7 +511,7 @@ MPAPI.on_loaded(function()
 			n = n + 1
 		end
 	end
-	sendDebugMessage(
+	MPAPI.match_log("debug",
 		"[pvp] boot: pvp ActionTypes registered=" .. n .. " pvp_player_ready="
 			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil),
 		"MULTIPLAYER"

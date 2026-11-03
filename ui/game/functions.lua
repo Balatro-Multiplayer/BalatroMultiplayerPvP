@@ -12,7 +12,7 @@ G.FUNCS.pvp_ready_button = function(e)
 end
 
 function G.FUNCS.mp_toggle_ready(e)
-	sendTraceMessage("Toggling Ready", "MULTIPLAYER")
+	MPAPI.match_log("trace", "Toggling Ready", "MULTIPLAYER")
 	PVP.GAME.ready_blind = not PVP.GAME.ready_blind
 	PVP.GAME.ready_blind_text = PVP.GAME.ready_blind and localize("b_unready") or localize("b_ready")
 	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, PVP.GAME.ready_blind and 1 or 0)

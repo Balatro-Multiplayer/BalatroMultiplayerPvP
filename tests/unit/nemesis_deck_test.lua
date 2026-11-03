@@ -9,7 +9,7 @@ G = {
 	P_SEALS = { Red = {} },
 }
 PVP = { UTILS = {}, LOBBY = { code = "ABCDE" } }
-function sendDebugMessage() end
+MPAPI = { match_log = function() end }
 
 function Card(x, y, w, h, front, center)
 	return {

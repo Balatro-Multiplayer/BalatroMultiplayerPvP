@@ -94,12 +94,12 @@ function PVP._join_queue(kind, gamemode_key)
 	end)
 
 	handle:on("queued", function(pos)
-		sendDebugMessage("[pvp] queued at " .. tostring(pos), "MULTIPLAYER")
+		MPAPI.match_log("debug", "[pvp] queued at " .. tostring(pos), "MULTIPLAYER")
 		PVP._show_searching(true)
 	end)
 
 	handle:on("match_found", function(data)
-		sendDebugMessage("[pvp] match_found " .. tostring(data and data.lobbyCode), "MULTIPLAYER")
+		MPAPI.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode), "MULTIPLAYER")
 		PVP._play_match_found_sound()
 	end)
 
@@ -241,12 +241,12 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	end)
 
 	handle:on("queued", function(pos)
-		sendDebugMessage("[pvp] queued at " .. tostring(pos), "MULTIPLAYER")
+		MPAPI.match_log("debug", "[pvp] queued at " .. tostring(pos), "MULTIPLAYER")
 		PVP._show_searching(true)
 	end)
 
 	handle:on("match_found", function(data)
-		sendDebugMessage("[pvp] match_found " .. tostring(data and data.lobbyCode), "MULTIPLAYER")
+		MPAPI.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode), "MULTIPLAYER")
 		PVP._play_match_found_sound()
 	end)
 

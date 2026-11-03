@@ -50,7 +50,6 @@ local function setup(mode, count, lives, legacy)
 	Event = function(spec)
 		return spec
 	end
-	sendDebugMessage = function() end
 	Game = { update = function() end }
 	love = { timer = {
 		getTime = function()
@@ -61,7 +60,6 @@ local function setup(mode, count, lives, legacy)
 	math.pow = math.pow or function(a, b)
 		return a ^ b
 	end
-	sendDebugMessage = function() end
 	sendWarnMessage = function() end
 	localize = function(key)
 		return key
@@ -106,6 +104,7 @@ local function setup(mode, count, lives, legacy)
 		}
 	end
 	MPAPI = {
+		match_log = function() end,
 		get_current_lobby = function()
 			return lobby
 		end,

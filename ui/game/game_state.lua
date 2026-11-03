@@ -503,7 +503,7 @@ function PVP.handle_duplicate_end()
 		if PVP.GAME.round_ended then
 			if not PVP.GAME.duplicate_end then
 				PVP.GAME.duplicate_end = true
-				sendDebugMessage("Duplicate end_round calls prevented.", "MULTIPLAYER")
+				MPAPI.match_log("debug", "Duplicate end_round calls prevented.", "MULTIPLAYER")
 			end
 			return true
 		end

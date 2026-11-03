@@ -1,7 +1,7 @@
 local A = PVP._pvp_action_helpers.A
 
 A("pvp_player_ready", function(_at, from, params)
-	sendDebugMessage("[pvp] RECV pvp_player_ready from=" .. tostring(from) .. " ready=" .. tostring(params and params.ready), "MULTIPLAYER")
+	MPAPI.match_log("debug", "[pvp] RECV pvp_player_ready from=" .. tostring(from) .. " ready=" .. tostring(params and params.ready), "MULTIPLAYER")
 	-- Feeds MPAPI core's shared ready-status badge (every client, not just host).
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
