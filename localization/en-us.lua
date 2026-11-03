@@ -1659,6 +1659,7 @@ return {
 			k_version_mismatch = "A player runs MultiplayerPvP #1#, you run #2#.\nEveryone in a game needs the same version.",
 			k_pvp_contest_by = "#1# contested the match with another player.",
 			k_end_player_jokers = "#1#'s Jokers",
+			k_end_player_deck = "#1#'s Deck",
 			k_end_player_left = "#1# -- left the match",
 			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {

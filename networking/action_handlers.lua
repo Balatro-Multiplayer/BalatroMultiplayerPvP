@@ -504,9 +504,7 @@ end
 
 local function action_win_game()
 	PVP.end_game_jokers_payload = ""
-	PVP.nemesis_deck_string = ""
 	PVP.end_game_jokers_received = false
-	PVP.nemesis_deck_received = false
 	PVP.GAME.won = true
 	PVP.STATS.record_match(true)
 	PVP.RLOG.end_run({ result = "win" })
@@ -525,9 +523,7 @@ end
 
 local function action_lose_game()
 	PVP.end_game_jokers_payload = ""
-	PVP.nemesis_deck_string = ""
 	PVP.end_game_jokers_received = false
-	PVP.nemesis_deck_received = false
 	PVP.STATS.record_match(false)
 	G.STATE_COMPLETE = false
 	G.STATE = G.STATES.GAME_OVER
@@ -545,9 +541,7 @@ end
 -- neither a win nor a loss in the match-history stats).
 local function action_draw_game()
 	PVP.end_game_jokers_payload = ""
-	PVP.nemesis_deck_string = ""
 	PVP.end_game_jokers_received = false
-	PVP.nemesis_deck_received = false
 	PVP.GAME.draw = true
 	G.STATE_COMPLETE = false
 	G.STATE = G.STATES.GAME_OVER
@@ -726,17 +720,6 @@ local function action_get_end_game_jokers()
 	})
 end
 
-local function action_get_nemesis_deck()
-	local deck_str = ""
-	for _, card in ipairs(G.playing_cards) do
-		deck_str = deck_str .. ";" .. PVP.UTILS.card_to_string(card)
-	end
-	Client.send({
-		action = "receiveNemesisDeck",
-		cards = deck_str,
-	})
-end
-
 local function action_send_game_stats()
 	if not PVP.GAME.stats then
 		Client.send({
@@ -765,83 +748,6 @@ local function action_send_game_stats()
 	if voucher_keys ~= "" then stats.vouchers = voucher_keys end
 
 	Client.send(stats)
-end
-
-function G.FUNCS.load_nemesis_deck()
-	-- nemesis_deck.cards is nil once a finished run has removed the area. Loading into it
-	-- would error after each card was already added to our own deck, leaving it there.
-	if
-		not PVP.nemesis_deck_string
-		or not PVP.nemesis_deck
-		or not PVP.nemesis_deck.cards
-		or not PVP.nemesis_cards
-		or not PVP.LOBBY.code
-	then
-		return
-	end
-
-	local card_strings = PVP.UTILS.string_split(PVP.nemesis_deck_string, ";")
-
-	for k, _ in pairs(PVP.nemesis_cards) do
-		PVP.nemesis_cards[k] = nil
-	end
-
-	for _, card_str in pairs(card_strings) do
-		if card_str == "" then goto continue end
-
-		local card_params = PVP.UTILS.string_split(card_str, "-")
-
-		local suit = card_params[1]
-		local rank = card_params[2]
-		local enhancement = card_params[3]
-		local edition = card_params[4]
-		local seal = card_params[5]
-
-		-- Validate the card parameters
-		-- If invalid suit or rank, skip the card
-		-- If invalid enhancement, edition, or seal, fallback to "none"
-		local front_key = tostring(suit) .. "_" .. tostring(rank)
-		if not G.P_CARDS[front_key] then
-			sendDebugMessage(string.format("Invalid playing card key: %s", front_key), "MULTIPLAYER")
-			goto continue
-		end
-		if not enhancement or (enhancement ~= "none" and not G.P_CENTERS[enhancement]) then
-			sendDebugMessage(string.format("Invalid enhancement: %s", enhancement), "MULTIPLAYER")
-			enhancement = "none"
-		end
-		if not edition or (edition ~= "none" and not G.P_CENTERS["e_" .. edition]) then
-			sendDebugMessage(string.format("Invalid edition: %s", edition), "MULTIPLAYER")
-			edition = "none"
-		end
-		if not seal or (seal ~= "none" and not G.P_SEALS[seal]) then
-			sendDebugMessage(string.format("Invalid seal: %s", seal), "MULTIPLAYER")
-			seal = "none"
-		end
-
-		-- A bare Card, not create_playing_card: the nemesis card must never join our own deck.
-		local area = PVP.nemesis_deck
-		local card = Card(
-			area.T.x,
-			area.T.y,
-			G.CARD_W,
-			G.CARD_H,
-			G.P_CARDS[front_key],
-			enhancement ~= "none" and G.P_CENTERS[enhancement] or G.P_CENTERS.c_base
-		)
-		area:emplace(card)
-		if edition ~= "none" then card:set_edition({ [edition] = true }, true, true) end
-		if seal ~= "none" then card:set_seal(seal, true, true) end
-		table.insert(PVP.nemesis_cards, card)
-
-		::continue::
-	end
-end
-
-local function action_receive_nemesis_deck(p)
-	PVP.nemesis_deck_string = p.cards
-	-- A reply with no live deck area is not loaded, so it does not count as received.
-	PVP.nemesis_deck_received = PVP.nemesis_deck ~= nil and PVP.nemesis_deck.cards ~= nil
-	G.FUNCS.load_nemesis_deck()
 end
 
 -- Dual-call: dispatched from network (fromNemesis defaults to true) or self-triggered
@@ -1126,12 +1032,6 @@ function PVP.ACTIONS.get_end_game_jokers()
 	})
 end
 
-function PVP.ACTIONS.get_nemesis_deck()
-	Client.send({
-		action = "getNemesisDeck",
-	})
-end
-
 function PVP.ACTIONS.send_game_stats()
 	Client.send({
 		action = "sendGameStats",
@@ -1270,8 +1170,6 @@ local HANDLERS = {
 	speedrun = action_speedrun,
 	getEndGameJokers = action_get_end_game_jokers,
 	receiveEndGameJokers = action_receive_end_game_jokers,
-	getNemesisDeck = action_get_nemesis_deck,
-	receiveNemesisDeck = action_receive_nemesis_deck,
 	endGameStatsRequested = action_send_game_stats,
 	nemesisEndGameStats = noop, -- logged only, no handler
 	startAnteTimer = action_start_ante_timer,

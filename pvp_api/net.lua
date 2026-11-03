@@ -147,12 +147,6 @@ local ROUTES = {
 	receiveEndGameJokers = function(msg)
 		broadcast("pvp_receive_end_game_jokers", msg)
 	end,
-	getNemesisDeck = function(_msg)
-		broadcast("pvp_get_nemesis_deck", {})
-	end,
-	receiveNemesisDeck = function(msg)
-		broadcast("pvp_receive_nemesis_deck", msg)
-	end,
 	sendGameStats = function(_msg) end, -- local-only (handled by action_send_game_stats)
 	endGameStatsRequested = function(_msg)
 		broadcast("pvp_end_game_stats_requested", {})
