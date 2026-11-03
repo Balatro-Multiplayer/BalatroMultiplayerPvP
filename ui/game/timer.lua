@@ -244,8 +244,44 @@ SMODS.Gradient({
 	end,
 })
 
+-- Which hint the timer box's hover tooltip should show. Mirrors mp_timer_button:
+-- the box is also the start/pause button, which colour alone doesn't tell you.
+function PVP.UI.timer_tooltip_state()
+	if (PVP.GAME.timer or 0) <= 0 then return "expired" end
+	if PVP.GAME.nemesis_timer_started then return "nemesis_running" end
+	if PVP.UI.cam_timer_opponent() then return PVP.GAME.timer_started and "can_pause" or "can_start" end
+	if PVP.GAME.timer_started then return "running" end
+	return "idle"
+end
+
+local timer_tooltip_keys = {
+	can_start = { "k_timer_tip_can_start_1", "k_timer_tip_can_start_2" },
+	can_pause = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" },
+	running = { "k_timer_tip_running" },
+	nemesis_running = { "k_timer_tip_nemesis_running_1", "k_timer_tip_nemesis_running_2" },
+	expired = { "k_timer_tip_expired" },
+	idle = { "k_timer_tip_idle_1", "k_timer_tip_idle_2" },
+}
+
+-- Swap the tooltip only when the state changes; if it's open, rebuild it in place.
+local function update_timer_tooltip(e)
+	local state = PVP.UI.timer_tooltip_state()
+	if e.config.mp_timer_tooltip_state == state then return end
+	e.config.mp_timer_tooltip_state = state
+	local text = {}
+	for i, key in ipairs(timer_tooltip_keys[state]) do
+		text[i] = localize(key)
+	end
+	e.config.on_demand_tooltip = { text = text }
+	if e.states and e.states.hover and e.states.hover.is then
+		e:stop_hover()
+		e:hover()
+	end
+end
+
 function G.FUNCS.set_timer_box(e)
 	if PVP.LOBBY.config.timer then
+		update_timer_tooltip(e)
 		if PVP.GAME.timer_started or PVP.GAME.nemesis_timer_started then
 			e.config.colour = G.C.DYN_UI.BOSS_DARK
 			-- Pulse because why not
