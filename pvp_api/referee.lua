@@ -995,18 +995,39 @@ end
 -- unchanged); Teams must decrement its SHARED pool once and mirror the new value
 -- onto every teammate, or these paths would desync an individual's pl.lives from
 -- their team's actual pool (the pool is the only thing check_team_win reads).
+-- The failed-blind guard of a team is kept on every teammate's lives_blocker, so the
+-- run save carries it and a save with one flagged teammate still guards the team.
+local function team_guarded(team)
+	for _, id in ipairs(both_players()) do
+		local other = ref_player(id)
+		if other.team_id == team and other.lives_blocker then
+			return true
+		end
+	end
+	return false
+end
+
+local function set_team_guard(team, value)
+	for _, id in ipairs(both_players()) do
+		local other = ref_player(id)
+		if other.team_id == team then
+			other.lives_blocker = value
+		end
+	end
+end
+
 local function team_lose_life(pl, unguarded)
 	if not PVP.LOBBY.config.team_based then
 		lose_life(pl, unguarded)
 		return
 	end
-	if pl.lives_blocker and not unguarded then
-		return
-	end
-	if not unguarded then
-		pl.lives_blocker = true
-	end
 	local team = pl.team_id
+	if not unguarded then
+		if team_guarded(team) then
+			return
+		end
+		set_team_guard(team, true)
+	end
 	PVP.REF.team_lives[team] = (PVP.REF.team_lives[team] or 1) - 1
 	broadcast("pvp_team_lives", { team_id = team, lives = PVP.REF.team_lives[team] })
 	for _, id in ipairs(both_players()) do
@@ -1769,7 +1790,11 @@ function PVP.referee_on_new_round(from)
 	if not is_host() then
 		return
 	end
-	ref_player(from).lives_blocker = false
+	local pl = ref_player(from)
+	pl.lives_blocker = false
+	if PVP.LOBBY.config.team_based then
+		set_team_guard(pl.team_id, false)
+	end
 end
 
 -- failRound: mode-dependent life loss (death_on_round_loss) and match end.
