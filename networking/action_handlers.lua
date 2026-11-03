@@ -762,7 +762,17 @@ local function action_send_game_stats()
 end
 
 function G.FUNCS.load_nemesis_deck()
-	if not PVP.nemesis_deck_string or not PVP.nemesis_deck or not PVP.nemesis_cards or not PVP.LOBBY.code then return end
+	-- nemesis_deck.cards is nil once a finished run has removed the area. Loading into it
+	-- would error after each card was already added to our own deck, leaving it there.
+	if
+		not PVP.nemesis_deck_string
+		or not PVP.nemesis_deck
+		or not PVP.nemesis_deck.cards
+		or not PVP.nemesis_cards
+		or not PVP.LOBBY.code
+	then
+		return
+	end
 
 	local card_strings = PVP.UTILS.string_split(PVP.nemesis_deck_string, ";")
 
