@@ -301,3 +301,30 @@ test("a run save with the shared guard set loads", function()
 	assert(PVP.referee_take_over() == "checkpoint")
 	equal(lives_of("b"), 4)
 end)
+
+test("a 1.0.4 run save (old blocker field, no newer keys) loads with its guard state", function()
+	new_match("pair")
+	PVP.referee_on_fail_round("a")
+	PVP.referee_checkpoint()
+	local saved = lobby.metadata
+	for _, snap in pairs(saved) do
+		for _, key in ipairs({
+			"round", "retired_rounds", "pending_death", "pending_deaths", "many_hold", "team_pending",
+			"team_card_target", "team_card_ante", "eliminated", "blind_results",
+		}) do
+			snap[key] = nil
+		end
+		for _, pl in pairs(snap.players) do
+			pl.round_protocol, pl.tracked_ready, pl.failed_blind = nil, nil, nil
+		end
+		snap.players.a.blocker = 1
+		snap.players.b.blocker = 0
+	end
+	new_match("pair")
+	lobby.metadata = saved
+	assert(PVP.referee_take_over() == "checkpoint")
+	PVP.referee_on_fail_round("a")
+	equal(lives_of("a"), 3)
+	PVP.referee_on_fail_round("b")
+	equal(lives_of("b"), 3)
+end)

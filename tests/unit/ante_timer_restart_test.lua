@@ -32,9 +32,9 @@ local function setup(lives, forgiveness)
 			fail_timer = function()
 				failed = failed + 1
 			end,
-			announce_ante_timer_restart = function(time, resume)
+			announce_ante_timer_restart = function(time, rejoined)
 				table.insert(announced, time)
-				announced.resume = resume
+				announced.rejoined = rejoined
 			end,
 			announce_ante_timer = function(time)
 				announced.start = time
@@ -85,7 +85,7 @@ setup(2)
 PVP.GAME.timer = 77
 PVP.AnteTimer.on_opponent_back()
 check("timered side resends the running timer", announced[1], 77)
-check("timered side marks the resend as a resume", announced.resume, true)
+check("timered side marks the resend as rejoined", announced.rejoined, true)
 
 setup(2)
 PVP.GAME.nemesis_timer_started = false
@@ -106,6 +106,19 @@ PVP.GAME.timer = 77
 PVP.AnteTimer.receive_restart(60, true)
 check("a rejoined waiting player picks the timer up", PVP.GAME.timer_started, true)
 check("rejoined waiting player gets the time", PVP.GAME.timer, 60)
+
+-- Teams: PVP.GAME.lives is the team's shared pool (the referee mirrors the pool onto every
+-- teammate through pvp_player_lives), so the pool's last life stops the restart too.
+setup(1)
+PVP.LOBBY.config.team_based = true
+PVP.AnteTimer.on_run_out()
+check("teams, last team life: life cost", failed, 1)
+check("teams, last team life: no restart sent", #announced, 0)
+
+setup(2)
+PVP.LOBBY.config.team_based = true
+PVP.AnteTimer.on_run_out()
+check("teams, lives left in the pool: restart sent", #announced, 1)
 
 if failures > 0 then
 	os.exit(1)

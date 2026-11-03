@@ -995,18 +995,23 @@ local function lose_life(pl, unguarded)
 	broadcast("pvp_player_lives", { player_id = pl.id, lives = pl.lives, lost = 1 })
 end
 
--- Teams-aware life loss for the fail_round/fail_timer/fail_pvp_timer paths below
--- (non-PvP-round failures: a vanilla boss blind loss, an ante timer expiry, a PvP
--- round timer expiry). Manhunt keeps ordinary per-player lives (lose_life
--- unchanged); Teams must decrement its SHARED pool once and mirror the new value
--- onto every teammate, or these paths would desync an individual's pl.lives from
--- their team's actual pool (the pool is the only thing check_team_win reads).
+-- The teammates of `team` (everyone of it still in the lobby), as ref players.
+local function teammates(team)
+	local mates = {}
+	for _, id in ipairs(both_players()) do
+		local other = ref_player(id)
+		if other.team_id == team then
+			mates[#mates + 1] = other
+		end
+	end
+	return mates
+end
+
 -- The failed-blind guard of a team is kept on every teammate's lives_blocker, so the
 -- run save carries it and a save with one flagged teammate still guards the team.
 local function team_guarded(team)
-	for _, id in ipairs(both_players()) do
-		local other = ref_player(id)
-		if other.team_id == team and other.lives_blocker then
+	for _, other in ipairs(teammates(team)) do
+		if other.lives_blocker then
 			return true
 		end
 	end
@@ -1014,14 +1019,17 @@ local function team_guarded(team)
 end
 
 local function set_team_guard(team, value)
-	for _, id in ipairs(both_players()) do
-		local other = ref_player(id)
-		if other.team_id == team then
-			other.lives_blocker = value
-		end
+	for _, other in ipairs(teammates(team)) do
+		other.lives_blocker = value
 	end
 end
 
+-- Teams-aware life loss for the fail_round/fail_timer/fail_pvp_timer paths below
+-- (non-PvP-round failures: a vanilla boss blind loss, an ante timer expiry, a PvP
+-- round timer expiry). Manhunt keeps ordinary per-player lives (lose_life
+-- unchanged); Teams must decrement its SHARED pool once and mirror the new value
+-- onto every teammate, or these paths would desync an individual's pl.lives from
+-- their team's actual pool (the pool is the only thing check_team_win reads).
 local function team_lose_life(pl, unguarded)
 	if not PVP.LOBBY.config.team_based then
 		lose_life(pl, unguarded)
@@ -2200,22 +2208,17 @@ local function restore(snap)
 	PVP.REF.retired_rounds = snap.retired_rounds or {}
 end
 
--- No checkpoint to take over (an old host on an older build, or one that
--- crashed before its first write): rebuild what this client saw itself. Lives
--- are the part that decides the match, and every client hears every change to
--- its own and its opponent's (pvp_player_lives). Scores and hands come back as
--- each player plays its next hand.
 -- Everyone the match started with, so a player who already left still counts as a
 -- player of it (the 2-player rules and a pending death need both). The lobby's
 -- game record is the fallback when this client has no start snapshot.
 local function match_player_ids(lobby)
-	local players = PVP._match_players
-	if not (players and #players > 0) then
-		local started = lobby._game and lobby._game.started
-		players = started and started.players
-	end
-	if not (players and #players > 0) then
-		players = lobby:get_players()
+	local started = lobby._game and lobby._game.started
+	local players = {}
+	for _, list in ipairs({ PVP._match_players or {}, started and started.players or {}, lobby:get_players() }) do
+		if #list > 0 then
+			players = list
+			break
+		end
 	end
 	local ids = {}
 	for _, p in ipairs(players) do
@@ -2224,6 +2227,11 @@ local function match_player_ids(lobby)
 	return ids
 end
 
+-- No checkpoint to take over (an old host on an older build, or one that
+-- crashed before its first write): rebuild what this client saw itself. Lives
+-- are the part that decides the match, and every client hears every change to
+-- its own and its opponent's (pvp_player_lives). Scores and hands come back as
+-- each player plays its next hand.
 local function rebuild_from_local(lobby)
 	-- Only the old host knew it had asked for the hold; the server's own flag is what is true.
 	local held = lobby:is_result_pending()

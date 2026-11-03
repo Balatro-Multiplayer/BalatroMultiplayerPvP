@@ -12,7 +12,7 @@ A("pvp_restart_ante_timer", function(_at, from, params)
 	if from == self_id() then
 		return
 	end
-	PVP.dispatch_action("restartAnteTimer", { time = params.time, resume = params.resume })
+	PVP.dispatch_action("restartAnteTimer", { time = params.time, rejoined = params.rejoined })
 end)
 
 A("pvp_pause_ante_timer", function(_at, from, params)

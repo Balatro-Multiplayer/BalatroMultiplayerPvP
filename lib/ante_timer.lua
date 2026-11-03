@@ -21,10 +21,10 @@ end
 
 -- Runs on the waiting side when the timered side restarted. A restart that arrives
 -- after the waiting side stopped its timer (the PvP blind began) is dropped.
--- `resume`: the timered side sends it to a player who rejoined, who has no timer yet.
-function PVP.AnteTimer.receive_restart(time, resume)
+-- `rejoined`: the timered side sends it to a player who rejoined, who has no timer yet.
+function PVP.AnteTimer.receive_restart(time, rejoined)
 	local running = PVP.GAME.timer_started or PVP.GAME.nemesis_timer_started
-	if not (running or resume) then return end
+	if not (running or rejoined) then return end
 	if not running then PVP.GAME.timer_started = true end
 	PVP.GAME.timer = time
 	PVP.GAME.timer_consumed = false

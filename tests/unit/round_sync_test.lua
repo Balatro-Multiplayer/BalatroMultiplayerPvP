@@ -499,6 +499,33 @@ test("the opponent leaving after the result does not end the match again", funct
 	equal(ends[1], "winGame")
 end)
 
+test("a late result after Leave from the Pending death screen does nothing", function()
+	setup("pair")
+	MPAPI.ActionType = function(def)
+		MPAPI.ActionTypes[def.key] = def
+	end
+	dofile("pvp_api/actions/_helpers.lua")
+	dofile("pvp_api/actions/outcomes.lua")
+	local dispatched, ended, released = {}, 0, 0
+	PVP.dispatch_action = function(action)
+		dispatched[#dispatched + 1] = action
+	end
+	PVP.RLOG = { end_run = function() ended = ended + 1 end }
+	PVP.end_pending_death = function() end
+	PVP.release_held_result = function() released = released + 1 end
+	MPAPI.has_server_referee = function()
+		return false
+	end
+	-- Leave went to the main menu: the stage is no longer a run.
+	G.STAGE = "main_menu"
+	PVP.GAME.pending_death_screen = true
+	MPAPI.ActionTypes.pvp_win:on_receive("a", { winner_id = "b" })
+	equal(#dispatched, 0)
+	equal(ended, 0)
+	equal(released, 0)
+	equal(PVP.GAME.result_handled, nil)
+end)
+
 test("a new run clears archived results and rejects a previous run's report", function()
 	setup("pair")
 	local old = PVP.REF.round.id

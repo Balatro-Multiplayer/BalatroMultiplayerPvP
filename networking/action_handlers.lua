@@ -851,6 +851,8 @@ local function action_start_ante_timer(p)
 
 	-- One Ante timer per opponent: a second start while it runs would reset it.
 	if p.fromNemesis ~= false and PVP.GAME.nemesis_timer_started then return end
+	-- The same holds on the waiting side: its own timer already runs.
+	if p.fromNemesis == false and PVP.GAME.timer_started then return end
 
 	local time = p.time
 	local from_nemesis = p.fromNemesis
@@ -891,7 +893,7 @@ end
 local function action_restart_ante_timer(p)
 	local time = p.time
 	if type(time) == "string" then time = tonumber(time) end
-	if time then PVP.AnteTimer.receive_restart(time, p.resume) end
+	if time then PVP.AnteTimer.receive_restart(time, p.rejoined) end
 end
 
 local function action_pause_ante_timer(p)
@@ -1161,6 +1163,7 @@ end
 -- Above the ruleset's timer threshold the opponent is told only when the timer
 -- falls to it (ui/game/timer.lua's Game:update).
 function PVP.ACTIONS.start_ante_timer()
+	if PVP.GAME.timer_started then return end
 	PVP.GAME.timer_threshold_pending = PVP.UTILS.timer_start_held_back(PVP.GAME.timer)
 	if not PVP.GAME.timer_threshold_pending then
 		PVP.ACTIONS.announce_ante_timer(PVP.GAME.timer)
@@ -1178,11 +1181,11 @@ function PVP.ACTIONS.pause_ante_timer()
 end
 
 -- The timered side restarts its Ante timer after a run-out; the waiting side copies it.
-function PVP.ACTIONS.announce_ante_timer_restart(time, resume)
+function PVP.ACTIONS.announce_ante_timer_restart(time, rejoined)
 	Client.send({
 		action = "restartAnteTimer",
 		time = time,
-		resume = resume or nil,
+		rejoined = rejoined or nil,
 	})
 end
 
