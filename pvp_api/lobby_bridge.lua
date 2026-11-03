@@ -389,6 +389,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		then
 			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
 		end
+		if G.STAGE == G.STAGES.RUN then PVP.referee_resume_entry() end
 		refresh()
 	end)
 
