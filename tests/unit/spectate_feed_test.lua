@@ -11,8 +11,15 @@ local feed_handlers, requests, seeks, drivers, started_with = nil, {}, {}, {}, {
 local decode_ok = true
 local fail_load_with = nil
 local stopped_spectating = false
+local saved_state = { T2 = { lives = 2 } }
 
-PVP = { id = "MultiplayerPvP" }
+PVP = { id = "MultiplayerPvP", GAME = {} }
+-- The fresh-match defaults (core.lua's PVP.reset_game_states), cut down to a few keys.
+function PVP.reset_game_states()
+	PVP.GAME = { lives = 0, timer = 120 }
+end
+function PVP.in_session() return true end
+local run_save_hooks
 function PVP._start_playback(manifest, on_ready)
 	started_with[#started_with + 1] = manifest
 	on_ready()
@@ -46,8 +53,9 @@ MPAPI = {
 		end,
 	},
 	run_save = {
+		register_state = function(_, hooks) run_save_hooks = hooks end,
 		decode = function(text)
-			if decode_ok then return { text = text } end
+			if decode_ok then return { text = text, mods = { MultiplayerPvP = saved_state[text] } } end
 			return nil, "unreadable"
 		end,
 	},
@@ -58,6 +66,9 @@ MPAPI = {
 			opts.start_run(session.bootstrap, function()
 				local driver = new_driver_stub()
 				drivers[#drivers + 1] = driver
+				if opts.run_save then
+					run_save_hooks.load(opts.run_save.envelope.mods.MultiplayerPvP or {})
+				end
 				if fail_load_with and opts.run_save then
 					opts.on_load_failed(fail_load_with)
 					return
@@ -67,6 +78,7 @@ MPAPI = {
 		end,
 	},
 }
+dofile("lib/run_save.lua")
 dofile("pvp_api/spectate_feed.lua")
 local S = PVP.SPECTATE
 
@@ -110,7 +122,10 @@ check(requests[2].player == "b", "a switch requests the new player")
 feed_handlers.event(event("b", "dropped"))
 answer("a", { events = {} })
 check(#seeks == 1, "an answer for the old player is ignored")
+PVP.GAME.watched_a_only = "a's value"
+PVP.GAME.timer = 7
 answer("b", { runSave = { id = "s2", pos = 10, hash = "h", data = "T2" }, pos = 10 })
+check(PVP.GAME.lives == 2 and PVP.GAME.watched_a_only == nil and PVP.GAME.timer == 120, "the switch shows the new player's match state and none of the earlier player's")
 check(drivers[1].stopped, "the old driver stopped")
 check(#seeks == 2 and seeks[2].opts.run_save.envelope.text == "T2" and seeks[2].session.my_id == "b", "the new player's save is loaded")
 

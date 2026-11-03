@@ -13,9 +13,10 @@ MPAPI.run_save.register_state(PVP.id, {
 		end
 		return state
 	end,
-	-- Puts the saved match state over the live one. A key the save does not hold keeps its
-	-- live value; the blind button is always cleared.
+	-- Puts the saved match state over a fresh match, so no key of the live state (or of a player
+	-- watched before) survives. The blind button is always cleared.
 	load = function(state)
+		PVP.reset_game_states()
 		for key, value in pairs(state) do
 			PVP.GAME[key] = value
 		end
