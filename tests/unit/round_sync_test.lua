@@ -23,6 +23,7 @@ end
 local function setup(mode, count, lives, legacy)
 	sent, notices, sequence = {}, {}, 0
 	PVP = {
+		match_log = function() end,
 		id = "pvp",
 		GAME = {},
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },

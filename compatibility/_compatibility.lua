@@ -93,7 +93,7 @@ function PVP.set_max_stake(stake_key)
 	repeat
 		local key = SMODS.stake_from_index(stake)
 		if key == stake_key then
-			MPAPI.match_log("trace", "Setting max stake to " .. stake, "MULTIPLAYER")
+			PVP.match_log("trace", "Setting max stake to " .. stake)
 			PVP.DECK.MAX_STAKE = math.max(stake, PVP.DECK.MAX_STAKE)
 			return
 		end

@@ -1,6 +1,6 @@
 local ease_dollars_ref = ease_dollars
 function ease_dollars(mod, instant)
-	MPAPI.match_log("trace", string.format("Client sent message: action:moneyMoved,amount:%s", tostring(mod)), "MULTIPLAYER")
+	PVP.match_log("trace", string.format("Client sent message: action:moneyMoved,amount:%s", tostring(mod)))
 	-- RLOG's money_delta opcode is now recorded once, generically, by
 	-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own ease_dollars
 	-- hook (wrapping the same underlying global) -- nothing left to do here.

@@ -62,12 +62,12 @@ function PVP._wire_group_handle(handle, gamemode_key)
 	end)
 
 	handle:on("queued", function()
-		MPAPI.match_log("debug", "[pvp] group queued for " .. tostring(gamemode_key), "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] group queued for " .. tostring(gamemode_key))
 		refresh()
 	end)
 
 	handle:on("match_found", function(data)
-		MPAPI.match_log("debug", "[pvp] group match_found " .. tostring(data and data.matchId), "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] group match_found " .. tostring(data and data.matchId))
 		-- Out of the home lobby (MPAPI parked our seat there) and into a
 		-- matchmade one: the lobby view belongs to the public lobby now.
 		PVP._pvp_kind = PVP.LobbyAccess.CASUAL

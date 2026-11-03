@@ -87,7 +87,7 @@ MPAPI.Blind({
 		end
 
 		if score == nil or hands_left == nil then
-			MPAPI.match_log("debug", "Invalid score or hands_left", "MULTIPLAYER")
+			PVP.match_log("debug", "Invalid score or hands_left")
 			return
 		end
 

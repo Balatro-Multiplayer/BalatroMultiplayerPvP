@@ -15,6 +15,7 @@ local lobby, sent, notices, sequence, events
 local function setup(mode, count, lives)
 	sent, notices, sequence, events = {}, {}, 0, {}
 	PVP = {
+		match_log = function() end,
 		id = "pvp",
 		GAME = {},
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },

@@ -36,7 +36,7 @@ local function watch_for_result()
 				and not PVP.GAME.eliminated
 				and G.STATE ~= G.STATES.GAME_OVER
 			then
-				MPAPI.match_log("debug", "[pvp] no pvp_win after a player hit 0 lives; asking the host", "MULTIPLAYER")
+				PVP.match_log("debug", "[pvp] no pvp_win after a player hit 0 lives; asking the host")
 				lobby:action(MPAPI.ActionTypes["pvp_result_request"]):broadcast({})
 			end
 			return true
@@ -154,11 +154,11 @@ A_host("pvp_win", function(_at, _from, params)
 	-- on it once, and never outside a run (a player who already left the end
 	-- screen must not be dropped into win_game()).
 	if PVP.GAME.result_handled or G.STAGE ~= G.STAGES.RUN then
-		MPAPI.match_log("debug", "[pvp] pvp_win ignored (already handled or not in a run)", "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] pvp_win ignored (already handled or not in a run)")
 		return
 	end
 	PVP.GAME.result_handled = true
-	MPAPI.match_log("debug", "[pvp] pvp_win received", "MULTIPLAYER")
+	PVP.match_log("debug", "[pvp] pvp_win received")
 	local lobby = MPAPI.get_current_lobby()
 	-- A contested match has no result for this client to report: a moderator decides.
 	if PVP.GAME.contested then
@@ -224,7 +224,7 @@ A_host("pvp_player_won", function(_at, _from, params)
 	-- The opponent leaving the end screen also lands here: a decided match
 	-- must not end again (a second end screen, and a stayer who lost would win).
 	if PVP.GAME.result_handled or G.STAGE ~= G.STAGES.RUN then
-		MPAPI.match_log("debug", "[pvp] pvp_player_won ignored (already handled or not in a run)", "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] pvp_player_won ignored (already handled or not in a run)")
 		return
 	end
 	PVP.GAME.result_handled = true

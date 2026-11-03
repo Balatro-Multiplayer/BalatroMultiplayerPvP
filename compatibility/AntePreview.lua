@@ -1,5 +1,5 @@
 if next(SMODS.find_mod("AntePreview")) then
-	MPAPI.match_log("debug", "Next Ante Preview compatibility detected", "MULTIPLAYER")
+	PVP.match_log("debug", "Next Ante Preview compatibility detected")
 	local predict_next_ante_ref = predict_next_ante
 	function predict_next_ante()
 		local predictions = predict_next_ante_ref()

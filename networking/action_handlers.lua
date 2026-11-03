@@ -29,7 +29,7 @@ Client = {}
 function Client.send(msg)
 	msg = json.encode(msg)
 	if msg ~= '{"action":"keepAliveAck"}' then
-		MPAPI.match_log("trace", string.format("Client sent message: %s", msg), "MULTIPLAYER")
+		PVP.match_log("trace", string.format("Client sent message: %s", msg))
 	end
 	love.thread.getChannel("uiToNetwork"):push(msg)
 end
@@ -345,7 +345,7 @@ end
 
 local function action_start_game(p)
 	local seed = p.seed
-	MPAPI.match_log("debug", string.format("Game starting — %s", os.date("%Y-%m-%dT%H:%M:%S%z")), "MULTIPLAYER")
+	PVP.match_log("debug", string.format("Game starting — %s", os.date("%Y-%m-%dT%H:%M:%S%z")))
 	-- Clear any stale practice state so it can't leak into real PVP
 	PVP.SP.practice = false
 
@@ -660,14 +660,14 @@ function G.FUNCS.load_end_game_jokers()
 
 	card_area_save, err = MPAPI.decode(PVP.end_game_jokers_payload)
 	if not card_area_save then
-		MPAPI.match_log("debug", string.format("Failed to unpack enemy jokers: %s", err), "MULTIPLAYER")
+		PVP.match_log("debug", string.format("Failed to unpack enemy jokers: %s", err))
 		return
 	end
 
 	-- Avoid crashing if the load function ends up indexing a nil value
 	success, err = pcall(PVP.end_game_jokers.load, PVP.end_game_jokers, card_area_save)
 	if not success then
-		MPAPI.match_log("debug", string.format("Failed to load enemy jokers: %s", err), "MULTIPLAYER")
+		PVP.match_log("debug", string.format("Failed to load enemy jokers: %s", err))
 		-- Reset the card area if loading fails to avoid inconsistent state
 		PVP.end_game_jokers:remove()
 		PVP.end_game_jokers:init(
@@ -687,7 +687,7 @@ function G.FUNCS.load_end_game_jokers()
 		for _, card in pairs(PVP.end_game_jokers.cards) do
 			jokers_str = jokers_str .. ";" .. PVP.UTILS.joker_to_string(card)
 		end
-		MPAPI.match_log("trace", string.format("Received end game jokers: %s", jokers_str), "MULTIPLAYER")
+		PVP.match_log("trace", string.format("Received end game jokers: %s", jokers_str))
 	end
 end
 
@@ -711,7 +711,7 @@ local function action_get_end_game_jokers()
 	for _, card in pairs(G.jokers.cards) do
 		jokers_str = jokers_str .. ";" .. PVP.UTILS.joker_to_string(card)
 	end
-	MPAPI.match_log("trace", string.format("Sending end game jokers: %s", jokers_str), "MULTIPLAYER")
+	PVP.match_log("trace", string.format("Sending end game jokers: %s", jokers_str))
 
 	local jokers_save = G.jokers:save()
 	local jokers_encoded = MPAPI.encode(jokers_save)
@@ -798,19 +798,19 @@ function G.FUNCS.load_nemesis_deck()
 		-- If invalid enhancement, edition, or seal, fallback to "none"
 		local front_key = tostring(suit) .. "_" .. tostring(rank)
 		if not G.P_CARDS[front_key] then
-			MPAPI.match_log("debug", string.format("Invalid playing card key: %s", front_key), "MULTIPLAYER")
+			PVP.match_log("debug", string.format("Invalid playing card key: %s", front_key))
 			goto continue
 		end
 		if not enhancement or (enhancement ~= "none" and not G.P_CENTERS[enhancement]) then
-			MPAPI.match_log("debug", string.format("Invalid enhancement: %s", enhancement), "MULTIPLAYER")
+			PVP.match_log("debug", string.format("Invalid enhancement: %s", enhancement))
 			enhancement = "none"
 		end
 		if not edition or (edition ~= "none" and not G.P_CENTERS["e_" .. edition]) then
-			MPAPI.match_log("debug", string.format("Invalid edition: %s", edition), "MULTIPLAYER")
+			PVP.match_log("debug", string.format("Invalid edition: %s", edition))
 			edition = "none"
 		end
 		if not seal or (seal ~= "none" and not G.P_SEALS[seal]) then
-			MPAPI.match_log("debug", string.format("Invalid seal: %s", seal), "MULTIPLAYER")
+			PVP.match_log("debug", string.format("Invalid seal: %s", seal))
 			seal = "none"
 		end
 
@@ -1357,7 +1357,7 @@ function Game:update(dt)
 				then
 					log = log .. string.format(" (seed: %s) ", last_game_seed)
 				end
-				MPAPI.match_log("trace", log, "MULTIPLAYER")
+				PVP.match_log("trace", log)
 			end
 
 			local handler = HANDLERS[parsedAction.action]
