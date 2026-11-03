@@ -1598,6 +1598,7 @@ return {
 		},
 		v_dictionary = {
 			k_end_player_jokers = "Curingas de #1#",
+			k_end_player_deck = "Baralho de #1#",
 			k_end_player_left = "#1# -- saiu da partida",
 			k_end_player_playing = "#1# -- ainda jogando...",
 			a_mp_art = {

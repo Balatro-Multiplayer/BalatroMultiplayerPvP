@@ -26,6 +26,52 @@ function PVP.UTILS.card_to_string(card)
 	return card_str
 end
 
+-- The cards as one string, each card_to_string led by ";" (what parse_deck_string reads).
+function PVP.UTILS.deck_to_string(cards)
+	local parts = {}
+	for _, card in ipairs(cards or {}) do
+		parts[#parts + 1] = ";" .. PVP.UTILS.card_to_string(card)
+	end
+	return table.concat(parts)
+end
+
+-- Pure: a deck_to_string string as plain card specs { front, center, edition, seal },
+-- looked up in `known` ({ cards = G.P_CARDS, centers = G.P_CENTERS, seals = G.P_SEALS }).
+-- A card with an unknown suit or rank is skipped; an unknown enhancement is a base card;
+-- an unknown edition or seal is none (nil).
+function PVP.UTILS.parse_deck_string(str, known)
+	local specs = {}
+	for _, card_str in ipairs(PVP.UTILS.string_split(str or "", ";")) do
+		local p = PVP.UTILS.string_split(card_str, "-")
+		local front = known.cards[tostring(p[1]) .. "_" .. tostring(p[2])]
+		if front then
+			local edition, seal = p[4], p[5]
+			specs[#specs + 1] = {
+				front = front,
+				center = p[3] and known.centers[p[3]] or known.centers.c_base,
+				edition = edition and known.centers["e_" .. edition] and edition or nil,
+				seal = seal and known.seals[seal] and seal or nil,
+			}
+		end
+	end
+	return specs
+end
+
+-- Creates the specs as bare Cards in `area` and returns them. Not create_playing_card:
+-- another player's cards must never join our own deck. A removed area (cards = nil) gets none.
+function PVP.UTILS.build_cards(specs, area)
+	local cards = {}
+	if not (area and area.cards) then return cards end
+	for _, spec in ipairs(specs) do
+		local card = Card(area.T.x, area.T.y, G.CARD_W, G.CARD_H, spec.front, spec.center)
+		area:emplace(card)
+		if spec.edition then card:set_edition({ [spec.edition] = true }, true, true) end
+		if spec.seal then card:set_seal(spec.seal, true, true) end
+		cards[#cards + 1] = card
+	end
+	return cards
+end
+
 function PVP.UTILS.joker_to_string(card)
 	if not card or not card.config or not card.config.center or not card.config.center.key then return "" end
 

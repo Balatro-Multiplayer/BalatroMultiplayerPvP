@@ -12,8 +12,9 @@
 -- in any N>2 lobby whichever response lands last silently clobbers every
 -- other player's data. Keying by sender id here avoids that outright, the
 -- same fix already applied to SPDRN's Enemy Location Indicator (§16.11) and
--- PvP's own Enemy Location HUD (§17.11) this session. The old pair is left
--- in place for the existing single-nemesis toggle/deck-view UI.
+-- PvP's own Enemy Location HUD (§17.11) this session. The result also carries
+-- the player's cards, which the end screen's View Deck shows: a player still in
+-- the match has sent no result, so their deck stays hidden.
 PVP._collected_results = PVP._collected_results or {}
 
 local function capture_local_jokers()
@@ -48,11 +49,13 @@ function PVP.report_roster_result(on_delivered)
 	local jokers = capture_local_jokers()
 	local deck_back = PVP.LOBBY.deck and PVP.LOBBY.deck.back
 	local highest_pvp_score = PVP.Score.or_zero(PVP.GAME.highest_pvp_score)
+	local cards = PVP.UTILS.deck_to_string(G.playing_cards)
 
 	PVP._collected_results[lobby.player_id] = {
 		jokers = jokers,
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
+		cards = cards,
 	}
 	if on_delivered then
 		-- A leave sent right behind the roster can reach the server first and
@@ -80,6 +83,7 @@ function PVP.report_roster_result(on_delivered)
 		jokers = jokers,
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
+		cards = cards,
 	})
 end
 
@@ -123,6 +127,7 @@ MPAPI.ActionType({
 			jokers = params.jokers,
 			deck_back = params.deck_back,
 			highest_pvp_score = params.highest_pvp_score,
+			cards = params.cards,
 		}
 		if PVP.UI.refresh_roster then
 			PVP.UI.refresh_roster()
