@@ -8,5 +8,7 @@
 .claude/
 dist/
 CLAUDE.local.md
+.context/
 replays/*
 !replays/.gitkeep
+/scripts/local-balatro.sh
