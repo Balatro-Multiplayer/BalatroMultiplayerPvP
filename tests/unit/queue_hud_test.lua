@@ -397,6 +397,13 @@ do
 	eq(Reveal.ratings.opp.rating, 1500, "opponent rating read once they joined")
 	assert(rebuilds > rebuilds_before, "the player cards were rebuilt when the opponent joined")
 	eq(avatars[#avatars], "j_turtle_bean", "the opponent's card shows their avatar")
+	eq(Reveal.view.footer_text, "k_pvp_starting_in:4", "the footer counts down from the opponent's arrival")
+	clock = clock + 3.5
+	Game.update({}, 0)
+	eq(Reveal.view.footer_text, "k_pvp_starting_in:1", "the countdown reaches 1")
+	clock = clock + 2
+	Game.update({}, 0)
+	eq(Reveal.view.footer_text, "k_pvp_starting_in:1", "and holds there until the game starts")
 
 	Game.start_run({}, {})
 	eq(Reveal.view, nil, "the run starting ends the reveal")

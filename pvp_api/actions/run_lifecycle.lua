@@ -222,6 +222,10 @@ end
 -- (server-refereed lobbies, see pvp_api/lobby_bridge.lua) -- the same body.
 -- A rejoin into a game still in Setup calls it again (pvp_api/reconnect.lua).
 function PVP.on_game_start(params)
+	-- The match reveal hides every menu, and the votes and the Draft open in the lobby's.
+	if PVP.QUEUE_REVEAL then
+		PVP.QUEUE_REVEAL.dismiss()
+	end
 	if PVP.stop_ready_resync then
 		PVP.stop_ready_resync()
 	end

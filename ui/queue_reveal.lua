@@ -1,6 +1,9 @@
 -- Match reveal: player data, animation lifetime, and temporary UI visibility.
 local Reveal = { generation = 0, ratings = {} }
 PVP.QUEUE_REVEAL = Reveal
+-- Seconds between the opponent's card turning up and the game starting. The matchmaking host
+-- holds its auto-start this long (ui/lobby/_ready.lua); the footer counts it down.
+Reveal.HOLD_SECONDS = 4
 -- The engine crossfades music and applies the player's music volume.
 local get_current_music = SMODS.Sound.get_current_music
 function SMODS.Sound:get_current_music(...)
@@ -206,6 +209,7 @@ function Reveal.start(search, fan_cards)
 	Reveal.own_avatar = search.avatar
 	Reveal.expires_at = now() + REVEAL_MAX_SECONDS
 	local view = Reveal.view
+	view.footer_text = localize("k_pvp_shuffling")
 	local calm = reduced_motion()
 	if PVP.config.queue_match_sound ~= false then
 		play_sound("explosion_buildup1")
@@ -290,7 +294,7 @@ function Reveal.start(search, fan_cards)
 			clear_root({
 				text_object(
 					nil,
-					{ localize("k_pvp_shuffling") },
+					{ { ref_table = view, ref_value = "footer_text" } },
 					0.38,
 					G.C.UI.TEXT_LIGHT,
 					{ float = true, pop_in = 0, pop_in_rate = 4 }
@@ -338,10 +342,18 @@ function Reveal.update()
 			seen_players = n
 			read_reveal_ratings()
 			refresh_cards()
-			if n > 1 and not had_opp and Reveal.view and Reveal.view.right then
-				juice(Reveal.view.right, 0.35, 0.12)
-				play_sound("card1", 0.85, 0.8)
+			if n > 1 and not had_opp and Reveal.view then
+				Reveal.view.starts_at = now() + Reveal.HOLD_SECONDS
+				if Reveal.view.right then
+					juice(Reveal.view.right, 0.35, 0.12)
+					play_sound("card1", 0.85, 0.8)
+				end
 			end
 		end
+	end
+	local view = Reveal.view
+	if view and view.starts_at then
+		local secs = math.max(1, math.ceil(view.starts_at - now()))
+		view.footer_text = localize({ type = "variable", key = "k_pvp_starting_in", vars = { secs } })
 	end
 end

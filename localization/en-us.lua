@@ -1470,6 +1470,7 @@ return {
 			k_pvp_queue_searching = "Searching",
 			k_pvp_match_found = "MATCH FOUND",
 			k_pvp_shuffling = "Shuffling the deck...",
+			k_pvp_starting_in = "Starting in #1#",
 			k_pvp_you = "You",
 			k_pvp_rank_after_placements = "Rank after placements",
 			k_skips = "Skips",
