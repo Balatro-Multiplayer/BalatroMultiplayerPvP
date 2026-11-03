@@ -184,7 +184,8 @@ local function ref_player(id)
 			played_this_blind = false,
 			is_ready = false,
 			first_ready = false,
-			lives_blocker = false,
+			round_lives_blocker = false,
+			timer_lives_blocker = false,
 			-- Manhunt ("HUNTER"/"RUNNER") or Teams ("A"/"B"); nil for every other mode.
 			-- Stamped from PVP.LOBBY.roster in PVP.referee_reset.
 			team_id = nil,
@@ -883,7 +884,8 @@ function PVP.referee_reset(starting_lives)
 		pl.played_this_blind = false
 		pl.is_ready = false
 		pl.first_ready = false
-		pl.lives_blocker = false
+		pl.round_lives_blocker = false
+		pl.timer_lives_blocker = false
 		pl.team_id = PVP.LOBBY.roster and PVP.LOBBY.roster[id] or nil
 	end
 
@@ -972,34 +974,33 @@ function PVP.referee_reset(starting_lives)
 	end
 end
 
--- loseLife(): decrement once per round (guarded by lives_blocker, re-armed by
--- newRound). Broadcasts the loser's new life count to everyone. `lost` marks a
--- real loss (as opposed to the setup/restore/takeover broadcasts of a count),
--- so the loser's client can log life_lost for the achievements.
-local function lose_life(pl)
-	if pl.lives_blocker or pl.lives <= 0 then
+-- A timer loss and a blind/PvP loss may each cost a life before newRound.
+-- Guard each cause separately so duplicate reports cannot charge it twice.
+-- `lost` marks a real loss rather than a setup/restore/takeover broadcast.
+local function lose_life(pl, cause)
+	local blocker = cause == "timer" and "timer_lives_blocker" or "round_lives_blocker"
+	if pl[blocker] or pl.lives <= 0 then
 		return
 	end
 	pl.lives = pl.lives - 1
-	pl.lives_blocker = true
+	pl[blocker] = true
 	broadcast("pvp_player_lives", { player_id = pl.id, lives = pl.lives, lost = 1 })
 end
 
--- Teams-aware life loss for the fail_round/fail_timer/fail_pvp_timer paths below
--- (non-PvP-round failures: a vanilla boss blind loss, an ante timer expiry, a PvP
--- round timer expiry). Manhunt keeps ordinary per-player lives (lose_life
--- unchanged); Teams must decrement its SHARED pool once and mirror the new value
--- onto every teammate, or these paths would desync an individual's pl.lives from
--- their team's actual pool (the pool is the only thing check_team_win reads).
-local function team_lose_life(pl)
+-- Teams-aware life loss for non-PvP blind failures and ante timer expiry.
+-- Manhunt keeps ordinary per-player lives; Teams must decrement its SHARED
+-- pool once and mirror the new value onto every teammate so the HUD and
+-- check_team_win read the same remaining lives.
+local function team_lose_life(pl, cause)
 	if not PVP.LOBBY.config.team_based then
-		lose_life(pl)
+		lose_life(pl, cause)
 		return
 	end
-	if pl.lives_blocker then
+	local blocker = cause == "timer" and "timer_lives_blocker" or "round_lives_blocker"
+	if pl[blocker] or pl.lives <= 0 then
 		return
 	end
-	pl.lives_blocker = true
+	pl[blocker] = true
 	local team = pl.team_id
 	PVP.REF.team_lives[team] = (PVP.REF.team_lives[team] or 1) - 1
 	broadcast("pvp_team_lives", { team_id = team, lives = PVP.REF.team_lives[team] })
@@ -1763,7 +1764,9 @@ function PVP.referee_on_new_round(from)
 	if not is_host() then
 		return
 	end
-	ref_player(from).lives_blocker = false
+	local pl = ref_player(from)
+	pl.round_lives_blocker = false
+	pl.timer_lives_blocker = false
 end
 
 -- failRound: mode-dependent life loss (death_on_round_loss) and match end.
@@ -1816,7 +1819,7 @@ function PVP.referee_on_fail_timer(from)
 		return
 	end
 	local pl = ref_player(from)
-	team_lose_life(pl)
+	team_lose_life(pl, "timer")
 	if PVP.REF.pending_death then
 		resolve_pending_death()
 		return
@@ -2090,7 +2093,10 @@ local function snapshot()
 			played = flag(pl.played_this_blind),
 			ready = flag(pl.is_ready),
 			first = flag(pl.first_ready),
-			blocker = flag(pl.lives_blocker),
+			-- Keep the shared flag for older hosts taking over this checkpoint.
+			blocker = flag(pl.round_lives_blocker or pl.timer_lives_blocker),
+			round_blocker = flag(pl.round_lives_blocker),
+			timer_blocker = flag(pl.timer_lives_blocker),
 			team = pl.team_id,
 			failed_blind = pl.failed_blind,
 			round_protocol = pl.round_protocol,
@@ -2135,7 +2141,10 @@ local function restore(snap)
 			played_this_blind = s.played == 1,
 			is_ready = s.ready == 1,
 			first_ready = s.first == 1,
-			lives_blocker = s.blocker == 1,
+			-- An older checkpoint cannot identify the cause: preserve its guard
+			-- for both until newRound rather than risk charging the same loss twice.
+			round_lives_blocker = s.round_blocker == 1 or (s.round_blocker == nil and s.blocker == 1),
+			timer_lives_blocker = s.timer_blocker == 1 or (s.timer_blocker == nil and s.blocker == 1),
 			team_id = s.team,
 			failed_blind = s.failed_blind,
 			round_protocol = s.round_protocol,
