@@ -97,8 +97,6 @@ local function number_row(key, label_key)
 	}).node)
 end
 
-local DECK_MODES = { PVP.DeckMode.SELECT, PVP.DeckMode.DRAFT }
-
 local function deck_mode_row()
 	local current = (PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT) and 2 or 1
 	return option_row(MPAPI.disableable_option_cycle({
@@ -252,7 +250,7 @@ function PVP.build_lobby_options()
 end
 
 G.FUNCS.mp_pvp_change_deck_mode = function(e)
-	PVP.LOBBY.config.deck_mode = DECK_MODES[e.to_key]
+	PVP.LOBBY.config.deck_mode = (e.to_key == 2) and PVP.DeckMode.DRAFT or PVP.DeckMode.SELECT
 	publish_options()
 	MPAPI.refresh_current_view()
 end
