@@ -251,9 +251,10 @@ opponent's board or pool.
 ## Five candidate ingredients
 
 Cross-Pollination's concept received explicit approval. Higher Calling's ante
-opportunity is endorsed; its rarity/edition package remains under discussion.
+opportunity and combined rarity/edition tuning are confirmed below.
 Breakage Insurance prompted interest in its early-run build-changing potential.
-Other names and numbers remain proposals. None are registered recipes.
+Other names and numbers remain proposals. Higher Calling is now a local Chaos
+lab recipe; the other four candidates below are not registered recipes.
 Each has one core rule, an all-run toggle, and an explicitly bounded Clock window.
 Clock expiry stops future applications; it does not reclaim earned cards or levels.
 
@@ -271,23 +272,17 @@ Negative Space's shop scope is a proposed starting point, not a rejection of the
 broader “Negatives occur 4x more” toggle.
 
 Stephen proposed bundling rarity and edition boosts: “they're just real good cards
-this ante.” He also liked the distinction between better rarity and unusual
-editions. The choice is still open, not a rejection of either proposal.
+this ante.” The selected one-ante package combines rarity and edition boosts.
 
-Candidate tuning, not announcement copy. These are alternative playtest packages,
-not Calm/Normal/Mayhem strengths. The original multipliers are the upper bound,
-not the default.
+Confirmed tuning direction, not announcement copy or Calm/Normal/Mayhem strengths:
 
 | Package | Rare chance multiplier | Negative chance multiplier | Polychrome chance multiplier | Legendary chance per Judgement |
 |---|---:|---:|---:|---:|
-| Restrained | 1.5x | 1.5x | 2x | 0.1% (1 in 1,000) |
-| Middle | 2x | 2x | 3x | 0.25% (1 in 400) |
-| Upper bound | 4x | 3x | 5x | 0.5% (1 in 200) |
+| Selected | 2x | 2.5x | 3x | 0.5% (1 in 200) |
 
-Start with Restrained for the one-ante version. All values are provisional;
-baseline rarity/edition behavior still needs verification. An edition-only
-comparison remains useful. A lasting version needs separate exposure testing,
-not automatic use of the upper-bound package.
+These replace the earlier Restrained/Middle/Upper-bound alternatives.
+Baseline rarity/edition behavior and modifier composition still need verification.
+A lasting version needs separate exposure testing, not automatic reuse of this package.
 
 Higher Calling can also produce a Legendary. This is a new, rare outcome, not
 a multiplier on an otherwise zero chance. The table's Legendary probabilities
@@ -300,10 +295,8 @@ Announcement copy can remain “Judgement produces unusually good Jokers this an
 Supporting text should disclose the new possibility: “Can create Legendary Jokers.”
 Exact rates belong in tuning notes and changelogs.
 
-Recommendation for discussion: keep one Higher Calling family and test a combined
-package against an edition-only package. Do not add each tuning candidate as a
-separate Clock draw. The combined package sells the promise of unusually good
-Judgements; edition-only preserves more ordinary Jokers as interesting outcomes.
+Keep one Higher Calling family, using the selected combined package rather than
+separate Clock draws for rarity and editions.
 Rarity and edition are separate dimensions; Negative and Polychrome are alternative
 edition outcomes, not two editions applied to the same Joker.
 
@@ -351,7 +344,7 @@ Show both the increased break chance and the permanent loss of broken cards.
 
 1. Does “never conceal” retain the existing pre-reveal `???` slots and first-hand
    incidents, provided all mechanics become explicit at reveal?
-2. For Higher Calling, start with the combined package or edition-only?
-   Exact multipliers and a possible Mayhem lasting variant remain open.
+2. Higher Calling's one-ante package is selected above; should a Mayhem lasting
+   variant exist, and how should its exposure be tuned?
 3. Does early Breakage Insurance mean a whole-ante opportunity or an explicitly
    lasting rule that can redirect the rest of the run?

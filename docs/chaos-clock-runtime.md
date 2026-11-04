@@ -39,9 +39,10 @@ than maintaining a separate copy of their numbers.
 `after_scoring` maps to SMODS's `after` context; destruction effects still need
 their own timing/target contracts before using it.
 
-Duration is either `instant` or `{ boundary = "blind_end", count = 1 }`.
-Other boundary counts work in the core; only blind/shop expiry is wired to the
-game. An ante scheduler/expiry hook is not implemented. Boundary tokens prevent
+Duration is either `instant` or a boundary/count pair.
+Blind/shop expiry and ante-change expiry are wired to the game. Ante windows end
+on any change to the saved ante, including decreases from vouchers. The director
+still has no production ante scheduler. Boundary tokens prevent
 repeated callbacks from decrementing saved lifetimes twice.
 
 Activation claims prevent overlapping timed owners. Manual resource ledgers and
@@ -59,9 +60,39 @@ expiry is not undoing gameplay.
 ## Catalogue
 
 Working payloads: Second Wind, Fresh Start, All In, Paid Overtime, Discard Dividend,
-Working Capital, Waste Not, Everybody Counts, Shop Subsidy and Pocket Change.
+Working Capital, Waste Not, Everybody Counts, Shop Subsidy, Pocket Change and Higher Calling.
 Everybody Counts changes scoring membership through `SMODS.always_scores`; it
 does not alter hand recognition or add an extra scoring pass.
+
+### Higher Calling
+
+Activate at blind selection or in a shop through the lab. It lasts for the
+remainder of the current ante, survives blind/shop boundaries and save/reload,
+and does not reclaim created Jokers or editions when it expires.
+
+- Only ordinary Judgement generation (`jud` source) is changed. Soul, Wraith,
+  shops, explicit rarity/identity rolls and guaranteed editions are preserved.
+- Legendary: 0.5% per eligible Judgement, replacing the ordinary result. Empty
+  eligible Legendary pools fall back to ordinary selection.
+- Rare: 2x the current eligible baseline chance, conditional on no Legendary.
+  Other ordinary rarity outcomes give up mass proportionally.
+- Negative: 2.5x baseline; Polychrome: 3x baseline. These are alternatives, not
+  two editions on one Joker. Plain outcomes give up probability first; only if
+  exhausted do other editions give up mass proportionally. Extreme modifiers
+  cap each probability and normalize the two boosted targets if their sum exceeds 1.
+- Baselines use Steamodded's active rarity/edition weights and run modifiers;
+  the boost acts on probabilities, not a multiplier renormalized back into weights.
+  Pool bans/duplicate rules remain native. Empty ordinary pools keep the engine's
+  own fallback behavior.
+- Generation uses named game RNG streams, separate from director selection.
+  No global rarity/edition modifiers are temporarily installed.
+- The experimental Steamodded `object_weights` engine is not supported; the lab
+  reports Higher Calling as ineligible under that engine rather than applying
+  guessed odds. Production multiplayer/replay authority is not added here.
+
+Live validation on 2026-11-04 with Steamodded BETA-1814a: 13 checks passed
+through actual Judgement use, lab activation, a real save reconstruction and
+`ease_ante` expiry. Controlled rolls verify outcomes, not observed frequencies.
 
 Pending, inspectable, excluded from activation/random draws: Loaded Dice,
 Clearance Sale, Bonfire, Face Tax, Bankruptcy Protection and Bad Investment.

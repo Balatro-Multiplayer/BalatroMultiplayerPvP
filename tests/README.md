@@ -15,6 +15,26 @@ These are offline lifecycle, save-state, adapter and debug-callback contracts,
 not live gameplay validation. The live scenario checks the rendered lab controls,
 save reconstruction, Everybody Counts in an actual played hand, and cash-out expiry.
 
+## Higher Calling
+
+```sh
+lua tests/test_higher_calling.lua
+luajit tests/test_higher_calling.lua
+bash <MPAPI-checkout>/scripts/run_scenario.sh MultiplayerPvP:higher_calling
+```
+
+The offline contracts check exact probability transforms and thresholds, active
+modifiers, source isolation, native pool filtering, guaranteed outcomes, expiry
+and saved instances. The live scenario uses actual Judgement with controlled
+namespaced rolls, reconstructs a real save, and checks ante-change expiry.
+Neither is an empirical frequency estimate or multiplayer/replay validation.
+
+Live validation on 2026-11-04 with Steamodded BETA-1814a: `higher_calling`
+13/13, plus `chaos_clock` 14/14 and `chaos_draft` 16/16 regressions.
+The fixture waits for the consumable-use lock to clear between Judgements.
+Named rolls go directly through `pseudorandom(key)` so controlled-roll tests
+exercise the same source boundary as production.
+
 ## Chaos deck draft
 
 See [the prototype contract](../docs/chaos-deck-draft.md) for acquisition

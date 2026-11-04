@@ -33,7 +33,7 @@ local adapter = {
 }
 local state = C.new_state("TEST")
 local runtime = C.runtime(state, adapter)
-check(#runtime:candidates() == 10, "Ten implemented recipes")
+check(#runtime:candidates() == 11, "Eleven implemented recipes")
 local first = assert(runtime:activate("second_wind"))
 check(not runtime:activate("second_wind"), "Duplicate activation rejected")
 check(not runtime:activate("all_in"), "Resource claims exclude overlapping owners")
@@ -153,6 +153,7 @@ end
 save_run = function()
 	saves = saves + 1
 end
+Game = { update = function() end }
 dofile("overrides/chaos_clock.lua")
 runtime = assert(C.for_run(true))
 assert(runtime:activate("all_in"))

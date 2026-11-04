@@ -53,6 +53,22 @@ C.define({
 	payload = { rule = "all_cards_score" },
 })
 
+C.define({
+	key = "higher_calling",
+	label = "Higher Calling",
+	description = "Judgement produces unusually good Jokers this ante.",
+	at = "ante",
+	duration = { boundary = "ante_end", count = 1 },
+	claims = { "judgement_quality" },
+	payload = {
+		rule = "higher_calling",
+		rare = 2,
+		legendary = 0.005,
+		negative = 2.5,
+		polychrome = 3,
+	},
+})
+
 for _, entry in ipairs({
 	{ "shop_subsidy", "Shop Subsidy", "Gain $5 now. Expiry does not reclaim it.", 5, "shop" },
 	{ "pocket_change", "Pocket Change", "Gain $3 now. Expiry does not reclaim it.", 3, "blind_select" },

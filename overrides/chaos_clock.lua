@@ -16,7 +16,10 @@ C.adapter = adapter
 function adapter.allowed(def)
 	if not C.safe_point() then return false, "Use Custom Solo at blind selection or in a shop" end
 	local point = G.STATE == G.STATES.SHOP and "shop" or "blind_select"
-	if point ~= def.at then return false, "Requires " .. def.at end
+	if point ~= def.at and def.at ~= "ante" then return false, "Requires " .. def.at end
+	if def.key == "higher_calling" and SMODS.optional_features and SMODS.optional_features.object_weights then
+		return false, "Higher Calling does not support Steamodded's experimental object-weight engine"
+	end
 	-- Manual resource layers record their actual adjustments in this ledger.
 	-- This also covers Glass Cannon and resources inherited from rulesets.
 	for _, applied in pairs(G.GAME.pvp_round_deltas or {}) do
@@ -75,7 +78,24 @@ function C.for_run(create)
 	if not game.pvp_chaos and create then
 		game.pvp_chaos = C.new_state(game.pseudorandom and game.pseudorandom.seed or "CHAOS")
 	end
-	if game.pvp_chaos then return C.runtime(game.pvp_chaos, adapter) end
+	if game.pvp_chaos then
+		local runtime = C.runtime(game.pvp_chaos, adapter)
+		local ante = game.round_resets.ante
+		if ante ~= game.pvp_chaos.ante then
+			-- Expire ante-long effects whenever the ante number changes,
+			-- including when a voucher lowers it. Save the new number for reloads.
+			if game.pvp_chaos.ante ~= nil then runtime:boundary("ante_end") end
+			game.pvp_chaos.ante = ante
+		end
+		return runtime
+	end
+end
+
+local update = Game.update
+function Game:update(dt)
+	update(self, dt)
+	local state = G.GAME and G.GAME.pvp_chaos
+	if state and state.ante ~= G.GAME.round_resets.ante then C.for_run() end
 end
 
 function C.has_rule(rule)
