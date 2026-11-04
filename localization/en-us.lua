@@ -1425,7 +1425,7 @@ return {
 			b_opts_timer = "Enable Timer",
 			b_opts_disable_preview = "Disable Score Preview",
 			b_opts_the_order = "Enable The Order",
-			b_opts_legacy_smallworld = "Legacy Small World mechanics",
+			b_opts_smallerworld = "Smallerworld (Small World bans applied twice)",
 			b_reset = "Reset",
 			b_set_custom_seed = "Set Custom Seed",
 			b_opts_modifier_smallworld = "Small World",

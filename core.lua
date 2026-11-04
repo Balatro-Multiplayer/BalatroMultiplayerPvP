@@ -239,7 +239,7 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		timer_forgiveness = 0,
 		forced_config = false,
 		preview_disabled = false,
-		legacy_smallworld = false,
+		smallerworld = false,
 		-- Baseline off; start_lobby sets it on for standard-layer rulesets.
 		hide_score_until_played = false,
 	}

@@ -25,12 +25,13 @@ function S.ruleset_key(option)
 end
 
 -- Which steps a game runs. Pure: queue_mode, is_casual and players (the
--- started game's player count) in; { votes, draft } out.
-function S.plan(queue_mode, is_casual, is_matchmaking, players, ban_pick)
+-- started game's player count) in; { votes, draft } out. A private lobby drafts
+-- when its host set the Draft deck mode (`draft_requested`).
+function S.plan(queue_mode, is_casual, is_matchmaking, players, ban_pick, draft_requested)
 	local draft_fits = ban_pick and (ban_pick.schedule and players == 2 or (not ban_pick.schedule and players >= 2))
 	return {
 		votes = is_casual and VOTE_FORMATS[queue_mode] == true,
-		draft = (is_matchmaking and draft_fits) and true or false,
+		draft = ((is_matchmaking or draft_requested) and draft_fits) and true or false,
 	}
 end
 

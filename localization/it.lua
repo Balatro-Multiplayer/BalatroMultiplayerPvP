@@ -489,7 +489,6 @@ return {
 			b_opts_timer = "Abilita Timer",
 			b_opts_disable_preview = "Disabilita l'anteprima del punteggio",
 			b_opts_the_order = 'Abilita il Jolly "L\'ordine"',
-			b_opts_legacy_smallworld = "Meccaniche legacy per Small World",
 			b_reset = "Reset",
 			b_set_custom_seed = "Imposta seed specifico",
 			b_mp_kofi_button = "supporta il creatore su Ko-fi",
