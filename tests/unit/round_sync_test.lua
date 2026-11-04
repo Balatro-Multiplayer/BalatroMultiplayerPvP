@@ -23,6 +23,7 @@ end
 local function setup(mode, count, lives, legacy)
 	sent, notices, sequence = {}, {}, 0
 	PVP = {
+		match_log = function() end,
 		id = "pvp",
 		GAME = {},
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },
@@ -50,7 +51,6 @@ local function setup(mode, count, lives, legacy)
 	Event = function(spec)
 		return spec
 	end
-	sendDebugMessage = function() end
 	Game = { update = function() end }
 	love = { timer = {
 		getTime = function()
@@ -61,7 +61,6 @@ local function setup(mode, count, lives, legacy)
 	math.pow = math.pow or function(a, b)
 		return a ^ b
 	end
-	sendDebugMessage = function() end
 	sendWarnMessage = function() end
 	localize = function(key)
 		return key
@@ -106,6 +105,7 @@ local function setup(mode, count, lives, legacy)
 		}
 	end
 	MPAPI = {
+		match_log = function() end,
 		get_current_lobby = function()
 			return lobby
 		end,
@@ -371,7 +371,7 @@ end)
 
 for _, mode in ipairs({ "pair", "team_based" }) do
 	for _, timer_first in ipairs({ true, false }) do
-		test(mode .. ": timer and round losses each count once, " .. (timer_first and "timer" or "round") .. " first", function()
+		test(mode .. ": timer losses recur independently of the round guard, " .. (timer_first and "timer" or "round") .. " first", function()
 			setup(mode, mode == "pair" and 2 or 4, 6)
 			PVP.LOBBY.config.death_on_round_loss = true
 			local first = timer_first and PVP.referee_on_fail_timer or PVP.referee_on_fail_round
@@ -389,15 +389,15 @@ for _, mode in ipairs({ "pair", "team_based" }) do
 			first("a")
 			lives(5)
 			first("a")
-			lives(5)
+			lives(timer_first and 4 or 5)
 			second("a")
-			lives(4)
+			lives(timer_first and 3 or 4)
 			second("a")
-			lives(4)
+			lives(3)
 			PVP.referee_on_new_round("a")
 			first("a")
 			second("a")
-			lives(2)
+			lives(1)
 		end)
 	end
 
@@ -413,22 +413,22 @@ for _, mode in ipairs({ "pair", "team_based" }) do
 	end)
 
 	for _, timer_first in ipairs({ true, false }) do
-		test(mode .. ": takeover preserves independent loss guards, " .. (timer_first and "timer" or "round") .. " first", function()
-			setup(mode, mode == "pair" and 2 or 4)
+		test(mode .. ": takeover preserves the round guard without blocking timer restarts, " .. (timer_first and "timer" or "round") .. " first", function()
+			setup(mode, mode == "pair" and 2 or 4, 8)
 			PVP.LOBBY.config.death_on_round_loss = true
 			local first = timer_first and PVP.referee_on_fail_timer or PVP.referee_on_fail_round
 			local second = timer_first and PVP.referee_on_fail_round or PVP.referee_on_fail_timer
 			first("a")
-			equal(PVP.REF.players.a.lives, 3)
+			equal(PVP.REF.players.a.lives, 7)
 			equal(PVP.referee_take_over(), "checkpoint")
 			first("a")
-			equal(PVP.REF.players.a.lives, 3)
+			equal(PVP.REF.players.a.lives, timer_first and 6 or 7)
 			second("a")
-			equal(PVP.REF.players.a.lives, 2)
+			equal(PVP.REF.players.a.lives, timer_first and 5 or 6)
 			equal(PVP.referee_take_over(), "checkpoint")
 			first("a")
 			second("a")
-			equal(PVP.REF.players.a.lives, 2)
+			equal(PVP.REF.players.a.lives, timer_first and 4 or 5)
 		end)
 	end
 end
@@ -451,21 +451,20 @@ test("disabled blind-loss penalties do not charge lives after a timer loss", fun
 	equal(PVP.REF.players.a.lives, 3)
 end)
 
-test("an old checkpoint's shared blocker conservatively blocks both causes until newRound", function()
+test("an old checkpoint's shared blocker guards the round but not timer restarts", function()
 	setup("pair", 2, 6)
 	PVP.LOBBY.config.death_on_round_loss = true
-	PVP.referee_on_fail_timer("a")
+	PVP.referee_on_fail_round("a")
 	local saved = lobby.metadata._pvp_ref.players.a
-	saved.round_blocker, saved.timer_blocker = nil, nil
-	saved.blocker = 1
+	equal(saved.blocker, 1)
 	equal(PVP.referee_take_over(), "checkpoint")
 	PVP.referee_on_fail_timer("a")
 	PVP.referee_on_fail_round("a")
-	equal(PVP.REF.players.a.lives, 5)
+	equal(PVP.REF.players.a.lives, 4)
 	PVP.referee_on_new_round("a")
 	PVP.referee_on_fail_timer("a")
 	PVP.referee_on_fail_round("a")
-	equal(PVP.REF.players.a.lives, 3)
+	equal(PVP.REF.players.a.lives, 2)
 end)
 
 test("after a lost PvP, newRound lets the ante timer take a life", function()
@@ -596,6 +595,33 @@ test("the opponent leaving after the result does not end the match again", funct
 	MPAPI.ActionTypes.pvp_player_won:on_receive("a", { player_id = "a" })
 	equal(#ends, 1)
 	equal(ends[1], "winGame")
+end)
+
+test("a late result after Leave from the Pending death screen does nothing", function()
+	setup("pair")
+	MPAPI.ActionType = function(def)
+		MPAPI.ActionTypes[def.key] = def
+	end
+	dofile("pvp_api/actions/_helpers.lua")
+	dofile("pvp_api/actions/outcomes.lua")
+	local dispatched, ended, released = {}, 0, 0
+	PVP.dispatch_action = function(action)
+		dispatched[#dispatched + 1] = action
+	end
+	PVP.RLOG = { end_run = function() ended = ended + 1 end }
+	PVP.end_pending_death = function() end
+	PVP.release_held_result = function() released = released + 1 end
+	MPAPI.has_server_referee = function()
+		return false
+	end
+	-- Leave went to the main menu: the stage is no longer a run.
+	G.STAGE = "main_menu"
+	PVP.GAME.pending_death_screen = true
+	MPAPI.ActionTypes.pvp_win:on_receive("a", { winner_id = "b" })
+	equal(#dispatched, 0)
+	equal(ended, 0)
+	equal(released, 0)
+	equal(PVP.GAME.result_handled, nil)
 end)
 
 test("a new run clears archived results and rejects a previous run's report", function()

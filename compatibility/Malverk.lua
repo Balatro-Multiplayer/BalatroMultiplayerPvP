@@ -4,7 +4,7 @@
 -- art from G.ASSET_ATLAS["Trap"], so that sheet must exist (one row, TRAPS order). Optional -- no-ops entirely
 -- if Malverk isn't installed.
 if SMODS.Mods["malverk"] and SMODS.Mods["malverk"].can_load then
-	sendDebugMessage("Malverk compatibility detected", "MULTIPLAYER")
+	PVP.match_log("debug", "Malverk compatibility detected")
 
 	local TRAP_ALTS = {
 		{ key = "c_mp_trap_glyph_of_warding", atlas = "alt_t_glyph_of_warding.png" },

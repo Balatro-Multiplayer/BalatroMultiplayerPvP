@@ -8,8 +8,8 @@ G = {
 	P_CENTERS = { c_base = { name = "c_base" }, m_glass = { name = "m_glass" }, e_foil = {} },
 	P_SEALS = { Red = {} },
 }
-PVP = { UTILS = {}, LOBBY = { code = "ABCDE" } }
-function sendDebugMessage() end
+PVP = { UTILS = {}, LOBBY = { code = "ABCDE" }, match_log = function() end }
+MPAPI = { match_log = function() end }
 
 function Card(x, y, w, h, front, center)
 	return {
