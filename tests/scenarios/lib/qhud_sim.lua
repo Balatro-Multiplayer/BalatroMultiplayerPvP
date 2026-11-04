@@ -1,6 +1,7 @@
--- Auto-loaded in Git checkouts (disable with qhud_sim=false in .env).
--- Alt+P restarts the preview; Alt+X cancels it and restores the API.
--- The scenario runner may also load this file directly.
+-- Loaded with qhud_sim=true in .env (pvp_api/zz_qhud_dev.lua); the scenario runner may also
+-- load this file directly. Alt+P restarts the preview; Alt+X cancels it and restores the API.
+-- The search runs through pvp_api/queue.lua's real handlers on a fake matchmaking handle;
+-- only the lobby is faked, so lobby_ready's lobby half (the mirror, ready signals) is skipped.
 --
 -- Hold alt (option) and press:
 --   p  play the whole thing (Ranked Expanded): search, 3 widening steps, match, opponent joins,
@@ -10,6 +11,7 @@
 --   s  skip 30s (next widening step)          c  bump the in-queue count
 --   m  match found                            j  lobby joined (opponent 1.5s later, Draft after the countdown)
 --   d  straight to the Draft                  k  lobby destroyed (reveal teardown)
+--   f  lobby join fails (handle error)        l  opponent leaves the lobby
 --   e  cycle forced egg: off > jimbo > joker > nope
 --   x  stop everything, restore real API calls
 --   b  cycle the reveal's backdrop preset (PVP.QUEUE_BACKDROP.PRESETS, then off)
@@ -63,10 +65,7 @@ local function after(delay, fn)
 end
 
 local function install_fakes()
-	if not SIM.real then
-		SIM.real =
-			{ get_rating = M.get_rating, get_queue_counts = M.get_queue_counts, cancel = G.FUNCS.mp_pvp_cancel_queue }
-	end
+	if not SIM.real then SIM.real = { get_rating = M.get_rating, get_queue_counts = M.get_queue_counts } end
 	M.get_rating = function(_, _, _, player_id, cb)
 		after(0.4, function()
 			if player_id == "opp" then
@@ -81,15 +80,11 @@ local function install_fakes()
 			cb(nil, { [Q.count_key or ""] = { queued = SIM.count } })
 		end)
 	end
-	G.FUNCS.mp_pvp_cancel_queue = function()
-		SIM.stop()
-	end
 end
 
 local function restore()
 	if SIM.real then
 		M.get_rating, M.get_queue_counts = SIM.real.get_rating, SIM.real.get_queue_counts
-		G.FUNCS.mp_pvp_cancel_queue = SIM.real.cancel
 		SIM.real = nil
 	end
 	for k, v in pairs(SIM.real_eggs) do
@@ -111,7 +106,46 @@ local function apply_egg()
 	end
 end
 
+-- A matchmaking handle like MPAPI's (api/matchmaking/handle.lua) that never reaches a server:
+-- the simulator fires its events. Cancelling it (the HUD's button) stops the simulator.
+local function fake_handle()
+	local handle = { _left = false, _event_handlers = {} }
+	function handle:on(event, fn)
+		self._event_handlers[event] = self._event_handlers[event] or {}
+		table.insert(self._event_handlers[event], fn)
+	end
+	function handle:_fire(event, ...)
+		for _, fn in ipairs(self._event_handlers[event] or {}) do
+			fn(...)
+		end
+	end
+	function handle:leave()
+		if self._left then return end
+		self._left = true
+		self:_fire("left")
+		if SIM.handle == self then
+			SIM.handle = nil
+			SIM.stop()
+		end
+	end
+	return handle
+end
+
+-- Leave the simulator's queue the way the cancel button does, if it is still the live one.
+local function drop_handle()
+	local handle = SIM.handle
+	SIM.handle = nil
+	if handle and PVP._match_handle == handle then PVP._cancel_queue() end
+end
+
+-- lobby_ready's queue half: the search is over.
+local function end_search()
+	PVP._active_queue_id = nil
+	PVP._show_searching(false)
+end
+
 local function start(kind)
+	drop_handle()
 	if PVP._match_handle or (PVP.LOBBY and PVP.LOBBY.code) then
 		log("leave the live queue or lobby before starting the simulator")
 		return false
@@ -123,13 +157,25 @@ local function start(kind)
 	Q.stop()
 	Q.dismiss_reveal()
 	Q.active = false
-	if kind == "casual" then
-		Q.start({ kind = PVP.LobbyAccess.CASUAL, key = "pvp_nemesis" })
-	else
+	if kind ~= "casual" then
 		SIM.me_rating = kind == "placing" and { isPlacement = true, gamesPlayed = 3, placementGames = 10 }
 			or { rating = 1432, rank = 57, isPlacement = false }
-		Q.start({ kind = PVP.LobbyAccess.RANKED, key = PVP.RulesetKey.EXPANDED })
 	end
+	local real_queue = M.queue
+	M.queue = function()
+		SIM.handle = fake_handle()
+		return SIM.handle
+	end
+	local ok, err = pcall(function()
+		if kind == "casual" then
+			PVP._join_queue(PVP.LobbyAccess.CASUAL, "pvp_nemesis")
+		else
+			PVP._join_ranked_ruleset(PVP.RulesetKey.EXPANDED)
+		end
+	end)
+	M.queue = real_queue
+	if not ok then error(err, 0) end
+	SIM.handle:_fire("queued", 1)
 	log("start " .. kind)
 	return true
 end
@@ -140,10 +186,22 @@ local function skip(secs)
 end
 
 local function match()
-	if not SIM.active then return end
+	if not (SIM.active and SIM.handle) then return end
 	install_fakes()
 	SIM.lobby = nil
-	Q.match_found()
+	SIM.handle:_fire("match_found", { lobbyCode = "SIM" })
+end
+
+-- The matched lobby can't be joined: MPAPI fires error after match_found (dispatch.lua).
+-- queue.lua's handler alone must end the search and the reveal.
+local function fail()
+	local handle = SIM.handle
+	if not (SIM.active and handle) then return end
+	SIM.generation = SIM.generation + 1
+	SIM.active, SIM.lobby, SIM.handle = false, nil, nil
+	handle:_fire("error", "lobby join failed: simulated")
+	restore()
+	log("lobby join failed")
 end
 
 -- Mock opponents: the people with their own privilege avatar (BalatroMultiplayerServer
@@ -197,7 +255,7 @@ end
 local function draft(players)
 	if not SIM.active then
 		if not start("ranked") then return end
-		Q.stop()
+		end_search()
 	end
 	Q.dismiss_reveal()
 	DRAFT.start(players or { me(), opponent() }, picked)
@@ -213,14 +271,15 @@ local function join(opp_delay)
 			return players
 		end,
 	}
-	SIM.lobby = lobby
+	SIM.lobby, SIM.players = lobby, players
 	Q.lobby_ready(lobby)
+	end_search()
 	after(opp_delay or 1.5, function()
 		if SIM.lobby == lobby then players[2] = opponent() end
 	end)
 	-- The host's start hold (ui/lobby/_ready.lua) runs from the opponent's arrival.
 	after((opp_delay or 1.5) + PVP.QUEUE_REVEAL.HOLD_SECONDS, function()
-		if SIM.lobby == lobby and not lobby._destroyed then draft(players) end
+		if SIM.lobby == lobby and not lobby._destroyed and players[2] then draft(players) end
 	end)
 end
 
@@ -244,6 +303,7 @@ end
 function SIM.stop()
 	SIM.generation = SIM.generation + 1
 	SIM.active, SIM.lobby = false, nil
+	drop_handle()
 	DRAFT.stop()
 	Q.stop()
 	Q.dismiss_reveal()
@@ -279,6 +339,10 @@ local keys = {
 	k = function()
 		if SIM.lobby then SIM.lobby._destroyed = true end
 	end,
+	f = fail,
+	l = function()
+		if SIM.lobby then SIM.players[2] = nil end
+	end,
 	e = function()
 		local order = { off = "jimbo", jimbo = "joker", joker = "nope", nope = "off" }
 		SIM.egg = order[SIM.egg]
@@ -308,7 +372,7 @@ local keys = {
 }
 
 SIM.keys = keys
-SIM.start, SIM.skip, SIM.match, SIM.join, SIM.draft = start, skip, match, join, draft
+SIM.start, SIM.skip, SIM.match, SIM.join, SIM.draft, SIM.fail = start, skip, match, join, draft, fail
 DRAFT.on_leave = SIM.stop
 
 SIM.orig_keypressed = SIM.orig_keypressed or love.keypressed
