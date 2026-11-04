@@ -49,14 +49,14 @@ local function option_row(node)
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { node } }
 end
 
-local function toggle_row(id, label_key, key)
+local function toggle_row(id, label_key, key, enabled)
 	return option_row(MPAPI.disableable_toggle({
 		id = id,
 		label = localize(label_key),
 		ref_table = PVP.LOBBY.config,
 		ref_value = key,
 		callback = publish_options,
-		enabled = is_host,
+		enabled = enabled or is_host,
 	}).node)
 end
 
@@ -159,9 +159,10 @@ local function gameplay_tab()
 		toggle_row("mp_pvp_death_on_round_loss", "b_opts_death_on_loss", "death_on_round_loss"),
 		toggle_row("mp_pvp_the_order", "b_opts_the_order", "the_order"),
 		toggle_row("mp_pvp_preview_disabled", "b_opts_disable_preview", "preview_disabled"),
-		PVP.is_layer_active("smallworld")
-				and toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld")
-			or nil,
+		-- Always listed so players know it exists; only Small World can use it.
+		toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld", function()
+			return is_host() and PVP.LOBBY.config.ruleset == PVP.RulesetKey.SMALLWORLD
+		end),
 	}
 end
 
