@@ -798,6 +798,12 @@ function PVP.referee_on_player_reconnected(player_id)
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:set(player_id, false)
 	end
+	-- A relaunched client missed the start of the blind, so it has no round id to put on its
+	-- hand reports, and the referee drops reports without one. Hand it the open round.
+	local round = PVP.REF.round
+	if round and round.enabled and not round.outcome and round.revisions[player_id] ~= nil then
+		MPAPI.get_current_lobby():action(MPAPI.ActionTypes.pvp_round_state):send(player_id, round_state(round))
+	end
 	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
 	-- dropped who its opponent is: the pairing is only sent when an ante starts, so
 	-- without this it never learns it again, and every lives update about its opponent
