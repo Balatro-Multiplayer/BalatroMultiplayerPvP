@@ -1325,6 +1325,8 @@ return {
 			mp_sticker_draining = "Draining",
 		},
 		dictionary = {
+			k_mp_higher_calling = "Higher Calling",
+			k_mp_this_ante = "This ante",
 			k_solo_title = "CUSTOM SOLO",
 			k_solo_description = "Normal bosses, normal losses, no opponent or server.",
 			k_solo_base = "Base ruleset",
