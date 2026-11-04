@@ -37,7 +37,7 @@ end
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	return {
+	local meta = {
 		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
 		ruleset = PVP.LOBBY.config.ruleset or def.ruleset,
@@ -50,7 +50,36 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
+	-- A private lobby's host sets these in Lobby Options (ui/lobby/lobby_options.lua).
+	-- Matchmade and practice lobbies keep the config's own defaults and the rulesets' forced options.
+	if (kind or PVP.LobbyAccess.PRIVATE) == PVP.LobbyAccess.PRIVATE then
+		for _, key in ipairs(PVP.PRIVATE_OPTION_KEYS) do
+			meta[key] = PVP.LOBBY.config[key]
+		end
+		meta.deck_mode = PVP.LOBBY.config.deck_mode or PVP.DeckMode.SELECT
+	end
+	return meta
 end
+
+-- How a private lobby picks its deck: the host chooses one, or the players run the Draft.
+PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
+
+-- Lobby config fields a private lobby's host can set, carried in the lobby metadata.
+PVP.PRIVATE_OPTION_KEYS = {
+	"gold_on_life_loss",
+	"no_gold_on_round_loss",
+	"death_on_round_loss",
+	"multiplayer_jokers",
+	"normal_bosses",
+	"hide_score_until_played",
+	"timer",
+	"timer_base_seconds",
+	"timer_increment_seconds",
+	"pvp_countdown_seconds",
+	"preview_disabled",
+	"the_order",
+	"legacy_smallworld",
+}
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
 -- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby

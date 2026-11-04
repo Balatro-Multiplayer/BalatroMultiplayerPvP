@@ -21,6 +21,22 @@ end
 -- Rebuilt with the rest of the controls whenever the lobby metadata changes.
 local function deck_button()
 	local lobby = PVP.lobby.ref
+	-- Draft deck mode replaces the picker: the players draft the deck once the game starts.
+	if PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT then
+		return MPAPI.disableable_button({
+			id = "mp_pvp_choose_deck",
+			button = "lobby_choose_deck",
+			colour = G.C.PURPLE,
+			minw = 2.65,
+			minh = 1.35,
+			label = { "Deck", "Draft" },
+			scale = 0.5,
+			col = true,
+			enabled = function()
+				return false
+			end,
+		}).node
+	end
 	local deck_name = PVP.LOBBY.deck.back or "Red Deck"
 	local deck_key = PVP.UTILS.get_deck_key_from_name(deck_name)
 	local stake_key = SMODS.stake_from_index(tonumber(PVP.LOBBY.deck.stake) or 1)
@@ -145,6 +161,11 @@ end
 
 function PVP.lobby.build_controls()
 	if PVP.is_matchmaking() then
+		return build_matchmaking_controls()
+	end
+	-- A private lobby's Draft shows in the same status panel as a matchmade one's.
+	local setup = PVP.SETUP.game
+	if setup and not setup.finished and PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT then
 		return build_matchmaking_controls()
 	end
 	local lobby = PVP.lobby.ref
