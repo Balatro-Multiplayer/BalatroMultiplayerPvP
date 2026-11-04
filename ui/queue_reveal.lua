@@ -16,8 +16,11 @@ local now, reduced_motion = Widgets.now, Widgets.reduced_motion
 local slide, juice, remove_box = Widgets.slide, Widgets.juice, Widgets.remove_box
 local text_object, room_box, clear_root = Widgets.text_object, Widgets.room_box, Widgets.clear_root
 local ease_to = Widgets.ease_to
--- Failed autostart must eventually release the lobby UI.
-local REVEAL_MAX_SECONDS = 15
+-- Failed autostart must eventually release the lobby UI: a lobby join or an opponent that
+-- never arrives ends the reveal after JOIN_SECONDS, a start that never comes START_GRACE_SECONDS
+-- after the countdown ends (the host's hold starts once every ready signal is in, a little
+-- later than the opponent appearing here).
+local JOIN_SECONDS, START_GRACE_SECONDS = 15, 5
 local OFFSCREEN_Y, CARD_X, AVATAR_SCALE, SPIN_FOUND = -5, 2.6, 0.6, 1.2
 
 local function after(delay, generation, fn)
@@ -207,8 +210,10 @@ function Reveal.start(search, fan_cards)
 	Reveal.ranked, Reveal.ticket = search.ranked, search.ticket
 	Reveal.own_rating = search.rating
 	Reveal.own_avatar = search.avatar
-	Reveal.expires_at = now() + REVEAL_MAX_SECONDS
+	Reveal.expires_at = now() + JOIN_SECONDS
 	local view = Reveal.view
+	-- A menu opened after this one (a notice, the version overlay) ends the reveal.
+	view.overlay = G.OVERLAY_MENU
 	view.footer_text = localize("k_pvp_shuffling")
 	local calm = reduced_motion()
 	if PVP.config.queue_match_sound ~= false then
@@ -329,21 +334,28 @@ end
 
 function Reveal.update()
 	if not Reveal.view then return end
-	hide_ui(Reveal.view)
 	local lobby = Reveal.lobby
-	if now() >= Reveal.expires_at or (lobby and lobby._destroyed) then
+	local overlay = G.OVERLAY_MENU
+	if now() >= Reveal.expires_at or (lobby and lobby._destroyed) or (overlay and overlay ~= Reveal.view.overlay) then
 		Reveal.dismiss()
 		return
 	end
+	hide_ui(Reveal.view)
 	if lobby then
 		local n = #lobby:get_players()
 		if n ~= seen_players then
 			local had_opp = seen_players > 1
+			-- The opponent left before the game started: the lobby's own UI says so.
+			if had_opp and n < 2 then
+				Reveal.dismiss()
+				return
+			end
 			seen_players = n
 			read_reveal_ratings()
 			refresh_cards()
 			if n > 1 and not had_opp and Reveal.view then
 				Reveal.view.starts_at = now() + Reveal.HOLD_SECONDS
+				Reveal.expires_at = Reveal.view.starts_at + START_GRACE_SECONDS
 				if Reveal.view.right then
 					juice(Reveal.view.right, 0.35, 0.12)
 					play_sound("card1", 0.85, 0.8)

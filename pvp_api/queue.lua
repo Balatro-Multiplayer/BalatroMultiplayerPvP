@@ -88,6 +88,8 @@ function PVP._join_queue(kind, gamemode_key)
 
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] matchmaking error: " .. tostring(err), "MULTIPLAYER")
+		-- An error after match_found is a failed lobby join: the reveal has nothing left to show.
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
@@ -237,6 +239,8 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] matchmaking error: " .. tostring(err), "MULTIPLAYER")
+		-- An error after match_found is a failed lobby join: the reveal has nothing left to show.
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)

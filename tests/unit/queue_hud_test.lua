@@ -519,5 +519,76 @@ do
 	clock = clock + 16
 	Game.update({}, 0)
 	eq(SMODS.Sound:get_current_music(), "other_mod_music", "timeout restores music selection")
+
+	-- Every way the match can fail before the game starts ends the reveal.
+	local function reveal_with(players_now)
+		Q.start({ kind = "ranked", key = "balanced" })
+		Q.match_found()
+		local l = {
+			player_id = "me",
+			get_players = function()
+				return players_now
+			end,
+		}
+		Q.lobby_ready(l)
+		Game.update({}, 0)
+		return l
+	end
+	local duo = { { id = "me" }, { id = "opp", displayName = "Rival" } }
+
+	G.OVERLAY_MENU = { states = { visible = true } }
+	reveal_with({ { id = "me" } })
+	Game.update({}, 0)
+	assert(Reveal.view, "a menu already open when the match is found leaves the reveal up")
+	G.OVERLAY_MENU = { states = { visible = true } }
+	Game.update({}, 0)
+	eq(Reveal.view, nil, "a menu opened mid-reveal (a notice, the version overlay) ends it")
+	G.OVERLAY_MENU = nil
+
+	local pair = { duo[1], duo[2] }
+	reveal_with(pair)
+	pair[2] = nil
+	Game.update({}, 0)
+	eq(Reveal.view, nil, "the opponent leaving during the countdown ends the reveal")
+
+	reveal_with({ { id = "me" } })
+	clock = clock + 12
+	Game.update({}, 0)
+	assert(Reveal.view, "the reveal waits for a late opponent")
+	local late = { duo[1], duo[2] }
+	Reveal.lobby.get_players = function()
+		return late
+	end
+	Game.update({}, 0)
+	clock = clock + 4
+	Game.update({}, 0)
+	assert(Reveal.view, "a late opponent's countdown isn't cut short by the join timeout")
+	clock = clock + Reveal.HOLD_SECONDS + 1
+	Game.update({}, 0)
+	eq(Reveal.view, nil, "a start that never comes ends the reveal shortly after the countdown")
+
+	-- A failed lobby join after match_found (MPAPI's error event) ends the reveal.
+	PVP.LOBBY = { config = {} }
+	PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
+	PVP.LobbyAccess.RANKED_PREFIX = "ranked:"
+	MPAPI.GameModes = {}
+	local handlers = {}
+	MPAPI.matchmaking.queue = function()
+		return {
+			on = function(_, event, fn)
+				handlers[event] = fn
+			end,
+		}
+	end
+	sendDebugMessage = noop
+	G.FUNCS = {}
+	dofile("pvp_api/queue.lua")
+	sendWarnMessage = noop
+	PVP._join_ranked_ruleset("balanced")
+	handlers.match_found({ lobbyCode = "ABCD" })
+	assert(Reveal.view, "match_found opens the reveal")
+	handlers.error("lobby join failed: timeout")
+	eq(Reveal.view, nil, "an error after match_found ends the reveal")
+	eq(Q.active, false, "and the search")
 	print("queue_hud_test smoke: ok")
 end
