@@ -260,6 +260,9 @@ for _, mode in ipairs({ "pair", "team_based", "manhunt", "nemesis_pairing", "roy
 		for id, value in pairs(lives) do
 			equal(PVP.REF.players[id].lives, value)
 		end
+		for i, p in ipairs(lobby.players) do
+			equal(last("pvp_round_state").scores[p.id], tostring(500 - i * 100))
+		end
 		for id, value in pairs(teams) do
 			equal(PVP.REF.team_lives[id], value)
 		end
@@ -283,8 +286,14 @@ test("lost outcome is returned with lives, and client applies it exactly once", 
 	PVP.update_round_sync(0)
 	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
 	local state = last("pvp_round_state")
+	equal(state.scores.a, "100")
+	equal(state.scores.b, "200")
 	PVP.receive_round_state("a", state)
+	local result = PVP.GAME.round_result
 	PVP.receive_round_state("a", state)
+	equal(PVP.GAME.round_result, result)
+	equal(result.enemy_score, "200")
+	equal(result.scores.a, "100")
 	equal(PVP.GAME.lives, 3)
 	equal(applied, 1)
 	equal(PVP.GAME.round_sync.pending, false)
@@ -311,7 +320,84 @@ test("resolved round and accepted revisions survive checkpoint takeover", functi
 	equal(PVP.REF.round.revisions.a, 1)
 	report("a", 1, 100, 0)
 	equal(last("pvp_round_state").lives.a, 3)
+	equal(last("pvp_round_state").scores.a, "100")
+	equal(last("pvp_round_state").scores.b, "200")
 	equal(PVP.REF.players.a.lives, 3)
+end)
+
+test("final scores stay frozen when live referee state changes before a result retry", function()
+	setup("pair")
+	report("a", 1, 6673, 0)
+	report("b", 1, 8000, 0)
+	PVP.REF.players.a.score = "0"
+	PVP.REF.players.b.score = "0"
+	report("a", 2, 99999, 0)
+	local state = last("pvp_round_state")
+	equal(state.scores.a, "6673")
+	equal(state.scores.b, "8000")
+	equal(state.outcome.params.loser_id, "a")
+end)
+
+test("final scores are cached before life handlers and stay pinned to the round's target", function()
+	setup("pair")
+	report("a", 1, 6673, 0)
+	report("b", 1, 8000, 0)
+	local state = last("pvp_round_state")
+	MPAPI.ActionTypes.pvp_player_lives.on_receive = function()
+		equal(PVP.GAME.round_result.enemy_score, "8000")
+		PVP.current_target_id = function() return "c" end
+	end
+	MPAPI.ActionTypes.pvp_end_pvp.on_receive = function()
+		equal(PVP.GAME.round_result.enemy_score, "8000")
+	end
+	PVP.receive_round_state("a", state)
+	state.scores.b = "1"
+	equal(PVP.GAME.round_result.scores.b, "8000")
+	equal(PVP.GAME.round_result.enemy_score, "8000")
+end)
+
+test("final score text retains large-number precision", function()
+	setup("pair")
+	report("a", 1, "1e1000", 0)
+	report("b", 1, "2e1000", 0)
+	local state = last("pvp_round_state")
+	equal(state.scores.a, PVP.Score.or_zero("1e1000"))
+	equal(state.scores.b, PVP.Score.or_zero("2e1000"))
+	MPAPI.ActionTypes.pvp_player_lives.on_receive = function() end
+	MPAPI.ActionTypes.pvp_end_pvp.on_receive = function()
+		equal(PVP.GAME.round_result.enemy_score, PVP.Score.or_zero("2e1000"))
+	end
+	PVP.receive_round_state("a", state)
+end)
+
+for _, lives in ipairs({ 1, 4 }) do
+	test("Teams final scores use the decision's team sums with " .. lives .. " lives", function()
+		setup("team_based", 4, lives)
+		local scores = { A = {}, B = {} }
+		for i, p in ipairs(lobby.players) do
+			local team = PVP.REF.players[p.id].team_id
+			scores[team][#scores[team] + 1] = tostring(i * 100)
+			report(p.id, 1, i * 100, 0)
+		end
+		local state = last("pvp_round_state")
+		equal(state.team_scores.A, PVP.Score.sum(scores.A))
+		equal(state.team_scores.B, PVP.Score.sum(scores.B))
+		PVP.LOBBY.team_id = "A"
+		MPAPI.ActionTypes.pvp_player_lives.on_receive = function() end
+		MPAPI.ActionTypes.pvp_team_lives.on_receive = function() end
+		MPAPI.ActionTypes.pvp_end_pvp.on_receive = function() end
+		MPAPI.ActionTypes.pvp_win.on_receive = function() end
+		PVP.receive_round_state("a", state)
+		equal(PVP.GAME.round_result.enemy_score, state.team_scores.B)
+	end)
+end
+
+test("a tied Teams result still includes the final team sums", function()
+	setup("team_based", 4)
+	for _, p in ipairs(lobby.players) do report(p.id, 1, 100, 0) end
+	local state = last("pvp_round_state")
+	equal(state.team_scores.A, "200")
+	equal(state.team_scores.B, "200")
 end)
 
 test("new round rejects previous round reports and responses", function()
@@ -319,6 +405,10 @@ test("new round rejects previous round reports and responses", function()
 	report("a", 1, 100, 0)
 	report("b", 1, 200, 0)
 	local old = copy(last("pvp_round_state"))
+	MPAPI.ActionTypes.pvp_player_lives.on_receive = function() end
+	MPAPI.ActionTypes.pvp_end_pvp.on_receive = function() end
+	PVP.receive_round_state("a", old)
+	equal(PVP.GAME.round_result.enemy_score, "200")
 	for _, p in ipairs(lobby.players) do
 		PVP.referee_on_ready_blind(p.id, 4, 1)
 	end
@@ -328,6 +418,22 @@ test("new round rejects previous round reports and responses", function()
 	PVP.receive_round_state("a", old)
 	equal(PVP.REF.players.a.hands_left, 4)
 	equal(PVP.GAME.round_sync.applied, nil)
+	equal(PVP.GAME.round_result, nil)
+end)
+
+test("old hosts without final scores still deliver their result", function()
+	setup("pair")
+	report("a", 1, 100, 0)
+	report("b", 1, 200, 0)
+	local state = copy(last("pvp_round_state"))
+	state.scores, state.team_scores = nil, nil
+	MPAPI.ActionTypes.pvp_player_lives.on_receive = function() end
+	MPAPI.ActionTypes.pvp_end_pvp.on_receive = function() end
+	PVP.receive_round_state("a", state)
+	equal(PVP.GAME.round_sync.applied, true)
+	equal(PVP.GAME.round_result.enemy_score, nil)
+	PVP.begin_round_sync(nil, "a")
+	equal(PVP.GAME.round_result, nil)
 end)
 
 test("unanswered requests surface failure; reconnect retries; leaving cancels", function()
@@ -424,6 +530,9 @@ test("the final result still reaches players eliminated in an earlier round", fu
 	report("c", 1, 100, 0, retired)
 	equal(last("pvp_round_state").round_id, retired)
 	equal(last("pvp_round_state").eliminated.c, true)
+	equal(last("pvp_round_state").scores.a, "300")
+	equal(last("pvp_round_state").scores.b, "200")
+	equal(last("pvp_round_state").scores.c, "100")
 	equal(PVP.REF.round.id, active)
 	report("a", 1, 300, 0)
 	report("b", 1, 200, 0)
@@ -451,6 +560,9 @@ test("real action handlers restore lives before ending the blind and ignore dupl
 		if action == "playerInfo" then PVP.GAME.lives = params.lives end
 		if action == "endPvP" then
 			equal(PVP.GAME.lives, 3)
+			equal(PVP.GAME.round_result.scores.a, "100")
+			equal(PVP.GAME.round_result.scores.b, "200")
+			equal(PVP.GAME.round_result.enemy_score, "200")
 			equal(params.lost, true)
 			ended = ended + 1
 		end

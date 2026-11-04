@@ -77,6 +77,8 @@ local function round_state(round)
 		round_id = round.id,
 		revisions = round.revisions,
 		outcome = round.outcome,
+		scores = round.scores,
+		team_scores = round.team_scores,
 		lives = round.lives,
 		team_lives = round.team_lives,
 		eliminated = round.eliminated,
@@ -89,8 +91,13 @@ local function broadcast(key, params)
 	if round and round.resolving and not round.outcome and (key == "pvp_end_pvp" or key == "pvp_win") then
 		-- Commit the result before network delivery (which can synchronously loop back).
 		round.outcome = { key = key, params = params }
-		round.lives, round.team_lives, round.eliminated = {}, {}, {}
-		for id, pl in pairs(PVP.REF.players) do round.lives[id] = pl.lives end
+		round.lives, round.team_lives, round.eliminated, round.scores = {}, {}, {}, {}
+		for id, pl in pairs(PVP.REF.players) do
+			round.lives[id] = pl.lives
+			-- Freeze score text with the outcome, not the independently animated HUD.
+			-- The round is checkpointed as a whole and retained for result retries.
+			if round.revisions[id] ~= nil then round.scores[id] = PVP.Score.or_zero(pl.score) end
+		end
 		for id, lives in pairs(PVP.REF.team_lives) do round.team_lives[id] = lives end
 		for id, eliminated in pairs(PVP.REF.eliminated) do round.eliminated[id] = eliminated end
 		if round.enabled then
@@ -1371,10 +1378,11 @@ end
 -- or equal=true on an exact tie (mirrors the 1v1/Royale "nobody loses on a tie" rule).
 function PVP.referee_resolve_teams_round(team_a, team_b)
 	local sum_a, sum_b = sum_team_scores(team_a), sum_team_scores(team_b)
+	local team_scores = { A = sum_a, B = sum_b }
 	if PVP.Score.equal(sum_a, sum_b) then
-		return { equal = true }
+		return { equal = true, team_scores = team_scores }
 	end
-	return { equal = false, loser_team = PVP.Score.greater(sum_b, sum_a) and "A" or "B" }
+	return { equal = false, loser_team = PVP.Score.greater(sum_b, sum_a) and "A" or "B", team_scores = team_scores }
 end
 
 -- Pure: ranks alive players by score ascending and returns the same "bottom
@@ -1466,6 +1474,7 @@ local function resolve_teams_round(alive)
 		end
 	end
 	local outcome = PVP.referee_resolve_teams_round(by_team.A, by_team.B)
+	if PVP.REF.round then PVP.REF.round.team_scores = outcome.team_scores end
 	if not outcome.equal then
 		local loser = outcome.loser_team
 		PVP.REF.team_lives[loser] = (PVP.REF.team_lives[loser] or 1) - 1

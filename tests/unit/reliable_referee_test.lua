@@ -314,6 +314,9 @@ test("hand scoring uses confirmed checkpoints and reliable state outputs end to 
 	equal(n.peers.a.PVP.REF.players.a.lives, 7)
 	for id, peer in pairs(n.peers) do
 		equal(peer.PVP.GAME.round_sync.applied, true)
+		equal(peer.PVP.GAME.round_result.scores.a, "100")
+		equal(peer.PVP.GAME.round_result.scores.b, "200")
+		equal(peer.PVP.GAME.round_result.enemy_score, id == "a" and "200" or "100")
 		equal(n:effects(id, "pvp_end_pvp"), 1)
 	end
 	n:update(4); n:flush()
@@ -332,7 +335,12 @@ for _, stored in ipairs({ false, true }) do
 		n.peers.a.PVP.reconcile_round("b"); n.peers.b.PVP.reconcile_round("b"); n:flush()
 		n:update(2); n:flush()
 		equal(n.peers.b.PVP.REF.players.a.lives, 7)
-		for id in pairs(n.peers) do equal(n:effects(id, "pvp_end_pvp"), 1) end
+		for id, peer in pairs(n.peers) do
+			equal(n:effects(id, "pvp_end_pvp"), 1)
+			equal(peer.PVP.GAME.round_result.scores.a, "100")
+			equal(peer.PVP.GAME.round_result.scores.b, "200")
+			equal(peer.PVP.GAME.round_result.enemy_score, id == "a" and "200" or "100")
+		end
 	end)
 end
 

@@ -173,6 +173,12 @@ not fabricated scoring. Core sequence numbers can differ from report revisions.
 
 Authoritative revisions acknowledge covered sent reports; terminal round state
 closes pending delivery before applying lives and then the outcome once.
+The terminal `pvp_round_state` includes frozen per-player `scores` and, for Teams,
+the `team_scores` used in the decision. These stay with the checkpointed round
+through result retries and live host takeover. Clients cache them before applying
+lives/outcomes and freeze the current opponent's score for cash-out, independent
+of late presentation relays or the three-second HUD count-up. Older hosts without
+these optional fields fall back to the last uneased display score.
 Reconciliation can replay a confirmed report to recover an outcome produced later.
 A full hand-report queue retains the latest unqueued cumulative snapshot without
 discarding already queued transitions. Mixed-version rounds keep the legacy wire
@@ -192,7 +198,7 @@ be resumed by reconciliation; permanent callback faults are not blindly retried.
 
 Run from the PvP repository root with `texlua tests/unit/<name>_test.lua`.
 
-All **29 PvP unit-test files pass**, including:
+All **37 PvP unit-test files pass**, including:
 
 - **31** ordered-core cases, including frozen/atomic checkpoint export/import.
 - **36** transport cases using real MPAPI action instance/dispatch code and SDK
@@ -201,8 +207,10 @@ All **29 PvP unit-test files pass**, including:
 - **8** standalone checkpoint-barrier cases.
 - **39** multi-client referee cases with separate live Lua environments and
   serialized simulated server routing/metadata acceptance.
-- **35** hand-score cases, plus scoring end-to-end through the checkpoint and
-  reliable-output path in the multi-client tests.
+- **43** hand-score/round-result cases, plus scoring end-to-end through the
+  checkpoint and reliable-output path in the multi-client tests.
+- **9** cash-out display cases covering unfinished easing, stale relays, final
+  zero/large scores, older hosts, and PvP-marked normal blinds.
 
 Coverage includes lost requests/ACKs/results, FIFO fail/reset/fail, retained
 stalls, synchronous callbacks, checkpoint failure windows, stale caches, lost

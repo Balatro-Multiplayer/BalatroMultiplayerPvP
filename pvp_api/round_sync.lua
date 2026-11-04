@@ -26,6 +26,7 @@ function PVP.begin_round_sync(round_id, host_id)
 	local previous = PVP.GAME.round_sync
 	if type(round_id) == "string" and previous and previous.id == round_id then return false end
 	if previous then previous.delivery:close() end
+	PVP.GAME.round_result = nil
 	if type(round_id) ~= "string" then
 		PVP.GAME.round_sync = nil -- Older host: retain the legacy protocol, without retries.
 		return
@@ -125,6 +126,19 @@ function PVP.receive_round_state(from, state)
 		-- Final authoritative state supersedes any queued interim score snapshots.
 		round.applied, round.pending, round.failed, round.unsent = true, false, false, nil
 		round.delivery:close()
+		-- Keep the committed scores separate from the live display relay. Store them
+		-- before any life/result handler can synchronously open cash-out or end the run.
+		local result = { round_id = round.id, scores = {}, team_scores = {} }
+		for id, score in pairs(state.scores or {}) do result.scores[id] = PVP.Score.parse(score) end
+		for team, score in pairs(state.team_scores or {}) do result.team_scores[team] = PVP.Score.parse(score) end
+		if PVP.LOBBY.config.team_based then
+			local enemy_team = PVP.LOBBY.team_id == "A" and "B" or "A"
+			result.enemy_score = result.team_scores[enemy_team]
+		else
+			local target = PVP.current_target_id()
+			result.enemy_score = target and result.scores[target]
+		end
+		PVP.GAME.round_result = result
 		for id, lives in pairs(state.lives or {}) do
 			apply("pvp_player_lives", from, { player_id = id, lives = lives })
 		end

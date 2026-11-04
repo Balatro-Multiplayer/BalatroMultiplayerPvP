@@ -194,10 +194,15 @@ function ease_background_colour_blind(state, blind_override) -- handles backgrou
 end
 
 local add_round_eval_rowref = add_round_eval_row
-function add_round_eval_row(config) -- if i could post a skull emoji i would, wtf is this (cashout screen)
+function add_round_eval_row(config)
+	if config.name == "blind1" and PVP.is_pvp_boss() then
+		local result = PVP.GAME.round_result
+		-- A final round result wins over late display relays and unfinished easing.
+		-- Older hosts have no score snapshot: use their last uneased relay instead.
+		local score = (result and result.enemy_score) or PVP.GAME.enemy.real_score or PVP.GAME.enemy.score
+		G.GAME.blind.chip_text = PVP.Score.display(score)
+	end
 	if config.name == "blind1" and G.GAME.blind.config.blind.key == "bl_mp_nemesis" then
-		G.GAME.blind.chip_text = PVP.Score.display(PVP.GAME.enemy.score)
-
 		G.P_BLINDS["bl_mp_nemesis"].atlas = "mp_player_blind_col"
 		G.GAME.blind.pos = G.P_BLINDS[PVP.UTILS.get_nemesis_key()].pos -- this one is getting reset so no need to bother
 		add_round_eval_rowref(config)
