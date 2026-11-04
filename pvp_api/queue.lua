@@ -23,7 +23,7 @@ function PVP._show_searching(on)
 	PVP._searching = on and true or false
 	if PVP.QUEUE_HUD then
 		if on then
-			PVP.QUEUE_HUD.start(PVP._active_queue_id)
+			PVP.QUEUE_HUD.start(PVP._active_queue_id, PVP._match_handle)
 		else
 			PVP.QUEUE_HUD.stop()
 		end

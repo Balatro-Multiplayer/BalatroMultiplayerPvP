@@ -119,6 +119,8 @@ local placing = { rating = 640, isPlacement = true, gamesPlayed = 2, placementGa
 eq(Q.range_text(nil, 150), "...", "range before the rating is read")
 eq(Q.range_text(placed, 200), "1232-1632", "range around a placed rating")
 eq(Q.range_text(placing, 250), "k_pvp_queue_widening:3,10", "a placing player's range hides the rating")
+eq(Q.range_text(placed, 200, 1500), "1300-1700", "the range centres on the ticket's rating")
+eq(Q.range_text(placing, 250, 640), "k_pvp_queue_widening:3,10", "even with the ticket's rating known")
 
 local elo, rank = Reveal.card_lines(placed)
 eq(elo, "Elo 1432", "placed card Elo")
@@ -337,16 +339,23 @@ do
 	local menu_area = { states = { visible = true }, cards = { { states = { visible = true } } } }
 	G.I.UIBOX[1], G.I.CARDAREA[1] = menu_box, menu_area
 
-	Q.start({ kind = "ranked", key = "balanced" })
+	-- The window follows the handle, which widens only once the server takes the wider ticket.
+	local handle = { _queued_at = 0, _nakama_rating = 1432 }
+	Q.start({ kind = "ranked", key = "balanced" }, handle)
 	eq(Q.active, true, "queue HUD starts")
+	eq(Q.spread, 150, "the initial window before the first ticket is in")
 	Game.update({}, 0)
 	eq(Q.in_queue, 6, "queue count read on the first frame")
 	eq(shader(), "splash", "the menu keeps its swirl while searching")
 	local rate_at_start = Backdrop.target_rate
 	assert(rate_at_start > 1, "the swirl runs faster once searching")
+	handle._nakama_spread = 150
 	clock = 95
 	Game.update({}, 0)
-	eq(Q.spread, 300, "range widened after 95 s")
+	eq(Q.spread, 150, "the window waits for the server to take the wider ticket")
+	handle._nakama_spread = 300
+	Game.update({}, 0)
+	eq(Q.spread, 300, "range widened with the ticket")
 	assert(Backdrop.target_rate > rate_at_start, "the swirl sped up with the range")
 	Backdrop.update(1)
 	assert(Backdrop.clock > 12 + 1, "the swirl's clock runs faster than real time")
@@ -519,6 +528,15 @@ do
 	clock = clock + 16
 	Game.update({}, 0)
 	eq(SMODS.Sound:get_current_music(), "other_mod_music", "timeout restores music selection")
+
+	-- Casual tickets have no window: the swirl quickens with the handle's wait.
+	Q.start({ kind = "casual", key = "pvp_nemesis" }, { _queued_at = clock - 95 })
+	eq(Q.spread, 300, "a casual search's pace follows the handle's wait")
+	Q.stop()
+	-- With no handle, the HUD keeps its own clock.
+	Q.start({ kind = "casual", key = "pvp_nemesis" })
+	eq(Q.spread, 150, "a search without a handle starts from its own clock")
+	Q.stop()
 
 	-- Every way the match can fail before the game starts ends the reveal.
 	local function reveal_with(players_now)

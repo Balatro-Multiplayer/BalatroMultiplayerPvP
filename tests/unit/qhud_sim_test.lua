@@ -3,14 +3,15 @@ local function noop() end
 local events, starts, matches, joins, forwarded, dismissals = {}, 0, 0, 0, 0, 0
 local real_rating, real_counts = function() end, function() end
 -- Like PVP.QUEUE_HUD, a repeated start for a search already showing is ignored.
-local hud = {
+local hud
+hud = {
 	start = function()
-		if hud_active then return end
-		hud_active = true
+		if hud.active then return end
+		hud.active = true
 		starts = starts + 1
 	end,
 	stop = function()
-		hud_active = false
+		hud.active = false
 	end,
 	dismiss_reveal = function()
 		dismissals = dismissals + 1
@@ -62,7 +63,13 @@ MPAPI = {
 			draft_done = on_complete
 		end,
 	},
-	matchmaking = { get_rating = real_rating, get_queue_counts = real_counts },
+	matchmaking = {
+		get_rating = real_rating,
+		get_queue_counts = real_counts,
+		ranked_spread = function(t)
+			return math.min(150 + math.floor(t / 30) * 50, 600)
+		end,
+	},
 	get_focused_mod = function()
 		return "pvp"
 	end,
@@ -86,6 +93,11 @@ Event = function(e)
 	return e
 end
 love = {
+	timer = {
+		getTime = function()
+			return 0
+		end,
+	},
 	keyboard = {
 		isDown = function()
 			return true
@@ -189,6 +201,13 @@ assert(
 )
 assert(PVP._match_handle == nil and not PVP._is_searching(), "and leaves the queue")
 
+-- Alt+S backdates the handle's queue time, widening its window.
+love.keypressed("1", nil, false)
+assert(QHUD_SIM.handle._nakama_rating == 1432 and QHUD_SIM.handle._nakama_spread == 150, "a fresh ranked ticket")
+love.keypressed("s", nil, false)
+assert(QHUD_SIM.handle._queued_at == -30 and QHUD_SIM.handle._nakama_spread == 200, "Alt+S widens the ticket's window")
+love.keypressed("x", nil, false)
+
 -- Alt+F: the matched lobby can't be joined. queue.lua's error handler ends the search and reveal.
 local function run_events()
 	local batch = events
@@ -202,7 +221,7 @@ love.keypressed("m", nil, false)
 local before = dismissals
 love.keypressed("f", nil, false)
 assert(dismissals == before + 1, "a failed lobby join ends the reveal")
-assert(not hud_active and not PVP._is_searching() and PVP._match_handle == nil, "and the search")
+assert(not hud.active and not PVP._is_searching() and PVP._match_handle == nil, "and the search")
 assert(MPAPI.matchmaking.get_rating == real_rating and not QHUD_SIM.active, "and the simulation")
 
 -- Alt+L: the opponent leaves during the countdown, so the game never starts.
