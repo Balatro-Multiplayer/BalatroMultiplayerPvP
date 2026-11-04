@@ -144,6 +144,7 @@ local function setup(mode, count, lives, legacy)
 	dofile("lib/score.lua")
 	dofile("lib/pending_death.lua")
 	dofile("lib/ready_check.lua")
+	dofile("lib/reliable_messages.lua")
 	dofile("pvp_api/server_hold.lua")
 	dofile("pvp_api/referee.lua")
 	dofile("pvp_api/round_sync.lua")
@@ -551,4 +552,189 @@ test("a ready that outlived its blind does not start the next one under a player
 	PVP.referee_on_ready_ack("a", check.nonce, true)
 	PVP.referee_on_ready_ack("b", check.nonce, true)
 	equal(starts(), 1)
+end)
+
+test("immediate sends and reconciliation cannot use an inactive lobby or run", function()
+	for _, leave in ipairs({
+		function() lobby = nil end,
+		function() G.STAGE = "menu" end,
+		function() lobby = { mod_id = "other" } end,
+	}) do
+		setup("pair")
+		leave()
+		PVP.commit_round_report({ score = "100", handsLeft = 3 })
+		PVP.reconcile_round()
+		PVP.update_round_sync(100)
+		equal(#sent, 0)
+		equal(#notices, 0)
+	end
+end)
+
+test("synchronous referee responses do not enqueue a hand snapshot twice", function()
+	setup("pair")
+	local action = lobby.action
+	function lobby:action(kind)
+		local instance = action(self, kind)
+		local send = instance.send
+		instance.send = function(self, target, params)
+			local result = send(self, target, params)
+			if result then
+				if kind.key == "pvp_play_hand" then
+					PVP.referee_on_play_hand("a", copy(params))
+				elseif kind.key == "pvp_round_state" and target == "a" then
+					PVP.receive_round_state("a", copy(params))
+				end
+			end
+			return result
+		end
+		return instance
+	end
+	PVP.reconcile_round() -- Synchronously confirmed revision-zero query.
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.commit_round_report({ score = "200", handsLeft = 2 })
+	local reports = 0
+	for _, message in ipairs(sent) do
+		if message.key == "pvp_play_hand" then
+			equal(message.params.revision, reports)
+			reports = reports + 1
+		end
+	end
+	equal(reports, 3)
+	equal(PVP.GAME.round_sync.pending, false)
+	equal(PVP.GAME.round_sync.unsent, nil)
+	equal(PVP.REF.round.revisions.a, 2)
+end)
+
+test("hand reports use the shared FIFO and a stale ACK cannot skip its head", function()
+	setup("pair")
+	local round = PVP.GAME.round_sync
+	equal(getmetatable(round.delivery), PVP.ReliableMessages)
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.commit_round_report({ score = "200", handsLeft = 2 })
+	equal(last("pvp_play_hand").revision, 1)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	local first_ack = copy(last("pvp_round_state"))
+	PVP.receive_round_state("a", first_ack)
+	equal(last("pvp_play_hand").revision, 2)
+	PVP.receive_round_state("a", first_ack)
+	equal(round.pending, true)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(round.pending, false)
+end)
+
+test("revision-zero query and committed hand have independent queue identities", function()
+	setup("pair")
+	PVP.reconcile_round()
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	equal(last("pvp_play_hand").revision, 0)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(last("pvp_play_hand").revision, 1)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(PVP.GAME.round_sync.pending, false)
+	equal(PVP.REF.players.a.hands_left, 3)
+end)
+
+test("hand timeout retains queued reports and reconnect resumes in order", function()
+	setup("pair")
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.commit_round_report({ score = "200", handsLeft = 2 })
+	PVP.update_round_sync(30)
+	local round = PVP.GAME.round_sync
+	equal(round.failed, true)
+	equal(round.delivery:is_pending("a", 1), true)
+	equal(round.delivery:is_pending("a", 2), true)
+	local before = #sent
+	PVP.update_round_sync(100)
+	equal(#sent, before)
+	PVP.reconcile_round()
+	equal(last("pvp_play_hand").revision, 1)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(last("pvp_play_hand").revision, 2)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(round.pending, false)
+end)
+
+test("a refused socket send pauses the deadline until reconnect reconciliation", function()
+	setup("pair")
+	lobby.disconnected = true
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.update_round_sync(100)
+	equal(#notices, 0)
+	equal(PVP.GAME.round_sync.pending, true)
+	lobby.disconnected = false
+	PVP.reconcile_round()
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	PVP.receive_round_state("a", last("pvp_round_state"))
+	equal(PVP.GAME.round_sync.pending, false)
+end)
+
+test("bounded hand queue retains the latest unqueued snapshot rather than dropping it", function()
+	setup("pair")
+	for revision = 1, 130 do
+		PVP.commit_round_report({ score = tostring(revision), handsLeft = 3 })
+	end
+	equal(last("pvp_play_hand").revision, 1)
+	equal(PVP.GAME.round_sync.unsent.revision, 130)
+	local processed = 0
+	while PVP.GAME.round_sync.pending do
+		processed = processed + 1
+		assert(processed <= 130, "hand queue failed to drain")
+		PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+		PVP.receive_round_state("a", last("pvp_round_state"))
+	end
+	equal(processed, 129) -- Snapshot 129 was superseded before being queued.
+	equal(PVP.REF.round.revisions.a, 130)
+	equal(PVP.Score.display(PVP.REF.players.a.score), PVP.Score.display("130"))
+end)
+
+test("a final outcome cancels queued snapshots before dispatching its effects", function()
+	setup("pair")
+	local round, ended = PVP.GAME.round_sync, 0
+	MPAPI.ActionTypes.pvp_player_lives.on_receive = function() end
+	MPAPI.ActionTypes.pvp_end_pvp.on_receive = function()
+		equal(round.delivery:head("a"), nil)
+		ended = ended + 1
+	end
+	PVP.commit_round_report({ score = "100", handsLeft = 0 })
+	PVP.commit_round_report({ score = "999", handsLeft = 0 })
+	report("b", 1, 200, 0)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	local outcome = last("pvp_round_state")
+	PVP.receive_round_state("a", outcome)
+	PVP.receive_round_state("a", outcome)
+	equal(ended, 1)
+	equal(round.pending, false)
+	equal(round.delivery:is_pending("a", 2), false)
+	equal(last("pvp_play_hand").revision, 1)
+end)
+
+test("changing round closes its old queue and rejects old responses", function()
+	setup("pair")
+	local previous = PVP.GAME.round_sync
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.begin_round_sync("new-round", "a")
+	equal(previous.delivery:head("a"), nil)
+	PVP.receive_round_state("a", { round_id = previous.id, revisions = { a = 1 } })
+	equal(PVP.GAME.round_sync.id, "new-round")
+	equal(PVP.GAME.round_sync.pending, false)
+end)
+
+test("host reconciliation retargets queued snapshots and rejects old-host ACKs", function()
+	setup("pair")
+	PVP.commit_round_report({ score = "100", handsLeft = 3 })
+	PVP.commit_round_report({ score = "200", handsLeft = 2 })
+	PVP.reconcile_round("b")
+	local round = PVP.GAME.round_sync
+	local first = { round_id = round.id, revisions = { a = 1 } }
+	PVP.receive_round_state("a", first)
+	equal(last("pvp_play_hand").revision, 1)
+	PVP.receive_round_state("b", first)
+	equal(last("pvp_play_hand").revision, 2)
+	PVP.receive_round_state("b", { round_id = round.id, revisions = { a = 2 } })
+	equal(round.pending, false)
 end)

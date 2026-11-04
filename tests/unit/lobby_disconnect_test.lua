@@ -77,4 +77,18 @@ check("the current lobby's disconnect drops the handle", PVP._match_handle, nil)
 check("the current lobby's disconnect leaves the match", left, 1)
 check("the current lobby's disconnect clears the kind", PVP._pvp_kind, nil)
 
+local takeovers = 0
+PVP._pvp_action_helpers = { note_host = noop }
+PVP.current_target_id = noop
+PVP.is_practice_mode = function() return false end
+PVP.referee_take_over = function() takeovers = takeovers + 1 end
+PVP.reconcile_round = noop
+PVP.SETUP.continue = noop
+new.is_host = true
+new.handlers.HOST_CHANGED("me")
+check("a lobby without live delivery does not take over outside a run", takeovers, 0)
+new._pvp_reliable_events = { negotiated = true }
+new.handlers.HOST_CHANGED("me")
+check("an end screen still takes over retained reliable terminal outboxes", takeovers, 1)
+
 if failures > 0 then os.exit(1) end

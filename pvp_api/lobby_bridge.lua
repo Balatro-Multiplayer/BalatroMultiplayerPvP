@@ -436,6 +436,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
+		if PVP.reconcile_reliable_events then PVP.reconcile_reliable_events() end
 		if mirror_metadata(lobby) == false then return end
 		-- Setup may wait for the host's write of the rolled ruleset.
 		PVP.SETUP.continue(lobby)
@@ -467,7 +468,9 @@ PVP.setup_lobby_mirror = function(lobby)
 		mirror_players(lobby)
 		-- The host left mid-run (a crash, a dropped connection) and the server
 		-- made us host: the referee is ours now.
-		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then
+		local delivery = lobby._pvp_reliable_events
+		if lobby.is_host and (G.STAGE == G.STAGES.RUN or (delivery and delivery.negotiated))
+			and not PVP.is_practice_mode() then
 			PVP.referee_take_over()
 		end
 		PVP.reconcile_round(host_id)

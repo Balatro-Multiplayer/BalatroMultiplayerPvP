@@ -64,6 +64,13 @@ end
 -- fresh round's board should show reset (0) values immediately rather than
 -- stale ones from the round that just ended.
 local broadcast_royale_targets, broadcast_live_targets
+local checkpoint_depth = 0
+
+local function send_referee(key, target, params)
+	if PVP.referee_send then return PVP.referee_send(key, target, params) end
+	local lobby = MPAPI.get_current_lobby()
+	if lobby and MPAPI.ActionTypes[key] then lobby:action(MPAPI.ActionTypes[key]):send(target, params or {}) end
+end
 
 local function round_state(round)
 	return {
@@ -92,16 +99,14 @@ local function broadcast(key, params)
 			if key == "pvp_win" then
 				for _, player in ipairs(lobby:get_players()) do
 					if round.revisions[player.id] == nil then
-						lobby:action(MPAPI.ActionTypes.pvp_win):send(player.id, params)
+						send_referee("pvp_win", player.id, params)
 					end
 				end
 			end
 			key, params = "pvp_round_state", round_state(round)
 		end
 	end
-	if lobby and MPAPI.ActionTypes[key] then
-		lobby:action(MPAPI.ActionTypes[key]):broadcast(params or {})
-	end
+	send_referee(key, "*", params)
 end
 
 local function begin_round(ids)
@@ -417,25 +422,42 @@ end
 -- after it settled is released at once. on_refused runs when the server cannot
 -- hold runs: the match then ends as it always did. on_held(held) runs otherwise.
 local function hold_run_open(is_current, on_refused, on_held)
-	local lobby = MPAPI.get_current_lobby()
+	local lobby, players = MPAPI.get_current_lobby(), PVP.REF.players
 	PVP.hold_server_result(lobby, function(held, err)
-		if is_current and not is_current() then
-			if held then
-				PVP.release_server_result(lobby)
+		-- A late RPC reply belongs to the referee incarnation that requested it,
+		-- never a different lobby/run or a former host's retained local tables.
+		if MPAPI.get_current_lobby() ~= lobby or not is_host() or PVP.REF.players ~= players then return end
+		PVP.referee_transaction(function()
+			if is_current and not is_current() then
+				if held then PVP.release_server_result(lobby) end
+				return
 			end
-			return
-		end
-		if PVP.is_not_authoritative(err) then
-			on_refused()
-			check_any_win()
-			PVP.referee_checkpoint()
-			return
-		end
-		if err then
-			sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
-		end
-		PVP.GAME.result_held = held
-		on_held(held)
+			if PVP.is_not_authoritative(err) then
+				on_refused()
+				check_any_win()
+				return
+			end
+			if err then
+				sendWarnMessage("[pvp] could not hold the result: " .. tostring(err), "MULTIPLAYER")
+			end
+			PVP.GAME.result_held = held
+			on_held(held)
+		end)
+	end)
+end
+
+local function hold_pending_death(pending)
+	hold_run_open(function()
+		return PVP.REF.pending_death == pending
+	end, function()
+		PVP.REF.pending_death = nil
+	end, function(held)
+		pending.held = held and 1 or 0
+		broadcast("pvp_death_pending", {
+			player_id = pending.player_id,
+			opponent_id = pending.opponent_id,
+			blind_key = pending.blind_key,
+		})
 	end)
 end
 
@@ -453,20 +475,7 @@ local function begin_pending_death(dead)
 	if resolve_pending_death() then
 		return true
 	end
-	local pending = PVP.REF.pending_death
-	hold_run_open(function()
-		return PVP.REF.pending_death == pending
-	end, function()
-		PVP.REF.pending_death = nil
-	end, function(held)
-		pending.held = held and 1 or 0
-		broadcast("pvp_death_pending", {
-			player_id = pending.player_id,
-			opponent_id = pending.opponent_id,
-			blind_key = pending.blind_key,
-		})
-		PVP.referee_checkpoint()
-	end)
+	hold_pending_death(PVP.REF.pending_death)
 	return true
 end
 
@@ -514,6 +523,17 @@ local function empties_side(dead)
 	return (PVP.REF.team_lives[dead.team_id] or 1) <= 0
 end
 
+local function hold_team_pending(pending)
+	hold_run_open(function()
+		return PVP.REF.team_pending == pending
+	end, function()
+		PVP.REF.team_pending = nil
+	end, function(held)
+		pending.held = held and 1 or 0
+		broadcast("pvp_death_pending", { team_id = pending.team_id, blind_key = pending.blind_key })
+	end)
+end
+
 -- A Runner, or a team's last shared life, was lost on a non-PvP blind. The other
 -- side must beat the same blind before the match ends. Returns true when it took
 -- over (a result or a pending death); false when the caller ends the match as before.
@@ -527,15 +547,7 @@ local function begin_team_pending_death(dead)
 	if resolve_team_pending() then
 		return true
 	end
-	hold_run_open(function()
-		return PVP.REF.team_pending == pending
-	end, function()
-		PVP.REF.team_pending = nil
-	end, function(held)
-		pending.held = held and 1 or 0
-		broadcast("pvp_death_pending", { team_id = pending.team_id, blind_key = pending.blind_key })
-		PVP.referee_checkpoint()
-	end)
+	hold_team_pending(pending)
 	return true
 end
 
@@ -581,6 +593,19 @@ function settle_many_pending()
 	return true
 end
 
+local function hold_many_pending()
+	hold_run_open(nil, function()
+		PVP.REF.pending_deaths = {}
+		PVP.REF.many_hold = PVP.ManyHold.NONE
+	end, function(held)
+		PVP.REF.many_hold = held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
+		for _, pending in ipairs(PVP.REF.pending_deaths) do
+			broadcast("pvp_death_pending", { player_id = pending.player_id, blind_key = pending.blind_key })
+		end
+		settle_many_pending()
+	end)
+end
+
 -- A player lost their last life on a non-PvP blind in a 3+ player match. Records
 -- the pending death and holds the server's run open. The match goes on for the
 -- survivors; the caller carries on with its usual checks. Returns true when it
@@ -609,17 +634,7 @@ local function begin_many_pending_death(dead)
 		return true
 	end
 	PVP.REF.many_hold = PVP.ManyHold.ASKING
-	hold_run_open(nil, function()
-		PVP.REF.pending_deaths = {}
-		PVP.REF.many_hold = PVP.ManyHold.NONE
-	end, function(held)
-		PVP.REF.many_hold = held and PVP.ManyHold.HELD or PVP.ManyHold.NONE
-		for _, pending in ipairs(PVP.REF.pending_deaths) do
-			broadcast("pvp_death_pending", { player_id = pending.player_id, blind_key = pending.blind_key })
-		end
-		PVP.referee_checkpoint()
-		settle_many_pending()
-	end)
+	hold_many_pending()
 	return true
 end
 
@@ -798,6 +813,13 @@ function PVP.referee_on_player_reconnected(player_id)
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:set(player_id, false)
 	end
+	PVP.referee_sync_state()
+end
+
+-- Bootstrap messages before a peer's hello were legacy one-shots. Re-issue
+-- state through its negotiated outbox without changing anyone's Ready flags.
+function PVP.referee_sync_state()
+	if not is_host() then return end
 	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
 	-- dropped who its opponent is: the pairing is only sent when an ante starts, so
 	-- without this it never learns it again, and every lives update about its opponent
@@ -1140,8 +1162,10 @@ local function open_ready_check(trigger, ids)
 		blockable = false,
 		func = function()
 			-- Still the open check: whoever never answered gets the benefit of the doubt.
-			if PVP.REF.ready_check == check then
-				settle_ready_check(check, PVP.ReadyCheck.on_timeout(check))
+			if is_host() and PVP.REF.ready_check == check then
+				PVP.referee_transaction(function()
+					settle_ready_check(check, PVP.ReadyCheck.on_timeout(check))
+				end)
 			end
 			return true
 		end,
@@ -1633,8 +1657,7 @@ function PVP.referee_on_play_hand(from, params)
 	end
 	local function acknowledge()
 		if round and round.enabled then
-			local lobby = MPAPI.get_current_lobby()
-			lobby:action(MPAPI.ActionTypes.pvp_round_state):send(from, round_state(round))
+			send_referee("pvp_round_state", from, round_state(round))
 		end
 	end
 	if round and round.enabled then
@@ -2038,9 +2061,9 @@ end
 -- PVP.REF knew nobody: the crashed player came back with no lives, and nothing
 -- could end the match. So after every referee entry point the host keeps a copy
 -- of PVP.REF in the lobby metadata (CHECKPOINT_KEY). The server holds that
--- metadata for the lobby's whole life, hands it to every player in each
--- snapshot, and keeps it across a server restart, so whoever is made host
--- next finds the referee as the old host last left it and carries on
+-- metadata in the live match and hands it to players in snapshots. Its echo
+-- confirms live server acceptance, NOT storage durable across a server restart.
+-- Whoever is made host reads that authoritative checkpoint and carries on
 -- (PVP.referee_take_over, run off HOST_CHANGED in lobby_bridge.lua).
 --
 -- The host stays the rules engine; the server only stores. Moving the rules
@@ -2059,6 +2082,8 @@ local function run_tag()
 	if started and started.run_id then
 		return tostring(started.run_id)
 	end
+	local session = lobby and lobby._pvp_reliable_events
+	if session then return session.run end
 	local seed = G.GAME and G.GAME.pseudorandom and G.GAME.pseudorandom.seed
 	return seed and ("seed:" .. tostring(seed)) or nil
 end
@@ -2094,6 +2119,8 @@ local function snapshot()
 			team = pl.team_id,
 			failed_blind = pl.failed_blind,
 			round_protocol = pl.round_protocol,
+			starting_hands = pl.starting_hands,
+			forfeited = pl.forfeited,
 			tracked_ready = flag(PVP.REF.ready_tracker and PVP.REF.ready_tracker:is_ready(id)),
 		}
 	end
@@ -2116,6 +2143,12 @@ local function snapshot()
 		blind_results = PVP.REF.blind_results or {},
 		round = PVP.REF.round,
 		retired_rounds = PVP.REF.retired_rounds,
+		last_outcome = PVP.REF.last_outcome,
+		many_result_sent = PVP.REF.many_result_sent,
+		reliable_protocol = 1,
+		reliable_received = PVP.reliable_referee_cursors and PVP.reliable_referee_cursors() or {},
+		reliable_outgoing = PVP.reliable_referee_outputs and PVP.reliable_referee_outputs() or {},
+		reliable_peers = PVP.reliable_referee_peers and PVP.reliable_referee_peers() or {},
 	}
 end
 
@@ -2139,6 +2172,8 @@ local function restore(snap)
 			team_id = s.team,
 			failed_blind = s.failed_blind,
 			round_protocol = s.round_protocol,
+			starting_hands = s.starting_hands,
+			forfeited = s.forfeited,
 		}
 		if s.tracked_ready == 1 then
 			PVP.REF.ready_tracker:set(id, true)
@@ -2161,6 +2196,8 @@ local function restore(snap)
 	PVP.REF.blind_results = snap.blind_results or {}
 	PVP.REF.round = snap.round
 	PVP.REF.retired_rounds = snap.retired_rounds or {}
+	PVP.REF.last_outcome = snap.last_outcome
+	PVP.REF.many_result_sent = snap.many_result_sent
 end
 
 -- No checkpoint to take over (an old host on an older build, or one that
@@ -2224,28 +2261,166 @@ local function rebuild_from_local(lobby)
 end
 
 local last_written
+local checkpoint, checkpoint_lobby, checkpoint_tag
+local takeover_probe
 
--- Writes the referee into the lobby metadata when it changed since the last
--- write. Host-only.
-function PVP.referee_checkpoint()
-	if not is_host() then
-		return
+local function checkpoint_listener(lobby)
+	if lobby._pvp_checkpoint_listening then return end
+	lobby._pvp_checkpoint_listening = true
+	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
+		if MPAPI.get_current_lobby() ~= lobby or not lobby.is_host then return end
+		local probe = takeover_probe
+		local echoed = metadata and metadata._pvp_ref_probe
+		if probe and probe.lobby == lobby and probe.tag == run_tag() and echoed
+			and echoed.id == probe.id and echoed.writer == lobby.player_id and echoed.scope == probe.tag then
+			probe.snapshot = PVP.RefereeCheckpoint.copy(metadata[CHECKPOINT_KEY])
+			probe.confirmed = true
+			PVP.referee_take_over()
+		end
+		if checkpoint and checkpoint_lobby == lobby and run_tag() == checkpoint_tag then
+			local ok, err = pcall(checkpoint.receive, checkpoint, metadata and metadata[CHECKPOINT_KEY])
+			if not ok then
+				PVP.REF_RECOVERY_BLOCKED = true
+				sendWarnMessage("[pvp] checkpoint publication failed: " .. tostring(err), "MULTIPLAYER")
+			end
+		end
+	end)
+	lobby:on(MPAPI.LobbyEvent.HOST_CHANGED, function()
+		if not lobby.is_host then
+			if checkpoint_lobby == lobby then PVP.referee_checkpoint_cancel() end
+			if takeover_probe and takeover_probe.lobby == lobby then takeover_probe = nil end
+		end
+	end)
+	lobby:on(MPAPI.LobbyEvent.DISCONNECTED, function()
+		if checkpoint_lobby == lobby then PVP.referee_checkpoint_cancel() end
+		if takeover_probe and takeover_probe.lobby == lobby then takeover_probe = nil end
+	end)
+end
+
+local function probe_takeover(probe)
+	probe.retry_in = 2
+	-- This patch never replaces _pvp_ref. Its correlated full-metadata echo is
+	-- an authoritative READ, even if this client's cached checkpoint is stale.
+	probe.lobby:set_metadata({ _pvp_ref_probe = { id = probe.id, writer = probe.lobby.player_id, scope = probe.tag } })
+end
+
+local function publish_checkpoint(lobby, value)
+	if MPAPI.get_current_lobby() ~= lobby or not lobby.is_host or value.tag ~= run_tag() then return end
+	for _, effect in ipairs(value._delivery.effects) do
+		local params = effect.params
+		lobby:action(MPAPI.ActionTypes[effect.key]):send(effect.target, params)
 	end
+	if PVP.confirm_reliable_referee_outputs then PVP.confirm_reliable_referee_outputs(value) end
+end
+
+function PVP.referee_checkpoint_cancel()
+	if checkpoint then checkpoint:close() end
+	checkpoint, checkpoint_lobby, checkpoint_tag, last_written = nil, nil, nil, nil
+end
+
+local function server_checkpoint()
+	local lobby, tag = MPAPI.get_current_lobby(), run_tag()
+	-- Local/practice lobbies keep their synchronous behavior. Only a real Nakama
+	-- metadata echo establishes server acceptance; a local table merge does not.
+	if not lobby or not lobby._nakama or not tag or not lobby.is_host then return nil end
+	if checkpoint and checkpoint_lobby == lobby and checkpoint_tag == tag then return checkpoint end
+	PVP.referee_checkpoint_cancel()
+	checkpoint_lobby, checkpoint_tag = lobby, tag
+	local owner = lobby.player_id
+	local gate = PVP.RefereeCheckpoint.new({
+		scope = tag, writer = owner, new_id = MPAPI.generate_id,
+		write = function(value)
+			if MPAPI.get_current_lobby() == lobby and lobby.is_host and run_tag() == tag then
+				local patch = { [CHECKPOINT_KEY] = value }
+				local ok, encoded = pcall(MPAPI.json_encode, { metadata = patch })
+				-- Nakama caps match messages at 64 KiB. Leave framing headroom and
+				-- fail closed instead of retrying an impossible write or dropping work.
+				if not ok or #encoded > 60 * 1024 then
+					PVP.REF_RECOVERY_BLOCKED = true
+					checkpoint:pause()
+					sendWarnMessage("[pvp] referee checkpoint exceeds safe wire capacity or is not encodable; retained and blocked", "MULTIPLAYER")
+					return
+				end
+				lobby:set_metadata(patch)
+			end
+		end,
+		publish = function(value) publish_checkpoint(lobby, value) end,
+		on_timeout = function()
+			sendWarnMessage("[pvp] referee checkpoint unconfirmed; retaining state and withholding results", "MULTIPLAYER")
+		end,
+	})
+	checkpoint = gate
+	checkpoint_listener(lobby)
+	return gate
+end
+
+function PVP.referee_send(key, target, params)
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby or not next(PVP.REF.players or {}) then
+	if not lobby or not lobby.is_host or PVP.REF_RECOVERY_BLOCKED then return end
+	local gate = server_checkpoint()
+	if gate then
+		local legacy = PVP.stage_reliable_referee_output and PVP.stage_reliable_referee_output(key, target, params) or { target }
+		for _, peer in ipairs(legacy) do gate:stage({ key = key, target = peer, params = params or {} }) end
+		if checkpoint_depth == 0 then PVP.referee_checkpoint() end
+	else
+		lobby:action(MPAPI.ActionTypes[key]):send(target, params or {})
+	end
+end
+
+-- One value contains referee state, accepted hand revisions, recoverable results
+-- and staged output. Publish only after an exact server echo, never socket write.
+function PVP.referee_checkpoint()
+	if checkpoint_depth > 0 or PVP.REF_RECOVERY_BLOCKED or not is_host() or not next(PVP.REF.players or {}) then return end
+	local lobby, snap = MPAPI.get_current_lobby(), snapshot()
+	local gate = server_checkpoint()
+	if gate then
+		gate:commit(snap)
 		return
 	end
-	local snap = snapshot()
 	local ok, encoded = pcall(MPAPI.json_encode, snap)
 	if not ok then
 		sendWarnMessage("[pvp] referee checkpoint not encodable: " .. tostring(encoded), "MULTIPLAYER")
 		return
 	end
-	if encoded == last_written then
-		return
-	end
+	if encoded == last_written then return end
 	last_written = encoded
 	lobby:set_metadata({ [CHECKPOINT_KEY] = snap })
+end
+
+function PVP.update_referee_checkpoint(dt)
+	local probe = takeover_probe
+	if probe then
+		if MPAPI.get_current_lobby() ~= probe.lobby or not probe.lobby.is_host or probe.tag ~= run_tag() then
+			takeover_probe = nil
+		else
+			probe.elapsed, probe.retry_in = probe.elapsed + dt, probe.retry_in - dt
+			if probe.elapsed >= 30 then
+				if not probe.warned then sendWarnMessage("[pvp] host takeover snapshot unconfirmed; stalled", "MULTIPLAYER") end
+				probe.warned = true
+			elseif probe.retry_in <= 0 then probe_takeover(probe) end
+		end
+	end
+	if checkpoint then
+		if not is_host() or MPAPI.get_current_lobby() ~= checkpoint_lobby or run_tag() ~= checkpoint_tag then
+			PVP.referee_checkpoint_cancel()
+		else
+			checkpoint:update(dt)
+		end
+	end
+end
+
+function PVP.reconcile_referee_checkpoint()
+	if PVP.REF_RECOVERY_BLOCKED and not takeover_probe and not checkpoint and is_host() then
+		PVP.referee_take_over() -- Explicit reconnect may retry a missing/invalid authoritative read.
+	end
+	if takeover_probe and is_host() then
+		takeover_probe.elapsed, takeover_probe.warned = 0, false
+		probe_takeover(takeover_probe)
+	end
+	if checkpoint and is_host() then
+		checkpoint:receive((checkpoint_lobby:get_metadata() or {})[CHECKPOINT_KEY])
+		checkpoint:resume()
+	end
 end
 
 -- The old host left before this client became host, so its PLAYER_LEFT was heard
@@ -2277,25 +2452,50 @@ end
 -- Run on the player the server has just made host, mid-run. Returns how the
 -- referee was rebuilt ("checkpoint" or "local"), or nil when nothing was done.
 function PVP.referee_take_over()
-	if not is_host() or G.STAGE ~= G.STAGES.RUN then
-		return nil
-	end
-	-- The match is already decided (the old host left from the end screen).
-	if PVP.GAME.won or PVP.GAME.eliminated or G.STATE == G.STATES.GAME_OVER then
-		return nil
-	end
+	if not is_host() then return nil end
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
+	if not lobby then return nil end
+	-- A finished/eliminated local player may still need to deliver a committed
+	-- result to another live process. Do not abandon reliable terminal outboxes.
+	if not lobby._nakama and (G.STAGE ~= G.STAGES.RUN or PVP.GAME.won
+		or PVP.GAME.eliminated or G.STATE == G.STATES.GAME_OVER) then return nil end
 	local snap = (lobby:get_metadata() or {})[CHECKPOINT_KEY]
+	if lobby._nakama then
+		checkpoint_listener(lobby)
+		if takeover_probe and (takeover_probe.lobby ~= lobby or takeover_probe.tag ~= run_tag()) then takeover_probe = nil end
+		if not takeover_probe then
+			takeover_probe = { lobby = lobby, tag = run_tag(), id = MPAPI.generate_id(), elapsed = 0, retry_in = 0 }
+			PVP.REF_RECOVERY_BLOCKED = true
+			PVP.referee_checkpoint_cancel()
+			probe_takeover(takeover_probe)
+			return nil
+		end
+		if not takeover_probe.confirmed then PVP.REF_RECOVERY_BLOCKED = true; return nil end
+		snap = takeover_probe.snapshot
+		takeover_probe = nil
+	end
+	PVP.referee_checkpoint_cancel() -- Never promote an old host's unconfirmed memory.
 	local source
 	if type(snap) == "table" and snap.v == 1 and snap.tag ~= nil and snap.tag == run_tag() then
+		if PVP.RefereeCheckpoint then snap = PVP.RefereeCheckpoint.copy(snap) end
 		restore(snap)
 		source = "checkpoint"
+	elseif lobby._nakama then
+		-- A local reconstruction has no trustworthy accepted revisions. Keep
+		-- requests pending instead of risking replay of an already applied effect.
+		PVP.REF_RECOVERY_BLOCKED = true
+		local round = PVP.GAME.round_sync
+		if round then round.delivery:pause(round.host_id) end
+		sendWarnMessage("[pvp] host takeover needs a matching referee checkpoint", "MULTIPLAYER")
+		return nil
 	else
 		rebuild_from_local(lobby)
 		source = "local"
+	end
+	PVP.REF_RECOVERY_BLOCKED = nil
+	if PVP.restore_reliable_referee and source == "checkpoint" and PVP.restore_reliable_referee(snap) == false then
+		PVP.REF_RECOVERY_BLOCKED = true
+		return nil
 	end
 	PVP.ensure_gamemode_instance(lobby)
 	-- Blind results this client reported itself may have missed the old host.
@@ -2318,10 +2518,21 @@ function PVP.referee_take_over()
 		end
 	end
 	last_written = nil
+	if PVP.REF.last_outcome then
+		-- Terminal takeover exists only to drain retained outputs. Stored Ready
+		-- flags must not open another blind after the match already ended.
+		PVP.referee_checkpoint()
+		return source
+	end
 	resolve_pending_death()
 	resolve_team_pending()
 	settle_many_pending()
 	forfeit_departed(lobby)
+	-- The RPC callback belonged to the old referee's memory. Re-ask the
+	-- idempotent server hold when the checkpoint captured it still outstanding.
+	if PVP.REF.pending_death and PVP.REF.pending_death.held ~= 1 then hold_pending_death(PVP.REF.pending_death) end
+	if PVP.REF.team_pending and PVP.REF.team_pending.held ~= 1 then hold_team_pending(PVP.REF.team_pending) end
+	if PVP.REF.many_hold == PVP.ManyHold.ASKING then hold_many_pending() end
 	resume_ready_check()
 	PVP.referee_checkpoint()
 	return source
@@ -2347,10 +2558,26 @@ function PVP.ensure_gamemode_instance(lobby)
 	return lobby:get_gamemode_instance()
 end
 
+function PVP.referee_transaction(fn, ...)
+	if PVP.REF_RECOVERY_BLOCKED then return end
+	checkpoint_depth = checkpoint_depth + 1
+	local ok, result = pcall(fn, ...)
+	checkpoint_depth = checkpoint_depth - 1
+	if not ok then
+		if checkpoint then checkpoint:close() end
+		PVP.REF_RECOVERY_BLOCKED = true
+		error(result, 0)
+	end
+	PVP.referee_checkpoint()
+	return result
+end
+
 -- Every entry point that changes the referee checkpoints after it runs.
 for _, name in ipairs({
 	"referee_reset",
+	"referee_take_over",
 	"referee_on_player_reconnected",
+	"referee_sync_state",
 	"referee_on_ready_blind",
 	"referee_on_unready_blind",
 	"referee_on_ready_ack",
@@ -2371,8 +2598,11 @@ for _, name in ipairs({
 }) do
 	local inner = PVP[name]
 	PVP[name] = function(...)
-		local result = inner(...)
-		PVP.referee_checkpoint()
-		return result
+		if name == "referee_reset" then
+			takeover_probe = nil
+			PVP.referee_checkpoint_cancel()
+		end
+		if name == "referee_reset" or name == "referee_take_over" then PVP.REF_RECOVERY_BLOCKED = nil end
+		return PVP.referee_transaction(inner, ...)
 	end
 end

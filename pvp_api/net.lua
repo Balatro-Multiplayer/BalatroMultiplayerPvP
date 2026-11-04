@@ -21,6 +21,7 @@ local function lobby()
 end
 
 local function broadcast(key, params)
+	if PVP.send_referee_event and PVP.send_referee_event(key, params) then return end
 	local l = lobby()
 	if l and MPAPI.ActionTypes[key] then
 		l:action(MPAPI.ActionTypes[key]):broadcast(params or {})
