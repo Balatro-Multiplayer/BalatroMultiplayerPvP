@@ -279,6 +279,10 @@ function PVP.on_game_start(params)
 			gm_def and gm_def.ban_pick
 		)
 	end
+	-- A tournament round with a locked deck and stake skips the Draft.
+	if PVP._pvp_kind == PVP.LobbyAccess.TOURNAMENT and PVP.tournament_setup_plan then
+		plan = PVP.tournament_setup_plan(plan, meta)
+	end
 	if not (plan.votes or plan.draft) then
 		proceed(meta.deck)
 		return

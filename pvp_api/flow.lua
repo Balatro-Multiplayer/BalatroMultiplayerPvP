@@ -6,6 +6,9 @@ PVP.LobbyAccess = {
 	PRACTICE = "practice",
 	RANKED = "ranked",
 	CASUAL = "casual",
+	-- A tournament match's lobby, made by the server (pvp_api/tournament/play.lua):
+	-- played like a matchmade game, with the tournament's round settings.
+	TOURNAMENT = "tournament",
 	-- A Party lobby's metadata kind (pvp_api/party_lobby.lua). Its client kind stays PRIVATE.
 	PARTY = MPAPI.Party.KIND,
 	RANKED_PREFIX = "ranked:",
@@ -59,7 +62,7 @@ end
 -- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
 -- lobby can change the ruleset, so The Order goes back on before the ruleset
 -- forces its options.
-local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
+local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true, [PVP.LobbyAccess.TOURNAMENT] = true }
 
 function PVP.force_lobby_options(kind, ruleset_key)
 	if not FORCES_LOBBY_OPTIONS[kind] then

@@ -95,6 +95,13 @@ local function centre(view)
 		end
 	elseif s.kind == "in_game" then
 		heading, sub, until_ms = "GAME IN PROGRESS", s.text, nil
+		-- Not in the match's lobby (a missed notification): offer to join it.
+		local m = s.match
+		local current = MPAPI.get_current_lobby()
+		if m and m.lobby and m.lobby.code and not (current and current.code == m.lobby.code) then
+			button = TUI.button("JOIN GAME", "mp_pvp_tournament_join_game", { id = view.summary.id, match_id = m.id, code = m.lobby.code }, G.C.GREEN, 4, 0.6)
+			button_label = "JOIN GAME"
+		end
 	elseif s.kind == "waiting" then
 		heading, sub, until_ms = "WAITING", s.text, nil
 	elseif s.kind == "eliminated" then
@@ -194,6 +201,12 @@ local function tick()
 				return true
 			end
 			screen.seconds = (screen.seconds or 0) + 1
+			-- Already in this match's lobby (its game is on): that is where to be.
+			local current = MPAPI.get_current_lobby()
+			if current and PVP._tournament_lobby and current.code == PVP._tournament_lobby.code then
+				PVP.show_tournament_lobby_page()
+				return true
+			end
 			if screen.seconds % REFRESH_SECONDS == 0 then
 				load()
 			else

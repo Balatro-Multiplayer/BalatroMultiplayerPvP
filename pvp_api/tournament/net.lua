@@ -250,8 +250,11 @@ if notify and notify.on then
 		end
 	end)
 	notify.on(TN.NotifyCode.LOBBY, function(content)
-		-- Phase 8 joins the lobby here (MPAPI.join_lobby) for the seamless flow.
 		PVP.match_log("debug", "Tournament " .. tostring(content.name) .. ": lobby " .. tostring(content.code))
+		-- Joins it (or readies for the next game): pvp_api/tournament/play.lua.
+		if PVP.tournament_lobby_ready then
+			PVP.tournament_lobby_ready(content)
+		end
 		TN.refresh()
 	end)
 	notify.on(TN.NotifyCode.UPDATED, function(content)

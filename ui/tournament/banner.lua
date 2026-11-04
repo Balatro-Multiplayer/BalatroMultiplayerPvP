@@ -59,13 +59,16 @@ function PVP.show_tournament_banner(content)
 					},
 				},
 				TUI.spacer(0.2),
-				TUI.hbox(buttons, "cm", 0.04),
+				-- A column (not a row) beside the text column, so the buttons stay in the box.
+				{ n = G.UIT.C, config = { align = "cm" }, nodes = { TUI.hbox(buttons, "cm", 0.04) } },
 			},
 		},
 	}, { align = "cm", padding = 0.1 })
 	banner.box = UIBox({
 		definition = { n = G.UIT.ROOT, config = { align = "cm", colour = G.C.CLEAR }, nodes = { body } },
-		config = { align = "tm", offset = { x = 0, y = 0.3 }, major = G.ROOM_ATTACH, bond = "Weak", instance_type = "POPUP" },
+		-- "tmi": inside the top edge of the game area (plain "tm" sits above it, off
+		-- screen), so it is visible at any window size.
+		config = { align = "tmi", offset = { x = 0, y = 0.25 }, major = G.ROOM_ATTACH, bond = "Weak", instance_type = "POPUP" },
 	})
 	play_sound("highlight2", 1.1, 0.6)
 	G.E_MANAGER:add_event(Event({
