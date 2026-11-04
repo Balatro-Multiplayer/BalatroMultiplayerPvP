@@ -34,21 +34,43 @@ function Hud.spread_factor(spread)
 	return (step - 1) / math.max(1, total - 1)
 end
 
-function Hud.range_text(rating, spread)
+-- `centre`: the rating the ticket carries, when known; else the rating record's.
+function Hud.range_text(rating, spread, centre)
 	if not rating then return "..." end
 	if PVP.placement_progress(rating) then
 		local step, total = Hud.search_step(spread)
 		return localize({ type = "variable", key = "k_pvp_queue_widening", vars = { step, total } })
 	end
-	local r = math.floor((tonumber(rating.rating) or 0) + 0.5)
+	local r = math.floor((centre or tonumber(rating.rating) or 0) + 0.5)
 	return string.format("%d-%d", r - spread, r + spread)
+end
+
+-- The handle's queue time, ticket rating, and server-side window (nil until the first ticket
+-- is in). All three are MPAPI privates (api/matchmaking/api.lua); nothing else here reads them.
+-- Reaching into another mod's underscores is dumb. TODO: expose these through MPAPI's API.
+local function ticket()
+	local h = Hud.handle
+	if not h then return nil end
+	return h._queued_at, h._nakama_rating, h._nakama_spread
+end
+
+local function elapsed()
+	return now() - (ticket() or Hud.started_at)
+end
+
+-- Casual tickets have no window, so the swirl and fan pace off the wait instead.
+local function search_spread()
+	local M = MPAPI.matchmaking
+	if not Hud.ranked then return M.ranked_spread(elapsed()) end
+	local _, _, spread = ticket()
+	return spread or M.RANKED_SPREAD_INITIAL
 end
 
 -- DynaText resolves these references every frame.
 local live = setmetatable({}, {
 	__index = function(_, k)
 		if k == "timer" then
-			return Hud.format_elapsed(now() - Hud.started_at)
+			return Hud.format_elapsed(elapsed())
 		elseif k == "dots" then
 			return string.rep(".", math.floor(now() * 2) % 4)
 		elseif k == "sub" then
@@ -57,7 +79,8 @@ local live = setmetatable({}, {
 				.. "  "
 				.. localize({ type = "variable", key = "k_pvp_queue_in_queue", vars = { Hud.in_queue } })
 		elseif k == "range" then
-			return Hud.range_text(Hud.rating, Hud.spread or MPAPI.matchmaking.RANKED_SPREAD_INITIAL)
+			local _, centre = ticket()
+			return Hud.range_text(Hud.rating, Hud.spread or MPAPI.matchmaking.RANKED_SPREAD_INITIAL, centre)
 		end
 		return ""
 	end,
@@ -192,8 +215,9 @@ local function poll_counts()
 	end)
 end
 
--- Repeated queued events must preserve the existing search clock.
-function Hud.start(queue_id)
+-- Repeated queued events must preserve the existing search clock. `handle` supplies the clock
+-- and window when present (see ticket()).
+function Hud.start(queue_id, handle)
 	if not queue_id then return end
 	if Hud.active and Hud.queue_id and Hud.queue_id.kind == queue_id.kind and Hud.queue_id.key == queue_id.key then
 		return
@@ -201,13 +225,14 @@ function Hud.start(queue_id)
 	Hud.generation = Hud.generation + 1
 	Hud.active = true
 	Hud.queue_id = { kind = queue_id.kind, key = queue_id.key }
+	Hud.handle = handle
 	Hud.started_at = now()
 	Hud.last_minute = 0
 	Hud.ranked = queue_id.kind == PVP.LobbyAccess.RANKED
 	Hud.label = title_for(queue_id)
 	Hud.ticket = Hud.ranked and PVP.ranked_ticket(queue_id.key) or nil
 	Hud.count_key = Hud.ticket or queue_id.key
-	Hud.spread = MPAPI.matchmaking.ranked_spread(0)
+	Hud.spread = search_spread()
 	Hud.in_queue = nil
 	Hud.next_poll = now()
 	Hud.rating = nil
@@ -227,14 +252,15 @@ function Hud.stop()
 	if not Hud.active then return end
 	Hud.active = false
 	Hud.queue_id = nil
+	Hud.handle = nil
 	hide_hud()
 	if not PVP.QUEUE_REVEAL.view then Backdrop.restore() end
 end
 
 local function tick_hud()
 	local t = now()
-	local elapsed = t - Hud.started_at
-	local spread = MPAPI.matchmaking.ranked_spread(elapsed)
+	local waited = elapsed()
+	local spread = search_spread()
 	if spread ~= Hud.spread then
 		Hud.spread = spread
 		Backdrop.set_speed(Hud.swirl_for(spread))
@@ -251,7 +277,7 @@ local function tick_hud()
 		end
 	end
 	Cards.update_fan(Hud.fan, t, Hud.spread_factor(Hud.spread))
-	local minute = math.floor(elapsed / 60)
+	local minute = math.floor(waited / 60)
 	if minute > Hud.last_minute then
 		Hud.last_minute = minute
 		local timer = Hud.hud and Hud.hud:get_UIE_by_ID("pvp_queue_hud_timer")

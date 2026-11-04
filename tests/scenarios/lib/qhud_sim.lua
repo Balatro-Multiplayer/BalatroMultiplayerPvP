@@ -107,9 +107,18 @@ local function apply_egg()
 end
 
 -- A matchmaking handle like MPAPI's (api/matchmaking/handle.lua) that never reaches a server:
--- the simulator fires its events. Cancelling it (the HUD's button) stops the simulator.
-local function fake_handle()
-	local handle = { _left = false, _event_handlers = {} }
+-- the simulator fires its events. Cancelling it (the HUD's button) stops the simulator. Ranked
+-- handles carry the private fields the HUD reads, the window widening on MPAPI's requeue schedule.
+local function fake_handle(ranked)
+	local handle = { _left = false, _event_handlers = {}, _queued_at = love.timer.getTime() }
+	if ranked then
+		handle._nakama_rating = tonumber(SIM.me_rating.rating)
+		setmetatable(handle, {
+			__index = function(h, k)
+				if k == "_nakama_spread" then return M.ranked_spread(love.timer.getTime() - h._queued_at) end
+			end,
+		})
+	end
 	function handle:on(event, fn)
 		self._event_handlers[event] = self._event_handlers[event] or {}
 		table.insert(self._event_handlers[event], fn)
@@ -162,8 +171,8 @@ local function start(kind)
 			or { rating = 1432, rank = 57, isPlacement = false }
 	end
 	local real_queue = M.queue
-	M.queue = function()
-		SIM.handle = fake_handle()
+	M.queue = function(opts)
+		SIM.handle = fake_handle(opts.ranked)
 		return SIM.handle
 	end
 	local ok, err = pcall(function()
@@ -181,8 +190,8 @@ local function start(kind)
 end
 
 local function skip(secs)
-	if not Q.active then return log("not searching") end
-	Q.started_at = Q.started_at - (secs or 30)
+	if not (Q.active and SIM.handle) then return log("not searching") end
+	SIM.handle._queued_at = SIM.handle._queued_at - (secs or 30)
 end
 
 local function match()
