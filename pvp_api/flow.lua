@@ -78,7 +78,7 @@ PVP.PRIVATE_OPTION_KEYS = {
 	"pvp_countdown_seconds",
 	"preview_disabled",
 	"the_order",
-	"legacy_smallworld",
+	"smallerworld",
 }
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:

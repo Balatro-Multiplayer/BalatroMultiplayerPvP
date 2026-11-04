@@ -162,7 +162,7 @@ local function gameplay_tab()
 		toggle_row("mp_pvp_the_order", "b_opts_the_order", "the_order"),
 		toggle_row("mp_pvp_preview_disabled", "b_opts_disable_preview", "preview_disabled"),
 		PVP.is_layer_active("smallworld")
-				and toggle_row("mp_pvp_legacy_smallworld", "b_opts_legacy_smallworld", "legacy_smallworld")
+				and toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld")
 			or nil,
 	}
 end
