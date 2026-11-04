@@ -1,6 +1,5 @@
 MPAPI.Layer("balanced", {
 	multiplayer_content = false,
-	standard = true,
 	banned_silent = {
 		"j_hanging_chad",
 		"j_bloodstone",

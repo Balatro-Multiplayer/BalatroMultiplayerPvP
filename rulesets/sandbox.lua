@@ -2,7 +2,6 @@ PVP.Ruleset({
 	key = "sandbox",
 	layers = { PVP.LayerKey.SANDBOX },
 
-	forced_lobby_options = true,
 
 	force_lobby_options = function(self)
 		PVP.LOBBY.config.preview_disabled = true
