@@ -378,7 +378,9 @@ function Game:update(dt)
             end
         -- Old, No-animations: lose a live when timered by opponent
         -- Pressure timers: lose a live regardless
-        elseif (is_pressure_timer or PVP.GAME.nemesis_timer_started) then
+        elseif PVP.GAME.nemesis_timer_started then
+            PVP.AnteTimer.on_run_out()
+        elseif is_pressure_timer then
             if PVP.GAME.timers_forgiven < PVP.LOBBY.config.timer_forgiveness then
                 PVP.GAME.timers_forgiven = PVP.GAME.timers_forgiven + 1
             else

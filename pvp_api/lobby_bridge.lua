@@ -409,6 +409,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.reconcile_round()
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
+			PVP.AnteTimer.on_opponent_back()
 			return
 		end
 		-- The host may have changed while we were away.
@@ -550,7 +551,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
-		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] game ended: " .. tostring(ended.status))
 		PVP.last_game_ended = ended
 		-- Only a match of 2 ends on a contest; in a larger one the others already
 		-- have their own result and the contester their contested screen.

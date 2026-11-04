@@ -15,6 +15,7 @@ local lobby, sent, notices, sequence, events
 local function setup(mode, count, lives)
 	sent, notices, sequence, events = {}, {}, 0, {}
 	PVP = {
+		match_log = function() end,
 		id = "pvp",
 		GAME = {},
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },
@@ -44,7 +45,6 @@ local function setup(mode, count, lives)
 	Event = function(spec)
 		return spec
 	end
-	sendDebugMessage = function() end
 	Game = { update = function() end }
 	love = { timer = {
 		getTime = function()
@@ -55,7 +55,6 @@ local function setup(mode, count, lives)
 	math.pow = math.pow or function(a, b)
 		return a ^ b
 	end
-	sendDebugMessage = function() end
 	sendWarnMessage = function() end
 	localize = function(key)
 		return key
@@ -100,6 +99,7 @@ local function setup(mode, count, lives)
 		}
 	end
 	MPAPI = {
+		match_log = function() end,
 		get_current_lobby = function()
 			return lobby
 		end,

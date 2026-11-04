@@ -15,6 +15,7 @@ local function network(count, drop_legacy_lives)
 		e._G = e
 		e.dofile = function(path) return assert(loadfile(path, "t", e))() end
 		e.PVP = { id = "pvp", GAME = {}, LOBBY = { config = { starting_lives = 8, death_on_round_loss = true }, roster = {} },
+			match_log = function() end,
 			UTILS = { string_split = function(s) local out = {}; for part in s:gmatch("[^e]+") do out[#out + 1] = part end; return out end },
 			current_target_id = function() return id == "a" and "b" or "a" end,
 		}

@@ -257,8 +257,8 @@ function PVP.on_game_start(params)
 		end
 		if lobby and lobby.is_host then
 			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
-			PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		end
+		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
 	end
 

@@ -1,0 +1,142 @@
+name: Publish to Thunderstore
+
+# Runs only by hand: Actions > Publish to Thunderstore > Run workflow.
+# Builds the package from a GitHub release's tag and uploads it to Thunderstore.
+# Needs the THUNDERSTORE_TOKEN secret: a service account token of the
+# BalatroMultiplayer team on Thunderstore.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (leave empty for the latest release)
+        required: false
+        default: ''
+      dry_run:
+        description: Build the package and attach it to the run, but do not upload it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-thunderstore
+  cancel-in-progress: false
+
+env:
+  NAMESPACE: BalatroMultiplayer
+  COMMUNITY: balatro
+  # Category slugs on the community (thunderstore.io/api/cyberstorm/community/balatro/filters/).
+  CATEGORIES: '"ai-generated", "content-mod", "mechanics"'
+  # Tracked paths that do not go in the package.
+  EXCLUDE: .github .gitignore .env.example stylua.toml CONTRIBUTING.md AGENTS.md tests scripts docs dev replays .claude
+  TCLI_VERSION: 0.2.4
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find the release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release view -R "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          else
+            gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json tagName > /dev/null
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release: $TAG"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+
+      - name: Check the manifest
+        id: manifest
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          NAME=$(jq -r .name manifest.json)
+          VERSION=$(jq -r .version_number manifest.json)
+          if [ "$VERSION" != "${TAG#v}" ]; then
+            echo "::error::manifest.json version $VERSION does not match the tag $TAG"
+            exit 1
+          fi
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")
+          if [ "$STATUS" = 200 ]; then
+            echo "::error::$NAMESPACE-$NAME $VERSION is already on Thunderstore"
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build the package
+        id: build
+        env:
+          FILE: ${{ env.NAMESPACE }}-${{ steps.manifest.outputs.name }}-${{ steps.manifest.outputs.version }}.zip
+        run: |
+          PATHSPEC=(.)
+          for path in $EXCLUDE; do PATHSPEC+=(":(exclude)$path"); done
+          mkdir -p build
+          git archive --format=zip -o "build/$FILE" HEAD -- "${PATHSPEC[@]}"
+          for required in manifest.json icon.png README.md; do
+            unzip -Z1 "build/$FILE" | grep -qx "$required" || { echo "::error::$required is not at the package root"; exit 1; }
+          done
+          unzip -Z1 "build/$FILE" | awk -F/ '{ print $1 }' | sort -u
+          echo "file=build/$FILE" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAMESPACE }}-${{ steps.manifest.outputs.name }}-${{ steps.manifest.outputs.version }}
+          path: ${{ steps.build.outputs.file }}
+
+      - name: Upload to Thunderstore
+        if: ${{ !inputs.dry_run }}
+        env:
+          TCLI_AUTH_TOKEN: ${{ secrets.THUNDERSTORE_TOKEN }}
+          NAME: ${{ steps.manifest.outputs.name }}
+          VERSION: ${{ steps.manifest.outputs.version }}
+          FILE: ${{ steps.build.outputs.file }}
+        run: |
+          if [ -z "$TCLI_AUTH_TOKEN" ]; then
+            echo "::error::The THUNDERSTORE_TOKEN secret is not set"
+            exit 1
+          fi
+          # tcli reads the namespace, communities and categories from this file;
+          # the package itself (manifest.json) is already in the zip.
+          cat > "$RUNNER_TEMP/thunderstore.toml" <<EOF
+          [config]
+          schemaVersion = "0.0.1"
+
+          [package]
+          namespace = "$NAMESPACE"
+          name = "$NAME"
+          versionNumber = "$VERSION"
+          description = ""
+          websiteUrl = ""
+          containsNsfwContent = false
+
+          [package.dependencies]
+
+          [build]
+          icon = "./icon.png"
+          readme = "./README.md"
+          outdir = "./build"
+
+          [[build.copy]]
+          source = "./"
+          target = ""
+
+          [publish]
+          repository = "https://thunderstore.io"
+          communities = ["$COMMUNITY"]
+
+          [publish.categories]
+          $COMMUNITY = [$CATEGORIES]
+          EOF
+          dotnet tool install --global tcli --version "$TCLI_VERSION"
+          tcli publish --config-path "$RUNNER_TEMP/thunderstore.toml" --file "$FILE"
+          echo "Published $NAMESPACE-$NAME $VERSION: https://thunderstore.io/c/$COMMUNITY/p/$NAMESPACE/$NAME/" >> "$GITHUB_STEP_SUMMARY"

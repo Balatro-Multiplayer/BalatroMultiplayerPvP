@@ -26,9 +26,9 @@ Event = noop
 function localize(key)
 	return key
 end
-sendDebugMessage = noop
 local order_gate, rejoin_hooks
 MPAPI = {
+	match_log = noop,
 	OPCODE = { MATCH_MANIFEST = "match_manifest", LOBBY_INFO = "lobby_info", RUN_INFO = "run_info" },
 	register_order_gate = function(fn)
 		order_gate = fn
