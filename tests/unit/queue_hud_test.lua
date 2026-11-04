@@ -598,7 +598,7 @@ do
 			end,
 		}
 	end
-	sendDebugMessage = noop
+	PVP.match_log = noop
 	G.FUNCS = {}
 	dofile("pvp_api/queue.lua")
 	sendWarnMessage = noop

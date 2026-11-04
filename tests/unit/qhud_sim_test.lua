@@ -112,7 +112,7 @@ love = {
 		forwarded = forwarded + 1
 	end,
 }
-sendDebugMessage, sendWarnMessage = noop, noop
+PVP.match_log, sendWarnMessage = noop, noop
 -- The simulator's search runs through the real queue handlers.
 dofile("pvp_api/queue.lua")
 local real_cancel = G.FUNCS.mp_pvp_cancel_queue
