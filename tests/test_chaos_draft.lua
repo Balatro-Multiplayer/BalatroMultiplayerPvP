@@ -20,6 +20,71 @@ local D = PVP.CHAOS_DRAFT
 for key in pairs(D.definitions) do
 	G.P_CENTERS[key] = { config = {}, key = key }
 end
+
+-- Exact cumulative unlock schedule, independent of the implementation catalogue.
+local unlocks = {
+	[2] = {
+		"b_red",
+		"b_blue",
+		"b_yellow",
+		"b_green",
+		"b_magic",
+		"b_nebula",
+		"b_zodiac",
+		"b_mp_violet",
+		"b_anaglyph",
+		"b_erratic",
+	},
+	[3] = { "b_black", "b_painted", "b_ghost", "b_checkered", "b_abandoned" },
+	[5] = { "b_mp_indigo", "b_mp_orange", "b_mp_oracle", "b_mp_gradient" },
+	[7] = { "b_mp_heidelberg", "b_mp_echodeck" },
+}
+local expected_unlock = {}
+for ante, keys in pairs(unlocks) do
+	for _, key in ipairs(keys) do
+		expected_unlock[key] = ante
+		check(D.definitions[key].min_ante == ante, key .. " unlocks at ante " .. ante)
+	end
+end
+for key in pairs(D.definitions) do
+	check(expected_unlock[key], "every acquisition has an explicit scheduled unlock")
+end
+for _, ante in ipairs({ 2, 3, 5, 7 }) do
+	local seen = {}
+	for seed = 1, 100 do
+		local offer = D.offer(D.new("GATES" .. seed), ante, G.P_CENTERS)
+		check(#offer.choices == 3, "three offers at each draft milestone")
+		local distinct = {}
+		for _, key in ipairs(offer.choices) do
+			check(expected_unlock[key] <= ante and not distinct[key], "only eligible distinct decks offered")
+			distinct[key], seen[key] = true, true
+		end
+	end
+	for key, unlock in pairs(expected_unlock) do
+		check(not not seen[key] == (unlock <= ante), "eligible pool remains cumulative: " .. key)
+	end
+end
+for _, ante in ipairs({ 1, 4, 6, 8, 9, 10, 20 }) do
+	local state = D.new("QUIET")
+	check(not D.offer(state, ante, G.P_CENTERS), "no draft outside milestones: " .. ante)
+	check(state.last_ante == ante, "quiet ante acknowledged for gameplay/timer gates: " .. ante)
+	check(not D.offer(state, ante, G.P_CENTERS), "quiet ante remains idempotent")
+end
+local exhausted = D.new("EXHAUSTED")
+for key, ante in pairs(expected_unlock) do
+	if ante == 2 then exhausted.acquired[#exhausted.acquired + 1] = key end
+end
+check(not D.offer(exhausted, 2, G.P_CENTERS), "empty early pool does not leak locked decks")
+check(#D.offer(exhausted, 3, G.P_CENTERS).choices == 3, "new unlocks resume an exhausted early pool")
+local small_pool = { b_red = {}, b_blue = {}, b_mp_echodeck = {} }
+check(#D.offer(D.new("SMALL"), 2, small_pool).choices == 2, "offer fewer rather than fill with locked decks")
+local legacy = D.new("LEGACY")
+legacy.pending = { ante = 2, choices = { "b_mp_echodeck", "b_black", "b_red" } }
+local legacy_offer = legacy.pending
+check(D.offer(legacy, 2, G.P_CENTERS) == legacy_offer, "pre-gate saved offers are not rerolled")
+legacy.pending.ante = 4
+check(D.offer(legacy, 4, G.P_CENTERS) == legacy_offer, "pre-milestone pending offers survive schedule changes")
+
 local configs = {
 	b_red = { discards = 1 },
 	b_blue = { hands = 1 },
@@ -147,7 +212,7 @@ check(G.GAME.round_resets.discards == 4, "Red resource delta")
 acquire("b_yellow")
 check(G.GAME.dollars == 14, "Yellow pays once")
 check(not D.offer(G.GAME.chaos_draft, G.GAME.chaos_draft.last_ante, G.P_CENTERS), "one acquisition per ante")
-local next_offer = D.offer(G.GAME.chaos_draft, 10, G.P_CENTERS)
+local next_offer = D.offer(G.GAME.chaos_draft, 7, G.P_CENTERS)
 for _, key in ipairs(next_offer.choices) do
 	check(not D.has(G.GAME.chaos_draft, key), "owned decks excluded")
 end
@@ -274,6 +339,19 @@ check(progressed == 2, "shop resumes after acquisition")
 G.GAME.chaos_draft = nil
 Game:update_shop(0)
 check(progressed == 3, "ordinary runs untouched")
+
+reset()
+G.GAME.chaos_draft.last_ante = 3
+G.GAME.round_resets.ante = 4
+G.OVERLAY_MENU = nil
+local prior_progress, prior_shown = progressed, shown
+Game:update_shop(0)
+check(progressed == prior_progress + 1 and shown == prior_shown, "quiet ante does not block shop construction")
+check(G.GAME.chaos_draft.last_ante == 4, "quiet ante releases the draft timer gate")
+G.GAME.round_resets.ante = 5
+Game:update_shop(0)
+check(progressed == prior_progress + 1 and shown == prior_shown + 1, "next milestone blocks for its draft")
+check(G.GAME.chaos_draft.pending.ante == 5, "quiet ante does not consume the next milestone")
 
 -- Gift pack checkpoint spans all choices; partial packs cannot be duplicated.
 reset()

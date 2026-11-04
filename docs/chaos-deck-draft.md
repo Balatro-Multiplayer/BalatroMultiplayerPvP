@@ -9,12 +9,37 @@ Regenerate both resolutions with `python3 scripts/generate_chaos_back.py`;
 the standard-library generator writes 71×95 and 142×190 RGBA PNGs.
 
 - Ante 1: ordinary starting cards and resources; zero deck effects.
-- Ante 2 onward: three distinct deck offers, independently seeded per player.
-- Pick one; keep previous acquisitions. No accumulation cap or repeated decks.
-- With fewer than three decks remaining, offer the remaining decks. Stop when empty.
+- Draft only at antes 2, 3, 5 and 7, with three distinct eligible deck offers,
+  independently seeded per player. No drafts at other antes, including after 7.
+- Pick one; keep previous acquisitions. Four acquisitions in a normal run;
+  no repeated decks. Older saves retain any extra acquisitions they already have.
+- With fewer than three eligible decks remaining, offer all of them. Skip empty
+  pools; later unlocks can resume drafting.
 - Draft before the new ante's shop stock or blind-selection UI is constructed.
 - Existing manual rules, stakes and sleeves remain separate; use Vanilla/no
   modifiers/no sleeve for the ordinary baseline.
+
+## Cumulative unlock schedule
+
+| First eligible ante | Decks |
+|---|---|
+| 2 | Red, Blue, Yellow, Green, Magic, Nebula, Zodiac, Violet, Anaglyph, Erratic |
+| 3 | Black, Painted, Ghost, Checkered, Abandoned |
+| 5 | Indigo, Orange, Oracle, Gradient |
+| 7 | Heidelberg, Echo |
+
+Earlier decks remain eligible. The catalogue contains 10/15/19/21 eligible decks
+at these boundaries before removing acquisitions. Selection stays uniform over
+eligible, unacquired decks: no premium slot or guaranteed newly unlocked deck.
+Plasma remains excluded. Unlocks are declared on each acquisition as `min_ante`.
+
+The same four milestones control draft timing; unlocks alone do not trigger
+additional drafts between them. Quiet antes advance the checked-ante state so
+gameplay and the PvP timer are not held waiting for a nonexistent draft.
+
+Gates apply to newly generated offers. Existing acquisitions, saved pending offers
+and exact recorded replay choices are preserved, including choices generated
+before these gates existed. No save migration or reroll is needed.
 
 ## Runtime
 

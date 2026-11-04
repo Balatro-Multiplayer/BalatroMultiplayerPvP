@@ -1,7 +1,7 @@
 -- Saved deck acquisitions, separate from setup-only Back:apply_to_run.
 -- The catalogue is deliberately explicit: an arbitrary installed Back cannot
 -- safely be applied halfway through a run.
-PVP.CHAOS_DRAFT = { definitions = {} }
+PVP.CHAOS_DRAFT = { definitions = {}, milestones = { [2] = true, [3] = true, [5] = true, [7] = true } }
 local D = PVP.CHAOS_DRAFT
 
 function D.new(seed, player)
@@ -33,11 +33,17 @@ function D.random(seed)
 end
 
 function D.offer(state, ante, centers)
+	-- Keep saved offers stable, including those created before unlock gates.
 	if state.pending then return state.pending end
 	if ante < 2 or ante <= state.last_ante then return end
+	if not D.milestones[ante] then
+		-- Acknowledge quiet antes so draft gates and the PvP timer can proceed.
+		state.last_ante = ante
+		return
+	end
 	local pool = {}
-	for key in pairs(D.definitions) do
-		if centers[key] and not D.has(state, key) then pool[#pool + 1] = key end
+	for key, definition in pairs(D.definitions) do
+		if ante >= definition.min_ante and centers[key] and not D.has(state, key) then pool[#pool + 1] = key end
 	end
 	table.sort(pool)
 	if #pool == 0 then
@@ -71,8 +77,8 @@ function D.commit(state, key, apply)
 	return true
 end
 
-local function add(key, lines, apply)
-	D.definitions[key] = { lines = lines, apply = apply }
+local function add(key, min_ante, lines, apply)
+	D.definitions[key] = { min_ante = min_ante, lines = lines, apply = apply }
 end
 
 local function resource(field, amount)
@@ -110,37 +116,38 @@ function D.can_acquire(key)
 	return true
 end
 
-add("b_red", { "+1 discard each round." }, function()
+add("b_red", 2, { "+1 discard each round." }, function()
 	resource("discards", G.P_CENTERS.b_red.config.discards)
 end)
-add("b_blue", { "+1 hand each round." }, function()
+add("b_blue", 2, { "+1 hand each round." }, function()
 	resource("hands", G.P_CENTERS.b_blue.config.hands)
 end)
-add("b_yellow", { "Gain $10." }, function()
+add("b_yellow", 2, { "Gain $10." }, function()
 	ease_dollars(G.P_CENTERS.b_yellow.config.dollars, true)
 end)
-add("b_green", { "$2 per unused hand.", "$1 per unused discard.", "No interest." }, function()
+add("b_green", 2, { "$2 per unused hand.", "$1 per unused discard.", "No interest." }, function()
 	local config = G.P_CENTERS.b_green.config
 	G.GAME.modifiers.money_per_hand = config.extra_hand_bonus
 	G.GAME.modifiers.money_per_discard = config.extra_discard_bonus
 	G.GAME.modifiers.no_interest = true
 end)
-add("b_black", { "+1 Joker slot.", "-1 hand each round." }, function()
+add("b_black", 3, { "+1 Joker slot.", "-1 hand each round." }, function()
 	local config = G.P_CENTERS.b_black.config
 	resource("hands", config.hands)
 	G.jokers.config.card_limit = G.jokers.config.card_limit + config.joker_slot
 end)
-add("b_magic", { "Gain Crystal Ball if unowned.", "Gain 2 Fools, even if full." }, configured_grants)
-add("b_nebula", { "Gain Telescope if unowned.", "-1 consumable slot." }, function(key)
+add("b_magic", 2, { "Gain Crystal Ball if unowned.", "Gain 2 Fools, even if full." }, configured_grants)
+add("b_nebula", 2, { "Gain Telescope if unowned.", "-1 consumable slot." }, function(key)
 	configured_grants(key)
 	G.consumeables.config.card_limit = G.consumeables.config.card_limit + G.P_CENTERS[key].config.consumable_slot
 end)
-add("b_ghost", { "Spectrals may appear in shops.", "Gain a Hex, even if full." }, function(key)
+add("b_ghost", 3, { "Spectrals may appear in shops.", "Gain a Hex, even if full." }, function(key)
 	G.GAME.spectral_rate = G.P_CENTERS[key].config.spectral_rate
 	configured_grants(key)
 end)
 add(
 	"b_abandoned",
+	3,
 	{ "Destroy all Jacks, Queens", "and Kings in your deck now.", "Destruction effects trigger." },
 	function()
 		local removed = {}
@@ -151,30 +158,41 @@ add(
 		SMODS.destroy_cards(removed)
 	end
 )
-add("b_checkered", { "Clubs become Spades.", "Diamonds become Hearts.", "Other card properties stay." }, function()
+add("b_checkered", 3, { "Clubs become Spades.", "Diamonds become Hearts.", "Other card properties stay." }, function()
 	for _, card in ipairs(G.playing_cards) do
 		if card.base.suit == "Clubs" then card:change_suit("Spades") end
 		if card.base.suit == "Diamonds" then card:change_suit("Hearts") end
 	end
 end)
-add("b_zodiac", { "Gain Tarot Merchant,", "Planet Merchant and Overstock", "if not already owned." }, configured_grants)
-add("b_painted", { "+2 hand size.", "-1 Joker slot.", "Existing Jokers are kept." }, function(key)
+add(
+	"b_zodiac",
+	2,
+	{ "Gain Tarot Merchant,", "Planet Merchant and Overstock", "if not already owned." },
+	configured_grants
+)
+add("b_painted", 3, { "+2 hand size.", "-1 Joker slot.", "Existing Jokers are kept." }, function(key)
 	local config = G.P_CENTERS[key].config
 	G.hand:change_size(config.hand_size)
 	G.jokers.config.card_limit = G.jokers.config.card_limit + config.joker_slot
 end)
-add("b_anaglyph", { "After each future Boss Blind,", "gain a Double Tag." }, function() end)
-add("b_erratic", { "Randomize every card's", "rank and suit now.", "Enhancements, seals, editions stay." }, function()
-	local state = G.GAME.chaos_draft
-	local random = D.random(state.seed .. ":erratic:" .. state.last_ante)
-	local suits = { "Spades", "Hearts", "Clubs", "Diamonds" }
-	local ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace" }
-	for _, card in ipairs(G.playing_cards) do
-		SMODS.change_base(card, suits[random(#suits)], ranks[random(#ranks)])
+add("b_anaglyph", 2, { "After each future Boss Blind,", "gain a Double Tag." }, function() end)
+add(
+	"b_erratic",
+	2,
+	{ "Randomize every card's", "rank and suit now.", "Enhancements, seals, editions stay." },
+	function()
+		local state = G.GAME.chaos_draft
+		local random = D.random(state.seed .. ":erratic:" .. state.last_ante)
+		local suits = { "Spades", "Hearts", "Clubs", "Diamonds" }
+		local ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace" }
+		for _, card in ipairs(G.playing_cards) do
+			SMODS.change_base(card, suits[random(#suits)], ranks[random(#ranks)])
+		end
 	end
-end)
+)
 add(
 	"b_mp_violet",
+	2,
 	{ "+1 voucher offer per shop.", "30% voucher discount in ante 2.", "No discount from ante 3 onward." },
 	function()
 		SMODS.change_voucher_limit(1)
@@ -183,6 +201,7 @@ add(
 )
 add(
 	"b_mp_indigo",
+	5,
 	{ "+1 choice from Booster Packs.", "Cannot skip usable choices.", "No future Red Card offers." },
 	function()
 		G.GAME.modifiers.mp_indigo = true
@@ -190,12 +209,13 @@ add(
 		G.GAME.banned_keys.j_red_card = true
 	end
 )
-add("b_mp_orange", { "Open a free Giga Standard Pack.", "Gain 2 Hanged Men, even if full." }, function(key)
+add("b_mp_orange", 5, { "Open a free Giga Standard Pack.", "Gain 2 Hanged Men, even if full." }, function(key)
 	configured_grants(key)
 	G.GAME.chaos_draft.pack_due = true
 end)
 add(
 	"b_mp_oracle",
+	5,
 	{ "Gain Clearance Sale and Medium.", "Money cap: $50 + interest cap.", "Excess cash is lost now." },
 	function(key)
 		configured_grants(key)
@@ -206,6 +226,7 @@ add(
 )
 add(
 	"b_mp_gradient",
+	5,
 	{ "Adjacent ranks count for", "supported Joker effects.", "Poker hands are unchanged." },
 	function()
 		G.GAME.modifiers.mp_gradient = true
@@ -213,11 +234,13 @@ add(
 )
 add(
 	"b_mp_heidelberg",
+	7,
 	{ "Leaving a shop creates a", "Negative copy of a random", "consumable you hold." },
 	function() end
 )
 add(
 	"b_mp_echodeck",
+	7,
 	{ "Retrigger playing-card effects.", "Blind scaling increases by 0.2,", "then +0.2 after each Boss." },
 	function()
 		G.GAME.starting_params.ante_scaling = G.GAME.starting_params.ante_scaling + 0.2

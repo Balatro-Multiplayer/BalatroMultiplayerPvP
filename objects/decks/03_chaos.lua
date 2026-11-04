@@ -17,8 +17,8 @@ SMODS.Back({
 		name = "Chaos",
 		text = {
 			"Start with {C:attention}no deck effects{}",
-			"From Ante {C:attention}2{}, choose one of",
-			"{C:attention}3 decks{} each ante",
+			"Choose 1 of {C:attention}3 decks{}",
+			"at Antes {C:attention}2, 3, 5 and 7{}",
 			"Keep every chosen deck's effects",
 		},
 	},

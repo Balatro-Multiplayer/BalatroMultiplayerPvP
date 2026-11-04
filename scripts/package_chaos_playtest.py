@@ -28,7 +28,7 @@ INSTALL
 PLAY SOLO
 Main menu -> Custom Solo -> Deck: Chaos (deck draft) -> Play.
 Use Vanilla / no manual modifiers for the plain baseline.
-Ante 1 starts with no deck effects. From ante 2, choose one of three decks.
+Ante 1 starts with no deck effects. At antes 2, 3, 5 and 7, choose one of three decks.
 Click once to select; click that same deck again to commit.
 Acquisitions accumulate without repeating. Plasma is excluded.
 Hover the draw pile to fan up to eight acquired backs.
