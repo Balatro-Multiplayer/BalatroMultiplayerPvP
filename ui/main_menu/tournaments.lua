@@ -65,7 +65,7 @@ local live = {}
 -- What a row looks like apart from its ticking status text: when this
 -- changes, the list is rebuilt.
 local function row_shape(t, s)
-	return table.concat({ t.id, t.name, TUI.meta_line(t), tostring(t.official), s.kind or "", s.action and s.action.label or "" }, "|")
+	return table.concat({ t.id, t.name, TUI.meta_line(t), tostring(t.official), tostring(t.rankedOk), s.kind or "", s.action and s.action.label or "" }, "|")
 end
 
 local function list_shape()
@@ -102,11 +102,16 @@ local function build_row(t)
 		buttons[#buttons + 1] = TUI.button(s.action.label, s.action.button, { id = t.id }, s.action.colour, 1.7)
 	end
 	buttons[#buttons + 1] = TUI.button("OPEN", "mp_pvp_tournament_open", { id = t.id }, G.C.BLUE, 1.3)
-	return TUI.row({
+	local left = {
 		TUI.name_line(t),
 		TUI.line({ TUI.text(TUI.meta_line(t), TUI.SMALL, G.C.UI.TEXT_INACTIVE) }),
 		TUI.line({ TUI.live_text(status, TUI.TEXT) }),
-	}, buttons, TUI.WIDTH - 0.6, t.official)
+	}
+	-- Signed up to a ranked-profile tournament, but not on it right now.
+	if t.rankedOk == false then
+		left[#left + 1] = TUI.line({ TUI.plain("Ranked profile required", TUI.SMALL, G.C.RED) })
+	end
+	return TUI.row(left, buttons, TUI.WIDTH - 0.6, t.official)
 end
 
 local function build_header()

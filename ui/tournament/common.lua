@@ -10,6 +10,11 @@ TUI.TEXT = 0.32
 TUI.SMALL = 0.28
 TUI.WIDTH = 13.6
 
+-- Text without the drop shadow, for sentences (easier to read).
+function TUI.plain(str, scale, colour)
+	return { n = G.UIT.T, config = { text = tostring(str), scale = scale or TUI.TEXT, colour = colour or G.C.UI.TEXT_LIGHT } }
+end
+
 function TUI.text(str, scale, colour)
 	return { n = G.UIT.T, config = { text = tostring(str), scale = scale or TUI.TEXT, colour = colour or G.C.UI.TEXT_LIGHT, shadow = true } }
 end
@@ -60,12 +65,45 @@ function TUI.official_badge()
 	}
 end
 
--- The name line: name, plus the OFFICIAL badge.
-function TUI.name_line(summary, scale)
+-- The RANKED PROFILE badge: players need their ranked profile.
+function TUI.ranked_badge()
+	return {
+		n = G.UIT.C,
+		config = { align = "cm", padding = 0.05, r = 0.08, colour = G.C.BLUE },
+		nodes = { TUI.text("RANKED PROFILE", 0.26, G.C.UI.TEXT_LIGHT) },
+	}
+end
+
+TUI.RANKED_HOWTO = "Ranked profile required: launch a ranked profile through the BET launcher and keep the launcher open."
+
+-- What a ranked-profile tournament means for this player, as a line (nil
+-- for other tournaments): green when they're on their ranked profile, red
+-- with what to do when not, gold when the server didn't say. profile: the
+-- view's rankedProfile ({ ok, message }).
+function TUI.ranked_lines(summary, profile, align)
+	if not summary or not summary.requireRanked then
+		return nil
+	end
+	local text, colour = TUI.RANKED_HOWTO, G.C.GOLD
+	if profile and profile.ok then
+		text, colour = "Ranked profile required: you're on yours.", G.C.GREEN
+	elseif profile then
+		colour = G.C.RED
+	end
+	return { n = G.UIT.R, config = { align = align or "cm", padding = 0.04 }, nodes = { TUI.plain(text, TUI.SMALL, colour) } }
+end
+
+-- The name line: name, plus the OFFICIAL badge (and RANKED PROFILE with
+-- with_ranked: DETAILS only).
+function TUI.name_line(summary, scale, with_ranked)
 	local nodes = { { n = G.UIT.C, config = { align = "cl" }, nodes = { TUI.text(summary.name, scale or 0.38) } } }
 	if summary.official then
 		nodes[#nodes + 1] = TUI.spacer(0.12)
 		nodes[#nodes + 1] = TUI.official_badge()
+	end
+	if with_ranked and summary.requireRanked then
+		nodes[#nodes + 1] = TUI.spacer(0.12)
+		nodes[#nodes + 1] = TUI.ranked_badge()
 	end
 	return { n = G.UIT.R, config = { align = "cl", padding = 0.02 }, nodes = nodes }
 end

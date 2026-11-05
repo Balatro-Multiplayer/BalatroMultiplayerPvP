@@ -278,8 +278,10 @@ end
 local function build_details()
 	local view = details.view
 	local s = view.summary
-	local title = { TUI.name_line(s, 0.55) }
+	local title = { TUI.name_line(s, 0.55, true) }
 	title[#title + 1] = { n = G.UIT.R, config = { align = "cl" }, nodes = { TUI.text("by " .. tostring(s.organiserName), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
+	-- Ranked profile required: and whether this player is on theirs.
+	title[#title + 1] = TUI.ranked_lines(s, view.rankedProfile, "cl")
 	local left = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = { starts_card(view), format_card(view), game_card(view), decks_card(view) } },
 	}

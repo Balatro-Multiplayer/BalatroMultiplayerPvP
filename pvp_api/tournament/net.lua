@@ -259,5 +259,9 @@ if notify and notify.on then
 	end)
 	notify.on(TN.NotifyCode.UPDATED, function(content)
 		TN.refresh()
+		-- Check-in opened and this player isn't on their ranked profile.
+		if content and content.kind == "ranked_profile_needed" and PVP.show_tournament_banner then
+			PVP.show_tournament_banner(content)
+		end
 	end)
 end

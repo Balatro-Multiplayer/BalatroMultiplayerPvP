@@ -150,7 +150,8 @@ local function screen_shape()
 		return "none|" .. tostring(screen.error)
 	end
 	local _, _, shape = centre(view)
-	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, screen.error or "" }, "|")
+	local ranked = view.rankedProfile and tostring(view.rankedProfile.ok) or ""
+	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "" }, "|")
 end
 
 -- Rebuilds only when something besides the clock changed.
@@ -170,6 +171,8 @@ local function build()
 		local summary = view.summary
 		nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = { TUI.name_line(summary, 0.55) } } } }
 		nodes[#nodes + 1] = TUI.message(TUI.meta_line(summary) .. "  -  by " .. tostring(summary.organiserName))
+		-- Ranked profile required: say it while there is time to switch.
+		nodes[#nodes + 1] = TUI.ranked_lines(summary, view.rankedProfile)
 		local rows, s = centre(view)
 		nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm", minh = 2.6, padding = 0.05 }, nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = rows } } }
 		local buttons = {

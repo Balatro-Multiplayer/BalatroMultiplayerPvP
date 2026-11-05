@@ -29,7 +29,9 @@ function PVP.show_tournament_banner(content)
 	if not content or not content.tournamentId then
 		return
 	end
-	if PVP.tournament_screen_id and PVP.tournament_screen_id() == content.tournamentId then
+	local ranked = content.kind == "ranked_profile_needed"
+	-- The ranked-profile reminder shows on the tournament's own screen too.
+	if not ranked and PVP.tournament_screen_id and PVP.tournament_screen_id() == content.tournamentId then
 		return
 	end
 	remove()
@@ -39,6 +41,10 @@ function PVP.show_tournament_banner(content)
 	local vs = content.opponent and content.opponent.name or "your opponent"
 	local headline = content.kind == "reminder" and "Your match closes soon" or content.kind == "series" and "Next game: ready up" or "Your match is open"
 	local detail = "Ready up vs " .. tostring(vs) .. (content.minutesLeft and ("  -  " .. content.minutesLeft .. " min left") or "")
+	if ranked then
+		headline = "Switch to your ranked profile"
+		detail = "Check-in is open: launch a ranked profile through the BET launcher and keep it open"
+	end
 	local buttons = {}
 	if in_menus() then
 		buttons[#buttons + 1] = TUI.button("GO", "mp_pvp_tournament_banner_go", { id = content.tournamentId }, G.C.GREEN, 1.2)
