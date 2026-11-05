@@ -9,6 +9,9 @@
 --   * for the next game of a series, when the player is already in the
 --     lobby, just readies again so the host starts it;
 --   * the host applies the round's settings (ruleset, game type, deck);
+--   * a ban-and-pick round drafts from the round's own pool (its decks,
+--     Cocktails and stakes); the server decides who bans first from the
+--     round's ban order (tournament/lobby_draft.ts);
 --   * between games the lobby shows the series and its ready-up
 --     (PVP.build_tournament_lobby_status, in the matchmade status panel);
 --   * when the server closes the lobby after the match, the player lands on
@@ -38,6 +41,112 @@ local function round_of(lobby)
 	return type(meta.tournament) == "table" and meta.tournament or nil
 end
 
+-- Ban and pick ----------------------------------------------------------------
+
+local DRAFT_TILES = 9 -- PvP's board (gamemodes.lua BAN_PICK)
+
+-- The round's deck rule when it is ban and pick.
+local function draft_rule(round)
+	local deck = round and type(round.deck) == "table" and round.deck or nil
+	return deck and deck.kind == "draft" and deck or nil
+end
+
+-- The pool as tile keys ("cocktail:2" for a pool Cocktail) and stake numbers.
+local function pool_of(deck)
+	local keys, stakes = {}, {}
+	for _, key in ipairs(deck.decks or {}) do
+		if G.P_CENTERS[key] then
+			keys[#keys + 1] = key
+		end
+	end
+	if G.P_CENTERS.b_mp_cocktail then
+		for i, recipe in ipairs(deck.cocktails or {}) do
+			if type(recipe) == "table" then
+				keys[#keys + 1] = "cocktail:" .. i
+			end
+		end
+	end
+	for _, s in ipairs(deck.stakes or {}) do
+		if G.P_CENTER_POOLS.Stake[s] then
+			stakes[#stakes + 1] = s
+		end
+	end
+	return keys, stakes
+end
+
+-- A board of tiles from the pool: { id, key, stake } (a Cocktail tile is the
+-- Cocktail deck with `cocktail` = its place in the round's list).
+local function tiles(keys, stakes, size)
+	local board = PVP.DRAFT.board(keys, stakes, { size = size })
+	for _, tile in ipairs(board) do
+		local i = tostring(tile.key):match("^cocktail:(%d+)$")
+		if i then
+			tile.key = "b_mp_cocktail"
+			tile.cocktail = tonumber(i)
+		end
+	end
+	return board
+end
+
+-- The Draft for a ban-and-pick round: PvP's own Draft (base: its look and
+-- schedule) drawn from the round's pool. 9 tiles and the usual schedule, or
+-- with a smaller pool every tile and single bans down to one. nil when the
+-- round isn't ban and pick, or its pool is one deck and stake (no Draft).
+function PVP.tournament_ban_pick(base, meta)
+	local deck = draft_rule(meta and type(meta.tournament) == "table" and meta.tournament or nil)
+	if not deck then
+		return nil
+	end
+	local keys, stakes = pool_of(deck)
+	local total = #keys * #stakes
+	if total < 2 then
+		return nil
+	end
+	local config = {}
+	for k, v in pairs(base or {}) do
+		config[k] = v
+	end
+	config.id = config.id or PVP.SETUP.Step.DRAFT
+	config.tile_order = config.tile_order or PVP.DRAFT.tile_order
+	local size = math.min(DRAFT_TILES, total)
+	config.pool_size = size
+	config.build_pool = function()
+		return tiles(keys, stakes, size)
+	end
+	if size < DRAFT_TILES or not config.schedule then
+		config.schedule = nil
+		config.keep = 1
+	end
+	return config
+end
+
+-- A ban-and-pick round whose pool is one deck and stake: that tile.
+local function single_tile(round)
+	local deck = draft_rule(round)
+	if not deck then
+		return nil
+	end
+	local keys, stakes = pool_of(deck)
+	if #keys * #stakes ~= 1 then
+		return nil
+	end
+	return tiles(keys, stakes, 1)[1]
+end
+
+-- The picked tile is a pool Cocktail: play the mix the organiser chose. Every
+-- client applies it from the round; returns it so the host also publishes it
+-- (the metadata mirror clears a mix the lobby metadata doesn't carry).
+function PVP.tournament_pick_cocktail(picked, meta)
+	local deck = draft_rule(meta and type(meta.tournament) == "table" and meta.tournament or nil)
+	local recipe = deck and type(picked) == "table" and picked.cocktail and (deck.cocktails or {})[picked.cocktail]
+	if type(recipe) == "table" and type(recipe.decks) == "table" then
+		local mix = { name = recipe.name, decks = recipe.decks }
+		PVP.receive_cocktail_recipe(mix)
+		return mix
+	end
+	return nil
+end
+
 -- The host stamps the PvP metadata from the round's settings; the metadata
 -- mirror then applies it on every client.
 local function apply_round(lobby)
@@ -51,6 +160,12 @@ local function apply_round(lobby)
 	PVP.LOBBY.config.gamemode = def.gamemode
 	PVP.LOBBY.config.ruleset = round.ruleset or def.ruleset
 	local deck = type(round.deck) == "table" and round.deck or nil
+	-- A pool of one deck and stake is just that deck and stake.
+	local single = single_tile(round)
+	if single then
+		local recipe = single.cocktail and deck.cocktails[single.cocktail]
+		deck = { kind = "locked", deck = single.key, stake = single.stake, cocktail = recipe }
+	end
 	if deck and deck.kind == "locked" then
 		local center = G.P_CENTERS[deck.deck]
 		PVP.LOBBY.config.back = center and center.name or PVP.LOBBY.config.back
@@ -71,6 +186,11 @@ function PVP.tournament_setup_plan(plan, meta)
 	local round = meta and type(meta.tournament) == "table" and meta.tournament or nil
 	if round and type(round.deck) == "table" and round.deck.kind == "locked" then
 		plan.draft = false
+	elseif draft_rule(round) then
+		-- Ban and pick: a Draft from the round's pool, unless there is only one
+		-- tile (then it is played like a locked deck, apply_round).
+		local lobby = MPAPI.get_current_lobby()
+		plan.draft = single_tile(round) == nil and lobby ~= nil and MPAPI.has_server_referee(lobby)
 	end
 	return plan
 end

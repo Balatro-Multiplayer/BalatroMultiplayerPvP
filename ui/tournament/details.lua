@@ -167,7 +167,7 @@ local function decks_card(view)
 	local d = view.rounds and view.rounds.defaults or {}
 	local deck = d.deck
 	if type(deck) ~= "table" then
-		return card("DECKS & STAKES", "Unset", "set it yourself in the lobby")
+		return card("DECKS & STAKES", "Random draft", "ban and pick, 9 random tiles")
 	elseif deck.kind == "locked" then
 		local name = TUI.deck_name(deck.deck)
 		if type(deck.cocktail) == "table" and deck.cocktail.name then

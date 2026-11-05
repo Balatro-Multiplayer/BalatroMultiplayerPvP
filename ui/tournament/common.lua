@@ -298,7 +298,7 @@ end
 -- on Gold Stake", "ban and pick: 12 decks + 1 Cocktail, 3 stakes".
 function TUI.deck_rule(deck)
 	if type(deck) ~= "table" then
-		return "unset: set it yourself in the lobby"
+		return "random draft: ban and pick from 9 random decks and stakes"
 	end
 	if deck.kind == "locked" then
 		local name = TUI.deck_name(deck.deck)
