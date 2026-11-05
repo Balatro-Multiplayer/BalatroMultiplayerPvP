@@ -94,12 +94,19 @@ local function send_contest(opponent_id)
 	if not lobby then
 		return
 	end
+	-- Read before the contest: the page is for this run.
+	local started = lobby._game and lobby._game.started
+	local page_path = PVP.Contest.page_path(started and started.run_id)
 	-- Not on the pending flag: it stays as it is until a moderator decides.
 	lobby:contest(opponent_id, function(err)
 		if err then
 			sendWarnMessage("contest error: " .. tostring(err.message or err.kind or err), "MULTIPLAYER")
 			PVP.UI.show_contest_modal(PVP.Contest.error_key(err))
 			return
+		end
+		-- The Contest exists already, so the page works even if the browser never opens.
+		if page_path and MPAPI.open_web_page then
+			MPAPI.open_web_page(page_path)
 		end
 		-- This client is the contester: it names the scope of its own contest.
 		local me = PVP.self_player_id()

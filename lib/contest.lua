@@ -28,6 +28,15 @@ function Contest.scope(match_size, contester_id, self_id)
 	return contester_id == self_id and Contest.Scope.CONTESTER or Contest.Scope.BYSTANDER
 end
 
+-- The path of the page the game opens after a Contest (the website's Contest
+-- page for the run). nil when the run id is not known.
+function Contest.page_path(run_id)
+	if type(run_id) ~= "string" or run_id == "" then
+		return nil
+	end
+	return "/contests/" .. run_id
+end
+
 -- The players the contester can name: everyone else still in the match.
 -- lives_cache[id] is the last lives count heard for a player; a player never
 -- heard from counts as in. Each entry is {id, displayName}.
