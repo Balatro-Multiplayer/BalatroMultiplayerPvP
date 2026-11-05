@@ -62,6 +62,7 @@ function PVP.reset_ready_state()
 	PVP.lobby.ready:reset()
 	PVP.lobby.local_ready = false
 	PVP.lobby.start_broadcasted = false
+	PVP.lobby.start_hold = nil
 	if b.ready_args then
 		b.ready_args.label = { localize("b_ready_cap") }
 		b.ready_args.colour = G.C.GREEN
@@ -96,17 +97,44 @@ function PVP.set_player_ready(player_id, ready)
 	end
 end
 
--- Host-only matchmaking auto-start: once all clients are ready, start exactly once.
+local function can_autostart(L)
+	return not L.start_broadcasted
+		and L.ref
+		and L.ref.is_host
+		and PVP.is_matchmaking()
+		and #L.ref:get_players() >= 2
+		and L.ready:all_ready()
+end
+
+-- Host-only matchmaking auto-start: once all clients are ready, hold for the match reveal's
+-- countdown (ui/queue_reveal.lua), then start exactly once. The hold is the host's, so every
+-- client's reveal ends on the same game start and the Draft's turn clock starts after it.
 function PVP.maybe_autostart()
 	local L = PVP.lobby
-	if L.start_broadcasted or not L.ref or not L.ref.is_host or not PVP.is_matchmaking() then
+	if L.start_hold or not can_autostart(L) then
 		return
 	end
-	if #L.ref:get_players() < 2 or not L.ready:all_ready() then
-		return
-	end
-	L.start_broadcasted = true
-	PVP.pvp_start_match()
+	local hold, lobby = {}, L.ref
+	L.start_hold = hold
+	G.E_MANAGER:add_event(Event({
+		trigger = "after",
+		delay = PVP.QUEUE_REVEAL.HOLD_SECONDS,
+		timer = "REAL",
+		blockable = false,
+		blocking = false,
+		no_delete = true,
+		func = function()
+			if L.start_hold ~= hold then
+				return true
+			end
+			L.start_hold = nil
+			if L.ref == lobby and can_autostart(L) then
+				L.start_broadcasted = true
+				PVP.pvp_start_match()
+			end
+			return true
+		end,
+	}))
 end
 
 G.FUNCS.mp_pvp_toggle_ready = function()
