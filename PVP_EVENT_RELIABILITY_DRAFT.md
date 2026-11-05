@@ -237,7 +237,7 @@ be resumed by reconciliation; permanent callback faults are not blindly retried.
 
 Run from the PvP repository root with `texlua tests/unit/<name>_test.lua`.
 
-All **37 PvP unit-test files pass** under LuaJIT 2.1, including:
+All **38 PvP unit-test files pass** under LuaJIT 2.1, including:
 
 - **31** ordered-core cases, including frozen/atomic checkpoint export/import.
 - **36** transport cases using real MPAPI action instance/dispatch code and SDK

@@ -20,7 +20,7 @@ We recommend downloading the mod with r2mm if you intend to play it casually. Yo
 
 #### BET
 
-Otherwise you can use own custom closed source launcher called BET, which is intended to be a successor of BMM. You can download BET here: [https://new.balatromp.com/download](https://new.balatromp.com/download)
+Otherwise you can use own custom closed source launcher called BET, which is intended to be a successor of BMM. You can download BET here: [https://balatromp.com/download](https://balatromp.com/download)
 
 ### Manual
 
