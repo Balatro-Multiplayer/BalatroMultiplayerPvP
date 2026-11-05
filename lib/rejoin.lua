@@ -39,6 +39,9 @@ end
 
 MPAPI.playback.register_rejoin_hooks(PVP.id, {
 	playback_mod_id = "pvp",
+	-- PVP._start_playback starts its run through Game:start_run, so a staged Run save is what
+	-- the catch-up run starts from; the match state comes back through lib/run_save.lua.
+	supports_run_save = true,
 	read_lobby_info = read_lobby_info,
 	read_run_info = read_run_info,
 	start_run = function(bootstrap, on_ready)

@@ -163,7 +163,7 @@ local function blind_action(ctx, act, applied)
 			return true
 		end
 		if love.timer.getTime() >= deadline then
-			MPAPI.sendWarnMessage('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			MPAPI.playback.wait_gave_up('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
 			return true
 		end
 		return false
@@ -435,12 +435,15 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx
 		-- Pay what the live player was paid: playback runs as practice, with no
 		-- referee life loss, so its own round eval misses the comeback bonus
 		-- (and pays a blind no_gold_on_round_loss withheld). Recordings from
-		-- before round_dollars existed keep the replay's own total.
-		if recorded_round_dollars and G.GAME.current_round then
-			G.GAME.current_round.dollars = recorded_round_dollars
-		end
+		-- before round_dollars existed keep the replay's own total. Set at the click,
+		-- once the round evaluation has run: it writes the same field.
+		local recorded = recorded_round_dollars
 		recorded_round_dollars = nil
-		G.FUNCS.cash_out({ config = {} })
+		MPAPI.playback.cash_out_when_ready(ctx, PVP._playback_wait_for, function()
+			if recorded and G.GAME.current_round then
+				G.GAME.current_round.dollars = recorded
+			end
+		end)
 	end
 end)
 

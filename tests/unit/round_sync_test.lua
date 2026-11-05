@@ -579,3 +579,31 @@ test("a ready that outlived its blind does not start the next one under a player
 	PVP.referee_on_ready_ack("b", check.nonce, true)
 	equal(starts(), 1)
 end)
+
+test("a client that rejoined with no round of its own learns it from the referee and its hand counts", function()
+	setup("pair")
+	-- The relaunched client missed the start of the blind, so it has no round record.
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	local state = last("pvp_round_state")
+	equal(state.round_id, PVP.REF.round.id)
+	PVP.receive_round_state("a", state)
+	assert(PVP.GAME.round_sync, "the round was not adopted")
+	equal(PVP.commit_round_report({ score = "100", handsLeft = 0 }), true)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	equal(PVP.Score.display(PVP.REF.players.a.score), PVP.Score.display("100"))
+	equal(PVP.REF.players.a.hands_left, 0)
+end)
+
+test("a resolved round is not adopted by a client that rejoined", function()
+	setup("pair")
+	report("a", 1, 100, 0)
+	report("b", 1, 200, 0)
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	for _, message in ipairs(sent) do
+		assert(message.key ~= "pvp_round_state", "a resolved round must not be pushed")
+	end
+end)
