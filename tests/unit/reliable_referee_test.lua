@@ -70,7 +70,7 @@ local function network(count, drop_legacy_lives)
 		e.MPAPI.ActionType = function(spec) e.MPAPI.ActionTypes[spec.key] = spec end
 		for _, file in ipairs({ API .. "lib/big_score.lua", "lib/score.lua", "lib/pending_death.lua", "lib/ready_check.lua",
 			"lib/reliable_messages.lua", "lib/referee_checkpoint.lua", "pvp_api/server_hold.lua", "pvp_api/referee.lua",
-			"pvp_api/reliable_events.lua", "pvp_api/round_sync.lua", "pvp_api/actions/_helpers.lua", "pvp_api/actions/reliable.lua" }) do e.dofile(file) end
+			"pvp_api/reliable_events.lua", "pvp_api/round_sync.lua", "pvp_api/timer_sync.lua", "pvp_api/actions/_helpers.lua", "pvp_api/actions/reliable.lua" }) do e.dofile(file) end
 		lobby:on("metadata", function() e.PVP.reconcile_reliable_events() end)
 		n.peers[id] = e
 	end
@@ -746,6 +746,11 @@ local function with_timers(n)
 		end
 	end
 	function n:reset_timers(seconds)
+		-- A fresh timer context, as at an actual PvP boundary; do not reuse a
+		-- paused previous cycle merely because the fixture resets the UI fields.
+		local referee = self.peers[self.host].PVP
+		referee.referee_transaction(function() referee.TimerSync.retire(referee.REF.players) end)
+		self:flush()
 		for _, peer in pairs(self.peers) do
 			local game = peer.PVP.GAME
 			game.timer, game.timer_consumed = seconds, false
@@ -778,24 +783,22 @@ test("10s expiry then opposite 45s outages still reach the next PvP blind", func
 		n.down[frozen] = true; n:change_host(starter); n:flush()
 		n:elapse(1)
 		n.peers[starter].PVP.ACTIONS.start_ante_timer()
-		-- Retain the ordinary timer-start message to control its delivery on
-		-- return. All reliability/checkpoint packets continue through the fixture.
-		local delayed = table.remove(n.queue, find(n, is_action("pvp_ante_timer")))
+		-- The frozen client misses the first critical output. Its retained head
+		-- times out and is replayed by explicit reconnect reconciliation.
 		n:flush(); n:elapse(44)
 		n.down[frozen] = false
 		local peer = n.peers[frozen]
 		peer.lobby.metadata = copy(n.metadata) -- Rejoin's authoritative snapshot.
 		peer.lobby:fire("metadata", peer.lobby.metadata)
-		for _, online in pairs(n.peers) do online.PVP.reconcile_round(n.host) end
 		if not start_before_resumed_frame then n:update(0) end
-		table.insert(n.queue, 1, delayed); n:flush()
+		for _, online in pairs(n.peers) do online.PVP.reconcile_round(n.host) end
+		n:flush()
+		-- The old Start may still be stale, but a fresh same-cycle reconnect
+		-- sample now lowers it instead of being rejected as already running.
+		n.peers[starter].PVP.AnteTimer.on_opponent_back(); n:flush()
 		n:update(0); n:flush()
 		local offset = math.abs(a.PVP.GAME.timer - b.PVP.GAME.timer)
-		-- Characterizes the current relative-time timer protocol, not a timer fix:
-		-- delivery before the first resumed frame counts the frozen interval;
-		-- delivery afterwards starts from the old value without that catch-up.
-		if start_before_resumed_frame then assert(offset <= 1, "expected small timer offset")
-		else assert(offset >= 40, "expected delayed-start timer offset") end
+		assert(offset <= 1, "reconnect correction must align both delivery orders")
 		n.peers[starter].PVP.ACTIONS.pause_ante_timer(); n:flush()
 		equal(a.PVP.GAME.timer, b.PVP.GAME.timer)
 		for _, online in pairs(n.peers) do
@@ -826,6 +829,531 @@ test("10s expiry then opposite 45s outages still reach the next PvP blind", func
 	end
 	n:elapse(5)
 	equal(a.started, 1); equal(b.started, 1)
+end)
+
+local function timer_state(n, target)
+	return copy(assert(n.metadata._pvp_ref.timers[target]))
+end
+local function timer_request(state, kind, time)
+	return { kind = kind, time = time, id = state.id, cycle = state.cycle,
+		generation = state.generation, target = state.target, starter = state.starter, isPvP = state.isPvP, phase = state.phase }
+end
+
+test("timer Start state, input cursor and outbox precede every visible start", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer()
+	equal(b.PVP.GAME.timer_started, false)
+	n:deliver(find(n, is_action("pvp_reliable_event")))
+	equal(a.PVP.REF.timers.a.running, true)
+	equal(n.metadata._pvp_ref.timers.a, nil)
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	equal(b.PVP.GAME.timer_started, false)
+	for _, packet in ipairs(n.queue) do
+		assert(packet.key ~= "pvp_reliable_ack" and packet.key ~= "pvp_ante_timer")
+	end
+	n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, true); equal(b.PVP.GAME.timer_started, true)
+	equal(timer_state(n, "a").cycle, 1); equal(input_head(n, "b"), nil)
+end)
+
+test("lost timer input and ACK retry without duplicate starts or sounds", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.config.timersfx, b.PVP.config.timersfx = 1, 1
+	b.PVP.ACTIONS.start_ante_timer(); n.queue = {}; n:update(2)
+	while #n.queue > 0 do
+		if n.queue[1].key == "pvp_reliable_ack" then table.remove(n.queue, 1) else n:deliver() end
+	end
+	equal(#a.events, 3); equal(#b.events, 3)
+	local state = timer_state(n, "a")
+	equal(input_head(n, "b") ~= nil, true)
+	n:update(2); n:flush()
+	equal(input_head(n, "b"), nil); equal(timer_state(n, "a").revision, state.revision)
+	equal(#a.events, 3); equal(#b.events, 3)
+end)
+
+test("same-cycle corrections lower time, never raise it or replay start effects", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.config.timersfx, b.PVP.config.timersfx = 1, 1
+	b.PVP.ACTIONS.start_ante_timer(); n:flush(); n:elapse(5)
+	local state = timer_state(n, "a")
+	n:send("b", "pvp_timer_transition", timer_request(state, "sync", 40)); n:flush()
+	equal(a.PVP.GAME.timer, 40); equal(b.PVP.GAME.timer, 40)
+	n:send("b", "pvp_timer_transition", timer_request(state, "sync", 80)); n:flush()
+	equal(a.PVP.GAME.timer, 40); equal(b.PVP.GAME.timer, 40)
+	equal(#a.events, 3); equal(#b.events, 3)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, false); equal(b.PVP.GAME.timer_started, false)
+	n:send("a", "pvp_timer_transition", timer_request(state, "sync", 30)); n:flush()
+	equal(a.PVP.GAME.timer, 30); equal(b.PVP.GAME.timer, 30)
+	equal(a.PVP.GAME.nemesis_timer_started, false); equal(b.PVP.GAME.timer_started, false)
+end)
+
+test("a lost pause is retained and delivered on explicit reconnect", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	n:change_host("b"); n:flush()
+	n.down.a = true; b.PVP.ACTIONS.pause_ante_timer(); n:flush(); n:elapse(35)
+	equal(timer_state(n, "a").running, false)
+	equal(b.PVP.GAME.timer_started, false); equal(a.PVP.GAME.nemesis_timer_started, true)
+	n.down.a = false
+	a.lobby.metadata = copy(n.metadata)
+	for _, peer in pairs(n.peers) do peer.PVP.reconcile_round(n.host) end
+	n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+end)
+
+test("expiry remains consumed until its new critical cycle is confirmed", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	n:reset_timers(1); b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	for _, peer in pairs(n.peers) do peer.clock = peer.clock + 1 end
+	n:update(1)
+	equal(a.PVP.GAME.timer, 0); equal(a.PVP.GAME.timer_consumed, true)
+	equal(n.metadata._pvp_ref.players.a.lives, 8)
+	n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+	equal(timer_state(n, "a").cycle, before.cycle + 1)
+	equal(a.PVP.GAME.timer, 90); equal(b.PVP.GAME.timer, 90)
+	equal(a.PVP.GAME.timer_consumed, false)
+	-- An old-cycle correction must not cut 90 seconds back to 2.
+	n:send("b", "pvp_timer_transition", timer_request(before, "sync", 2)); n:flush()
+	equal(a.PVP.GAME.timer, 90); equal(b.PVP.GAME.timer, 90)
+	before.time, before.revision = 2, 10000
+	a.PVP.TimerSync.receive(before)
+	equal(a.PVP.GAME.timer, 90)
+end)
+
+test("forgiven expiry advances the cycle without depending on a life decrement", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.LOBBY.config.timer_forgiveness = 1
+	n:reset_timers(1); b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	n:elapse(1)
+	equal(a.PVP.GAME.timers_forgiven, 1); equal(n.metadata._pvp_ref.players.a.lives, 8)
+	equal(timer_state(n, "a").cycle, before.cycle + 1)
+	n:send("b", "pvp_timer_transition", timer_request(before, "sync", 0)); n:flush()
+	equal(a.PVP.GAME.timer, 90); equal(b.PVP.GAME.timer, 90)
+end)
+
+test("the waiting player cannot forge an expiry restart", function()
+	local n = with_timers(network(2)); local b = n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush(); n:elapse(10)
+	local before = timer_state(n, "a")
+	n:send("b", "pvp_timer_transition", timer_request(before, "expire", 150)); n:flush()
+	equal(timer_state(n, "a").cycle, before.cycle)
+	equal(n.peers.a.PVP.GAME.timer, 80); equal(b.PVP.GAME.timer, 80)
+end)
+
+test("duplicate output delivery does not reset the timer or repeat sounds", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.config.timersfx = 1
+	b.PVP.ACTIONS.start_ante_timer()
+	local output
+	while #n.queue > 0 do
+		local packet = n.queue[1]
+		if packet.key == "pvp_reliable_output" and packet.to == "a"
+			and json.decode(packet.value).payload.key == "pvp_timer_state" then output = copy(packet) end
+		n:deliver()
+	end
+	assert(output); n:elapse(5)
+	n.queue[#n.queue + 1] = output; n:flush()
+	equal(a.PVP.GAME.timer, 85); equal(#a.events, 3)
+end)
+
+test("confirmed timer state and cycle survive host takeover", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush(); n:elapse(5)
+	local before = timer_state(n, "a")
+	n:change_host("b"); n:flush()
+	equal(b.PVP.REF.timers.a.id, before.id); equal(b.PVP.REF.timers.a.cycle, before.cycle)
+	b.PVP.AnteTimer.on_opponent_back(); n:flush()
+	equal(a.PVP.GAME.timer, 85); equal(b.PVP.GAME.timer, 85)
+	equal(timer_state(n, "a").time, 85)
+end)
+
+test("unconfirmed pause rolls back on takeover then retries through the checkpoint", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	b.PVP.ACTIONS.pause_ante_timer(); n:deliver(find(n, is_action("pvp_reliable_event")))
+	equal(a.PVP.REF.timers.a.running, false); equal(timer_state(n, "a").running, true)
+	equal(b.PVP.GAME.timer_started, true)
+	n.down.a = true; n:change_host("b"); n:flush()
+	equal(timer_state(n, "a").running, false); equal(b.PVP.GAME.timer_started, false)
+	equal(input_head(n, "b"), nil)
+end)
+
+test("the timered player's fresh reconnect sample corrects the returning waiting player", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	n.down.b = true; n:elapse(10); n.down.b = false
+	b.lobby.metadata = copy(n.metadata); b.PVP.reconcile_round(n.host)
+	a.PVP.AnteTimer.on_opponent_back(); n:flush()
+	equal(a.PVP.GAME.timer, 80); equal(b.PVP.GAME.timer, 80)
+end)
+
+test("retired timer requests and outputs cannot restart a later blind's countdown", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local old = timer_state(n, "a")
+	n:reset_timers(150)
+	n:send("b", "pvp_timer_transition", timer_request(old, "start", 2)); n:flush()
+	equal(n.metadata._pvp_ref.timers.a, nil)
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local fresh = timer_state(n, "a"); assert(fresh.id ~= old.id)
+	old.revision = 10000; a.PVP.TimerSync.receive(old)
+	equal(a.PVP.GAME.timer, 150); equal(timer_state(n, "a").id, fresh.id)
+end)
+
+test("local animation timer corrections do not overwrite the local countdown", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.timer_is_local = function() return true end
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local state = timer_state(n, "a")
+	n:send("b", "pvp_timer_transition", timer_request(state, "sync", 20)); n:flush()
+	equal(a.PVP.GAME.timer, 90); equal(b.PVP.GAME.timer, 20)
+end)
+
+test("mixed-version timers retain their old one-shot wire format", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	n:send("a", "hello", {}); n:flush() -- Old reliable client, no timer capability.
+	b.PVP.ACTIONS.start_ante_timer()
+	local packet = n.queue[find(n, is_action("pvp_ante_timer"))]
+	equal(json.decode(packet.value).time, 90); equal(b.PVP.GAME.timer_started, true)
+	n:flush(); equal(a.PVP.GAME.nemesis_timer_started, true)
+	equal(n.metadata._pvp_ref.timers.a, nil)
+end)
+
+test("negotiated timer transitions retain their queue through missing authority metadata", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	b.lobby.metadata = {}; b.lobby:fire("metadata", {})
+	b.PVP.ACTIONS.pause_ante_timer()
+	equal(#n.queue, 0); equal(input_head(n, "b") ~= nil, true)
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+	b.lobby.metadata = copy(n.metadata); b.lobby:fire("metadata", b.lobby.metadata); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, false); equal(input_head(n, "b"), nil)
+end)
+
+test("Pause survives Start in flight before either client receives its identity", function()
+	local n = with_timers(network(2)); local b = n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	equal(timer_state(n, "a").running, false)
+	equal(b.PVP.GAME.timer_started, false); equal(n.peers.a.PVP.GAME.nemesis_timer_started, false)
+	equal(input_head(n, "b"), nil)
+end)
+
+test("a threshold-held local timer can pause before its first announcement", function()
+	local n = with_timers(network(2)); local b = n.peers.b
+	b.PVP.UTILS.timer_start_held_back = function() return true end
+	b.PVP.ACTIONS.start_ante_timer(); equal(b.PVP.GAME.timer_started, true)
+	equal(n.metadata._pvp_ref.timers.a, nil)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	equal(b.PVP.GAME.timer_started, false); equal(timer_state(n, "a").running, false)
+end)
+
+test("Pause naming the preceding cycle stops a just-accepted expiry without shortening it", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	n:reset_timers(1); b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	a.PVP.AnteTimer.on_run_out()
+	n:deliver(find(n, is_action("pvp_reliable_event")))
+	equal(a.PVP.REF.timers.a.cycle, before.cycle + 1)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	equal(timer_state(n, "a").running, false); equal(timer_state(n, "a").time, 90)
+	equal(a.PVP.GAME.timer, 90); equal(b.PVP.GAME.timer, 90)
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+end)
+
+test("an expiry arriving after authoritative Pause cannot charge a life or restart", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	a.PVP.AnteTimer.on_run_out(); n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 8)
+	equal(timer_state(n, "a").cycle, before.cycle); equal(timer_state(n, "a").running, false)
+end)
+
+test("Resume keeps legitimate time added while paused and retires preceding samples", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush(); n:elapse(10)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	b.PVP.GAME.timer = b.PVP.GAME.timer + 20
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	equal(timer_state(n, "a").cycle, before.cycle + 1)
+	equal(a.PVP.GAME.timer, 100); equal(b.PVP.GAME.timer, 100)
+	n:send("a", "pvp_timer_transition", timer_request(before, "sync", 2)); n:flush()
+	equal(a.PVP.GAME.timer, 100)
+end)
+
+test("boundary output generation can precede the metadata used by the next Start", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush(); b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	local stale = copy(b.lobby.metadata)
+	a.PVP.referee_transaction(function()
+		a.PVP.TimerSync.retire({ a = true, b = true })
+		a.PVP.referee_send("pvp_round_state", "b", { round_id = "boundary" })
+	end)
+	n:flush()
+	-- Keep the authenticated boundary already delivered, but delay metadata.
+	b.lobby.metadata = stale
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	equal(timer_state(n, "a").generation, n.metadata._pvp_ref.players.a.timer_generation)
+	equal(timer_state(n, "a").running, true)
+end)
+
+test("an older third potential host prevents initial timer negotiation", function()
+	local n = with_timers(network(3))
+	n:send("c", "hello", {}); n:flush()
+	n.peers.b.PVP.ACTIONS.start_ante_timer()
+	find(n, is_action("pvp_ante_timer")); n:flush()
+	equal(n.metadata._pvp_ref.timers.a, nil)
+end)
+
+test("negotiated capability downgrade retains Pause until capability returns", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	n:send("a", "hello", {}); n:flush()
+	b.PVP.ACTIONS.pause_ante_timer(); equal(#n.queue, 0)
+	equal(input_head(n, "b") ~= nil, true)
+	n:update(60); n:flush(); equal(timer_state(n, "a").running, true)
+	n:send("a", "hello", { timer_protocol = 1 }); n:flush()
+	equal(timer_state(n, "a").running, false); equal(input_head(n, "b"), nil)
+end)
+
+test("a replacement host without timer capability never receives an unknown critical key", function()
+	local n = with_timers(network(2)); local b = n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local snap = copy(b.lobby.metadata)
+	snap._pvp_ref.timer_protocol = nil
+	b.lobby.metadata = snap; b.lobby:fire("metadata", snap)
+	b.PVP.ACTIONS.pause_ante_timer(); b.PVP.reconcile_reliable_events(true)
+	equal(#n.queue, 0); equal(input_head(n, "b") ~= nil, true)
+	b.lobby.metadata = copy(n.metadata); b.lobby:fire("metadata", b.lobby.metadata); n:flush()
+	equal(timer_state(n, "a").running, false)
+end)
+
+test("expiry life, cycle, cursor and result commit together and retry once across takeover", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	a.PVP.AnteTimer.on_run_out()
+	n:deliver(find(n, is_action("pvp_reliable_event")))
+	equal(a.PVP.REF.players.a.lives, 7); equal(a.PVP.REF.timers.a.cycle, before.cycle + 1)
+	equal(n.metadata._pvp_ref.players.a.lives, 8); equal(timer_state(n, "a").cycle, before.cycle)
+	equal(a.PVP.GAME.own_blind_results, nil)
+	-- Lose the unconfirmed transaction, transfer authority, retry its input.
+	n.queue = {}; n:change_host("b"); n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+	equal(timer_state(n, "a").cycle, before.cycle + 1)
+	equal(input_head(n, "a"), nil)
+	local key = a.PVP.PendingDeath.blind_key(1, "Small")
+	equal(a.PVP.GAME.own_blind_results[a.PVP.PendingDeath.SELF][key], a.PVP.PendingDeath.BlindResult.FAILED)
+	n:elapse(3); equal(n.metadata._pvp_ref.players.a.lives, 7)
+end)
+
+test("forgiveness remains checkpointed across takeover and does not reset each countdown", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	for _, peer in pairs(n.peers) do peer.PVP.LOBBY.config.timer_forgiveness = 1 end
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	a.PVP.AnteTimer.on_run_out(); n:flush()
+	equal(n.metadata._pvp_ref.players.a.timer_forgiven, 1)
+	equal(b.PVP.GAME.timers_forgiven, 0)
+	n:change_host("b"); n:flush()
+	a.PVP.AnteTimer.on_run_out(); n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+	equal(a.PVP.GAME.timers_forgiven, 1)
+end)
+
+local function pvp_timers()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	for _, peer in pairs(n.peers) do
+		peer.G.STATE, peer.PVP.GAME.ready_blind = "select", true
+		peer.Client.send({ action = "readyBlind", startingHands = 4 })
+	end
+	n:flush()
+	for _, peer in pairs(n.peers) do
+		peer.PVP.is_pvp_boss, peer.PVP.is_layer_active = function() return true end, function() return true end
+		peer.G.GAME.blind, peer.G.STATE = { in_blind = true }, "hand"
+		peer.PVP.GAME.enemy = { score = "0", hands = 4 }
+		peer.PVP.GAME.score = "0"
+		peer.PVP.UI.restore_timer = function(amount) peer.PVP.GAME.timer = peer.PVP.GAME.timer + amount end
+	end
+	b.PVP.GAME.score, b.G.GAME.current_round.hands_left = "10", 3
+	a.PVP.GAME.enemy.score, a.PVP.GAME.enemy.hands = "10", 3
+	b.PVP.commit_round_report({ score = "10", handsLeft = 3 }); n:flush()
+	return n
+end
+
+test("a delayed PvP running state cannot rearm the timer after a hand flips the lead", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+	local stale = timer_state(n, "a"); stale.revision = stale.revision + 1
+	-- Same local stop/score change as ACTIONS.play_hand, before its report arrives.
+	a.PVP.GAME.score, a.G.GAME.current_round.hands_left, a.PVP.GAME.nemesis_timer_started = "20", 3, false
+	a.PVP.TimerSync.receive(stale); a.PVP.TimerSync.update()
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	equal(a.lobby._pvp_timer_sync.pending_states.a, nil)
+end)
+
+test("PvP Start waits for the corresponding hand report checkpoint", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.GAME.score, b.G.GAME.current_round.hands_left = "20", 2
+	a.PVP.GAME.enemy.score, a.PVP.GAME.enemy.hands = "20", 2
+	b.PVP.ACTIONS.start_ante_timer(); equal(#n.queue, 0)
+	assert(b.lobby._pvp_timer_sync.pending_start)
+	b.PVP.commit_round_report({ score = "20", handsLeft = 2 }); n:flush()
+	b.PVP.TimerSync.update(); n:flush()
+	equal(timer_state(n, "a").phase.starter_hands, 2)
+	equal(b.lobby._pvp_timer_sync.pending_start, nil)
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+end)
+
+test("Pause cancels a deferred PvP Start before the hand report commits", function()
+	local n = pvp_timers(); local b = n.peers.b
+	b.PVP.GAME.score, b.G.GAME.current_round.hands_left = "20", 2
+	b.PVP.ACTIONS.start_ante_timer(); assert(b.lobby._pvp_timer_sync.pending_start)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	b.PVP.commit_round_report({ score = "20", handsLeft = 2 }); n:flush()
+	b.PVP.TimerSync.update(); n:flush()
+	equal(b.lobby._pvp_timer_sync.pending_start, nil)
+	equal(n.metadata._pvp_ref.timers.a, nil)
+end)
+
+test("accepted PvP state waits for the enemy relay and does not refund the wait", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	a.PVP.GAME.enemy.score, a.PVP.GAME.enemy.hands = "0", 4
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	assert(a.lobby._pvp_timer_sync.pending_states.a)
+	a.clock = a.clock + 5
+	a.PVP.GAME.enemy.score, a.PVP.GAME.enemy.hands = "10", 3
+	a.PVP.TimerSync.update()
+	equal(a.PVP.GAME.nemesis_timer_started, true); equal(a.PVP.GAME.timer, 85)
+	equal(a.lobby._pvp_timer_sync.pending_states.a, nil)
+end)
+
+test("PvP expiry carries its cycle and old output cannot rearm a lost hand", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local old = timer_state(n, "a")
+	a.Client.send({ action = "failPvPTimer" }); n:flush()
+	equal(n.metadata._pvp_ref.players.a.hands, 3)
+	equal(a.G.GAME.current_round.hands_left, 3)
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	equal(b.PVP.GAME.timer_started, false)
+	old.revision = old.revision + 10; a.PVP.TimerSync.receive(old)
+	equal(a.PVP.GAME.nemesis_timer_started, false)
+	n:send("a", "pvp_timer_transition", timer_request(old, "expire", 0)); n:flush()
+	equal(n.metadata._pvp_ref.players.a.hands, 3)
+end)
+
+test("PvP expiry after Pause is rejected without a hand loss", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	a.Client.send({ action = "failPvPTimer" }); n:flush()
+	equal(n.metadata._pvp_ref.players.a.hands, 4)
+end)
+
+test("a still-losing hand keeps its countdown and current-phase expiry can consume a hand", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	a.PVP.GAME.score, a.G.GAME.current_round.hands_left = "5", 3
+	b.PVP.GAME.enemy.score, b.PVP.GAME.enemy.hands = "5", 3
+	a.PVP.commit_round_report({ score = "5", handsLeft = 3 }); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+	a.PVP.AnteTimer.on_opponent_back(); n:flush()
+	equal(timer_state(n, "a").cycle, before.cycle)
+	equal(timer_state(n, "a").phase.target_hands, 3)
+	a.Client.send({ action = "failPvPTimer" }); n:flush()
+	equal(a.G.GAME.current_round.hands_left, 2)
+	equal(n.metadata._pvp_ref.players.a.hands, 2)
+end)
+
+test("PvP expiry waits for an in-flight hand report instead of being acknowledged and lost", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	a.PVP.GAME.score, a.G.GAME.current_round.hands_left = "5", 3
+	b.PVP.GAME.enemy.score, b.PVP.GAME.enemy.hands = "5", 3
+	a.Client.send({ action = "failPvPTimer" }); equal(#n.queue, 0)
+	assert(a.lobby._pvp_timer_sync.pending_expire)
+	a.PVP.commit_round_report({ score = "5", handsLeft = 3 }); n:flush()
+	a.PVP.TimerSync.update(); n:flush()
+	equal(a.lobby._pvp_timer_sync.pending_expire, nil)
+	equal(n.metadata._pvp_ref.players.a.hands, 2)
+end)
+
+test("a new PvP score phase replaces the old identity and can be started again", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local old = timer_state(n, "a")
+	-- Opponent takes the lead, so the real score callbacks stop this timer.
+	a.PVP.GAME.score, a.G.GAME.current_round.hands_left = "20", 3
+	b.PVP.GAME.enemy.score, b.PVP.GAME.enemy.hands = "20", 3
+	a.PVP.GAME.nemesis_timer_started, b.PVP.GAME.timer_started = false, false
+	a.PVP.commit_round_report({ score = "20", handsLeft = 3 }); n:flush()
+	-- B regains the lead on its next hand and explicitly starts a new timer.
+	b.PVP.GAME.score, b.G.GAME.current_round.hands_left = "30", 2
+	a.PVP.GAME.enemy.score, a.PVP.GAME.enemy.hands = "30", 2
+	b.PVP.commit_round_report({ score = "30", handsLeft = 2 }); n:flush()
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local fresh = timer_state(n, "a")
+	assert(fresh.id ~= old.id); assert(fresh.generation > old.generation)
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+	old.revision = 999; a.PVP.TimerSync.receive(old)
+	equal(a.lobby._pvp_timer_sync.states.a.id, fresh.id)
+end)
+
+test("the last-life expiry stops both copies instead of allocating a restart cycle", function()
+	local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+	a.PVP.hold_server_result = function(_, callback) callback(true) end
+	a.PVP.referee_transaction(function() a.PVP.REF.players.a.lives = 1 end); n:flush()
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	local before = timer_state(n, "a")
+	a.PVP.AnteTimer.on_run_out(); n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 0)
+	equal(timer_state(n, "a").cycle, before.cycle)
+	equal(timer_state(n, "a").running, false)
+	equal(a.PVP.GAME.nemesis_timer_started, false); equal(b.PVP.GAME.timer_started, false)
+end)
+
+test("an already-running timer handles either first-resumed-frame ordering without double catch-up", function()
+	for _, correction_first in ipairs({ true, false }) do
+		local n = with_timers(network(2)); local a, b = n.peers.a, n.peers.b
+		b.PVP.ACTIONS.start_ante_timer(); n:flush(); n:change_host("b"); n:flush()
+		n.down.a = true; n:elapse(10); n.down.a = false
+		if not correction_first then a.Game:update(0) end
+		b.PVP.AnteTimer.on_opponent_back(); n:flush()
+		if correction_first then a.Game:update(0) end
+		equal(a.PVP.GAME.timer, 80); equal(b.PVP.GAME.timer, 80)
+		equal(n.metadata._pvp_ref.players.a.lives, 8)
+	end
+end)
+
+test("PvP phase identity uses the committed enemy score, not the HUD count-up", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	a.PVP.GAME.enemy.real_score, a.PVP.GAME.enemy.score = "10", "2"
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	equal(a.PVP.GAME.nemesis_timer_started, true)
+	equal(a.lobby._pvp_timer_sync.pending_states.a, nil)
+end)
+
+test("an opponent hand racing PvP expiry cannot erase an expiry of the still-losing player", function()
+	local n = pvp_timers(); local a, b = n.peers.a, n.peers.b
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	-- The opponent reports another hand, but its display relay has not arrived.
+	b.PVP.GAME.score, b.G.GAME.current_round.hands_left = "20", 2
+	b.PVP.commit_round_report({ score = "20", handsLeft = 2 }); n:flush()
+	equal(a.PVP.GAME.enemy.score, "10")
+	a.Client.send({ action = "failPvPTimer" }); n:flush()
+	equal(a.G.GAME.current_round.hands_left, 3)
+	equal(n.metadata._pvp_ref.players.a.hands, 3)
+	equal(a.lobby._pvp_timer_sync.pending_expire, nil)
 end)
 
 print(("all %d reliable referee tests passed"):format(passed))

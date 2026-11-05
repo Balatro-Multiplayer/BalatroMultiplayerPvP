@@ -1,7 +1,7 @@
 # Draft: reliable delivery for critical PvP events
 
 > Temporary design document. Remove before final merge.
-> Implementation is on `fix/pvp-event-reliability`. No API/server changes.
+> Includes the reliability work and timer follow-up on `fix/pvp-cashout-final-scores`. No API/server changes.
 
 ## Scope and status
 
@@ -184,6 +184,45 @@ A full hand-report queue retains the latest unqueued cumulative snapshot without
 discarding already queued transitions. Mixed-version rounds keep the legacy wire
 without enabling unsafe retries.
 
+## Timer transitions
+
+`pvp_api/timer_sync.lua` sends Start, Pause, expiry and reconnect samples as
+`pvp_timer_transition` inputs through the existing critical FIFO. Accepted state,
+input cursors and `pvp_timer_state`/`pvp_timer_expired` outputs share the checkpoint
+barrier. Countdown ticks remain local; no per-tick timer traffic is added.
+
+Each timer names its starter and timed player, a round-context **generation**, a
+unique **id**, a countdown **cycle**, and an increasing state **revision**. Round
+boundaries and timer-hand losses retire generations. Boundary outputs carry the
+new generations because their delivery can precede the recipient's metadata echo.
+
+- Same-cycle samples only lower remaining time and never resume a paused timer or
+  replay Start effects. This deliberately cannot increase an already-too-low copy;
+  it is not a wall-clock synchronization protocol or an RTT compensation scheme.
+- Explicit Resume after Pause creates a new cycle and preserves legitimate time
+  added while paused. Ante expiry validates the old cycle/running state, accounts
+  for forgiveness or life loss, and allocates a restart in **one transaction**.
+  Last-life expiry stops instead. A stale sample cannot trim a new countdown.
+- Pause intent survives Start in flight and an opposite-player expiry race, but
+  an old-cycle Pause sample cannot shorten a newly restarted cycle.
+- PvP state includes the round, committed scores (not the HUD count-up), and hand
+  counts. Delayed states cannot rearm a timer stopped by a newer hand. A state
+  ahead of the enemy display relay is held locally until it matches; a deferred
+  running sample ages while waiting. Start waits for a matching hand checkpoint.
+  PvP expiry waits for the timed player's hand checkpoint, validates its cycle,
+  and uses the existing critical hand-loss output. An opponent hand that leaves
+  the timed player behind does not invalidate that expiry.
+- Local/animation timers keep their local countdown samples; synchronization does
+  not overwrite them. Explicit new-cycle restarts retain their reset behavior.
+
+Hello and checkpoints advertise `timer_protocol=1`. Initial negotiation requires
+all connected potential hosts to support it; mixed-version lobbies retain legacy
+one-shot timer messages. After negotiation, missing or downgraded capability
+**retains/blocks** critical work until support returns, rather than dropping it or
+sending unknown keys to an older host. Later FIFO inputs can wait behind it.
+Hot-swapping to older code mid-run is not transparent compatibility. This remains
+an in-memory/live-process protocol, not closed-game recovery.
+
 ## Bounds and failure behavior
 
 The server caps action params at 16 KiB and match messages at 64 KiB. The adapter
@@ -198,15 +237,18 @@ be resumed by reconciliation; permanent callback faults are not blindly retried.
 
 Run from the PvP repository root with `texlua tests/unit/<name>_test.lua`.
 
-All **37 PvP unit-test files pass**, including:
+All **37 PvP unit-test files pass** under LuaJIT 2.1, including:
 
 - **31** ordered-core cases, including frozen/atomic checkpoint export/import.
 - **36** transport cases using real MPAPI action instance/dispatch code and SDK
   JSON with a simulated two-hop relay. The 32 seeded fault schedules cover
   **1,536 events** under loss, duplication, reordering and temporary disconnects.
 - **8** standalone checkpoint-barrier cases.
-- **39** multi-client referee cases with separate live Lua environments and
-  serialized simulated server routing/metadata acceptance.
+- **84** multi-client referee cases with separate live Lua environments and
+  serialized simulated server routing/metadata acceptance. Timer coverage includes
+  both outage directions, first-frame catch-up ordering, Start/Pause/expiry races,
+  forgiveness and last life, checkpoint/takeover replay, paused bonuses, stale PvP
+  hand phases, and capability loss/restoration.
 - **43** hand-score/round-result cases, plus scoring end-to-end through the
   checkpoint and reliable-output path in the multi-client tests.
 - **9** cash-out display cases covering unfinished easing, stale relays, final
@@ -222,4 +264,4 @@ Nemesis pairing, Teams and Manhunt. Existing game-rule suites also pass.
 These are **simulated-network tests, not live Nakama/game tests**, and not a proof
 of every possible failure schedule. Live relay/rate-limit behavior, full in-game
 UI/reward verification, and long-running queue/metadata performance still need
-validation. Closed-game rejoin and timer catch-up remain deliberately deferred.
+validation. Closed-game rejoin and closed-game timer catch-up remain deliberately deferred.

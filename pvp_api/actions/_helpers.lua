@@ -77,6 +77,7 @@ function PVP._pvp_action_helpers.host_only(key, on_receive)
 			MPAPI.sendWarnMessage("Ignored " .. key .. " from " .. tostring(from) .. ": not the host")
 			return
 		end
+		if PVP.TimerSync then PVP.TimerSync.note_generations(params) end
 		return on_receive(at, from, params)
 	end
 end

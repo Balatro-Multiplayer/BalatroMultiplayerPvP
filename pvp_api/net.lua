@@ -95,6 +95,7 @@ local ROUTES = {
 		broadcast("pvp_blind_result", { ante = msg.ante, blind = msg.blind, beaten = msg.beaten })
 	end,
 	failPvPTimer = function(_msg)
+		if PVP.TimerSync and PVP.TimerSync.send("expire", PVP.GAME.timer) then return end
 		broadcast("pvp_fail_pvp_timer", {})
 	end,
 	setLocation = function(msg)
@@ -137,12 +138,17 @@ local ROUTES = {
 		relay_enemy_info({ score = my_score_text(), handsLeft = my_hands(), skips = msg.skips, lives = my_lives() })
 	end,
 	startAnteTimer = function(msg)
+		if PVP.TimerSync and PVP.TimerSync.send("start", msg.time) then return end
 		broadcast("pvp_ante_timer", { time = msg.time, isPvP = msg.isPvP })
 	end,
 	restartAnteTimer = function(msg)
+		-- New-protocol restarts are atomic expiry inputs, never an independent
+		-- reset that could race a Pause. Legacy/rejoin announcements are samples.
+		if PVP.TimerSync and PVP.TimerSync.send("sync", msg.time) then return end
 		broadcast("pvp_restart_ante_timer", { time = msg.time, rejoined = msg.rejoined })
 	end,
 	pauseAnteTimer = function(msg)
+		if PVP.TimerSync and PVP.TimerSync.send("pause", msg.time) then return end
 		broadcast("pvp_pause_ante_timer", { time = msg.time })
 	end,
 	getEndGameJokers = function(_msg)

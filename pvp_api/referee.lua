@@ -88,6 +88,9 @@ end
 local function broadcast(key, params)
 	local lobby = MPAPI.get_current_lobby()
 	local round = PVP.REF.round
+	if PVP.TimerSync and (key == "pvp_end_pvp" or key == "pvp_win") then
+		PVP.TimerSync.retire(round and round.revisions or PVP.REF.players)
+	end
 	if round and round.resolving and not round.outcome and (key == "pvp_end_pvp" or key == "pvp_win") then
 		-- Commit the result before network delivery (which can synchronously loop back).
 		round.outcome = { key = key, params = params }
@@ -117,6 +120,10 @@ local function broadcast(key, params)
 end
 
 local function begin_round(ids)
+	if PVP.TimerSync then
+		local retired = {}; for _, id in ipairs(ids) do retired[id] = true end
+		PVP.TimerSync.retire(retired)
+	end
 	local previous = PVP.REF.round
 	if previous and previous.outcome then
 		-- Survivors must receive the result before readying another blind. Eliminated
@@ -857,6 +864,7 @@ function PVP.referee_sync_state()
 	-- The rebuilt state also dropped the live target (sent on score updates): without
 	-- it a Royale player or the Manhunt Runner has no target until the next score update.
 	broadcast_live_targets()
+	if PVP.TimerSync then PVP.TimerSync.sync_referee() end
 end
 
 -- The team each player of a server team plan ({ {ids}, {ids} }, a matchmade
@@ -888,6 +896,7 @@ function PVP.referee_reset(starting_lives)
 		return
 	end
 	PVP.REF.players = {}
+	PVP.REF.timers = {}
 	PVP.REF.round = nil
 	PVP.REF.retired_rounds = {}
 	PVP.REF.first_ready_at = nil
@@ -2008,6 +2017,7 @@ function PVP.referee_on_fail_pvp_timer(from)
 	end
 	local pl = ref_player(from)
 	pl.hands_left = math.max(0, (pl.hands_left or 0) - 1)
+	if PVP.TimerSync then PVP.TimerSync.retire({ [from] = true }) end
 	broadcast("pvp_timer_hand_lost", { player_id = from })
 	broadcast_live_targets()
 	try_resolve_round()
@@ -2174,6 +2184,9 @@ local function snapshot()
 			failed_blind = pl.failed_blind,
 			round_protocol = pl.round_protocol,
 			starting_hands = pl.starting_hands,
+			timer_protocol = pl.timer_protocol,
+			timer_generation = pl.timer_generation,
+			timer_forgiven = pl.timer_forgiven,
 			forfeited = pl.forfeited,
 			tracked_ready = flag(PVP.REF.ready_tracker and PVP.REF.ready_tracker:is_ready(id)),
 		}
@@ -2197,6 +2210,8 @@ local function snapshot()
 		blind_results = PVP.REF.blind_results or {},
 		round = PVP.REF.round,
 		retired_rounds = PVP.REF.retired_rounds,
+		timers = PVP.REF.timers or {},
+		timer_protocol = PVP.TimerSync and 1 or nil,
 		last_outcome = PVP.REF.last_outcome,
 		many_result_sent = PVP.REF.many_result_sent,
 		reliable_protocol = 1,
@@ -2227,6 +2242,9 @@ local function restore(snap)
 			failed_blind = s.failed_blind,
 			round_protocol = s.round_protocol,
 			starting_hands = s.starting_hands,
+			timer_protocol = s.timer_protocol,
+			timer_generation = s.timer_generation,
+			timer_forgiven = s.timer_forgiven,
 			forfeited = s.forfeited,
 		}
 		if s.tracked_ready == 1 then
@@ -2250,6 +2268,7 @@ local function restore(snap)
 	PVP.REF.blind_results = snap.blind_results or {}
 	PVP.REF.round = snap.round
 	PVP.REF.retired_rounds = snap.retired_rounds or {}
+	PVP.REF.timers = snap.timers or {}
 	PVP.REF.last_outcome = snap.last_outcome
 	PVP.REF.many_result_sent = snap.many_result_sent
 end
@@ -2282,6 +2301,7 @@ local function rebuild_from_local(lobby)
 	-- Only the old host knew it had asked for the hold; the server's own flag is what is true.
 	local held = lobby:is_result_pending()
 	PVP.REF.players = {}
+	PVP.REF.timers = {}
 	PVP.REF.round = nil
 	PVP.REF.retired_rounds = {}
 	PVP.REF.ready_tracker = MPAPI.ReadyTracker()
@@ -2432,6 +2452,7 @@ end
 function PVP.referee_send(key, target, params)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby or not lobby.is_host or PVP.REF_RECOVERY_BLOCKED then return end
+	if PVP.TimerSync then params = PVP.TimerSync.decorate(key, params) end
 	local gate = server_checkpoint()
 	if gate then
 		local legacy = PVP.stage_reliable_referee_output and PVP.stage_reliable_referee_output(key, target, params) or { target }

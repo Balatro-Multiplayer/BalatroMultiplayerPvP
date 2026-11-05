@@ -6,6 +6,7 @@ PVP.AnteTimer = {}
 
 -- Runs on the timered side when its copy of the Ante timer reaches 0.
 function PVP.AnteTimer.on_run_out()
+	if PVP.TimerSync and PVP.TimerSync.send("expire", PVP.UTILS.timer_base()) then return end
 	local lives_left = PVP.GAME.lives
 	if PVP.GAME.timers_forgiven < PVP.LOBBY.config.timer_forgiveness then
 		PVP.GAME.timers_forgiven = PVP.GAME.timers_forgiven + 1
@@ -32,6 +33,7 @@ end
 
 -- Runs when the opponent comes back from a disconnect: tells it the timer it missed.
 function PVP.AnteTimer.on_opponent_back()
+	if PVP.TimerSync and PVP.TimerSync.resync() then return end
 	if PVP.GAME.nemesis_timer_started then
 		PVP.ACTIONS.announce_ante_timer_restart(PVP.GAME.timer, true)
 	elseif PVP.GAME.timer_started then

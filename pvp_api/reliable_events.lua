@@ -15,7 +15,8 @@ local handlers = {
 	pvp_skip = function(from, p) PVP.referee_on_skip(from, p) end,
 	pvp_ready_ack = function(from, p) PVP.referee_on_ready_ack(from, p.nonce, p.ready) end,
 	pvp_redeem_ante_voucher = function(from) PVP.referee_on_redeem_ante_voucher(from) end,
-	hello = function() end,
+	pvp_timer_transition = function(from, p) PVP.TimerSync.on_event(from, p) end,
+	hello = function(from, p) if PVP.TimerSync then PVP.TimerSync.hello(from, p) end end,
 }
 local output_keys = {
 	pvp_death_pending = true, pvp_eliminated = true, pvp_end_pvp = true,
@@ -23,7 +24,7 @@ local output_keys = {
 	pvp_ready_check = true, pvp_royale_target = true, pvp_start_blind = true,
 	pvp_team_card_target = true, pvp_team_lives = true, pvp_team_roster = true,
 	pvp_team_score_board = true, pvp_timer_hand_lost = true, pvp_win = true,
-	pvp_round_state = true,
+	pvp_round_state = true, pvp_timer_state = true, pvp_timer_expired = true,
 }
 
 local function current()
@@ -59,6 +60,8 @@ local function receiver(session)
 		transmit = function(peer, envelope) PVP.referee_send("pvp_reliable_ack", peer, envelope) end,
 		on_message = function(from, payload)
 			if type(payload) ~= "table" or not handlers[payload.key] or type(payload.params) ~= "table" then return false end
+			if payload.key == "pvp_timer_transition"
+				and (not PVP.TimerSync or not PVP.TimerSync.referee_supported()) then return false end
 			local newly_supported = not session.peers[from]
 			session.peers[from] = true
 			if newly_supported then PVP.referee_sync_state() end
@@ -98,6 +101,10 @@ local function get()
 		transmit = function(peer, envelope)
 			local active, active_run = current()
 			if active ~= lobby or active_run ~= run or host(lobby) ~= peer then session.input:pause(peer); return false end
+			if envelope.payload and envelope.payload.key == "pvp_timer_transition"
+				and (not PVP.TimerSync or not PVP.TimerSync.transport_supported(lobby)) then
+				session.input:pause(peer); return false
+			end
 			local sent = send(lobby, "pvp_reliable_event", peer, envelope)
 			if sent == false then session.input:pause(peer) end
 			return sent
@@ -252,15 +259,21 @@ function PVP.reconcile_reliable_events(force)
 		session.input:retarget(session.host, peer)
 		session.host = peer
 	end
+	local timer_supported = PVP.TimerSync and PVP.TimerSync.transport_supported(session.lobby) or false
+	local timer_restored = timer_supported and session.was_timer_supported == false
+	session.was_timer_supported = timer_supported
 	if supported(session) then
 		local newly_supported = not session.was_supported
 		session.was_supported = true
 		if not session.hello then
 			session.hello = true
-			PVP.send_referee_event("hello", {})
+			PVP.send_referee_event("hello", { timer_protocol = PVP.TimerSync and 1 or nil })
 		end
-		-- Re-arm empty paused channels too, so the next Ready can send.
-		if force or changed or newly_supported then session.input:resume(peer) end
+		-- An empty channel may still be paused by a prior authority/transport gate.
+		-- Re-arm it now so the next input can send without another reconciliation.
+		if force or changed or newly_supported or timer_restored then
+			session.input:resume(peer)
+		end
 		if force and session.lobby.is_host then
 			for recipient in pairs(session.limits) do session.outgoing:resume(recipient) end
 		end
