@@ -56,7 +56,13 @@ local function apply_round(lobby)
 		PVP.LOBBY.config.back = center and center.name or PVP.LOBBY.config.back
 		PVP.LOBBY.config.stake = tonumber(deck.stake) or 1
 	end
-	lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.TOURNAMENT))
+	local meta = PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.TOURNAMENT)
+	-- The Cocktail mixes the decks the organiser chose (the same on every
+	-- client: objects/decks/ZZ_cocktail.lua reads cocktail_recipe).
+	if deck and type(deck.cocktail) == "table" and type(deck.cocktail.decks) == "table" then
+		meta.cocktail_recipe = { name = deck.cocktail.name, decks = deck.cocktail.decks }
+	end
+	lobby:set_metadata(meta)
 end
 
 -- run_lifecycle.lua asks this before the Setup: a locked deck and stake mean
