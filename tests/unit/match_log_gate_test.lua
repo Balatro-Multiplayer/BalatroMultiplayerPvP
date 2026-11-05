@@ -15,7 +15,7 @@
 local BANNED = { "sendDebugMessage", "sendInfoMessage", "sendTraceMessage", "emit_log_checksum" }
 local WRAPPER_ONLY = "MPAPI.match_log"
 local WRAPPER_FILE = "./core.lua"
-local SKIP_DIRS = { "tests", ".git", ".github" }
+local SKIP_DIRS = { "tests", ".git", ".github", "dist" }
 
 local handle = io.popen("find . -name '*.lua' -not -path './.git/*'")
 local offenders = {}
