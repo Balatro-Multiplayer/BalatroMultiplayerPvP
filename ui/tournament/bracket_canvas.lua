@@ -39,6 +39,8 @@ function Canvas:init(args)
 	self.me = args.me
 	self.on_select = args.on_select
 	self.fitted = false
+	-- What to say while there is no bracket (set_empty_text).
+	self.empty_text = "Loading..."
 	self.states.collide.can = false
 end
 
@@ -50,6 +52,10 @@ function Canvas:set_layout(layout, me)
 		self:fit()
 		self.fitted = true
 	end
+end
+
+function Canvas:set_empty_text(text)
+	self.empty_text = text
 end
 
 function Canvas:fit()
@@ -124,14 +130,19 @@ local function text_fade(zoom)
 end
 
 -- Text at a scale like a UI text node's, left-aligned at x (or right-aligned
--- to right_x), vertically centred in [y, y + h]. fade: 1 = text, 0 = bar.
-local function text(str, x, y, h, scale, colour, right_x, fade)
+-- to right_x, or centred on centre_x), vertically centred in [y, y + h].
+-- fade: 1 = text, 0 = bar. max_w: shrunk to fit that width.
+local function text(str, x, y, h, scale, colour, right_x, fade, max_w, centre_x)
 	fade = fade or 1
 	local font = G.LANG.font
 	local s = scale * font.FONTSCALE / G.TILESIZE
 	local w = font.FONT:getWidth(str) * s * font.squish
+	if max_w and w > max_w then
+		s = s * max_w / w
+		w = max_w
+	end
 	local th = font.FONT:getHeight() * s * font.TEXT_HEIGHT_SCALE
-	local left = right_x and (right_x - w) or x
+	local left = centre_x and (centre_x - w / 2) or (right_x and (right_x - w) or x)
 	local a = colour[4] or 1
 	if fade < 1 then
 		local bh = th * 0.5
@@ -160,6 +171,10 @@ local function player_line(m, side)
 	end
 	if type(p) ~= "table" then
 		return "bye", nil, true
+	end
+	-- A provisional bracket's empty slots (the server's open-spot-N).
+	if tostring(p.id):find("^open%-spot%-") then
+		return p.name, nil, true
 	end
 	return p.name, p.id, false
 end
@@ -257,8 +272,38 @@ function Canvas:draw()
 		end
 		-- Round headings.
 		local fade = text_fade(self.zoom)
+		-- The mouse in bracket units, for the headings' tooltips.
+		local bx, by = self.pan.x + self.mouse.x / self.zoom, self.pan.y + self.mouse.y / self.zoom
+		self.tip = nil
 		for _, label in ipairs(self.layout.labels) do
-			text(label.text, label.x, label.y, LAYOUT().LABEL_H, 0.34, G.C.UI.TEXT_INACTIVE, nil, fade)
+			local tw = text(label.text, label.x, label.y, LAYOUT().LABEL_H, 0.34, G.C.UI.TEXT_INACTIVE, nil, fade)
+			if label.tip then
+				-- A "?" after the heading; hovering the heading shows the tip.
+				local cx, cy, r = label.x + tw + 0.22, label.y + LAYOUT().LABEL_H / 2, 0.14
+				love.graphics.setColor(G.C.UI.BACKGROUND_INACTIVE[1], G.C.UI.BACKGROUND_INACTIVE[2], G.C.UI.BACKGROUND_INACTIVE[3], fade)
+				love.graphics.circle("fill", cx, cy, r)
+				text("?", 0, cy - r, 2 * r, 0.24, G.C.UI.TEXT_LIGHT, nil, fade, nil, cx)
+				if self.mouse.inside and bx >= label.x and bx <= cx + r and by >= label.y and by <= label.y + LAYOUT().LABEL_H then
+					self.tip = label.tip
+				end
+			end
+			-- The round's timing under its heading: when it starts, how it's played.
+			local line_y = label.y + LAYOUT().LABEL_H - 0.08
+			for _, line in ipairs({ label.sub or false, label.sub2 or false }) do
+				if line then
+					text(line, label.x, line_y, LAYOUT().SUB_H, 0.27, G.C.GOLD, nil, fade, LAYOUT().BOX_W)
+				end
+				line_y = line_y + LAYOUT().SUB_H
+			end
+		end
+		-- Breaks: in the gap before a round, a faint line down its section.
+		for _, gap in ipairs(self.layout.gaps or {}) do
+			local top = gap.y + LAYOUT().LABEL_H
+			love.graphics.setLineWidth(math.max(0.025, 2 * self.pixel))
+			love.graphics.setColor(G.C.GOLD[1], G.C.GOLD[2], G.C.GOLD[3], 0.35)
+			love.graphics.line(gap.x, top + 2 * LAYOUT().SUB_H, gap.x, gap.bottom or top)
+			text(gap.text, 0, gap.y + LAYOUT().LABEL_H - 0.08, LAYOUT().SUB_H, 0.25, G.C.GOLD, nil, fade, LAYOUT().COL_GAP - 0.1, gap.x)
+			text("break", 0, gap.y + LAYOUT().LABEL_H - 0.08 + LAYOUT().SUB_H, LAYOUT().SUB_H, 0.25, G.C.GOLD, nil, fade, LAYOUT().COL_GAP - 0.1, gap.x)
 		end
 		for _, box in ipairs(self.layout.boxes) do
 			self:draw_box(box, fade)
@@ -266,15 +311,37 @@ function Canvas:draw()
 		love.graphics.setLineStyle(old_style)
 		love.graphics.pop()
 	else
-		text("The bracket is drawn when the tournament starts.", 0.4, 0, h, 0.4, G.C.UI.TEXT_INACTIVE)
+		text(self.empty_text, 0.4, 0, h, 0.4, G.C.UI.TEXT_INACTIVE)
 	end
-	love.graphics.setFont(old_font)
 
 	if sx then
 		love.graphics.setScissor(sx, sy, sw, sh)
 	else
 		love.graphics.setScissor()
 	end
+	-- A heading's tooltip, at the mouse (in frame units, not zoomed or clipped),
+	-- in Balatro's tooltip colours.
+	if self.tip then
+		local lw, line_h = 0, 0.32
+		for _, line in ipairs(self.tip) do
+			local font = G.LANG.font
+			local s = 0.28 * font.FONTSCALE / G.TILESIZE
+			lw = math.max(lw, font.FONT:getWidth(line) * s * font.squish)
+		end
+		local bw, bh = lw + 0.3, #self.tip * line_h + 0.24
+		local x, y = self.mouse.x + 0.25, self.mouse.y + 0.25
+		if x + bw > w then
+			x = math.max(0, self.mouse.x - bw - 0.15)
+		end
+		love.graphics.setColor(G.C.RED)
+		love.graphics.rectangle("fill", x - 0.05, y - 0.05, bw + 0.1, bh + 0.1, 0.12, 0.12)
+		love.graphics.setColor(G.C.WHITE)
+		love.graphics.rectangle("fill", x, y, bw, bh, 0.1, 0.1)
+		for i, line in ipairs(self.tip) do
+			text(line, x + 0.15, y + 0.12 + (i - 1) * line_h, line_h, 0.28, G.C.UI.TEXT_DARK)
+		end
+	end
+	love.graphics.setFont(old_font)
 	love.graphics.setColor(1, 1, 1, 1)
 	love.graphics.pop()
 end

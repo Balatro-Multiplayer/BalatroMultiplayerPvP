@@ -53,8 +53,9 @@ local function double(n)
 			end
 		end
 	end
-	add("GF", 1, 1)
-	add("GF", 2, 1)
+	-- The server's ids: GF1 and GF2 (engine/elimination.ts).
+	view.bracket[#view.bracket + 1] = { id = "GF1", stage = "GF", round = 1, order = 1, players = { "tbd", "tbd" }, wins = { 0, 0 }, status = "waiting" }
+	view.bracket[#view.bracket + 1] = { id = "GF2", stage = "GF", round = 2, order = 1, players = { "tbd", "tbd" }, wins = { 0, 0 }, status = "waiting" }
 	return view
 end
 
@@ -115,10 +116,10 @@ end
 for _, n in ipairs({ 2, 4, 5, 8, 16, 32 }) do
 	local layout = L.build(double(n))
 	sane("double " .. n, layout)
-	local gf = L.box(layout, "GF1-1")
+	local gf = L.box(layout, "GF1")
 	check("double " .. n .. " grand final right of everything", gf ~= nil)
 	for _, b in ipairs(layout.boxes) do
-		if b.id ~= "GF1-1" and b.id ~= "GF2-1" then
+		if b.id ~= "GF1" and b.id ~= "GF2" then
 			check("double " .. n .. " gf last", b.x < gf.x, b.id)
 		end
 	end
@@ -138,11 +139,11 @@ end
 do
 	local view = double(4)
 	for _, m in ipairs(view.bracket) do
-		if m.id == "GF2-1" then
+		if m.id == "GF2" then
 			m.status = "void"
 		end
 	end
-	check("void reset hidden", L.box(L.build(view), "GF2-1") == nil)
+	check("void reset hidden", L.box(L.build(view), "GF2") == nil)
 end
 
 -- Round robin: a column per round, groups stacked.
@@ -172,6 +173,59 @@ do
 	check("swiss bye shown", L.box(layout, "SW1-2") ~= nil)
 	check("swiss hit", L.hit(layout, 0.1, L.LABEL_H + 0.1).id == "SW1-1")
 	check("swiss miss", L.hit(layout, -1, -1) == nil)
+end
+
+-- Rounds in playing order, as the server counts them.
+do
+	local view = double(8) -- W1-3, L1-4, GF1-2
+	check("step W1", L.step_of(view, "W", 1) == 1)
+	check("step W2", L.step_of(view, "W", 2) == 2 and L.step_of(view, "L", 1) == 2)
+	check("step L2", L.step_of(view, "L", 2) == 3)
+	check("step W3", L.step_of(view, "W", 3) == 4 and L.step_of(view, "L", 3) == 4)
+	check("step GF", L.step_of(view, "GF", 1) == 6 and L.step_of(view, "GF", 2) == 7)
+	check("step single", L.step_of(single(8), "W", 3) == 3)
+end
+
+-- Timing: two short heading lines, room for them, and breaks in the gaps.
+do
+	local plain = L.build(single(8))
+	local timed = L.build(single(8), { timing = function(step)
+		if step == 1 then
+			return { start = "starts Today 1:00 PM", play = "live, 10 min ready-up" }
+		elseif step == 2 then
+			return { brk = "15 min" }
+		end
+		return {}
+	end })
+	check("timed lines", timed.labels[1].sub == "starts Today 1:00 PM" and timed.labels[1].sub2 == "live, 10 min ready-up" and timed.labels[2].sub == nil)
+	check("timed room", timed.label_h > plain.label_h and L.box(timed, "W1-1").y > L.box(plain, "W1-1").y)
+	sane("timed", timed)
+	check("one gap", #timed.gaps == 1 and timed.gaps[1].text == "15 min")
+	local g = timed.gaps[1]
+	local w1, w2 = L.box(timed, "W1-1"), L.box(timed, "W2-1")
+	check("gap between columns", g.x > w1.x + w1.w and g.x < w2.x and g.bottom > g.y)
+	check("no gaps untimed", #plain.gaps == 0)
+	-- Double elimination: each section's own heading timing, gaps per section.
+	local d = L.build(double(8), { timing = function(step)
+		return { start = "step " .. step, brk = step == 3 and "5 min" or nil }
+	end })
+	local subs = {}
+	for _, label in ipairs(d.labels) do
+		subs[label.text] = label.sub
+	end
+	check("timed losers", subs["Losers R2"] == "step 3" and subs["Grand Final"] == "step 6", tostring(subs["Losers R2"]))
+	check("losers gap", #d.gaps == 1 and d.gaps[1].y > 0)
+end
+
+-- The reset heading explains itself (a hover tooltip).
+do
+	local tip
+	for _, label in ipairs(L.build(double(8)).labels) do
+		if label.text == "Reset" then
+			tip = label.tip
+		end
+	end
+	check("reset tip", type(tip) == "table" and #tip > 0)
 end
 
 check("no bracket yet", L.build({ summary = { format = "swiss" }, bracket = nil }) == nil)

@@ -276,3 +276,116 @@ end
 function TUI.live_text(live, scale)
 	return { n = G.UIT.T, config = { ref_table = live, ref_value = "text", scale = scale or TUI.TEXT, colour = live.colour, shadow = true } }
 end
+
+-- Names for what the server stores -------------------------------------------
+
+function TUI.deck_name(key)
+	local ok, name = pcall(localize, { type = "name_text", set = "Back", key = key })
+	return ok and type(name) == "string" and name ~= "ERROR" and name or tostring(key)
+end
+
+-- A stake by its number in the game's order (the server stores numbers).
+function TUI.stake_name(index)
+	local center = G.P_CENTER_POOLS and G.P_CENTER_POOLS.Stake and G.P_CENTER_POOLS.Stake[index]
+	if not center then
+		return "stake " .. tostring(index)
+	end
+	local ok, name = pcall(localize, { type = "name_text", set = "Stake", key = center.key })
+	return ok and type(name) == "string" and name ~= "ERROR" and name or center.key
+end
+
+-- A round's deck rule: "Black Deck on Orange Stake", "Cocktail (Red + Blue)
+-- on Gold Stake", "ban and pick: 12 decks + 1 Cocktail, 3 stakes".
+function TUI.deck_rule(deck)
+	if type(deck) ~= "table" then
+		return "unset: set it yourself in the lobby"
+	end
+	if deck.kind == "locked" then
+		local name = TUI.deck_name(deck.deck)
+		if type(deck.cocktail) == "table" and type(deck.cocktail.decks) == "table" then
+			local mix = {}
+			for _, k in ipairs(deck.cocktail.decks) do
+				mix[#mix + 1] = (TUI.deck_name(k):gsub(" Deck$", ""))
+			end
+			name = (deck.cocktail.name or name) .. " (" .. table.concat(mix, " + ") .. ")"
+		end
+		return name .. " on " .. TUI.stake_name(deck.stake)
+	end
+	local cocktails = type(deck.cocktails) == "table" and #deck.cocktails or 0
+	local stakes = #(deck.stakes or {})
+	return string.format("ban and pick: %d decks%s, %d stake%s", #(deck.decks or {}), cocktails > 0 and (" + " .. cocktails .. " Cocktail" .. (cocktails > 1 and "s" or "")) or "", stakes, stakes == 1 and "" or "s")
+end
+
+-- "45 min", "2 hours", "3 days"
+function TUI.duration(minutes)
+	minutes = tonumber(minutes) or 0
+	if minutes >= 24 * 60 and minutes % (24 * 60) == 0 then
+		local d = minutes / (24 * 60)
+		return d .. (d == 1 and " day" or " days")
+	elseif minutes >= 60 and minutes % 60 == 0 then
+		local h = minutes / 60
+		return h .. (h == 1 and " hour" or " hours")
+	end
+	return minutes .. " min"
+end
+
+local ROUND_NAMES = {
+	single_elim = { FINAL = "Final", SEMI = "Semifinals", QUARTER = "Quarterfinals" },
+	double_elim = { FINAL = "Grand final", WINNERS_FINAL = "Winners final", LOSERS_FINAL = "Losers final" },
+}
+
+-- A round key the server uses: "R3" -> "Round 3", "SEMI" -> "Semifinals".
+function TUI.round_key_label(format, key)
+	local n = tostring(key):match("^R(%d+)$")
+	if n then
+		return "Round " .. n
+	end
+	local names = ROUND_NAMES[format] or {}
+	return names[key] or ROUND_NAMES.single_elim[key] or ROUND_NAMES.double_elim[key] or tostring(key)
+end
+
+-- Round keys in playing order: numbered first, then the named ones.
+function TUI.sorted_round_keys(map)
+	local keys = {}
+	for k in pairs(map or {}) do
+		keys[#keys + 1] = k
+	end
+	local NAMED = { QUARTER = 1, SEMI = 2, WINNERS_FINAL = 3, LOSERS_FINAL = 4, FINAL = 5 }
+	table.sort(keys, function(a, b)
+		local na, nb = tonumber(tostring(a):match("^R(%d+)$")), tonumber(tostring(b):match("^R(%d+)$"))
+		if na and nb then
+			return na < nb
+		elseif na or nb then
+			return na ~= nil
+		end
+		return (NAMED[a] or 9) < (NAMED[b] or 9)
+	end)
+	return keys
+end
+
+-- A round's timetable change (timetable.rounds): "15 min break first",
+-- "continues Sat 8:00 PM", "live, 10 min to ready up (and every later round)".
+function TUI.timing_text(t)
+	if type(t) ~= "table" then
+		return ""
+	end
+	local parts = {}
+	if t.startAt then
+		parts[#parts + 1] = "continues " .. PVP.TournamentTime.format_local(t.startAt)
+	elseif t.manualStart then
+		parts[#parts + 1] = "the organiser starts it"
+	elseif t.breakBefore and t.breakBefore > 0 then
+		parts[#parts + 1] = TUI.duration(t.breakBefore) .. " break first"
+	end
+	if type(t.play) == "table" then
+		if t.play.kind == "live" then
+			parts[#parts + 1] = "live, " .. TUI.duration(t.play.readyUpMinutes) .. " to ready up"
+		else
+			parts[#parts + 1] = "by a deadline, " .. TUI.duration(t.play.durationMinutes) .. " to play"
+		end
+		if t.onward then
+			parts[#parts + 1] = "and every later round"
+		end
+	end
+	return table.concat(parts, ", ")
+end

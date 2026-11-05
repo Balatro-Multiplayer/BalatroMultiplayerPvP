@@ -1,7 +1,10 @@
 -- The bracket viewer page (pvp_tournament_bracket, params {id}): the whole
 -- bracket on a zoomable canvas (ui/tournament/bracket_canvas.lua), with
 -- zoom and fit buttons, MY MATCH, an info line for the clicked match, and
--- for round robin and Swiss the standings beside it. Refreshes every few
+-- for round robin and Swiss the standings beside it. Under each round's
+-- heading, its timing (TIMES toggles it): when it starts, breaks, live or by
+-- a deadline. A tournament that hasn't started shows the bracket it would
+-- have now (provisional). Refreshes every few
 -- seconds; the layout is rebuilt only when the bracket changed, and the
 -- view (zoom, position) is kept.
 --
@@ -31,6 +34,8 @@ local page = {
 	-- Preview mode: { view, step, steps, on_step(delta), title }.
 	preview = nil,
 	round_label = { text = "", colour = { 1, 1, 1, 1 } },
+	-- The timing lines under the round headings.
+	show_times = true,
 }
 
 local HINT = "Drag to move  -  mouse wheel to zoom  -  click a match for details"
@@ -59,6 +64,9 @@ end
 -- The info line for the selected match: who, the score, and what is happening.
 local function info_for(m)
 	if not m then
+		if page.view and page.view.provisional then
+			return "Bracket Preview (not final)", G.C.GOLD
+		end
 		return HINT, G.C.UI.TEXT_INACTIVE
 	end
 	local round = (STAGES[m.stage] or m.stage) .. " " .. m.round
@@ -90,20 +98,6 @@ local function info_for(m)
 	return head, G.C.UI.TEXT_LIGHT
 end
 
-local function deck_name(key)
-	local ok, name = pcall(localize, { type = "name_text", set = "Back", key = key })
-	return ok and type(name) == "string" and name ~= "ERROR" and name or tostring(key)
-end
-
-local function stake_name(index)
-	local center = G.P_CENTER_POOLS and G.P_CENTER_POOLS.Stake and G.P_CENTER_POOLS.Stake[index]
-	if not center then
-		return "stake " .. tostring(index)
-	end
-	local ok, name = pcall(localize, { type = "name_text", set = "Stake", key = center.key })
-	return ok and type(name) == "string" and name ~= "ERROR" and name or center.key
-end
-
 -- "Plays: Nemesis, Balanced, Black Deck on Orange Stake"
 local function rules_for(m)
 	if not m then
@@ -116,17 +110,69 @@ local function rules_for(m)
 	if m.ruleset then
 		parts[#parts + 1] = TUI.ruleset_name(m.ruleset)
 	end
-	local deck = type(m.deck) == "table" and m.deck or nil
-	if deck and deck.kind == "locked" then
-		parts[#parts + 1] = deck_name(deck.deck) .. " on " .. stake_name(deck.stake)
-	elseif deck and deck.kind == "draft" then
-		local stakes = {}
-		for _, i in ipairs(deck.stakes or {}) do
-			stakes[#stakes + 1] = stake_name(i)
-		end
-		parts[#parts + 1] = "ban and pick (" .. table.concat(stakes, ", ") .. ")"
+	if type(m.deck) == "table" then
+		parts[#parts + 1] = TUI.deck_rule(m.deck)
 	end
 	return #parts > 0 and ("Plays: " .. table.concat(parts, ", ")) or ""
+end
+
+-- A round's timing (in playing order) for the bracket: { start, play, brk }.
+--   start  when its block of rounds starts, on the block's first round:
+--          "starts Today 1:00 PM", "continues Sat 8:00 PM", "organiser
+--          starts it", or once the round before has finished, the real time
+--   play   "live, 10 min ready-up" or "deadline Sat 8:00 PM"
+--   brk    a break before it ("15 min"), drawn between the columns
+local function raw_timing(view, step)
+	local schedule = view and view.schedule
+	if type(schedule) ~= "table" or #schedule == 0 then
+		return {}
+	end
+	local TT = PVP.TournamentTime
+	local i, first = 1, 1
+	while i < #schedule and step > schedule[i].untilStep do
+		first = schedule[i].untilStep + 1
+		i = i + 1
+	end
+	local b = schedule[i]
+	local clock = view.blocks and view.blocks[i] or {}
+	local out = {}
+	local start = b.start or {}
+	if step == first and not clock.startedAt then
+		if start.kind == "at" then
+			out.start = "continues " .. TT.format_local(start.at)
+		elseif start.kind == "manual" then
+			out.start = "organiser starts it"
+		elseif i == 1 then
+			if not page.preview then
+				out.start = "starts " .. TT.format_local(view.summary.startsAt)
+			end
+		elseif (start.breakMinutes or 0) > 0 then
+			local before = view.blocks and view.blocks[i - 1]
+			if before and before.finishedAt then
+				out.start = "starts " .. TT.format_local(before.finishedAt + start.breakMinutes * 60000)
+			end
+		end
+	end
+	if step == first and start.kind == "after_previous" and (start.breakMinutes or 0) > 0 then
+		out.brk = TUI.duration(start.breakMinutes)
+	end
+	local play = b.play or {}
+	if play.kind == "live" then
+		out.play = "live, " .. TUI.duration(play.readyUpMinutes) .. " ready-up"
+	elseif play.kind == "window" then
+		local closes = play.closesAt or (clock.startedAt and play.durationMinutes and (clock.startedAt + play.durationMinutes * 60000))
+		out.play = closes and ("deadline " .. TT.format_local(closes)) or (TUI.duration(play.durationMinutes) .. " to play")
+	end
+	return out
+end
+
+-- The same, with the way of playing only where it changes.
+local function step_timing(view, step)
+	local out = raw_timing(view, step)
+	if step > 1 and out.play and out.play == raw_timing(view, step - 1).play then
+		out.play = nil
+	end
+	return out
 end
 
 local function update_info()
@@ -142,19 +188,45 @@ end
 
 -- What the drawing depends on: rebuild the layout only when this changes.
 local function shape_of(view)
-	local parts = {}
+	local parts = { tostring(page.show_times) }
+	for i, b in ipairs(view and view.blocks or {}) do
+		parts[#parts + 1] = i .. ":" .. tostring(b.startedAt) .. ":" .. tostring(b.finishedAt)
+	end
 	for _, m in ipairs(view and view.bracket or {}) do
 		parts[#parts + 1] = table.concat({ m.id, m.status, name_of(m.players[1]), name_of(m.players[2]), m.wins and m.wins[1] or 0, m.wins and m.wins[2] or 0, m.clock and m.clock.phase or "" }, ",")
 	end
 	return table.concat(parts, ";")
 end
 
+-- What the canvas says with no bracket: before the start, a provisional
+-- one needs two players.
+local function empty_text(view)
+	-- Until the first answer: the cached view may be from before the preview.
+	if not page.preview and not page.loaded then
+		return "Loading..."
+	end
+	local status = view and view.summary and view.summary.status
+	if status == "draft" or status == "registration" or status == "check_in" then
+		local n = status == "check_in" and "checked in" or "signed up"
+		return "No bracket yet: it appears once 2 players have " .. n .. "."
+	elseif status == "cancelled" then
+		return "This tournament was cancelled before it started."
+	end
+	return "The bracket is drawn when the tournament starts."
+end
+
 local function apply_view(view)
 	page.view = view
+	if page.canvas then
+		page.canvas:set_empty_text(empty_text(view))
+	end
 	local shape = shape_of(view)
 	if page.canvas and shape ~= page.shape then
 		page.shape = shape
-		page.canvas:set_layout(PVP.BracketLayout.build(view), me())
+		local timing = page.show_times and function(step)
+			return step_timing(view, step)
+		end or nil
+		page.canvas:set_layout(PVP.BracketLayout.build(view, { timing = timing }), me())
 	end
 	if page.standings then
 		page.standings:update()
@@ -166,11 +238,16 @@ local function load()
 	if page.preview then
 		return
 	end
-	PVP.Tournaments.get({ id = page.id }, function(err, data)
+	-- provisional: before the start, the bracket it would have now.
+	PVP.Tournaments.get({ id = page.id, provisional = true }, function(err, data)
 		if not page.active or err or not data or not data.tournament then
 			return
 		end
-		PVP.Tournaments.state.views[page.id] = data.tournament
+		page.loaded = true
+		-- A provisional bracket isn't the tournament's: keep it out of the cache.
+		if not data.tournament.provisional then
+			PVP.Tournaments.state.views[page.id] = data.tournament
+		end
 		apply_view(data.tournament)
 	end)
 end
@@ -200,9 +277,14 @@ local function standings_rows()
 	return rows
 end
 
+-- Round robin and Swiss get standings beside the bracket -- not before the
+-- start (a bracket preview has no results to rank).
 local function has_standings(view)
-	local f = view and view.summary and view.summary.format
-	return f == "round_robin" or f == "swiss"
+	local s = view and view.summary
+	if not s or s.status == "draft" or s.status == "registration" or s.status == "check_in" then
+		return false
+	end
+	return s.format == "round_robin" or s.format == "swiss"
 end
 
 local function build_page()
@@ -233,10 +315,11 @@ local function build_page()
 	end
 	local header_nodes = {
 		col(TUI.button("BACK", "mp_pvp_tbracket_back", nil, G.C.ORANGE, 1.6)),
-		{ n = G.UIT.C, config = { align = "cm", padding = 0.1, minw = width - (page.preview and 12.4 or 9.8) }, nodes = { title } },
+		{ n = G.UIT.C, config = { align = "cm", padding = 0.1, minw = width - (page.preview and 13.9 or 11.3) }, nodes = { title } },
 		col(TUI.button("-", "mp_pvp_tbracket_zoom", { factor = 1 / 1.3 }, G.C.UI.BACKGROUND_INACTIVE, 0.7, 0.45)),
 		col(TUI.button("+", "mp_pvp_tbracket_zoom", { factor = 1.3 }, G.C.UI.BACKGROUND_INACTIVE, 0.7, 0.45)),
 		col(TUI.button("FIT", "mp_pvp_tbracket_fit", nil, G.C.UI.BACKGROUND_INACTIVE, 1.2)),
+		col(TUI.button("TIMES", "mp_pvp_tbracket_times", nil, page.show_times and G.C.GOLD or G.C.UI.BACKGROUND_INACTIVE, 1.4)),
 	}
 	if page.preview then
 		-- Step through the made-up results a round at a time.
@@ -315,6 +398,8 @@ MPAPI.on_loaded(function()
 			end
 			page.preview = preview
 			page.id = id
+			page.loaded = false
+			page.back_to_details = self.params and self.params.back_to_details or false
 			page.view = preview and preview.view or PVP.Tournaments.state.views[id]
 			return build_page()
 		end,
@@ -326,6 +411,7 @@ MPAPI.on_loaded(function()
 			end
 			MPAPI.set_logo_offset(-10, true)
 			page.active = true
+			page.loaded = false
 			page.seconds = 0
 			page.gen = (page.gen or 0) + 1
 			update_info()
@@ -343,8 +429,9 @@ MPAPI.on_loaded(function()
 	})
 end)
 
-function PVP.open_tournament_bracket(id)
-	MPAPI.pages.show("pvp_tournament_bracket", { id = id })
+-- opts.back_to_details: BACK reopens the DETAILS overlay it came from.
+function PVP.open_tournament_bracket(id, opts)
+	MPAPI.pages.show("pvp_tournament_bracket", { id = id, back_to_details = opts and opts.back_to_details or nil })
 end
 
 -- A made-up bracket (the Tournament Organiser's preview). spec: { view (a
@@ -371,12 +458,39 @@ G.FUNCS.mp_pvp_tbracket_step = function(e)
 end
 
 G.FUNCS.mp_pvp_tbracket_back = function()
+	local details_id = page.back_to_details and page.id
 	MPAPI.pages.back()
+	if details_id and PVP.open_tournament_details then
+		-- Once the page underneath is back.
+		G.E_MANAGER:add_event(Event({
+			trigger = "after",
+			delay = 0.1,
+			timer = "REAL",
+			blockable = false,
+			blocking = false,
+			func = function()
+				PVP.open_tournament_details(details_id, true)
+				return true
+			end,
+		}))
+	end
 end
 
 G.FUNCS.mp_pvp_tbracket_zoom = function(e)
 	if page.canvas and e.config.ref_table then
 		page.canvas:zoom_by(e.config.ref_table.factor)
+	end
+end
+
+-- The timing lines under the round headings, on or off.
+G.FUNCS.mp_pvp_tbracket_times = function(e)
+	page.show_times = not page.show_times
+	if e and e.config then
+		e.config.colour = page.show_times and G.C.GOLD or G.C.UI.BACKGROUND_INACTIVE
+	end
+	page.shape = nil
+	if page.view then
+		apply_view(page.view)
 	end
 end
 

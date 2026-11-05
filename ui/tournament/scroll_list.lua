@@ -54,7 +54,9 @@ function TUI.scroll_list(opts)
 		local max_offset = math.max(1, total - visible)
 		local thumb_cells = math.max(1, math.floor(TRACK_CELLS * visible / total + 0.5))
 		local thumb_start = math.floor((TRACK_CELLS - thumb_cells) * list.offset / max_offset + 0.5)
-		local cell_h = (visible * row_h - 1.0) / TRACK_CELLS
+		-- The bar is as tall as the rows: two arrows (0.42 each), the column's
+		-- padding (4 x 0.04) and the track's (9 x 0.02) leave this for the cells.
+		local cell_h = math.max(0.05, (visible * row_h - 1.2) / TRACK_CELLS)
 		local cells = {}
 		for i = 0, TRACK_CELLS - 1 do
 			local lit = i >= thumb_start and i < thumb_start + thumb_cells

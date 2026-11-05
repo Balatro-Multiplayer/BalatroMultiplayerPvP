@@ -6,7 +6,12 @@
 -- stage, round, order, group, players, wins, status, outcome). Output:
 --   boxes  { id, x, y, w, h, match }   one per match shown
 --   lines  { points = {x1, y1, x2, y2, ...} }  connectors (elbows)
---   labels { text, x, y }              round headings
+--   labels { text, x, y, sub, sub2, tip }  round headings (tip: lines for a
+--                                      hover tooltip); with opts.timing two
+--                                      short lines (when it starts, how it's
+--                                      played)
+--   gaps   { x, y, bottom, text }      a break before a round: drawn in the
+--                                      gap left of its column, y to bottom
 --   width, height                      the whole drawing
 --
 -- Elimination: the winners bracket on top, the losers bracket under it, the
@@ -25,11 +30,19 @@ L.COL_GAP = 1.1
 L.ROW_GAP = 0.3
 L.SECTION_GAP = 1.2
 L.LABEL_H = 0.55
+-- Each timing line under a heading, when shown.
+L.SUB_H = 0.36
 
+-- Match ids are "W3-2" (stage, round, order); the grand final and its reset
+-- are just "GF1" and "GF2" (one match each).
 local function parse_id(id)
 	local stage, round, order = id:match("^(%a+)(%d+)%-(%d+)$")
 	if stage then
 		return stage, tonumber(round), tonumber(order)
+	end
+	stage, round = id:match("^(GF)(%d+)$")
+	if stage then
+		return stage, tonumber(round), 1
 	end
 	return nil
 end
@@ -66,19 +79,50 @@ local function winners_label(round, rounds, double)
 	return "Round " .. round
 end
 
-local function elimination(view)
+-- Which round (1-based, in playing order) a bracket round is: as the server
+-- counts (engine/schedule.ts roundSteps). Double elimination: W1, then W r
+-- with L (2r-3), then L (2r-2)...; the grand final and reset after.
+function L.step_of(view, stage, round)
+	local format = view.summary and view.summary.format
+	if format == "double_elim" then
+		local k = 0
+		for _, m in ipairs(view.bracket or {}) do
+			if m.stage == "W" then
+				k = math.max(k, m.round or 0)
+			end
+		end
+		if stage == "W" then
+			return round == 1 and 1 or 2 * (round - 1)
+		elseif stage == "L" then
+			return round + 1
+		elseif stage == "GF" then
+			return 2 * k - 1 + round
+		end
+	end
+	return round
+end
+
+local function elimination(view, lh, timing)
 	local by_id, rounds = {}, { W = 0, L = 0, GF = 0 }
 	for _, m in ipairs(view.bracket or {}) do
 		by_id[m.id] = m
 		rounds[m.stage] = math.max(rounds[m.stage] or 0, m.round or 0)
 	end
 	local double = rounds.L > 0 or rounds.GF > 0
+	-- The grand final and the reset, by stage and round (their ids are GF1, GF2).
+	local gf_id = {}
+	for _, m in ipairs(view.bracket or {}) do
+		if m.stage == "GF" then
+			gf_id[m.round] = m.id
+		end
+	end
+	local GF1, GF2 = gf_id[1] or "GF1", gf_id[2] or "GF2"
 	local y = {} -- match id -> top y (within its section)
 	local out = { boxes = {}, lines = {}, labels = {} }
 	local step = L.BOX_H + L.ROW_GAP
 
 	-- Winners bracket.
-	local w_top = L.LABEL_H
+	local w_top = lh
 	local w_count = 0
 	for i = 1, 4096 do
 		if not by_id["W1-" .. i] then
@@ -100,7 +144,7 @@ local function elimination(view)
 	local w_bottom = w_top + math.max(1, w_count) * step
 
 	-- Losers bracket, under the winners bracket.
-	local l_top = w_bottom + L.SECTION_GAP + L.LABEL_H
+	local l_top = w_bottom + L.SECTION_GAP + lh
 	local l_bottom = l_top
 	if rounds.L > 0 then
 		local l_count = 0
@@ -142,8 +186,8 @@ local function elimination(view)
 	if rounds.GF > 0 then
 		local wf, lf = y["W" .. rounds.W .. "-1"], y["L" .. rounds.L .. "-1"]
 		local mid = (wf and lf) and (wf + lf) / 2 or (wf or w_top)
-		y["GF1-1"] = mid
-		y["GF2-1"] = mid
+		y[GF1] = mid
+		y[GF2] = mid
 		col.GF1 = gf_col
 		col.GF2 = gf_col + 1
 	end
@@ -193,33 +237,54 @@ local function elimination(view)
 			connect("W" .. rounds.W .. "-1", m.id)
 			connect("L" .. rounds.L .. "-1", m.id)
 		elseif stage == "GF" and r == 2 then
-			connect("GF1-1", m.id)
+			connect(GF1, m.id)
 		end
 	end
 
 	-- Round headings.
+	out.gaps = {}
+	local gap_seen = {}
+	-- A heading with its timing; a break goes in the gap left of the column.
+	local function label(text, stage, round, col, y, bottom)
+		local info = timing and timing(L.step_of(view, stage, round)) or {}
+		out.labels[#out.labels + 1] = { text = text, x = col_x(col), y = y, sub = info.start, sub2 = info.play }
+		local key = col .. ":" .. y
+		if info.brk and col > 1 and not gap_seen[key] then
+			gap_seen[key] = true
+			out.gaps[#out.gaps + 1] = { x = col_x(col) - L.COL_GAP / 2, y = y, bottom = bottom, text = info.brk }
+		end
+	end
 	for r = 1, rounds.W do
-		out.labels[#out.labels + 1] = { text = winners_label(r, rounds.W, double), x = col_x(r), y = 0 }
+		label(winners_label(r, rounds.W, double), "W", r, r, 0, w_bottom)
 	end
 	for r = 1, rounds.L do
-		out.labels[#out.labels + 1] = { text = "Losers R" .. r, x = col_x(r), y = l_top - L.LABEL_H }
+		label("Losers R" .. r, "L", r, r, l_top - lh, l_bottom)
 	end
 	if rounds.GF > 0 then
-		local gy = (y["GF1-1"] or 0) - L.LABEL_H
-		out.labels[#out.labels + 1] = { text = "Grand Final", x = col_x(gf_col), y = gy }
-		if box_of("GF2-1") then
-			out.labels[#out.labels + 1] = { text = "Reset", x = col_x(gf_col + 1), y = gy }
+		local gy = (y[GF1] or 0) - lh
+		local gf_bottom = (y[GF1] or 0) + L.BOX_H + L.ROW_GAP
+		label("Grand Final", "GF", 1, gf_col, gy, gf_bottom)
+		if box_of(GF2) then
+			label("Reset", "GF", 2, gf_col + 1, gy, gf_bottom)
+			out.labels[#out.labels].tip = {
+				"The grand final reset: if the player",
+				"from the losers bracket wins the grand",
+				"final, both have now lost once, so",
+				"one more match decides the winner.",
+				"Not played if the winners-bracket",
+				"player wins the grand final.",
+			}
 		end
 	end
 
-	local max_col = rounds.GF > 0 and (box_of("GF2-1") and gf_col + 1 or gf_col) or math.max(rounds.W, 1)
+	local max_col = rounds.GF > 0 and (box_of(GF2) and gf_col + 1 or gf_col) or math.max(rounds.W, 1)
 	out.width = col_x(max_col) + L.BOX_W
 	out.height = (rounds.L > 0 and l_bottom or w_bottom)
 	return out
 end
 
-local function by_rounds(view)
-	local out = { boxes = {}, lines = {}, labels = {} }
+local function by_rounds(view, lh, timing)
+	local out = { boxes = {}, lines = {}, labels = {}, gaps = {} }
 	local step = L.BOX_H + L.ROW_GAP
 	local groups, max_round = {}, 0
 	for _, m in ipairs(view.bracket or {}) do
@@ -240,34 +305,51 @@ local function by_rounds(view)
 				return (a.order or 0) < (b.order or 0)
 			end)
 			local label = (multi and ("Group " .. string.char(64 + g) .. "  -  ") or "") .. "Round " .. r
-			out.labels[#out.labels + 1] = { text = label, x = col_x(r), y = top }
+			-- Timing on the first group's headings (every group plays together).
+			local info = timing and g == 1 and timing(r) or {}
+			out.labels[#out.labels + 1] = { text = label, x = col_x(r), y = top, sub = info.start, sub2 = info.play }
+			if info.brk and r > 1 then
+				out.gaps[#out.gaps + 1] = { x = col_x(r) - L.COL_GAP / 2, y = top, bottom = nil, text = info.brk }
+			end
 			local shown = 0
 			for _, m in ipairs(list) do
 				-- A Swiss bye is shown (it is a result); a round robin rest isn't a match.
 				if not is_bye(m) or swiss then
-					out.boxes[#out.boxes + 1] = { id = m.id, x = col_x(r), y = top + L.LABEL_H + shown * step, w = L.BOX_W, h = L.BOX_H, match = m }
+					out.boxes[#out.boxes + 1] = { id = m.id, x = col_x(r), y = top + lh + shown * step, w = L.BOX_W, h = L.BOX_H, match = m }
 					shown = shown + 1
 				end
 			end
 			rows = math.max(rows, shown)
 		end
-		top = top + L.LABEL_H + math.max(1, rows) * step + L.SECTION_GAP
+		top = top + lh + math.max(1, rows) * step + L.SECTION_GAP
+	end
+	-- Round robin and Swiss breaks run down through every group.
+	for _, gap in ipairs(out.gaps) do
+		gap.bottom = top - L.SECTION_GAP
 	end
 	out.width = col_x(math.max(1, max_round)) + L.BOX_W
-	out.height = math.max(L.LABEL_H + step, top - L.SECTION_GAP)
+	out.height = math.max(lh + step, top - L.SECTION_GAP)
 	return out
 end
 
 -- The layout for a tournament view (nil when there is no bracket yet).
-function L.build(view)
+-- opts.timing(step) -> { start, play, brk } (text or nil each): two short
+-- heading lines per round, and a break shown before it.
+function L.build(view, opts)
 	if not view or not view.bracket or #view.bracket == 0 then
 		return nil
 	end
+	local timing = type(opts) == "table" and opts.timing or nil
+	local lh = timing and (L.LABEL_H + 2 * L.SUB_H) or L.LABEL_H
 	local format = view.summary and view.summary.format
+	local out
 	if format == "round_robin" or format == "swiss" then
-		return by_rounds(view)
+		out = by_rounds(view, lh, timing)
+	else
+		out = elimination(view, lh, timing)
 	end
-	return elimination(view)
+	out.label_h = lh
+	return out
 end
 
 -- The box of a match id in a layout, or nil.
