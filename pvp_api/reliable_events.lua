@@ -259,7 +259,8 @@ function PVP.reconcile_reliable_events(force)
 			session.hello = true
 			PVP.send_referee_event("hello", {})
 		end
-		if (force or changed or newly_supported) and session.input:head(peer) then session.input:resume(peer) end
+		-- Re-arm empty paused channels too, so the next Ready can send.
+		if force or changed or newly_supported then session.input:resume(peer) end
 		if force and session.lobby.is_host then
 			for recipient in pairs(session.limits) do session.outgoing:resume(recipient) end
 		end

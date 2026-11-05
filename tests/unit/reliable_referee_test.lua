@@ -181,6 +181,66 @@ test("disconnect pauses retained input and reconciliation resumes it", function(
 	equal(n.peers.a.PVP.REF.players.b.lives, 7)
 end)
 
+for _, recovery in ipairs({ "checkpoint", "forced rejoin", "host change" }) do
+	test(recovery .. " unpauses an empty input before the next Ready request", function()
+		local n = network(2)
+		local b = n.peers.b
+		local session = b.lobby._pvp_reliable_events
+		equal(input_head(n, "b"), nil)
+		if recovery == "host change" then
+			n.down.a = true; n:change_host("b"); n:flush()
+		else
+			-- The local authority view can be unsupported while no input is pending.
+			b.lobby.metadata = {}; b.lobby:fire("metadata", {})
+			equal(session.input._channels.a.paused, true)
+			b.lobby.metadata = copy(n.metadata)
+			if recovery == "forced rejoin" then b.PVP.reconcile_round()
+			else b.lobby:fire("metadata", b.lobby.metadata) end
+		end
+		local channel = session.input._channels[session.host]
+		local seq = channel.next_seq
+		equal(input_head(n, "b"), nil)
+		n:send("b", "pvp_ready_blind", { starting_hands = 4, round_protocol = 1 })
+		n:flush()
+		equal(input_head(n, "b"), nil)
+		equal(n.metadata._pvp_ref.reliable_received.b.seq, seq)
+		equal(n.metadata._pvp_ref.players.b.ready, 1)
+		equal(channel.next_seq, seq + 1)
+		equal(channel.paused, false)
+	end)
+end
+
+test("unsupported authority retains Ready until a valid checkpoint returns", function()
+	local n = network(2)
+	local b = n.peers.b
+	b.lobby.metadata = {}; b.lobby:fire("metadata", {})
+	n:send("b", "pvp_ready_blind", { starting_hands = 4, round_protocol = 1 })
+	local seq = input_head(n, "b")
+	local channel = b.lobby._pvp_reliable_events.input._channels.a
+	n:update(60)
+	equal(#n.queue, 0)
+	equal(input_head(n, "b"), seq)
+	equal(channel.paused, true)
+	equal(channel.queue[channel.first].elapsed, 0)
+	b.lobby.metadata = copy(n.metadata); b.lobby:fire("metadata", b.lobby.metadata)
+	n:flush()
+	equal(input_head(n, "b"), nil)
+	equal(n.metadata._pvp_ref.reliable_received.b.seq, seq)
+	equal(n.metadata._pvp_ref.players.b.ready, 1)
+end)
+
+test("ordinary metadata echoes do not re-arm a timed-out input", function()
+	local n = network(2)
+	n:send("b", "pvp_ready_blind", { starting_hands = 4, round_protocol = 1 })
+	n.queue = {}; n:update(30)
+	local b = n.peers.b
+	local channel = b.lobby._pvp_reliable_events.input._channels.a
+	equal(channel.stalled, true)
+	b.lobby:fire("metadata", b.lobby.metadata)
+	equal(channel.stalled, true)
+	equal(#n.queue, 0)
+end)
+
 test("host change before server storage rolls back uncommitted memory then retries", function()
 	local n = network()
 	n:send("b", "pvp_fail_round"); n:deliver(find(n, is_action("pvp_reliable_event")))
@@ -622,6 +682,150 @@ test("the real timer-hand handler consumes one hand and credits one bonus across
 	n.down.a = true; n:change_host("c"); n:flush()
 	equal(b.G.GAME.current_round.hands_left, 3); equal(bonus, 5)
 	equal(n.peers.c.PVP.REF.players.b.hands_left, 3)
+end)
+
+-- Add real timer ticking/handlers to the existing referee integration fixture.
+-- Game rendering is stubbed; monotonic clocks, socket outages, host changes and
+-- the order of delivery versus the first resumed frame are explicitly controlled.
+local function with_timers(n)
+	local file = assert(io.open("networking/action_handlers.lua", "r"))
+	local source = file:read("*a"); file:close()
+	local chunks = {}
+	for _, header in ipairs({
+		"local function action_start_ante_timer(p)", "local function action_restart_ante_timer(p)",
+		"local function action_pause_ante_timer(p)", "function PVP.ACTIONS.announce_ante_timer(time)",
+		"function PVP.ACTIONS.start_ante_timer()", "function PVP.ACTIONS.pause_ante_timer()",
+		"function PVP.ACTIONS.announce_ante_timer_restart(time, rejoined)",
+		"function PVP.ACTIONS.blind_result(beaten, blind)", "function PVP.ACTIONS.fail_timer()",
+	}) do
+		local first = assert(source:find(header, 1, true))
+		local _, last = assert(source:find("\nend\r?\n", first))
+		chunks[#chunks + 1] = source:sub(first, last)
+	end
+	chunks[#chunks + 1] = "return { startAnteTimer = action_start_ante_timer, "
+		.. "restartAnteTimer = action_restart_ante_timer, pauseAnteTimer = action_pause_ante_timer }"
+	for _, peer in pairs(n.peers) do
+		peer.clock = 0
+		peer.love.timer.getTime = function() return peer.clock end
+		peer.G.FUNCS, peer.G.C = {}, { WHITE = {}, IMPORTANT = {} }
+		peer.G.SETTINGS = { GAMESPEED = 1 }
+		peer.G.GAME.blind_on_deck = "Small"
+		peer.G.GAME.current_round = { hands_left = 4 }
+		peer.G.STATES.BLIND_SELECT = "select"
+		peer.SMODS = { Gradient = function() end }
+		peer.mix_colours = function() return {} end
+		peer.Client = {}
+		local pvp = peer.PVP
+		pvp.config, pvp.UI, pvp.ACTIONS = { timersfx = 3 }, {}, {}
+		pvp.LOBBY.code, pvp.LOBBY.config.timer = "TEST", true
+		pvp.LOBBY.config.timer_forgiveness = 0
+		pvp.GAME.lives, pvp.GAME.timers_forgiven = 8, 0
+		pvp.timer_is_local, pvp.is_pvp_boss, pvp.is_layer_active = function() return false end,
+			function() return false end, function() return false end
+		pvp.current_ruleset = function() return {} end
+		pvp.UTILS.timer_start_held_back = function() return false end
+		pvp.UTILS.timer_base = function() return 90 end
+		local handlers = assert(load(table.concat(chunks, "\n"), "timer-actions", "t", peer))()
+		pvp.dispatch_action = function(key, params)
+			if key == "startBlind" then peer.started = (peer.started or 0) + 1
+			elseif key == "enemyLocation" then peer.opponent_location = params.location
+			else assert(handlers[key], "unexpected dispatch: " .. key)(params) end
+		end
+		peer.dofile("lib/ante_timer.lua")
+		peer.dofile("pvp_api/net.lua")
+		peer.dofile("pvp_api/actions/timers.lua")
+		peer.dofile("pvp_api/actions/score_resolution.lua")
+		peer.dofile("pvp_api/actions/blind_handshake.lua")
+		peer.dofile("ui/game/timer.lua")
+	end
+	function n:elapse(seconds)
+		for _ = 1, seconds do
+			-- A frozen process misses updates, but monotonic wall time still advances.
+			for _, peer in pairs(self.peers) do peer.clock = peer.clock + 1 end
+			self:update(1); self:flush()
+		end
+	end
+	function n:reset_timers(seconds)
+		for _, peer in pairs(self.peers) do
+			local game = peer.PVP.GAME
+			game.timer, game.timer_consumed = seconds, false
+			game.timer_started, game.nemesis_timer_started = false, false
+		end
+	end
+	n:reset_timers(90); n:update(0)
+	return n
+end
+
+test("10s expiry then opposite 45s outages still reach the next PvP blind", function()
+	local n = with_timers(network(2))
+	local a, b = n.peers.a, n.peers.b
+	-- A is already being timered with 4.6s remaining when its process freezes.
+	n:reset_timers(4.6)
+	b.PVP.ACTIONS.start_ante_timer(); n:flush()
+	n.down.a = true; n:elapse(10)
+	equal(n.metadata._pvp_ref.players.a.lives, 8)
+	n.down.a = false; n:update(0); n:flush()
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+	equal(n.metadata._pvp_ref.players.b.lives, 8)
+	equal(a.PVP.GAME.timer, 90)
+	b.PVP.ACTIONS.pause_ante_timer(); n:flush()
+	n:elapse(1); equal(n.metadata._pvp_ref.players.a.lives, 7)
+
+	-- These are simulated transport disconnects/host transfers, not a claim
+	-- that every native 45s SIGSTOP causes disconnect detection at this instant.
+	local function long_pause(frozen, starter, start_before_resumed_frame)
+		n:reset_timers(90)
+		n.down[frozen] = true; n:change_host(starter); n:flush()
+		n:elapse(1)
+		n.peers[starter].PVP.ACTIONS.start_ante_timer()
+		-- Retain the ordinary timer-start message to control its delivery on
+		-- return. All reliability/checkpoint packets continue through the fixture.
+		local delayed = table.remove(n.queue, find(n, is_action("pvp_ante_timer")))
+		n:flush(); n:elapse(44)
+		n.down[frozen] = false
+		local peer = n.peers[frozen]
+		peer.lobby.metadata = copy(n.metadata) -- Rejoin's authoritative snapshot.
+		peer.lobby:fire("metadata", peer.lobby.metadata)
+		for _, online in pairs(n.peers) do online.PVP.reconcile_round(n.host) end
+		if not start_before_resumed_frame then n:update(0) end
+		table.insert(n.queue, 1, delayed); n:flush()
+		n:update(0); n:flush()
+		local offset = math.abs(a.PVP.GAME.timer - b.PVP.GAME.timer)
+		-- Characterizes the current relative-time timer protocol, not a timer fix:
+		-- delivery before the first resumed frame counts the frozen interval;
+		-- delivery afterwards starts from the old value without that catch-up.
+		if start_before_resumed_frame then assert(offset <= 1, "expected small timer offset")
+		else assert(offset >= 40, "expected delayed-start timer offset") end
+		n.peers[starter].PVP.ACTIONS.pause_ante_timer(); n:flush()
+		equal(a.PVP.GAME.timer, b.PVP.GAME.timer)
+		for _, online in pairs(n.peers) do
+			equal(online.PVP.GAME.timer_started, false)
+			equal(online.PVP.GAME.nemesis_timer_started, false)
+		end
+	end
+	long_pause("a", "b", true)
+	equal(n.host, "b")
+	long_pause("b", "a", false)
+	equal(n.host, "a")
+	equal(n.metadata._pvp_ref.players.a.lives, 7)
+	equal(n.metadata._pvp_ref.players.b.lives, 8)
+	-- Display labels and critical Ready are separate routes, as in the report.
+	for _, peer in pairs(n.peers) do
+		peer.G.STATE, peer.PVP.GAME.ready_blind = "select", true
+		peer.Client.send({ action = "setLocation", location = "loc_ready" })
+	end
+	n:flush()
+	equal(a.opponent_location, "loc_ready"); equal(b.opponent_location, "loc_ready")
+	for _, peer in pairs(n.peers) do peer.Client.send({ action = "readyBlind", startingHands = 4 }) end
+	n:flush()
+	equal(a.started, 1); equal(b.started, 1)
+	for id, peer in pairs(n.peers) do
+		equal(input_head(n, id), nil)
+		equal(peer.PVP.GAME.round_sync.id, n.metadata._pvp_ref.round.id)
+		equal(n.metadata._pvp_ref.players[id].ready, 0)
+	end
+	n:elapse(5)
+	equal(a.started, 1); equal(b.started, 1)
 end)
 
 print(("all %d reliable referee tests passed"):format(passed))
