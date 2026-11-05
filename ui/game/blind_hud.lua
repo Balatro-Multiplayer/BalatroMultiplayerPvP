@@ -231,8 +231,8 @@ end
 G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 	-- No real opponent in practice -- always mask both, never reveal (there is
 	-- nothing to reveal). Checked first since practice is never a real PvP boss in
-	-- the sense the checks below assume (hide_score_until_played/info_received are
-	-- both meaningless without a live opponent).
+	-- the sense the checks below assume (the score mask is meaningless without a
+	-- live opponent).
 	if PVP.is_practice_mode() then
 		PVP.GAME.enemy.hands_text = "???"
 		PVP.GAME.enemy.score_text = "???"
@@ -244,13 +244,10 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
-	-- a player can't watch the enemy score before committing their own hand.
-	-- (The server also withholds the score, this is the matching display.)
-	-- Gated by the hide_score_until_played lobby option (on by default only on
-	-- standard-layer rulesets; host-toggleable in non-forcing lobbies).
+	-- a player can't wait for the opponent to go first and then always play
+	-- second. Applies in every mode.
 	if
-		PVP.LOBBY.config.hide_score_until_played
-		and PVP.is_pvp_boss()
+		PVP.is_pvp_boss()
 		and G.GAME.current_round
 		and G.GAME.current_round.hands_played == 0
 	then

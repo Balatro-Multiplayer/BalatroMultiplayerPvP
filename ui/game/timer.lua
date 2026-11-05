@@ -8,7 +8,6 @@ function PVP.UI.cam_timer_opponent()
 	if PVP.is_pvp_boss() and PVP.is_layer_active("pvp_timer") then
         if PVP.GAME.end_pvp then return false end
 		if G.STATE == G.STATES.ROUND_EVAL or G.STATE == G.STATES.NEW_ROUND then return false end
-        if PVP.LOBBY.config.hide_score_until_played and not PVP.GAME.enemy.info_received then return false end
 		if PVP.Score.greater(PVP.GAME.score, PVP.GAME.enemy.real_score) then return true end
         if PVP.Score.equal(PVP.GAME.score, PVP.GAME.enemy.real_score) then return PVP.GAME.pvp_reached_first end
 		return false
