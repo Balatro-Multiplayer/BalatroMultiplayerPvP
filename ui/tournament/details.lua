@@ -8,7 +8,6 @@ local TUI = PVP.TUI
 
 local PRESETS = { live_event = "Live event", live_fixed_rounds = "Live, fixed round times", league = "League (play by a deadline)" }
 local SEEDING = { rating = "By ranked rating", random = "Random", manual = "Set by the organiser" }
-local STAGES = { W = "Winners", L = "Losers", GF = "Grand final", RR = "Round", SW = "Round" }
 
 local overlay_lists = {}
 
@@ -121,60 +120,6 @@ local function details_contents(view)
 	}
 end
 
-local function player_name(p)
-	if p == "tbd" then
-		return "TBD"
-	end
-	if p == nil or p == false or type(p) ~= "table" then
-		return "bye"
-	end
-	return p.name
-end
-
--- One text line per match ("Winners 2 - 1   Alice  2-1  Bob   done"), or the
--- standings.
-local function bracket_lines(view)
-	local lines = {}
-	if not view.bracket then
-		lines[1] = { text = "The bracket is drawn when the tournament starts.", colour = G.C.UI.TEXT_INACTIVE }
-		return lines
-	end
-	if view.standings then
-		for g, table_rows in ipairs(view.standings) do
-			if #view.standings > 1 then
-				lines[#lines + 1] = { text = "Group " .. g, colour = G.C.GOLD }
-			end
-			for _, r in ipairs(table_rows) do
-				local name = "?"
-				for _, e in ipairs(view.entrants or {}) do
-					if e.id == r.id then
-						name = e.name
-					end
-				end
-				lines[#lines + 1] = { text = string.format("%2d.  %-18s %g pts   %d-%d-%d", r.rank, name, r.points, r.matchWins, r.draws, r.losses) }
-			end
-		end
-		lines[#lines + 1] = { text = "", colour = G.C.CLEAR }
-	end
-	local me = PVP.Tournaments.me_in(view)
-	local last_round
-	for _, m in ipairs(view.bracket) do
-		local round = (STAGES[m.stage] or m.stage) .. " " .. m.round
-		if round ~= last_round then
-			lines[#lines + 1] = { text = round, colour = G.C.GOLD }
-			last_round = round
-		end
-		local a, b = player_name(m.players[1]), player_name(m.players[2])
-		local score = (m.status == "done" or m.status == "in_progress") and string.format("%d-%d", m.wins[1] or 0, m.wins[2] or 0) or "vs"
-		local state = m.status == "done" and "" or m.status == "in_progress" and "playing" or m.status == "ready" and "open" or ""
-		local mine = me and ((type(m.players[1]) == "table" and m.players[1].id == me.id) or (type(m.players[2]) == "table" and m.players[2].id == me.id))
-		if not (a == "bye" and b == "bye") then
-			lines[#lines + 1] = { text = string.format("   %s  %s  %s   %s", a, score, b, state), colour = mine and G.C.GREEN or nil }
-		end
-	end
-	return lines
-end
-
 local function open_overlay(contents)
 	G.FUNCS.overlay_menu({
 		definition = create_UIBox_generic_options({
@@ -214,26 +159,15 @@ G.FUNCS.mp_pvp_tournament_details = function(e)
 	end
 end
 
+-- The bracket viewer is its own page (ui/tournament/bracket_page.lua).
 G.FUNCS.mp_pvp_tournament_bracket = function(e)
 	local id = e.config.ref_table and e.config.ref_table.id
 	if not id then
 		return
 	end
-	with_view(id, function(view)
-		close_lists()
-		local lines = bracket_lines(view)
-		local list = TUI.scroll_list({
-			items = function()
-				return lines
-			end,
-			build_row = function(l)
-				return { n = G.UIT.R, config = { align = "cl", minw = 9.5 }, nodes = { TUI.text(l.text, TUI.SMALL, l.colour) } }
-			end,
-			visible = 12,
-			row_h = 0.38,
-			width = 9.5,
-		})
-		overlay_lists[#overlay_lists + 1] = list
-		open_overlay({ TUI.name_line(view.summary, 0.5), TUI.title("BRACKET", G.C.BLUE, 0.4), list.node })
-	end)
+	close_lists()
+	if G.OVERLAY_MENU then
+		G.FUNCS.exit_overlay_menu(e)
+	end
+	PVP.open_tournament_bracket(id)
 end

@@ -160,7 +160,9 @@ end
 -- The mouse wheel scrolls the active list (and still reaches the game).
 local original_wheelmoved = love.wheelmoved
 love.wheelmoved = function(x, y)
-	if wheel_target and wheel_target.alive and y ~= 0 then
+	-- A bracket canvas under the cursor takes the wheel (it zooms).
+	local canvas = TUI.canvas_wants_wheel and TUI.canvas_wants_wheel()
+	if wheel_target and wheel_target.alive and y ~= 0 and not canvas then
 		wheel_target:scroll(y > 0 and -1 or 1)
 	end
 	if original_wheelmoved then
