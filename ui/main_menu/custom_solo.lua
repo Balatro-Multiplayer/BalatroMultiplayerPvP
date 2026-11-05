@@ -113,7 +113,7 @@ function C.build()
 		end
 	end
 	C.decks[#C.decks + 1] = "b_mp_chaos"
-	deck_labels[#deck_labels + 1] = "Chaos (deck draft)"
+	deck_labels[#deck_labels + 1] = localize({ type = "name_text", set = "Back", key = "b_mp_chaos" })
 	for _, stake in ipairs(G.P_CENTER_POOLS.Stake) do
 		stake_labels[#stake_labels + 1] = localize({ type = "name_text", set = "Stake", key = stake.key })
 	end

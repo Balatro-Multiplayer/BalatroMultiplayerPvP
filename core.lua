@@ -219,6 +219,7 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		modifier_layers = nil,
 		timer = true,
 		timer_forgiveness = 0,
+		shared_pvp_rules = false,
 		forced_config = false,
 		preview_disabled = false,
 		legacy_smallworld = false,

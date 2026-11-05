@@ -14,12 +14,11 @@ SMODS.Back({
 	unlocked = true,
 	discovered = true,
 	loc_txt = {
-		name = "Chaos",
+		name = "Almanac",
 		text = {
-			"Start with {C:attention}no deck effects{}",
-			"Choose 1 of {C:attention}3 decks{}",
-			"at Antes {C:attention}2, 3, 5 and 7{}",
-			"Keep every chosen deck's effects",
+			"At Antes {C:attention}2, 3, 5 and 7{},",
+			"choose {C:attention}1{} of {C:attention}3 Decks{}.",
+			"Keep their effects.",
 		},
 	},
 	apply = function()

@@ -99,6 +99,21 @@ local RANKED_MODES = {
 		ruleset_key = "ruleset_mp_smallworld",
 		colour = G.C.RED,
 	},
+	{
+		key = "chaos_preview",
+		name = localize("k_almanac"),
+		desc = {
+			localize("k_almanac_queue_description_1"),
+			localize("k_almanac_queue_description_2"),
+			localize("k_almanac_queue_description_3"),
+			localize("k_almanac_queue_description_4"),
+			localize("k_almanac_queue_description_5"),
+			localize("k_almanac_queue_description_6"),
+			localize("k_almanac_queue_description_7"),
+		},
+		coming_soon = true,
+		colour = G.C.ORANGE,
+	},
 }
 
 -- Casual: 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -147,13 +162,6 @@ local CASUAL_MODES = {
 		queue_button = "mp_pvp_queue_casual_smallworld",
 		gamemode_key = "pvp_smallworld",
 		colour = G.C.RED,
-	},
-	{
-		key = "chaos_preview",
-		name = localize("k_chaos"),
-		desc = { localize("k_chaos_queue_description_1"), localize("k_chaos_queue_description_2") },
-		coming_soon = true,
-		colour = G.C.ORANGE,
 	},
 }
 
@@ -504,11 +512,8 @@ local function build_items(modes, group)
 				bg_colour = mix_colours(mode.colour, G.C.BLACK, 0.3),
 				outline_colour = mode.colour,
 			}),
-			-- minh reserves room for 3 lines regardless of how many an individual mode's desc
-			-- actually has (every current one is 2) -- ui_embossed_box centers its content
-			-- ('cm' align) within whatever minh it's given, same as the name plate above, so
-			-- this is what makes a 2-line description sit centered with breathing room instead
-			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
+			-- Reserve room for at least 3 lines; longer descriptions grow naturally.
+			-- Center shorter descriptions rather than shrinking the box around them.
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
 			stat_box = not mode.coming_soon and build_stat_box(mode) or nil,
 			extra = mode.uses_order and build_order_card() or nil,

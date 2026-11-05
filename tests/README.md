@@ -1,5 +1,16 @@
 # Manual mutators and Custom Solo
 
+## Shared PvP rules
+
+```sh
+lua tests/test_shared_rules.lua
+luajit tests/test_shared_rules.lua
+```
+
+See [the private-match prototype](../docs/shared-pvp-rules.md) for enablement,
+the matching server/API requirement, protocol and live validation checklist.
+Offline hooks/UI contracts are not proof of a two-client game.
+
 ## Chaos Clock lab
 
 See [the runtime notes](../docs/chaos-clock-runtime.md) for controls, catalogue,
