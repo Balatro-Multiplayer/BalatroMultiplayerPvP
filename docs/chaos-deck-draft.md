@@ -1,5 +1,9 @@
 # Almanac deck draft prototype
 
+Implementation reference for the preserved collection. The accepted
+[Almanac contract](almanac/v1.md) requires shared deck offers; the independent
+offers described below remain a prototype limitation.
+
 Select **Almanac** in Custom Solo's deck selector, or **Almanac** in
 normal deck selection. This is a neutral carrier Back, not an initial acquisition.
 The public Almanac queue remains Coming Soon. Almanac names both the deck and

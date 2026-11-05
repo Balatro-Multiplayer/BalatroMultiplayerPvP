@@ -1,5 +1,9 @@
 # Almanac v1: deck building, shared rules, ante scaling
 
+Historical scope draft. Superseded as release authority by
+[Almanac v1](almanac/v1.md). The text below is retained as provenance, not a
+commitment to custom scaling or a v1.1 opportunity release.
+
 ## Agreed direction
 
 - Almanac names both the queue and its required signature deck.

@@ -16,7 +16,9 @@ Pool:
   Tooth, Arm.
 - Ante 4: add Verdant Leaf.
 - Ante 5: add Hook, Plant, Water.
-- Needle is excluded. The full rules are in `.context/docs/chaos-shared-pvp-rules.md`.
+- Needle is excluded. The historical full rules are in
+  `docs/history/chaos-collection/docs/chaos-shared-pvp-rules.md`.
+  Final launch scope is governed by `docs/almanac/v1.md`.
 
 ## Authority and ownership
 
