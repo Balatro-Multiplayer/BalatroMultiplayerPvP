@@ -1165,6 +1165,7 @@ end
 function PVP.ACTIONS.start_ante_timer()
 	if PVP.GAME.timer_started then return end
 	PVP.GAME.timer_threshold_pending = PVP.UTILS.timer_start_held_back(PVP.GAME.timer)
+	if not PVP.GAME.timer_threshold_pending and PVP.TimerSync and PVP.TimerSync.send("start", PVP.GAME.timer) then return end
 	if not PVP.GAME.timer_threshold_pending then
 		PVP.ACTIONS.announce_ante_timer(PVP.GAME.timer)
 	end
@@ -1173,6 +1174,7 @@ end
 
 function PVP.ACTIONS.pause_ante_timer()
 	PVP.GAME.timer_threshold_pending = false
+	if PVP.TimerSync and PVP.TimerSync.send("pause", PVP.GAME.timer) then return end
 	Client.send({
 		action = "pauseAnteTimer",
 		time = PVP.GAME.timer,

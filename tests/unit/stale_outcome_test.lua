@@ -76,6 +76,9 @@ local function setup(mode, count, lives)
 	function lobby:get_players()
 		return self.players
 	end
+	function lobby:is_result_pending()
+		return false
+	end
 	function lobby:get_metadata()
 		return self.metadata
 	end
@@ -175,6 +178,8 @@ local function host_match_one_to_a_result()
 end
 
 local function take_over()
+	-- These cases take over a new match, not the completed checkpoint's run.
+	lobby._game.started.run_id = "run-2"
 	lobby.is_host = true
 	PVP.GAME.lives = 1
 	PVP.referee_take_over()

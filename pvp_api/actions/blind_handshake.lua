@@ -24,7 +24,9 @@ A_host("pvp_ready_check", function(_at, _from, params)
 		return
 	end
 	local ready = PVP.GAME.ready_blind == true and not PVP.GAME.eliminated and G.STATE == G.STATES.BLIND_SELECT
-	lobby:action(MPAPI.ActionTypes["pvp_ready_ack"]):broadcast({ nonce = params.nonce, ready = ready and true or false })
+	local response = { nonce = params.nonce, ready = ready and true or false }
+	if PVP.send_referee_event and PVP.send_referee_event("pvp_ready_ack", response) then return end
+	lobby:action(MPAPI.ActionTypes["pvp_ready_ack"]):broadcast(response)
 end)
 
 A("pvp_ready_ack", function(_at, from, params)

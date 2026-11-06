@@ -135,6 +135,7 @@ MPAPI.ActionType({
 -- call this when the RUNNER redeems one: every Hunter gains +1 life as
 -- compensation for the Runner buying themselves more time to evade.
 function PVP.pvp_redeem_ante_voucher()
+	if PVP.send_referee_event and PVP.send_referee_event("pvp_redeem_ante_voucher", {}) then return end
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
 		lobby:action(MPAPI.ActionTypes["pvp_redeem_ante_voucher"]):broadcast({})

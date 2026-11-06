@@ -102,6 +102,7 @@ local function setup(mode, count, lives)
 	end
 	MPAPI = {
 		match_log = function() end,
+		has_server_referee = function() return false end,
 		get_current_lobby = function()
 			return lobby
 		end,
