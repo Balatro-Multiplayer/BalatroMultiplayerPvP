@@ -795,9 +795,10 @@ function PVP.referee_on_player_reconnected(player_id)
 		return
 	end
 	pl.is_ready = false
-	if PVP.REF.ready_tracker then
-		PVP.REF.ready_tracker:set(player_id, false)
-	end
+	PVP.REF.ready_check = nil
+	-- A crash rebuild has a new client incarnation and restarts its revisions.
+	-- A socket-only reconnect keeps the old incarnation and its intent.
+	pl.entry_reconnected = true
 	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
 	-- dropped who its opponent is: the pairing is only sent when an ante starts, so
 	-- without this it never learns it again, and every lives update about its opponent
@@ -863,9 +864,6 @@ function PVP.referee_reset(starting_lives)
 	PVP.REF.retired_rounds = {}
 	PVP.REF.first_ready_at = nil
 	PVP.REF.ready_check = nil
-	if PVP.REF.ready_tracker then
-		PVP.REF.ready_tracker:reset()
-	end
 	PVP.REF.nemesis_of = {}
 	PVP.REF.used_pairs = {}
 	PVP.REF.nemesis_ante_computed_for = 0
@@ -1054,11 +1052,8 @@ local function team_lose_life(pl, unguarded)
 end
 
 -- readyBlind: both ready -> ask them to confirm, then compute firstPlayer, reset
--- per-blind state, start blind. For N>2 (Royale) there's no meaningful
--- "first player" HUD ordering, so that concept is dropped and readiness is just
--- "every alive player has readied", via MPAPI.ReadyTracker()'s set/is_ready/reset
--- primitives (checked against alive_ids() ourselves rather than its own all_ready(),
--- which loops the full lobby roster and would stall on eliminated spectators).
+-- per-blind state, start blind. All lobby sizes use the same per-player Ready flag;
+-- the eligible roster changes when someone leaves, but the storage does not.
 --
 -- A stored Ready can be stale (one that arrives after its blind already started stays
 -- set), so the start waits on a ready check: every player is asked whether they are
@@ -1066,32 +1061,56 @@ end
 local READY_CHECK_TIMEOUT = 2
 local ready_check_count = 0
 
--- Whether the referee still holds `id` as ready (the tracker in matches of 3 or more).
--- `many` is the path the check opened on; the lobby may shrink while it runs.
-local function marked_ready(id, many)
-	if many then
-		return PVP.REF.ready_tracker ~= nil and PVP.REF.ready_tracker:is_ready(id)
-	end
+local function marked_ready(id)
+	-- Effective readiness is consumed by a round or cleared by a failed check.
+	-- The player's last reported choice remains available for retry ordering.
 	return ref_player(id).is_ready
 end
 
 local function clear_ready(id)
 	ref_player(id).is_ready = false
-	if PVP.REF.ready_tracker then
-		PVP.REF.ready_tracker:set(id, false)
+end
+
+local function choice_versions_by_id(ids)
+	local choices = {}
+	for _, id in ipairs(ids) do
+		local choice = ref_player(id).readiness_choice
+		if choice then
+			choices[id] = {
+				run_id = choice.run_id,
+				client_id = choice.client_id,
+				step = choice.step,
+				revision = choice.revision,
+			}
+		end
 	end
+	return choices
+end
+
+local function commit_round_start(ids, first_player, round_id)
+	local start = {
+		first_player = first_player,
+		starting_hands = starting_hands_by_id(ids),
+		round_id = round_id,
+		entry_id = PVP.REF.round.id,
+		entries = choice_versions_by_id(ids),
+	}
+	-- Save before broadcasting: a lost start is answered with this exact record,
+	-- not another round. It survives the existing referee checkpoint.
+	PVP.REF.round.start = start
+	broadcast("pvp_start_blind", start)
 end
 
 local function start_blind_many(alive)
-	PVP.REF.ready_tracker:reset()
 	for _, id in ipairs(alive) do
 		local pl = ref_player(id)
+		clear_ready(id)
 		pl.score = PVP.Score.ZERO
 		pl.hands_left = 4
 		pl.played_this_blind = false
 	end
 	local round_id = begin_round(alive)
-	broadcast("pvp_start_blind", { first_player = "", starting_hands = starting_hands_by_id(alive), round_id = round_id })
+	commit_round_start(alive, "", round_id)
 	-- Show fresh (0) values on the live target board immediately, not stale
 	-- ones from the round that just ended.
 	broadcast_live_targets()
@@ -1111,21 +1130,20 @@ local function start_blind_2p(from, opp)
 
 	-- firstPlayer is the id of whichever player readied first.
 	local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
-	broadcast("pvp_start_blind", {
-		first_player = first_id or "",
-		starting_hands = starting_hands_by_id({ from, opp }),
-		round_id = round_id,
-	})
+	commit_round_start({ from, opp }, first_id or "", round_id)
 end
 
 -- The answers are in: start the blind if everyone is still marked ready (an unready
 -- may have come in while they were out).
 local function finish_ready_check(check)
 	PVP.REF.ready_check = nil
+	for id, expected in pairs(check.entries) do
+		if not PVP.same_choice_version(ref_player(id).readiness_choice, expected) then return end
+	end
 	if check.many then
 		local alive = alive_ids()
 		for _, id in ipairs(alive) do
-			if not marked_ready(id, true) then
+			if not marked_ready(id) then
 				return
 			end
 		end
@@ -1138,7 +1156,7 @@ local function finish_ready_check(check)
 		present[id] = true
 	end
 	for _, id in ipairs(check.ids) do
-		if not present[id] or not marked_ready(id, false) then
+		if not present[id] or not marked_ready(id) then
 			return
 		end
 	end
@@ -1165,13 +1183,20 @@ local function settle_ready_check(check, outcome, refuser)
 end
 
 local function open_ready_check(trigger, ids)
+	local choices = choice_versions_by_id(ids)
+	local expected
+	for _, choice in pairs(choices) do
+		if expected and not PVP.same_blind(expected, choice) then return end
+		expected = choice
+	end
 	ready_check_count = ready_check_count + 1
 	local nonce = tostring(os.time()) .. "-" .. ready_check_count
 	local check = PVP.ReadyCheck.new(nonce, ids, trigger)
-	-- Which readiness record applies is fixed now: players leaving mid-check must not switch it.
+	-- Preserve the check's start shape if the lobby shrinks while answers are out.
 	check.many = #both_players() > 2
+	check.entries = choices
 	PVP.REF.ready_check = check
-	broadcast("pvp_ready_check", { nonce = nonce, players = ids })
+	broadcast("pvp_ready_check", { nonce = nonce, players = ids, entries = check.entries })
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
 		delay = READY_CHECK_TIMEOUT,
@@ -1180,9 +1205,17 @@ local function open_ready_check(trigger, ids)
 		blocking = false,
 		blockable = false,
 		func = function()
-			-- Still the open check: whoever never answered gets the benefit of the doubt.
+			-- Legacy clients may not implement checks. Current entry clients must
+			-- positively confirm: silence during a disconnect is not consent.
 			if PVP.REF.ready_check == check then
+				for id in pairs(check.entries) do
+					if check.answers[id] ~= true then
+						PVP.REF.ready_check = nil
+						return true
+					end
+				end
 				settle_ready_check(check, PVP.ReadyCheck.on_timeout(check))
+				PVP.referee_checkpoint()
 			end
 			return true
 		end,
@@ -1195,14 +1228,13 @@ function PVP.referee_on_ready_blind(from, starting_hands, round_protocol)
 	end
 	ref_player(from).starting_hands = tonumber(starting_hands)
 	ref_player(from).round_protocol = round_protocol
+	ref_player(from).is_ready = true
 
 	if #both_players() > 2 then
-		PVP.REF.ready_tracker = PVP.REF.ready_tracker or MPAPI.ReadyTracker()
-		PVP.REF.ready_tracker:set(from, true)
 		local alive = alive_ids()
 		local all_ready = true
 		for _, id in ipairs(alive) do
-			if not PVP.REF.ready_tracker:is_ready(id) then
+			if not marked_ready(id) then
 				all_ready = false
 				break
 			end
@@ -1249,6 +1281,74 @@ function PVP.referee_on_ready_ack(from, nonce, ready)
 	settle_ready_check(check, PVP.ReadyCheck.answer(check, nonce, from, ready))
 end
 
+local function valid_counter(value, minimum)
+	return type(value) == "number" and value >= minimum and value < math.huge and value == math.floor(value)
+end
+
+local function valid_readiness_choice(choice)
+	return type(choice) == "table"
+		and choice.run_id == PVP.entry_run_id()
+		and type(choice.client_id) == "string"
+		and #choice.client_id > 0
+		and #choice.client_id <= 128
+		and valid_counter(choice.step, 0)
+		and valid_counter(choice.revision, 1)
+		and type(choice.ready) == "boolean"
+end
+
+-- Repeating the same answer is allowed. An older or contradictory answer is not.
+-- A rebuilt client may restart its versions only after a reconnect was observed.
+local function can_replace_readiness_choice(player, choice)
+	local previous = player.readiness_choice
+	if not previous then return true end
+	if previous.client_id ~= choice.client_id then return player.entry_reconnected == true end
+	if choice.step ~= previous.step then return choice.step > previous.step end
+	if choice.revision ~= previous.revision then return choice.revision > previous.revision end
+	return choice.ready == previous.ready
+end
+
+local function remember_readiness_choice(player, choice)
+	local previous = player.readiness_choice
+	local rebuilt = previous and previous.client_id ~= choice.client_id
+	if not previous or rebuilt or choice.step ~= previous.step then player.first_ready = false end
+	if rebuilt then player.entry_reconnected = nil end
+	player.readiness_choice = {
+		run_id = choice.run_id,
+		client_id = choice.client_id,
+		step = choice.step,
+		revision = choice.revision,
+		ready = choice.ready,
+	}
+end
+
+-- Receive a player's latest choice. Before commitment it contributes readiness;
+-- after commitment it can only recover the round that already owns this blind.
+function PVP.referee_on_entry_sync(from, choice)
+	if not is_host() or G.STAGE ~= G.STAGES.RUN or not valid_readiness_choice(choice) then return end
+	local present = false
+	for _, id in ipairs(alive_ids()) do present = present or id == from end
+	if not present then return end
+	local player = ref_player(from)
+	if not can_replace_readiness_choice(player, choice) then return end
+
+	local round = PVP.REF.round
+	local start = round and round.start
+	if start and PVP.same_blind(start.entries[from], choice) then
+		if choice.ready then
+			MPAPI.get_current_lobby():action(MPAPI.ActionTypes.pvp_start_blind):send(from, start)
+		end
+		return
+	end
+	if round and not round.outcome then return end
+
+	remember_readiness_choice(player, choice)
+	if choice.ready then
+		PVP.referee_on_ready_blind(from, choice.starting_hands, choice.round_protocol)
+	else
+		PVP.referee_on_unready_blind(from)
+	end
+end
+
 -- A new host keeps the checkpoint's Ready flags but not the check that was open, so it
 -- asks again instead of leaving everyone on Ready.
 local function resume_ready_check()
@@ -1258,11 +1358,16 @@ local function resume_ready_check()
 		return
 	end
 	for _, id in ipairs(ids) do
-		if not marked_ready(id, many) then
+		if not marked_ready(id) then
 			return
 		end
 	end
 	open_ready_check(ids[1], ids)
+end
+
+-- A departure can make the remaining players all ready without another button press.
+function PVP.referee_resume_entry()
+	if is_host() and G.STAGE == G.STAGES.RUN then resume_ready_check() end
 end
 
 -- Pure: given the 2-player round-end state, decides whether the round is over
@@ -2011,6 +2116,7 @@ function PVP.referee_n_player_forfeit(player_id)
 	end
 	broadcast_live_targets()
 	try_resolve_round()
+	PVP.referee_resume_entry()
 	return true
 end
 
@@ -2139,7 +2245,9 @@ local function snapshot()
 			team = pl.team_id,
 			failed_blind = pl.failed_blind,
 			round_protocol = pl.round_protocol,
-			tracked_ready = flag(PVP.REF.ready_tracker and PVP.REF.ready_tracker:is_ready(id)),
+			starting_hands = pl.starting_hands,
+			entry = pl.readiness_choice, -- Keep the checkpoint schema stable.
+			entry_reconnected = flag(pl.entry_reconnected),
 		}
 	end
 	return {
@@ -2166,7 +2274,6 @@ end
 
 local function restore(snap)
 	PVP.REF.players = {}
-	PVP.REF.ready_tracker = MPAPI.ReadyTracker()
 	for id, s in pairs(snap.players or {}) do
 		PVP.REF.players[id] = {
 			id = id,
@@ -2178,16 +2285,16 @@ local function restore(snap)
 			ante = tonumber(s.ante) or 1,
 			furthest_blind = tonumber(s.furthest) or 0,
 			played_this_blind = s.played == 1,
-			is_ready = s.ready == 1,
+			is_ready = s.ready == 1 or s.tracked_ready == 1, -- Older N-player checkpoints.
 			first_ready = s.first == 1,
 			lives_blocker = s.blocker == 1,
 			team_id = s.team,
 			failed_blind = s.failed_blind,
 			round_protocol = s.round_protocol,
+			starting_hands = s.starting_hands,
+			readiness_choice = s.entry,
+			entry_reconnected = s.entry_reconnected == 1,
 		}
-		if s.tracked_ready == 1 then
-			PVP.REF.ready_tracker:set(id, true)
-		end
 	end
 	PVP.REF.ready_check = nil
 	PVP.REF.first_ready_at = nil
@@ -2238,7 +2345,6 @@ local function rebuild_from_local(lobby)
 	PVP.REF.players = {}
 	PVP.REF.round = nil
 	PVP.REF.retired_rounds = {}
-	PVP.REF.ready_tracker = MPAPI.ReadyTracker()
 	PVP.REF.eliminated = {}
 	PVP.REF.blind_results = {}
 	PVP.REF.pending_deaths = {}
@@ -2291,9 +2397,21 @@ end
 
 local last_written
 
+local function same_checkpoint(a, b)
+	if type(a) ~= type(b) then return false end
+	if type(a) ~= "table" then return a == b end
+	for key, value in pairs(a) do
+		if not same_checkpoint(value, b[key]) then return false end
+	end
+	for key in pairs(b) do
+		if a[key] == nil then return false end
+	end
+	return true
+end
+
 -- Writes the referee into the lobby metadata when it changed since the last
 -- write. Host-only.
-function PVP.referee_checkpoint()
+function PVP.referee_checkpoint(force)
 	if not is_host() then
 		return
 	end
@@ -2307,11 +2425,26 @@ function PVP.referee_checkpoint()
 		sendWarnMessage("[pvp] referee checkpoint not encodable: " .. tostring(encoded), "MULTIPLAYER")
 		return
 	end
-	if encoded == last_written then
+	-- Only the echoed server metadata confirms storage. A successful send (or
+	-- last_written) is not an acknowledgement.
+	local confirmed = (lobby:get_metadata() or {})[CHECKPOINT_KEY]
+	if same_checkpoint(confirmed, snap) then return end
+	if not force and encoded == last_written then
 		return
 	end
 	last_written = encoded
 	lobby:set_metadata({ [CHECKPOINT_KEY] = snap })
+end
+
+local checkpoint_retry = 0
+function PVP.update_referee_checkpoint(dt)
+	checkpoint_retry = checkpoint_retry - dt
+	if checkpoint_retry > 0 then return end
+	checkpoint_retry = 2
+	local lobby = MPAPI.get_current_lobby()
+	if lobby and lobby.mod_id == PVP.id and G.STAGE == G.STAGES.RUN then
+		PVP.referee_checkpoint(true)
+	end
 end
 
 -- The old host left before this client became host, so its PLAYER_LEFT was heard
@@ -2421,6 +2554,8 @@ for _, name in ipairs({
 	"referee_on_ready_blind",
 	"referee_on_unready_blind",
 	"referee_on_ready_ack",
+	"referee_on_entry_sync",
+	"referee_resume_entry",
 	"referee_on_play_hand",
 	"referee_on_skip",
 	"referee_on_set_ante",

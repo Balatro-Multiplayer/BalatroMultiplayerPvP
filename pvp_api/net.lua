@@ -79,10 +79,14 @@ local ROUTES = {
 		broadcast("pvp_stop_game", {})
 	end,
 	readyBlind = function(msg)
-		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands, round_protocol = 1 })
+		broadcast("pvp_ready_blind", {
+			starting_hands = msg.startingHands,
+			round_protocol = 1,
+			entry = PVP.set_blind_readiness(true, msg.startingHands),
+		})
 	end,
 	unreadyBlind = function(_msg)
-		broadcast("pvp_unready_blind", {})
+		broadcast("pvp_unready_blind", { entry = PVP.set_blind_readiness(false) })
 	end,
 	failRound = function(_msg)
 		broadcast("pvp_fail_round", {})
