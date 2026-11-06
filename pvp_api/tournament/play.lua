@@ -245,6 +245,11 @@ function PVP.tournament_lobby_ready(content)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		PVP.match_log("debug", "Tournament: lobby connected (host: " .. tostring(lobby.is_host) .. ", page: " .. tostring(MPAPI.pages.current_key()) .. ")")
 		PVP._pvp_kind = PVP.LobbyAccess.TOURNAMENT
+		-- The match (and its Draft) is on: the ranked match-found cue, so a
+		-- player who readied and looked away hears it.
+		if PVP._play_match_found_sound then
+			PVP._play_match_found_sound()
+		end
 		apply_round(lobby)
 		ready_up_in_lobby()
 		-- After MPAPI's own page switch has had its chance.

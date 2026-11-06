@@ -59,9 +59,38 @@ local function big_clock(until_ms)
 end
 
 -- The middle of the screen: a heading, the big clock and one big button.
+-- A big heading that pops in and floats: how the tournament ended for you.
+local function big_heading(text, colour, scale)
+	return {
+		n = G.UIT.R,
+		config = { align = "cm", padding = 0.1 },
+		nodes = {
+			{
+				n = G.UIT.O,
+				config = {
+					object = DynaText({
+						string = { text },
+						colours = { colour },
+						scale = scale or 1.1,
+						shadow = true,
+						float = true,
+						bump = true,
+						pop_in = 0,
+						pop_in_rate = 2,
+						silent = true,
+						maxw = TUI.WIDTH - 4,
+					}),
+				},
+			},
+		},
+	}
+end
+
 local function centre(view)
 	local s = TUI.status_for(summary_of(view), view)
 	local heading, sub, button, button_label
+	-- Set for an ending (knocked out, dropped out, finished): shown big.
+	local big
 	local until_ms = s.until_ms
 	if s.kind == "registered" then
 		heading, sub = "STARTS IN", "Check-in opens before the start."
@@ -85,7 +114,10 @@ local function centre(view)
 		heading = (m and (m.bestOf or 1) > 1) and string.format("GAME %d  -  READY UP", game) or "READY UP"
 		sub = "vs " .. tostring(TUI.opponent_of(m))
 		if m and (m.bestOf or 1) > 1 then
-			sub = sub .. string.format("   (best of %d, %d-%d)", m.bestOf, m.wins[1] or 0, m.wins[2] or 0)
+			-- Your wins first: in bracket order the player in the second slot
+			-- saw the score the wrong way round.
+			local mine = PVP.Tournaments.my_side(m) or 1
+			sub = sub .. string.format("   (best of %d, %d-%d)", m.bestOf, m.wins[mine] or 0, m.wins[3 - mine] or 0)
 		end
 		if s.kind == "readied" then
 			sub = sub .. "   -   waiting for them"
@@ -104,8 +136,12 @@ local function centre(view)
 		end
 	elseif s.kind == "waiting" then
 		heading, sub, until_ms = "WAITING", s.text, nil
+	elseif s.kind == "dropped" then
+		heading, sub, until_ms = "DROPPED OUT", "You left the tournament. Follow the rest in the bracket.", nil
+		big = { colour = G.C.RED }
 	elseif s.kind == "eliminated" then
 		heading, sub, until_ms = "KNOCKED OUT", "Thanks for playing. Follow the rest in the bracket.", nil
+		big = { colour = G.C.RED }
 	elseif s.kind == "paused" then
 		heading, sub, until_ms = "PAUSED", "The organiser paused the tournament. Deadlines are on hold.", nil
 	elseif s.kind == "unplayed" then
@@ -119,11 +155,18 @@ local function centre(view)
 			end
 		end
 		heading, sub, until_ms = "FINISHED", place and ("You placed #" .. place) or "The tournament is over.", nil
+		if place == 1 then
+			heading, sub, big = "CHAMPION!", "You won the tournament!", { colour = G.C.GOLD, scale = 1.4 }
+		elseif place and place <= 3 then
+			heading, sub, big = "#" .. place .. " PLACE", "Well played!", { colour = G.C.BLUE }
+		elseif place then
+			heading, big = "#" .. place .. " PLACE", { colour = G.C.UI.TEXT_LIGHT, scale = 0.9 }
+		end
 	else
 		heading, sub, until_ms = s.text:upper(), "", nil
 	end
 	local clock, colour = big_clock(until_ms)
-	local rows = { TUI.title(heading, G.C.UI.TEXT_LIGHT, 0.5) }
+	local rows = { big and big_heading(heading, big.colour, big.scale) or TUI.title(heading, G.C.UI.TEXT_LIGHT, 0.5) }
 	if clock then
 		-- Live text: the clock ticks without rebuilding the screen (and its buttons).
 		TUI.set_live(screen.clock, clock, colour)
@@ -151,7 +194,7 @@ local function screen_shape()
 	end
 	local _, _, shape = centre(view)
 	local ranked = view.rankedProfile and tostring(view.rankedProfile.ok) or ""
-	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "", tostring(screen.confirm_leave) }, "|")
+	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "", tostring(screen.confirm_leave), view.notice or "" }, "|")
 end
 
 -- Rebuilds only when something besides the clock changed.
@@ -180,7 +223,7 @@ local function build()
 			TUI.button("BRACKET", "mp_pvp_tournament_bracket", { id = summary.id }, G.C.BLUE, 1.8),
 			TUI.button("DETAILS", "mp_pvp_tournament_details", { id = summary.id }, G.C.UI.BACKGROUND_INACTIVE, 1.8),
 		}
-		local can_leave = (view.role == "entrant" or view.role == "waitlist") and (summary.status == "registration" or summary.status == "check_in" or (summary.status == "running" and s.kind ~= "eliminated"))
+		local can_leave = (view.role == "entrant" or view.role == "waitlist") and (summary.status == "registration" or summary.status == "check_in" or (summary.status == "running" and s.kind ~= "eliminated" and s.kind ~= "dropped"))
 		local running = summary.status == "running"
 		-- Leaving takes two presses: the first says what it does.
 		local confirming = can_leave and screen.confirm_leave == summary.id
@@ -195,14 +238,47 @@ local function build()
 		if confirming then
 			local why = running and "Dropping out forfeits every match you have left. You can't rejoin."
 				or "This removes you from the tournament and frees your spot. To play, you'd have to join again (if there's room)."
-			nodes[#nodes + 1] = TUI.message(why, G.C.RED)
+			-- Wrapped: one long line ran past the panel's edges.
+			for _, line in ipairs(TUI.wrap(why, 64)) do
+				nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { TUI.text(line, TUI.TEXT, G.C.RED) } }
+			end
 		end
 		nodes[#nodes + 1] = TUI.hbox(buttons, "cm", 0.06)
 		if screen.error then
 			nodes[#nodes + 1] = TUI.message(screen.error, G.C.RED)
 		end
 	end
-	return { nodes = { TUI.panel(nodes, { minw = TUI.WIDTH - 2, align = "cm" }) } }
+	local panel = TUI.panel(nodes, { minw = TUI.WIDTH - 2, align = "cm" })
+	local notice = view and type(view.notice) == "string" and view.notice ~= "" and view.notice or nil
+	if not notice then
+		return { nodes = { panel } }
+	end
+	-- The notice board: the organisers' text, above the screen (over the
+	-- background), only while there is some.
+	-- A thin gold frame round a black board nearly as wide, with room
+	-- inside so the text never touches its edges.
+	local width = TUI.WIDTH - 2
+	local lines = { { n = G.UIT.R, config = { align = "cm", padding = 0.06 }, nodes = { TUI.text("NOTICE FROM THE ORGANISERS", TUI.SMALL, G.C.GOLD) } } }
+	for _, line in ipairs(TUI.wrap(notice, 70)) do
+		lines[#lines + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.025 }, nodes = { { n = G.UIT.T, config = { text = line, scale = 0.34, colour = G.C.UI.TEXT_LIGHT } } } }
+	end
+	local board = {
+		n = G.UIT.C,
+		config = { align = "cm", padding = 0.07, r = 0.15, minw = width, colour = mix_colours(G.C.GOLD, G.C.BLACK, 0.25), emboss = 0.05 },
+		nodes = { { n = G.UIT.C, config = { align = "cm", padding = 0.2, r = 0.1, minw = width - 0.14, colour = G.C.BLACK }, nodes = lines } },
+	}
+	return {
+		nodes = {
+			{
+				n = G.UIT.C,
+				config = { align = "cm" },
+				nodes = {
+					{ n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = { board } },
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { panel } },
+				},
+			},
+		},
+	}
 end
 
 local function tick()
@@ -296,10 +372,18 @@ G.FUNCS.mp_pvp_tournament_screen_leave = function(e)
 		return
 	end
 	screen.confirm_leave = nil
+	local running = screen.view and screen.view.summary and screen.view.summary.status == "running"
 	PVP.Tournaments.leave(id, function(err)
-		if not err then
+		if not err and not running then
 			MPAPI.pages.show("pvp_find_game", { category = "tournaments" })
-		elseif screen.el then
+			return
+		end
+		-- Dropped out mid-tournament: stay, and the screen says DROPPED OUT.
+		if not err then
+			PVP.Tournaments.refresh()
+			load()
+		end
+		if screen.el then
 			screen.el:update()
 		end
 	end)

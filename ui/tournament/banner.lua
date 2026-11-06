@@ -30,8 +30,10 @@ function PVP.show_tournament_banner(content)
 		return
 	end
 	local ranked = content.kind == "ranked_profile_needed"
-	-- The ranked-profile reminder shows on the tournament's own screen too.
-	if not ranked and PVP.tournament_screen_id and PVP.tournament_screen_id() == content.tournamentId then
+	local message = content.kind == "organiser_message"
+	-- The ranked-profile reminder and organiser messages show on the
+	-- tournament's own screen too.
+	if not ranked and not message and PVP.tournament_screen_id and PVP.tournament_screen_id() == content.tournamentId then
 		return
 	end
 	remove()
@@ -45,8 +47,17 @@ function PVP.show_tournament_banner(content)
 		headline = "Switch to your ranked profile"
 		detail = "Check-in is open: launch a ranked profile through the BET launcher and keep it open"
 	end
+	-- An organiser's message: their words, over as many lines as it takes.
+	local detail_lines = { TUI.line({ TUI.text(detail, TUI.SMALL) }) }
+	if message then
+		headline = tostring(content.from or "The organiser") .. " (organiser)"
+		detail_lines = {}
+		for _, line in ipairs(TUI.wrap(content.text or "", 60)) do
+			detail_lines[#detail_lines + 1] = TUI.line({ TUI.text(line, 0.32, G.C.UI.TEXT_LIGHT) })
+		end
+	end
 	local buttons = {}
-	if in_menus() then
+	if in_menus() and not message then
 		buttons[#buttons + 1] = TUI.button("GO", "mp_pvp_tournament_banner_go", { id = content.tournamentId }, G.C.GREEN, 1.2)
 	end
 	buttons[#buttons + 1] = TUI.button("X", "mp_pvp_tournament_banner_close", nil, G.C.UI.BACKGROUND_INACTIVE, 0.6)
@@ -60,8 +71,8 @@ function PVP.show_tournament_banner(content)
 					config = { align = "cl", padding = 0.04 },
 					nodes = {
 						TUI.line({ TUI.text(tostring(content.name), 0.34, G.C.GOLD) }),
-						TUI.line({ TUI.text(headline, 0.4) }),
-						TUI.line({ TUI.text(detail, TUI.SMALL) }),
+						TUI.line({ TUI.text(headline, 0.4, message and G.C.GOLD or nil) }),
+						unpack(detail_lines),
 					},
 				},
 				TUI.spacer(0.2),
@@ -79,7 +90,8 @@ function PVP.show_tournament_banner(content)
 	play_sound("highlight2", 1.1, 0.6)
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
-		delay = SHOW_SECONDS,
+		-- A message stays long enough to read.
+		delay = message and SHOW_SECONDS * 2 or SHOW_SECONDS,
 		blockable = false,
 		blocking = false,
 		timer = "REAL",

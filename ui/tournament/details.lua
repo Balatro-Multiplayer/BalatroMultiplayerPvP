@@ -183,6 +183,68 @@ local function heading(text)
 	return { n = G.UIT.R, config = { align = "cl", padding = 0.04 }, nodes = { TUI.text(text, TUI.TEXT, G.C.GOLD) } }
 end
 
+-- A ban pool's VIEW POOL button (MORE DETAILS): label names whose pool.
+local function pool_button(label, deck)
+	return { n = G.UIT.C, config = { align = "cm", padding = 0.02 }, nodes = { TUI.button("VIEW POOL", "mp_pvp_tdetails_pool", { label = label, deck = deck }, G.C.BLUE, 1.8, 0.28) } }
+end
+
+local function is_pool(deck)
+	return type(deck) == "table" and deck.kind == "draft"
+end
+
+local function pool_grid(rows, items, per_row, width)
+	for i = 1, #items, per_row do
+		local cells = {}
+		for j = i, math.min(#items, i + per_row - 1) do
+			cells[#cells + 1] = { n = G.UIT.C, config = { align = "cl", minw = width, padding = 0.03 }, nodes = { TUI.text(items[j], TUI.SMALL) } }
+		end
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.01 }, nodes = cells }
+	end
+end
+
+local function sub_heading(text)
+	return { n = G.UIT.R, config = { align = "cl", padding = 0.04 }, nodes = { TUI.text(text, TUI.SMALL, G.C.GOLD) } }
+end
+
+-- VIEW POOL: every deck, Cocktail and stake a round bans and picks from.
+local function pool_rows(pool)
+	local deck = pool.deck
+	local rows = {}
+	rows[#rows + 1] = heading("BAN POOL  -  " .. pool.label)
+	rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.02 }, nodes = { TUI.text(deck_text(deck), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
+	local decks = {}
+	for _, key in ipairs(deck.decks or {}) do
+		decks[#decks + 1] = TUI.deck_name(key)
+	end
+	rows[#rows + 1] = sub_heading("DECKS  (" .. #decks .. ")")
+	pool_grid(rows, decks, 3, 3.9)
+	local cocktails = {}
+	for _, c in ipairs(type(deck.cocktails) == "table" and deck.cocktails or {}) do
+		local mix = {}
+		for _, k in ipairs(c.decks or {}) do
+			mix[#mix + 1] = (TUI.deck_name(k):gsub(" Deck$", ""))
+		end
+		cocktails[#cocktails + 1] = (c.name or "Cocktail") .. ": " .. table.concat(mix, " + ")
+	end
+	if #cocktails > 0 then
+		rows[#rows + 1] = sub_heading("COCKTAILS  (" .. #cocktails .. ")")
+		pool_grid(rows, cocktails, 2, 5.9)
+	end
+	local stakes = {}
+	for _, n in ipairs(deck.stakes or {}) do
+		stakes[#stakes + 1] = TUI.stake_name(n)
+	end
+	rows[#rows + 1] = sub_heading("STAKES  (" .. #stakes .. ")")
+	pool_grid(rows, stakes, 3, 3.9)
+	rows[#rows + 1] = {
+		n = G.UIT.R,
+		config = { align = "cl", padding = 0.04 },
+		nodes = { TUI.text("Each tile is a deck (or Cocktail) on a stake; the Draft deals up to 9 of them.", 0.24, G.C.UI.TEXT_INACTIVE) },
+	}
+	rows[#rows + 1] = TUI.hbox({ TUI.button("BACK", "mp_pvp_tdetails_pool_close", nil, G.C.ORANGE, 2.2, 0.3) }, "cm", 0.06)
+	return rows
+end
+
 -- MORE DETAILS: everything, grouped.
 local function more_rows(view)
 	local s = view.summary
@@ -196,8 +258,29 @@ local function more_rows(view)
 	rows[#rows + 1] = heading("HOW IT'S PLAYED")
 	rows[#rows + 1] = kv("Format", format_text(view))
 	rows[#rows + 1] = kv("Seeding", (SEEDING[view.seeding and view.seeding.kind] or "?") .. (view.seeding and view.seeding.kind == "rating" and ("  (" .. TUI.ruleset_name((view.seeding.board or ""):gsub("^ranked:", "")) .. ")") or ""))
-	rows[#rows + 1] = kv("Decks", deck_text(view.rounds and view.rounds.defaults and view.rounds.defaults.deck))
-	sub_lines(rows, "Rounds that play differently", view.rounds and view.rounds.overrides, override_text, s.format)
+	local default_deck = view.rounds and view.rounds.defaults and view.rounds.defaults.deck
+	rows[#rows + 1] = kv("Decks", deck_text(default_deck))
+	-- VIEW POOL on its own line, under the text (beside it, a long rule ran into it).
+	if is_pool(default_deck) then
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.01 }, nodes = { { n = G.UIT.C, config = { minw = 2.6 } }, pool_button("every round", default_deck) } }
+	end
+	local overrides = view.rounds and view.rounds.overrides or {}
+	sub_lines(rows, "Rounds that play differently", overrides, override_text, s.format)
+	-- Rounds with a pool of their own: a button each (up to 4 on the line).
+	local line = { { n = G.UIT.C, config = { align = "cl", minw = 2.6 }, nodes = { TUI.text("  Their pools", TUI.SMALL, G.C.UI.TEXT_INACTIVE) } } }
+	for _, key in ipairs(TUI.sorted_round_keys(overrides)) do
+		if is_pool(overrides[key].deck) and #line <= 4 then
+			local label = TUI.round_key_label(s.format, key)
+			line[#line + 1] = {
+				n = G.UIT.C,
+				config = { align = "cm", padding = 0.02 },
+				nodes = { TUI.button(label, "mp_pvp_tdetails_pool", { label = label, deck = overrides[key].deck }, G.C.BLUE, 2.4, 0.28) },
+			}
+		end
+	end
+	if #line > 1 then
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.02 }, nodes = line }
+	end
 	rows[#rows + 1] = kv("Organiser", tostring(s.organiserName))
 	return rows
 end
@@ -315,7 +398,7 @@ local function build_details()
 		left[#left + 1] = {
 			n = G.UIT.R,
 			config = { align = "cl", padding = 0.1, r = 0.1, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.45) },
-			nodes = { { n = G.UIT.C, config = { align = "cl", minw = 12.2 }, nodes = more_rows(view) } },
+			nodes = { { n = G.UIT.C, config = { align = "cl", minw = 12.2 }, nodes = details.pool and pool_rows(details.pool) or more_rows(view) } },
 		}
 	end
 	return {
@@ -342,12 +425,32 @@ end
 local function details_contents(view, more)
 	details.view = view
 	details.more = more or false
+	details.pool = nil
 	details.page = 1
 	details.el = MPAPI.ui_element(build_details)
 	return { details.el.node }
 end
 
+G.FUNCS.mp_pvp_tdetails_pool = function(e)
+	local ref = e.config.ref_table
+	if not (ref and ref.deck) then
+		return
+	end
+	details.pool = { label = ref.label, deck = ref.deck }
+	if details.el then
+		details.el:update()
+	end
+end
+
+G.FUNCS.mp_pvp_tdetails_pool_close = function()
+	details.pool = nil
+	if details.el then
+		details.el:update()
+	end
+end
+
 G.FUNCS.mp_pvp_tournament_more = function()
+	details.pool = nil
 	details.more = not details.more
 	if details.el then
 		details.el:update()

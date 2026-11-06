@@ -109,6 +109,27 @@ function TUI.name_line(summary, scale, with_ranked)
 end
 
 -- A panel background (the dark rounded box).
+-- Words over lines of about `width` characters; the organiser's own line
+-- breaks are kept.
+function TUI.wrap(text, width)
+	local lines = {}
+	for part in (tostring(text) .. "\n"):gmatch("([^\n]*)\n") do
+		local line = ""
+		for word in part:gmatch("%S+") do
+			if #line > 0 and #line + 1 + #word > width then
+				lines[#lines + 1] = line
+				line = word
+			else
+				line = #line > 0 and (line .. " " .. word) or word
+			end
+		end
+		if #line > 0 then
+			lines[#lines + 1] = line
+		end
+	end
+	return lines
+end
+
 function TUI.panel(nodes, config)
 	config = config or {}
 	return {
@@ -185,7 +206,7 @@ TUI.opponent_of = opponent_of
 
 -- What a tournament means for the player now. Returns a table:
 --   kind     what to show: "registered", "waitlist", "check_in", "checked_in",
---            "ready_up", "readied", "in_game", "waiting", "eliminated",
+--            "ready_up", "readied", "in_game", "waiting", "eliminated", "dropped",
 --            "paused", "unplayed", "finished", "cancelled", "running"
 --   text     a one-line status
 --   colour
@@ -216,6 +237,8 @@ function TUI.status_for(summary, view)
 	elseif summary.status == "running" then
 		if not view then
 			s.kind, s.text = "running", "Running"
+		elseif view.you and view.you.dropped then
+			s.kind, s.text, s.colour = "dropped", "Dropped out", G.C.UI.TEXT_INACTIVE
 		elseif view.you and view.you.eliminated then
 			s.kind, s.text, s.colour = "eliminated", "Knocked out", G.C.UI.TEXT_INACTIVE
 		elseif view.paused then
@@ -225,7 +248,7 @@ function TUI.status_for(summary, view)
 			s.match = match
 			local vs = match and opponent_of(match)
 			local clock = match and match.clock
-			local score = match and (match.bestOf or 1) > 1 and string.format("  (%d-%d)", match.wins[1] or 0, match.wins[2] or 0) or ""
+			local score = match and (match.bestOf or 1) > 1 and string.format("  (%d-%d)", match.wins[TN.my_side(match) or 1] or 0, match.wins[3 - (TN.my_side(match) or 1)] or 0) or ""
 			if not match then
 				s.kind, s.text = "waiting", "Waiting for your next match"
 			elseif match.status == "waiting" or not clock then

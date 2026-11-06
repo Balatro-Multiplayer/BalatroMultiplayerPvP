@@ -147,10 +147,13 @@ local function build_filters()
 	for _, key in ipairs(game_types()) do
 		types[#types + 1] = chip(TUI.game_type(key):upper(), browser.game_type == key, "mp_pvp_tbrowse_type", { value = key })
 	end
-	types[#types + 1] = TUI.spacer(0.3)
-	types[#types + 1] = chip("OFFICIAL", browser.official, "mp_pvp_tbrowse_toggle", { key = "official" })
-	types[#types + 1] = chip("OPEN SPOTS", browser.open_spots, "mp_pvp_tbrowse_toggle", { key = "open_spots" })
-	types[#types + 1] = chip("TODAY", browser.today, "mp_pvp_tbrowse_toggle", { key = "today" })
+	-- The on/off filters on a row of their own (beside the game types, the
+	-- gap between the two groups read as uneven spacing).
+	local toggles = {
+		chip("OFFICIAL", browser.official, "mp_pvp_tbrowse_toggle", { key = "official" }),
+		chip("OPEN SPOTS", browser.open_spots, "mp_pvp_tbrowse_toggle", { key = "open_spots" }),
+		chip("TODAY", browser.today, "mp_pvp_tbrowse_toggle", { key = "today" }),
+	}
 	local count = #shown()
 	local total = #(PVP.Tournaments.state.browse or {})
 	return {
@@ -161,6 +164,7 @@ local function build_filters()
 				nodes = {
 					chip_row(formats),
 					chip_row(types),
+					chip_row(toggles),
 					TUI.message(string.format("%d of %d tournaments", count, total)),
 				},
 			},
