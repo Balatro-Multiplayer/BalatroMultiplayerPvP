@@ -158,8 +158,18 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
+	-- A start that doesn't happen lets the autostart try again (once the
+	-- versions agree, pvp_api/lobby_bridge.lua), instead of leaving a
+	-- matchmade or tournament lobby waiting for good.
+	local function not_started()
+		if PVP.lobby then
+			PVP.lobby.start_broadcasted = false
+		end
+		PVP._start_held = true
+	end
 	local mismatches = PVP.UTILS.version_mismatches()
 	if #mismatches > 0 then
+		not_started()
 		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
 		return
 	end
@@ -181,6 +191,9 @@ function PVP.pvp_start_match()
 			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
 			options = { queue_mode = queue_mode },
 		}, function(err)
+			if err then
+				not_started()
+			end
 			if err and PVP.VersionGate.is_server_refusal(err) then
 				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
 			elseif err then

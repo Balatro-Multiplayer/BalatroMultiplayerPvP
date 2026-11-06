@@ -151,7 +151,7 @@ local function screen_shape()
 	end
 	local _, _, shape = centre(view)
 	local ranked = view.rankedProfile and tostring(view.rankedProfile.ok) or ""
-	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "" }, "|")
+	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "", tostring(screen.confirm_leave) }, "|")
 end
 
 -- Rebuilds only when something besides the clock changed.
@@ -181,8 +181,21 @@ local function build()
 			TUI.button("DETAILS", "mp_pvp_tournament_details", { id = summary.id }, G.C.UI.BACKGROUND_INACTIVE, 1.8),
 		}
 		local can_leave = (view.role == "entrant" or view.role == "waitlist") and (summary.status == "registration" or summary.status == "check_in" or (summary.status == "running" and s.kind ~= "eliminated"))
-		if can_leave then
-			buttons[#buttons + 1] = TUI.button(summary.status == "running" and "DROP OUT" or "LEAVE", "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, 1.8)
+		local running = summary.status == "running"
+		-- Leaving takes two presses: the first says what it does.
+		local confirming = can_leave and screen.confirm_leave == summary.id
+		if confirming then
+			buttons = {
+				TUI.button("STAY IN", "mp_pvp_tournament_screen_stay", nil, G.C.GREEN, 2.2),
+				TUI.button(running and "YES, DROP OUT" or "YES, LEAVE", "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, 2.8),
+			}
+		elseif can_leave then
+			buttons[#buttons + 1] = TUI.button(running and "DROP OUT" or "LEAVE TOURNAMENT", "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, running and 1.8 or 3.2)
+		end
+		if confirming then
+			local why = running and "Dropping out forfeits every match you have left. You can't rejoin."
+				or "This removes you from the tournament and frees your spot. To play, you'd have to join again (if there's room)."
+			nodes[#nodes + 1] = TUI.message(why, G.C.RED)
 		end
 		nodes[#nodes + 1] = TUI.hbox(buttons, "cm", 0.06)
 		if screen.error then
@@ -231,6 +244,7 @@ MPAPI.on_loaded(function()
 				screen.error = nil
 			end
 			screen.id = self.params and self.params.id
+			screen.confirm_leave = nil
 			screen.el = MPAPI.ui_element(build)
 			return { n = G.UIT.ROOT, config = { align = "tm", colour = G.C.CLEAR }, nodes = { { n = G.UIT.R, config = { align = "tm", padding = 0.1 }, nodes = { screen.el.node } } } }
 		end,
@@ -273,18 +287,27 @@ G.FUNCS.mp_pvp_tournament_screen_leave = function(e)
 	if not id then
 		return
 	end
-	local running = screen.view and screen.view.summary and screen.view.summary.status == "running"
-	local function go()
-		PVP.Tournaments.leave(id, function(err)
-			if not err then
-				MPAPI.pages.show("pvp_find_game", { category = "tournaments" })
-			end
-		end)
+	-- The first press asks (the screen says what leaving does).
+	if screen.confirm_leave ~= id then
+		screen.confirm_leave = id
+		if screen.el then
+			screen.el:update()
+		end
+		return
 	end
-	-- Dropping out mid-tournament forfeits every match left: ask first.
-	if running and G.FUNCS.confirm_selection then
-		G.FUNCS.confirm_selection(go)
-	else
-		go()
+	screen.confirm_leave = nil
+	PVP.Tournaments.leave(id, function(err)
+		if not err then
+			MPAPI.pages.show("pvp_find_game", { category = "tournaments" })
+		elseif screen.el then
+			screen.el:update()
+		end
+	end)
+end
+
+G.FUNCS.mp_pvp_tournament_screen_stay = function()
+	screen.confirm_leave = nil
+	if screen.el then
+		screen.el:update()
 	end
 end

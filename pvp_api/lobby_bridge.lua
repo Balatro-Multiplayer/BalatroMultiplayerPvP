@@ -299,12 +299,19 @@ PVP.setup_lobby_mirror = function(lobby)
 	if mirror_metadata(lobby) == false then return end
 	mirror_players(lobby)
 	PVP._version_mismatch_shown = false
+	PVP._start_held = false
 
 	-- Shows the version overlay once per run of mismatches; it re-arms when they clear.
 	local function check_version_mismatch()
 		local mismatches = PVP.UTILS.version_mismatches()
 		if #mismatches == 0 then
+			-- The versions agree now: a start held back by them goes ahead.
+			local was_blocked = PVP._version_mismatch_shown or PVP._start_held
 			PVP._version_mismatch_shown = false
+			PVP._start_held = false
+			if was_blocked and PVP.maybe_autostart then
+				PVP.maybe_autostart()
+			end
 		elseif not PVP._version_mismatch_shown then
 			PVP._version_mismatch_shown = true
 			PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
