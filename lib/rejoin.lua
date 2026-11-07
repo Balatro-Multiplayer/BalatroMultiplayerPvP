@@ -28,6 +28,7 @@ local function attach(lobby, _ctx)
 	-- _start_playback ran the catch-up as a practice session; left set, the resumed run stays in
 	-- practice mode and its PvP blinds never reach the referee, so the round never resolves.
 	PVP.SP.practice = false
+	PVP.SP.playback_gamemode = nil
 	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
 	-- The same wiring PVP.pvp_join_lobby does (opponent mirror, HUD, lobby events). It runs before
 	-- MPAPI plays the held messages, so the host's lives and target resend lands on a reset state.

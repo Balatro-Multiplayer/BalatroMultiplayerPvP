@@ -78,9 +78,15 @@ function PVP.get_active_gamemode()
 	if PVP.LOBBY.code then
 		return PVP.LOBBY.config.gamemode
 	elseif PVP.is_practice_mode() then
-		return PVP.current_ruleset().forced_gamemode
+		return PVP.current_ruleset().forced_gamemode or PVP.SP.playback_gamemode
 	end
 	return nil
+end
+
+-- The gamemode a live match of this match format plays. A replay playback has no lobby code and a
+-- ruleset such as Balanced forces no gamemode, so the playback needs it from the recorded format.
+function PVP.playback_gamemode_of(queue_key)
+	return (PVP.PVP_GAMEMODES[queue_key] or PVP.PVP_GAMEMODES.pvp_nemesis).gamemode
 end
 
 -- ----------------------------------------------------------------------------

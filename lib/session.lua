@@ -21,6 +21,7 @@ function PVP.end_session()
 	PVP._pvp_gamemode = nil
 	PVP.SP.practice = false
 	PVP.SP.ruleset = nil
+	PVP.SP.playback_gamemode = nil
 	PVP.reset_lobby_config()
 	PVP.reset_game_states()
 	-- Only PvP fills MPAPI.MODIFIERS (lobby_bridge's apply_default_modifiers).
