@@ -348,6 +348,7 @@ local function action_start_game(p)
 	PVP.match_log("debug", string.format("Game starting — %s", os.date("%Y-%m-%dT%H:%M:%S%z")))
 	-- Clear any stale practice state so it can't leak into real PVP
 	PVP.SP.practice = false
+	PVP.SP.playback_gamemode = nil
 
 	PVP.reset_game_states()
 	-- Snapshot who started this match: the end screen lists them even after they leave.

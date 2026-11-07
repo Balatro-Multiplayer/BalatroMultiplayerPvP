@@ -47,10 +47,12 @@ function PVP._start_playback(manifest, on_ready)
 	PVP.reset_lobby_config()
 	PVP.SP.practice = true
 	PVP.SP.ruleset = manifest.ruleset
+	PVP.SP.playback_gamemode = PVP.playback_gamemode_of(manifest.gamemode)
 
 	local lobby = MPAPI.create_local_lobby(PVP.id, { max_players = 1 })
 	if not lobby then
 		PVP.SP.practice = false
+		PVP.SP.playback_gamemode = nil
 		return
 	end
 	lobby.suppress_lobby_view = true

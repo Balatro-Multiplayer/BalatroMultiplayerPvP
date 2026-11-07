@@ -1,7 +1,7 @@
 -- Singleplayer ruleset state (parallels PVP.LOBBY.config.ruleset for multiplayer).
 -- Live rulesets / game-state / networking read PVP.SP + PVP.is_practice_mode() to know
 -- they are NOT in practice, so this state core must always exist.
-PVP.SP = { ruleset = nil, practice = false, unlimited_slots = false, edition_cycling = false }
+PVP.SP = { ruleset = nil, practice = false, playback_gamemode = nil, unlimited_slots = false, edition_cycling = false }
 
 function PVP.is_practice_mode()
 	return PVP.SP.practice == true
@@ -70,6 +70,7 @@ function PVP._start_practice(ruleset_key, loadout)
 
 	PVP.SP.practice = true
 	PVP.SP.ruleset = ruleset_key
+	PVP.SP.playback_gamemode = nil
 
 	local lobby = MPAPI.create_local_lobby(PVP.id, { max_players = 1 })
 	if not lobby then
