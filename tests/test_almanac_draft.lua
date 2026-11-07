@@ -34,9 +34,10 @@ local unlocks = {
 		"b_mp_violet",
 		"b_anaglyph",
 		"b_erratic",
+		"b_mp_orange",
 	},
 	[3] = { "b_black", "b_painted", "b_ghost", "b_checkered", "b_abandoned" },
-	[5] = { "b_mp_indigo", "b_mp_orange", "b_mp_oracle", "b_mp_gradient" },
+	[5] = { "b_mp_indigo", "b_mp_oracle", "b_mp_gradient" },
 	[7] = { "b_mp_heidelberg", "b_mp_echodeck" },
 }
 local expected_unlock = {}
