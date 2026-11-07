@@ -49,6 +49,7 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
+		shared_pvp_rules = PVP.LOBBY.config.shared_pvp_rules == true,
 	}
 end
 

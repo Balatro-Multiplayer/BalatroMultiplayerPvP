@@ -50,6 +50,22 @@ local RANKED_MODES = {
 	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
 		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+	{
+		key = "almanac_preview",
+		name = localize("k_almanac"),
+		desc = {
+			localize("k_almanac_queue_description_1"),
+			localize("k_almanac_queue_description_2"),
+			localize("k_almanac_queue_description_3"),
+			localize("k_almanac_queue_description_4"),
+			localize("k_almanac_queue_description_5"),
+			localize("k_almanac_queue_description_6"),
+			localize("k_almanac_queue_description_7"),
+		},
+		coming_soon = true,
+		colour = G.C.ORANGE,
+		chip_row = CHIP_ROW.expanded,
+	},
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -171,7 +187,7 @@ local function build_select(mode)
 				or { ruleset_key = mode.ruleset_key, gamemode_key = mode.gamemode_key }
 		end
 		return { nodes = { { n = G.UIT.R, config = config, nodes = {
-			{ n = G.UIT.T, config = { text = this_queued and "CANCEL" or "QUEUE", scale = 0.4, colour = unavailable and G.C.UI.TEXT_INACTIVE or G.C.UI.TEXT_LIGHT, shadow = not unavailable } },
+			{ n = G.UIT.T, config = { text = mode.coming_soon and localize("k_coming_soon") or (this_queued and "CANCEL" or "QUEUE"), scale = mode.coming_soon and 0.3 or 0.4, colour = unavailable and G.C.UI.TEXT_INACTIVE or G.C.UI.TEXT_LIGHT, shadow = not unavailable } },
 		} } } }
 	end)
 	_select_els[mode.key] = el
@@ -325,7 +341,7 @@ local function build_items(modes, group)
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
-			stat_box = build_stat_box(mode),
+			stat_box = not mode.coming_soon and build_stat_box(mode) or nil,
 			extra = mode.uses_order and build_order_card() or nil,
 		}
 	end

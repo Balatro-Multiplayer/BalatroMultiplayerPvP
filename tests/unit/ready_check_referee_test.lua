@@ -214,6 +214,25 @@ test("a 2-player check still starts when both stay", function()
 	equal(starts(), 1)
 end)
 
+test("shared rules wait for the ready check and keep the round envelope", function()
+	setup("pair")
+	PVP.SHARED_RULES = { enabled = function() return true end }
+	PVP.referee_on_ready_blind("a", 5, 1)
+	PVP.referee_on_ready_blind("b", 3, 1)
+	PVP.REF.players.a.ante, PVP.REF.players.b.ante = 3, 3
+	local check = last("pvp_ready_check")
+	for _, message in ipairs(sent) do assert(message.key ~= "pvp_rules_open") end
+	PVP.referee_on_ready_ack("a", check.nonce, true)
+	PVP.referee_on_ready_ack("b", check.nonce, true)
+	equal(starts(), 0)
+	local opened = last("pvp_rules_open")
+	equal(opened.ante, 3)
+	equal(opened.first_player, "a")
+	equal(opened.starting_hands.a, 5)
+	equal(opened.starting_hands.b, 3)
+	assert(type(opened.round_id) == "string")
+end)
+
 test("a refusal clears the refuser's first-ready flag", function()
 	setup("pair")
 	PVP.referee_on_ready_blind("b", 4, 1)

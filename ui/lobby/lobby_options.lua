@@ -43,6 +43,30 @@ function PVP.build_lobby_options()
 			config = { align = "cm", padding = 0.1 },
 			nodes = {
 				MPAPI.disableable_option_cycle({
+					id = "mp_pvp_shared_rules",
+					label = PVP.SHARED_RULES.supported(lobby) and "Shared PvP rules (prototype, 2 players)"
+						or "Shared PvP rules (needs updated server)",
+					options = { "Off", "On" },
+					current_option = PVP.LOBBY.config.shared_pvp_rules and 2 or 1,
+					opt_callback = "mp_pvp_change_shared_rules",
+					w = 4,
+					scale = 0.5,
+					enabled = function()
+						return lobby and lobby.is_host
+							and PVP.SHARED_RULES.supported(lobby)
+							and not lobby:is_game_started()
+					end,
+				}).node,
+			},
+		}
+	end
+
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		rows[#rows + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.1 },
+			nodes = {
+				MPAPI.disableable_option_cycle({
 					id = "mp_pvp_ruleset_pick",
 					label = "Ruleset",
 					options = ruleset_labels(),
@@ -134,6 +158,18 @@ function PVP.build_lobby_options()
 	end
 
 	return create_UIBox_generic_options({ contents = rows })
+end
+
+G.FUNCS.mp_pvp_change_shared_rules = function(e)
+	local lobby = MPAPI.get_current_lobby()
+	if lobby and lobby.is_host
+		and PVP.SHARED_RULES.supported(lobby)
+		and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE
+		and not lobby:is_game_started()
+	then
+		PVP.LOBBY.config.shared_pvp_rules = e.to_key == 2
+		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+	end
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)

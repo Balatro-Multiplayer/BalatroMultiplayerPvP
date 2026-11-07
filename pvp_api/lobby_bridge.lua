@@ -343,6 +343,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		if G.STAGE == G.STAGES.RUN and PVP.UI and PVP.UI.apply_lobby_hud then
 			pcall(PVP.UI.apply_lobby_hud)
 		end
+		if G.STAGE == G.STAGES.RUN then PVP.SHARED_RULES.sync() end
 		refresh()
 	end)
 
@@ -415,6 +416,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		-- The host may have changed while we were away.
 		PVP._pvp_action_helpers.forget_host(lobby)
 		if G.STAGE ~= G.STAGES.RUN then return end
+		PVP.SHARED_RULES.sync()
 		local opponent_id = PVP.get_opponent_id()
 		if opponent_id then
 			PVP.RECONNECT_TAIL.catch_up(opponent_id)
@@ -430,6 +432,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.REPLAY_TAIL, function(tails)
 		PVP.RECONNECT_TAIL.receive_pushed_tails(tails)
 		if G.STAGE ~= G.STAGES.RUN then return end
+		PVP.SHARED_RULES.sync()
 		local opponent_id = PVP.get_opponent_id()
 		if opponent_id then
 			PVP.RECONNECT_TAIL.catch_up(opponent_id)
