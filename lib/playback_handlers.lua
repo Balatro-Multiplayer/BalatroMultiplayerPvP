@@ -163,7 +163,7 @@ local function blind_action(ctx, act, applied)
 			return true
 		end
 		if love.timer.getTime() >= deadline then
-			MPAPI.playback.wait_gave_up('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			MPAPI.playback.record_gave_up_wait('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
 			return true
 		end
 		return false
@@ -413,12 +413,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.HAND_RESULT, function(args, 
 	if ctx.is_pov then
 		local score_str = args and args[1]
 		if score_str then
-			if not PVP.Score.equal(score_str, PVP.GAME.score) then
-				MPAPI.sendWarnMessage(
-					'playback hand_result mismatch: recorded=' .. score_str
-					.. ' real=' .. PVP.Score.or_zero(PVP.GAME.score)
-				)
-			end
+			PVP.check_hand_result_when_scored(score_str, PVP._playback_wait_for)
 		end
 	else
 		project_enemy_hand_result(args)
