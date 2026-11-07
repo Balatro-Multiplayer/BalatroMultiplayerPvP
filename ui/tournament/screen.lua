@@ -86,7 +86,12 @@ local function big_heading(text, colour, scale)
 	}
 end
 
-local function centre(view)
+-- shape_only: just what the screen would show (screen_shape asks every
+-- second), without building it. Building makes the big heading's DynaText,
+-- an object that lives until its UI is removed: made and never shown, one
+-- was left behind every second (the game slowed down, and a heading floated
+-- in a corner after leaving the screen).
+local function centre(view, shape_only)
 	local s = TUI.status_for(summary_of(view), view)
 	local heading, sub, button, button_label
 	-- Set for an ending (knocked out, dropped out, finished): shown big.
@@ -185,10 +190,17 @@ local function centre(view)
 		heading, sub, until_ms = s.text:upper(), "", nil
 	end
 	local clock, colour = big_clock(until_ms)
-	local rows = { big and big_heading(heading, big.colour, big.scale) or TUI.title(heading, G.C.UI.TEXT_LIGHT, 0.5) }
 	if clock then
 		-- Live text: the clock ticks without rebuilding the screen (and its buttons).
 		TUI.set_live(screen.clock, clock, colour)
+	end
+	local busy = PVP.Tournaments.state.busy[view.summary.id]
+	local shape = table.concat({ heading, sub or "", tostring(clock ~= nil), button and button_label or "", busy or "" }, "|")
+	if shape_only then
+		return nil, s, shape
+	end
+	local rows = { big and big_heading(heading, big.colour, big.scale) or TUI.title(heading, G.C.UI.TEXT_LIGHT, 0.5) }
+	if clock then
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { TUI.live_text(screen.clock, BIG) } }
 	end
 	if sub and sub ~= "" then
@@ -197,13 +209,11 @@ local function centre(view)
 			rows[#rows + 1] = TUI.message(line, G.C.UI.TEXT_LIGHT)
 		end
 	end
-	if PVP.Tournaments.state.busy[view.summary.id] then
-		rows[#rows + 1] = TUI.message(PVP.Tournaments.state.busy[view.summary.id] .. "...")
+	if busy then
+		rows[#rows + 1] = TUI.message(busy .. "...")
 	elseif button then
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = { button } }
 	end
-	local busy = PVP.Tournaments.state.busy[view.summary.id]
-	local shape = table.concat({ heading, sub or "", tostring(clock ~= nil), button and button_label or "", busy or "" }, "|")
 	return rows, s, shape
 end
 
@@ -214,7 +224,7 @@ local function screen_shape()
 	if not view then
 		return "none|" .. tostring(screen.error)
 	end
-	local _, _, shape = centre(view)
+	local _, _, shape = centre(view, true)
 	local ranked = view.rankedProfile and tostring(view.rankedProfile.ok) or ""
 	return table.concat({ shape, TUI.meta_line(view.summary), view.summary.name, view.role or "", view.summary.status, ranked, screen.error or "", tostring(screen.confirm_leave), view.notice or "" }, "|")
 end
