@@ -3,7 +3,7 @@ local D = PVP.ALMANAC_DRAFT
 -- Block state construction, not just clicks: the first shop of an ante must
 -- generate its stock AFTER voucher/pool acquisitions have resolved.
 function D.gate()
-	local state = G.GAME and G.GAME.chaos_draft
+	local state = G.GAME and G.GAME.almanac_draft
 	if not state then return false end
 	if state.busy then return true end
 	if state.seed_pending then
@@ -33,7 +33,7 @@ end
 local update = Game.update
 function Game:update(dt)
 	update(self, dt)
-	local state = G.GAME and G.GAME.chaos_draft
+	local state = G.GAME and G.GAME.almanac_draft
 	if not state or G.STAGE ~= G.STAGES.RUN then return end
 	if state.busy and MPAPI.playback._queues_empty() then
 		state.busy = nil
@@ -77,7 +77,7 @@ end
 -- can enqueue more events). The prior saved pending offer remains the checkpoint.
 local save = save_run
 function save_run(...)
-	local state = G.GAME and G.GAME.chaos_draft
+	local state = G.GAME and G.GAME.almanac_draft
 	if state and (state.busy or state.pack_active) then return end
 	return save(...)
 end

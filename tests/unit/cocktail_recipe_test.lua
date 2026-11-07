@@ -176,10 +176,10 @@ MPAPI.get_current_lobby = function()
 end
 PVP.on_game_start({ seed = "test" })
 check(rejected == 8, "a late start event cannot bypass recipe validation")
-G.P_CENTERS.b_mp_chaos = { key = "b_mp_chaos", set = "Back" }
-check(join({ cocktail_recipe = { decks = { "b_mp_chaos" } } }) == false,
+G.P_CENTERS.b_mp_almanac = { key = "b_mp_almanac", set = "Back" }
+check(join({ cocktail_recipe = { decks = { "b_mp_almanac" } } }) == false,
 	"explicit recipes cannot bypass the Almanac carrier blacklist")
-G.P_CENTERS.b_mp_chaos = nil
+G.P_CENTERS.b_mp_almanac = nil
 PVP.pvp_leave_lobby = real_leave
 join({ cocktail_recipe = { decks = { "b_red", "b_blue" } } })
 check(localize({ type = "name_text", set = "Back", key = "b_mp_cocktail" }) == "Cocktail Deck", "no name keeps the usual one")

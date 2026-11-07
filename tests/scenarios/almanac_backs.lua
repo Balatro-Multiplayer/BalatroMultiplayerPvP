@@ -13,7 +13,7 @@ end
 return {
 	{
 		run = function(S)
-			local back = MPAPI.back_for_key("b_mp_chaos")
+			local back = MPAPI.back_for_key("b_mp_almanac")
 			S.check(back ~= nil, "Almanac carrier is registered")
 			PVP._start_practice("ruleset_mp_vanilla", {
 				back = back.name,
@@ -30,7 +30,7 @@ return {
 		run = function(S)
 			old_reduced = G.SETTINGS.reduced_motion
 			G.SETTINGS.reduced_motion = true
-			G.GAME.chaos_draft.acquired = {
+			G.GAME.almanac_draft.acquired = {
 				"b_red",
 				"b_blue",
 				"b_yellow",

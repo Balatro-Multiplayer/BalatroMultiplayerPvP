@@ -12,7 +12,7 @@ SMODS.Back({
 	deck_blacklist = {
 		b_challenge = true,
 		b_mp_cocktail = true,
-		b_mp_chaos = true,
+		b_mp_almanac = true,
 		b_cry_antimatter = true,
 		b_akyrs_hardcore_challenges = true,
 	},
