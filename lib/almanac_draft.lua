@@ -215,7 +215,7 @@ add(
 		G.GAME.banned_keys.j_red_card = true
 	end
 )
-add("b_mp_orange", 5, { "Open a free Giga Standard Pack.", "Gain 2 Hanged Men, even if full." }, function(key)
+add("b_mp_orange", 2, { "Open a free Giga Standard Pack.", "Gain 2 Hanged Men, even if full." }, function(key)
 	configured_grants(key)
 	G.GAME.almanac_draft.pack_due = true
 end)
