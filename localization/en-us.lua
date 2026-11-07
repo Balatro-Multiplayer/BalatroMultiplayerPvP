@@ -979,6 +979,14 @@ return {
 					"{C:attention}-1{} hand size",
 				},
 			},
+			mp_sticker_balanced_c_mp_ouija_temporary = {
+				name = "Balanced",
+				text = {
+					"The {C:red}-1{} hand size only lasts",
+					"for {C:attention}3{} blinds instead of",
+					"the rest of the run",
+				},
+			},
 			mp_sticker_balanced_c_mp_wraith = {
 				name = "Balanced",
 				text = {
@@ -1173,6 +1181,14 @@ return {
 					"Destroy {C:attention}#1#{} random cards,",
 					"then convert all remaining",
 					"cards to a single random {C:attention}rank",
+				},
+			},
+			c_mp_ouija_temporary = {
+				name = "Ouija",
+				text = {
+					"Converts all cards in hand",
+					"to a single random {C:attention}rank",
+					"{C:red}-#1#{} hand size for {C:attention}#2#{} blinds",
 				},
 			},
 			c_mp_ectoplasm_sandbox = {
