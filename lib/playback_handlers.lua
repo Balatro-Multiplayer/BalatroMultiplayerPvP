@@ -234,38 +234,42 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PLAY, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	local indices = args and args[1]
-	if not indices then
-		return
-	end
-	highlight_hand_indices(indices)
-	local highlighted = G.hand and G.hand.highlighted
-	if not highlighted or #highlighted == 0 then
-		if G.hand then
-			MPAPI.sendWarnMessage('[replay] play: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this play entirely')
+	MPAPI.playback.with_hand_ready(ctx, function()
+		local indices = args and args[1]
+		if not indices then
+			return
 		end
-		return
-	end
-	G.FUNCS.play_cards_from_highlighted()
+		highlight_hand_indices(indices)
+		local highlighted = G.hand and G.hand.highlighted
+		if not highlighted or #highlighted == 0 then
+			if G.hand then
+				MPAPI.sendWarnMessage('[replay] play: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this play entirely')
+			end
+			return
+		end
+		G.FUNCS.play_cards_from_highlighted()
+	end, PVP._playback_wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.DISCARD, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	local indices = args and args[1]
-	if not indices then
-		return
-	end
-	highlight_hand_indices(indices)
-	local highlighted = G.hand and G.hand.highlighted
-	if not highlighted or #highlighted == 0 then
-		if G.hand then
-			MPAPI.sendWarnMessage('[replay] discard: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this discard entirely')
+	MPAPI.playback.with_hand_ready(ctx, function()
+		local indices = args and args[1]
+		if not indices then
+			return
 		end
-		return
-	end
-	G.FUNCS.discard_cards_from_highlighted(nil, false)
+		highlight_hand_indices(indices)
+		local highlighted = G.hand and G.hand.highlighted
+		if not highlighted or #highlighted == 0 then
+			if G.hand then
+				MPAPI.sendWarnMessage('[replay] discard: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this discard entirely')
+			end
+			return
+		end
+		G.FUNCS.discard_cards_from_highlighted(nil, false)
+	end, PVP._playback_wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
