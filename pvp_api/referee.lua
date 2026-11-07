@@ -1144,7 +1144,19 @@ local function start_blind_2p(from, opp)
 
 	-- firstPlayer is the id of whichever player readied first.
 	local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
-	commit_round_start({ from, opp }, first_id or "", round_id)
+	local rules = PVP.SHARED_RULES
+	local ante = me.ante or 1
+	if rules and rules.enabled(MPAPI.get_current_lobby()) and ante >= 3 then
+		-- The server owns this start and re-sends its resolution via pvp_rules_sync.
+		broadcast("pvp_rules_open", {
+			first_player = first_id or from,
+			starting_hands = starting_hands_by_id({ from, opp }),
+			round_id = round_id,
+			ante = ante,
+		})
+	else
+		commit_round_start({ from, opp }, first_id or "", round_id)
+	end
 end
 
 -- The answers are in: start the blind if everyone is still marked ready (an unready
