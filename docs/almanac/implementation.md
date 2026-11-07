@@ -11,8 +11,8 @@ clean release base. No release-readiness claim follows from existing unit tests.
 | Shared rules | Server offers/locks/deadline/timeout/wildcard/checkpoint; client reveal/effects/cleanup | Competitive integration, final pool/gates, live validation |
 | Capabilities | API exposes server feature versions | Version/availability handling in final mode |
 | Competitive enforcement | Not implemented for Almanac | Required deck, fixed baseline, other-queue exclusion, results/rematch |
-| Forecast | No finished forecast UI | Agree information contract, then implement |
-| Ante curve | No approved custom curve | Decide whether needed through playtests |
+| Forecast | No finished forecast UI | Implement schedule/status only |
+| Ante curve | No custom curve | Deferred; skip for now |
 
 ## Important implementation boundaries
 
