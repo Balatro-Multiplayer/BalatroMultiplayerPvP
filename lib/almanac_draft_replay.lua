@@ -1,16 +1,15 @@
 -- The player-specific seed and exact offer are recorded, since a local replay
 -- has no original network player ID. No opponent's draft mutates the POV board.
--- chaos_pick is the persisted replay opcode, not the feature's current name.
-MPAPI.playback.register_handler("pvp", "chaos_pick", function(args, ctx)
+MPAPI.playback.register_handler("pvp", "almanac_pick", function(args, ctx)
 	if not ctx.is_pov then return end
 	PVP._playback_wait_for(function()
 		return G.GAME
-			and G.GAME.chaos_draft
+			and G.GAME.almanac_draft
 			and (G.STATE == G.STATES.SHOP or G.STATE == G.STATES.BLIND_SELECT)
-			and not G.GAME.chaos_draft.busy
+			and not G.GAME.almanac_draft.busy
 	end, function()
 		local D = PVP.ALMANAC_DRAFT
-		local state = G.GAME.chaos_draft
+		local state = G.GAME.almanac_draft
 		local ante = assert(tonumber(args[2]), "Invalid Almanac draft ante")
 		if state.last_ante >= ante then return end
 		state.seed, state.seed_pending = args[1], nil
