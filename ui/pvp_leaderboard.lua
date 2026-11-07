@@ -27,7 +27,7 @@ local function get_leaderboard()
 			{ header = "L", header_colour = G.C.RED, colour = G.C.RED, width = 0.5, value = function(e) return tostring(e.losses or 0) end },
 		},
 		empty_text = "No ranked players yet.",
-		web_url = "https://new.balatromp.com/leaderboards",
+		web_url = "https://balatromp.com/leaderboards",
 		-- The tab key IS the exact ranked matchmaking ticket string ranked queueing
 		-- passes as `game_mode` (PVP._join_ranked_ruleset, pvp_api/queue.lua's
 		-- "pvp_ranked_<ruleset>" tickets, e.g. "pvp_ranked_balanced") -- no separate
