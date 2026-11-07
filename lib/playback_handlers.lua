@@ -163,7 +163,7 @@ local function blind_action(ctx, act, applied)
 			return true
 		end
 		if love.timer.getTime() >= deadline then
-			MPAPI.playback.wait_gave_up('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			MPAPI.playback.record_gave_up_wait('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
 			return true
 		end
 		return false
