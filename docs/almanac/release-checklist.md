@@ -19,8 +19,10 @@ not proof of the live product gates below. Re-run checks after further changes.
 ## Product gate
 
 - [ ] Open decisions in `v1.md` resolved and documented.
-- [ ] Same three eligible offers, independent picks, all four milestones.
+- [ ] Same three eligible deck offers, excluding acquisitions owned by either
+  player; independent picks, all four milestones.
 - [ ] Acquisition save/load is exactly-once; reconnect never regenerates offers.
+- [ ] Each player receives their own four-rule boss offer (prototype has three).
 - [ ] Both lock orderings, timeout, duplicate picks and identical reveal.
 - [ ] Every PvP from ante 3 drafts rules, including multiple encounters in one ante
   (prototype encounter identity is currently run plus ante).
@@ -28,7 +30,8 @@ not proof of the live product gates below. Re-run checks after further changes.
 - [ ] Cleanup preserves unrelated effects and permanent consequences.
 - [ ] Disconnect before pick, after pick and after resolution; host migration.
 - [ ] Actual replay and crash/rejoin during draft and encounter.
-- [ ] Required deck and fixed config enforced by competitive mode.
+- [ ] Required deck and Expanded Ranked baseline enforced by competitive mode,
+  except for Almanac's intended differences.
 - [ ] Other competitive queues reject Almanac; practice remains available.
 - [ ] Forecast and status communicate the approved information.
 - [ ] Full two-player entry → match → result → rematch.
