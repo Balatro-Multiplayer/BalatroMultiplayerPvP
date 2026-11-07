@@ -1,4 +1,4 @@
--- Player-facing rename; saved deck IDs and the unreleased queue stay unchanged.
+-- The deck, atlas and save IDs all use the Almanac name.
 local checks = 0
 local function check(value, message)
 	assert(value, message)
@@ -11,7 +11,7 @@ SMODS = {
 	Back = function(definition) back = definition end,
 }
 dofile("objects/decks/03_almanac.lua")
-check(back.key == "chaos" and back.atlas == "mp_chaos_back", "save and atlas IDs remain stable")
+check(back.key == "almanac" and back.atlas == "mp_almanac_back", "deck and atlas IDs use the Almanac name")
 check(back.loc_txt.name == "Almanac", "deck is named Almanac")
 local text = table.concat(back.loc_txt.text, " "):gsub("{[^}]*}", "")
 check(text == "At Antes 2, 3, 5 and 7, choose 1 of 3 Decks. Keep their effects.", "approved deck copy")

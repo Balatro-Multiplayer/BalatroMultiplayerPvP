@@ -52,7 +52,7 @@ G = {
 	STAGE = 1,
 	STAGES = { RUN = 1 },
 	SETTINGS = {},
-	GAME = { chaos_draft = { acquired = {} } },
+	GAME = { almanac_draft = { acquired = {} } },
 	P_CENTERS = {},
 	CARD_W = 2,
 	CARD_H = 3,
@@ -75,7 +75,7 @@ dofile("ui/almanac_backs.lua")
 local V = PVP.ALMANAC_DRAFT.visuals
 V.update(0.1)
 check(#V.sprites == 0, "zero-deck start has no cosmetic layers")
-G.GAME.chaos_draft.acquired = { "deck1", "deck2", "deck3", "deck4" }
+G.GAME.almanac_draft.acquired = { "deck1", "deck2", "deck3", "deck4" }
 V.update(0)
 check(#V.sprites == 4 and V.badge == nil, "four decks are all visible without a badge")
 check(V.arrival == 0, "new acquisition starts arrival")
@@ -115,14 +115,14 @@ check(#create_tabs(extended).tabs == 2, "no duplicate tab")
 local other = { tabs = { { label = "Settings" } } }
 check(create_tabs(other) == other, "unrelated tabs unchanged")
 for i = 5, 8 do
-	G.GAME.chaos_draft.acquired[i] = "deck" .. i
+	G.GAME.almanac_draft.acquired[i] = "deck" .. i
 end
 V.update(0)
 check(#V.sprites == 8 and V.badge == nil, "eight decks all visible without overflow")
 V.fan = 1
 local fan_x, fan_y, fan_r = V.offset(1, 8, 2, 3)
 check(math.abs(fan_x) <= 2 and math.abs(fan_y) <= 0.75 and math.abs(fan_r) <= 0.3, "eight-deck fan has bounded spread")
-G.GAME.chaos_draft.acquired[9] = "deck9"
+G.GAME.almanac_draft.acquired[9] = "deck9"
 V.update(0)
 check(#V.sprites == 8 and V.badge ~= nil, "ninth acquisition creates overflow badge")
 V.page = 1
@@ -143,7 +143,7 @@ check(CardArea.remove(G.deck) == "removed", "original area cleanup preserved")
 check(removed == previous + 9 and V.deck == nil, "cached sprites and badge released")
 V.update(0)
 check(V.arrival == 1, "restored cache does not replay acquisition animation")
-G.GAME.chaos_draft = nil
+G.GAME.almanac_draft = nil
 V.update(0)
 check(#V.sprites == 0 and not V.badge, "ordinary run clears visuals")
 check(create_tabs(args) == args, "ordinary deck viewer untouched")

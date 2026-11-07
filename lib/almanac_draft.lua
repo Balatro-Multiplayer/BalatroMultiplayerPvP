@@ -1,7 +1,5 @@
--- Saved deck acquisitions, separate from setup-only Back:apply_to_run.
--- The catalogue is deliberately explicit: an arbitrary installed Back cannot
--- safely be applied halfway through a run.
--- Keep chaos_draft save fields and RNG keys stable for existing runs/replays.
+-- Almanac draft: at milestone antes you get offered decks, and picking one
+-- adds its effect to the run you're already in.
 PVP.ALMANAC_DRAFT = { definitions = {}, milestones = { [2] = true, [3] = true, [5] = true, [7] = true } }
 local D = PVP.ALMANAC_DRAFT
 
@@ -21,7 +19,8 @@ function D.has(state, key)
 	return false
 end
 
--- Local integer RNG: independent of both gameplay polls and offer/preview count.
+-- Our own little RNG, so drafting never eats the game's seeded rolls, and
+-- previewing an offer doesn't change what you get.
 function D.random(seed)
 	local value = 1
 	for i = 1, #seed do
@@ -34,11 +33,13 @@ function D.random(seed)
 end
 
 function D.offer(state, ante, centers)
-	-- Keep saved offers stable, including those created before unlock gates.
+	-- If an offer is already waiting, show that one again. Don't reroll it, even
+	-- if it was rolled before the ante gates existed.
 	if state.pending then return state.pending end
 	if ante < 2 or ante <= state.last_ante then return end
 	if not D.milestones[ante] then
-		-- Acknowledge quiet antes so draft gates and the PvP timer can proceed.
+		-- No draft this ante, but mark it as seen so the draft gate and the
+		-- PvP timer aren't stuck waiting on it.
 		state.last_ante = ante
 		return
 	end
@@ -70,7 +71,8 @@ function D.commit(state, key, apply)
 	local allowed, reason = D.can_acquire(key)
 	if not allowed then return nil, reason end
 	state.busy = true
-	-- Mark before callbacks: nested callbacks cannot acquire the same deck again.
+	-- Record the deck before applying it, so nothing the apply sets off can
+	-- grab the same deck a second time.
 	state.acquired[#state.acquired + 1] = key
 	state.last_ante = state.pending.ante
 	state.pending = nil
@@ -93,7 +95,7 @@ local function voucher(key)
 end
 
 local function consumable(key)
-	local card = SMODS.create_card({ key = key, area = G.consumeables, key_append = "chaos_draft" })
+	local card = SMODS.create_card({ key = key, area = G.consumeables, key_append = "almanac_draft" })
 	card:add_to_deck()
 	G.consumeables:emplace(card)
 end
@@ -117,6 +119,9 @@ function D.can_acquire(key)
 	return true
 end
 
+-- Hand-code every deck's effect since we can't just
+-- call a deck's Back:apply_to_run mid-run, since
+-- that's built for run setup.
 add("b_red", 2, { "+1 discard each round." }, function()
 	resource("discards", G.P_CENTERS.b_red.config.discards)
 end)
@@ -159,7 +164,7 @@ add(
 		SMODS.destroy_cards(removed)
 	end
 )
-add("b_checkered", 3, { "Clubs become Spades.", "Diamonds become Hearts.", "Other card properties stay." }, function()
+add("b_checkered", 3, { "Clubs become Spades.", "Diamonds become Hearts." }, function()
 	for _, card in ipairs(G.playing_cards) do
 		if card.base.suit == "Clubs" then card:change_suit("Spades") end
 		if card.base.suit == "Diamonds" then card:change_suit("Hearts") end
@@ -182,7 +187,7 @@ add(
 	2,
 	{ "Randomize every card's", "rank and suit now.", "Enhancements, seals, editions stay." },
 	function()
-		local state = G.GAME.chaos_draft
+		local state = G.GAME.almanac_draft
 		local random = D.random(state.seed .. ":erratic:" .. state.last_ante)
 		local suits = { "Spades", "Hearts", "Clubs", "Diamonds" }
 		local ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace" }
@@ -212,7 +217,7 @@ add(
 )
 add("b_mp_orange", 5, { "Open a free Giga Standard Pack.", "Gain 2 Hanged Men, even if full." }, function(key)
 	configured_grants(key)
-	G.GAME.chaos_draft.pack_due = true
+	G.GAME.almanac_draft.pack_due = true
 end)
 add(
 	"b_mp_oracle",
@@ -221,7 +226,8 @@ add(
 	function(key)
 		configured_grants(key)
 		G.GAME.modifiers.oracle_max = 50
-		-- Unlike the setup hook, acquisition must handle money already above the cap.
+		-- The deck's own setup never has to deal with this, but mid-run you
+		-- might already be over the cap.
 		G.GAME.dollars = math.min(G.GAME.dollars, 50 + G.GAME.interest_cap)
 	end
 )
@@ -253,7 +259,7 @@ function D.apply(key)
 end
 
 function D.calculate(back, context)
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	if not state then return end
 	if D.has(state, "b_anaglyph") then Back(G.P_CENTERS.b_anaglyph):trigger_effect(context) end
 	if D.has(state, "b_mp_heidelberg") then G.P_CENTERS.b_mp_heidelberg:calculate(back, context) end

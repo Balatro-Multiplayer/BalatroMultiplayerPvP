@@ -122,7 +122,7 @@ local function reset()
 		used_vouchers = {},
 		interest_cap = 25,
 		pseudorandom = { seed = "GAMESEED" },
-		chaos_draft = D.new("TEST", "player1"),
+		almanac_draft = D.new("TEST", "player1"),
 	}
 	G.hand = {
 		config = { card_limit = 8 },
@@ -174,8 +174,8 @@ function ease_dollars(n)
 	G.GAME.dollars = G.GAME.dollars + n
 end
 reset()
-check(not D.offer(G.GAME.chaos_draft, 1, G.P_CENTERS), "ante 1 has no picker")
-local first = D.offer(G.GAME.chaos_draft, 2, G.P_CENTERS)
+check(not D.offer(G.GAME.almanac_draft, 1, G.P_CENTERS), "ante 1 has no picker")
+local first = D.offer(G.GAME.almanac_draft, 2, G.P_CENTERS)
 check(#first.choices == 3, "three offers at ante 2")
 check(
 	first.choices[1] ~= first.choices[2]
@@ -183,8 +183,8 @@ check(
 		and first.choices[1] ~= first.choices[3],
 	"distinct offers"
 )
-check(D.offer(G.GAME.chaos_draft, 3, G.P_CENTERS) == first, "pending offer cannot reroll")
-local restored = copy(G.GAME.chaos_draft)
+check(D.offer(G.GAME.almanac_draft, 3, G.P_CENTERS) == first, "pending offer cannot reroll")
+local restored = copy(G.GAME.almanac_draft)
 check(table.concat(D.offer(restored, 2, G.P_CENTERS).choices) == table.concat(first.choices), "pending save roundtrip")
 local again = D.offer(D.new("TEST", "player1"), 2, G.P_CENTERS)
 check(table.concat(first.choices) == table.concat(again.choices), "deterministic offer")
@@ -192,12 +192,12 @@ local other = D.offer(D.new("TEST", "player2"), 2, G.P_CENTERS)
 check(table.concat(first.choices) ~= table.concat(other.choices), "independent player stream")
 check(not D.commit(restored, "b_plasma", D.apply), "reject unoffered/unsupported choice")
 check(
-	not D.definitions.b_plasma and not D.definitions.b_mp_cocktail and not D.definitions.b_mp_chaos,
+	not D.definitions.b_plasma and not D.definitions.b_mp_cocktail and not D.definitions.b_mp_almanac,
 	"exclude plasma and meta-decks"
 )
 
 local function acquire(key, ante)
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	state.pending = { ante = ante or state.last_ante + 1, choices = { key } }
 	local ok, err = D.commit(state, key, D.apply)
 	check(ok, key .. ": " .. tostring(err))
@@ -211,10 +211,10 @@ acquire("b_red")
 check(G.GAME.round_resets.discards == 4, "Red resource delta")
 acquire("b_yellow")
 check(G.GAME.dollars == 14, "Yellow pays once")
-check(not D.offer(G.GAME.chaos_draft, G.GAME.chaos_draft.last_ante, G.P_CENTERS), "one acquisition per ante")
-local next_offer = D.offer(G.GAME.chaos_draft, 7, G.P_CENTERS)
+check(not D.offer(G.GAME.almanac_draft, G.GAME.almanac_draft.last_ante, G.P_CENTERS), "one acquisition per ante")
+local next_offer = D.offer(G.GAME.almanac_draft, 7, G.P_CENTERS)
 for _, key in ipairs(next_offer.choices) do
-	check(not D.has(G.GAME.chaos_draft, key), "owned decks excluded")
+	check(not D.has(G.GAME.almanac_draft, key), "owned decks excluded")
 end
 acquire("b_green")
 check(G.GAME.modifiers.no_interest and G.GAME.modifiers.money_per_hand == 2, "Green package")
@@ -243,7 +243,7 @@ check(G.GAME.modifiers.extra_vouchers == 1 and G.GAME.modifiers.mp_violet, "Viol
 acquire("b_mp_indigo")
 check(G.GAME.modifiers.booster_choice_mod == 1 and G.GAME.banned_keys.j_red_card, "Indigo")
 acquire("b_mp_orange")
-check(G.GAME.chaos_draft.pack_due and #G.consumeables.cards == 5, "Orange pack entitlement and grants")
+check(G.GAME.almanac_draft.pack_due and #G.consumeables.cards == 5, "Orange pack entitlement and grants")
 G.GAME.dollars = 200
 acquire("b_mp_oracle")
 check(G.GAME.modifiers.oracle_max == 50 and G.GAME.dollars == 75, "Oracle explicit existing cash clamp")
@@ -253,9 +253,9 @@ acquire("b_mp_heidelberg")
 acquire("b_mp_echodeck")
 acquire("b_anaglyph")
 check(G.GAME.starting_params.ante_scaling == 1.2, "Echo preserves existing scaling")
-check(#G.GAME.chaos_draft.acquired == 21, "all 21 supported decks, no accumulation cap")
-check(not D.offer(G.GAME.chaos_draft, 30, G.P_CENTERS), "exhaustion finishes cleanly")
-check(G.GAME.chaos_draft.last_ante == 30, "exhaustion advances checkpoint")
+check(#G.GAME.almanac_draft.acquired == 21, "all 21 supported decks, no accumulation cap")
+check(not D.offer(G.GAME.almanac_draft, 30, G.P_CENTERS), "exhaustion finishes cleanly")
+check(G.GAME.almanac_draft.last_ante == 30, "exhaustion advances checkpoint")
 local calls = {}
 Back = function()
 	return {
@@ -308,10 +308,10 @@ D.show = function()
 end
 dofile("overrides/almanac_draft.lua")
 reset()
-G.GAME.chaos_draft.seed_pending = "original-player"
+G.GAME.almanac_draft.seed_pending = "original-player"
 Game:update_blind_select(0)
 check(progressed == 1 and shown == 0, "ante 1 runs normally")
-check(G.GAME.chaos_draft.seed == "GAMESEED:original-player", "seed finalized after setup")
+check(G.GAME.almanac_draft.seed == "GAMESEED:original-player", "seed finalized after setup")
 G.GAME.round_resets.ante = 2
 quiet = false
 Game:update_shop(0)
@@ -322,7 +322,7 @@ check(progressed == 1 and shown == 1 and saved == 1, "offer before stock generat
 G.OVERLAY_MENU = nil
 Game:update_shop(0)
 check(shown == 2, "closing overlay cannot bypass draft")
-local state = G.GAME.chaos_draft
+local state = G.GAME.almanac_draft
 state.pending = { ante = 2, choices = { "b_yellow" } }
 check(D.commit(state, "b_yellow", D.apply), "gate acquisition")
 local before = saved
@@ -336,22 +336,22 @@ Game:update(0)
 check(not state.busy and saved == before + 1, "completed acquisition saved")
 Game:update_shop(0)
 check(progressed == 2, "shop resumes after acquisition")
-G.GAME.chaos_draft = nil
+G.GAME.almanac_draft = nil
 Game:update_shop(0)
 check(progressed == 3, "ordinary runs untouched")
 
 reset()
-G.GAME.chaos_draft.last_ante = 3
+G.GAME.almanac_draft.last_ante = 3
 G.GAME.round_resets.ante = 4
 G.OVERLAY_MENU = nil
 local prior_progress, prior_shown = progressed, shown
 Game:update_shop(0)
 check(progressed == prior_progress + 1 and shown == prior_shown, "quiet ante does not block shop construction")
-check(G.GAME.chaos_draft.last_ante == 4, "quiet ante releases the draft timer gate")
+check(G.GAME.almanac_draft.last_ante == 4, "quiet ante releases the draft timer gate")
 G.GAME.round_resets.ante = 5
 Game:update_shop(0)
 check(progressed == prior_progress + 1 and shown == prior_shown + 1, "next milestone blocks for its draft")
-check(G.GAME.chaos_draft.pending.ante == 5, "quiet ante does not consume the next milestone")
+check(G.GAME.almanac_draft.pending.ante == 5, "quiet ante does not consume the next milestone")
 
 -- Gift pack checkpoint spans all choices; partial packs cannot be duplicated.
 reset()
@@ -368,7 +368,7 @@ G.FUNCS = {
 		G.STATE = 99
 	end,
 }
-state = G.GAME.chaos_draft
+state = G.GAME.almanac_draft
 state.pack_due = true
 before = saved
 Game:update(0)
@@ -421,7 +421,7 @@ PVP.RLOG = {
 }
 dofile("ui/almanac_draft.lua")
 reset()
-state = G.GAME.chaos_draft
+state = G.GAME.almanac_draft
 state.pending = { ante = 2, choices = { "b_blue", "b_yellow", "b_abandoned" } }
 D.show()
 check(G.OVERLAY_MENU.no_back and G.OVERLAY_MENU.no_esc, "picker is mandatory")
@@ -444,14 +444,14 @@ check(#state.acquired == 0, "returning to a previous card only selects it")
 G.FUNCS.pvp_almanac_select({ config = { ref_table = { key = "b_blue" } } })
 check(G.GAME.round_resets.hands == 5 and state.acquired[1] == "b_blue", "real confirm callback")
 check(sounds[1] == "cardSlide1" and sounds[#sounds] == "tarot1", "selection and commit cues")
-check(#records == 1 and records[1][1] == "chaos_pick" and records[1][2][3] == "b_blue", "choice recorded")
+check(#records == 1 and records[1][1] == "almanac_pick" and records[1][2][3] == "b_blue", "choice recorded")
 G.FUNCS.pvp_almanac_select({ config = { ref_table = { key = "b_blue" } } })
 check(#records == 1 and G.GAME.round_resets.hands == 5, "double click cannot grant/record again")
 
 -- Exact recorded offers override local replay identity, never opponent state.
 local handler
 MPAPI.playback.register_handler = function(_, opcode, fn)
-	check(opcode == "chaos_pick", "replay opcode registered")
+	check(opcode == "almanac_pick", "replay opcode registered")
 	handler = fn
 end
 PVP._playback_wait_for = function(predicate, fn)
@@ -462,10 +462,10 @@ dofile("lib/almanac_draft_replay.lua")
 reset()
 G.STATE = G.STATES.BLIND_SELECT
 handler(records[1][2], { is_pov = false })
-check(#G.GAME.chaos_draft.acquired == 0, "opponent choice does not mutate POV")
+check(#G.GAME.almanac_draft.acquired == 0, "opponent choice does not mutate POV")
 handler(records[1][2], { is_pov = true })
-check(G.GAME.round_resets.hands == 5 and D.has(G.GAME.chaos_draft, "b_blue"), "recorded choice replayed")
-G.GAME.chaos_draft.busy = nil
+check(G.GAME.round_resets.hands == 5 and D.has(G.GAME.almanac_draft, "b_blue"), "recorded choice replayed")
+G.GAME.almanac_draft.busy = nil
 handler(records[1][2], { is_pov = true })
 check(G.GAME.round_resets.hands == 5, "duplicate replay does not grant twice")
 print("Almanac draft: " .. checks .. " checks passed")

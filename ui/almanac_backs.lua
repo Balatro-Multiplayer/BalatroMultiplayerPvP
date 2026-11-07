@@ -21,7 +21,7 @@ function V.clear()
 end
 
 function V.update(dt)
-	local state = G.GAME and G.GAME.chaos_draft
+	local state = G.GAME and G.GAME.almanac_draft
 	if G.STAGE ~= G.STAGES.RUN or not state or not G.deck then
 		if V.state then V.clear() end
 		return
@@ -106,7 +106,7 @@ SMODS.DrawStep({
 		if G.VIEWING_DECK or G.STAGE ~= G.STAGES.RUN or not G.deck then return end
 		-- CardArea draws deck cards from #cards down to 1; index 1 is topmost.
 		if card.area ~= G.deck or card ~= G.deck.cards[1] then return end
-		if V.state ~= G.GAME.chaos_draft or V.deck ~= G.deck then return end
+		if V.state ~= G.GAME.almanac_draft or V.deck ~= G.deck then return end
 		for i, sprite in ipairs(V.sprites) do
 			sprite.role.draw_major = card
 			local x, y, rotation = V.offset(i, #V.sprites, card.T.w, card.T.h)
@@ -140,7 +140,7 @@ local function text_row(text, scale)
 end
 
 function V.collection()
-	local acquired = G.GAME.chaos_draft.acquired
+	local acquired = G.GAME.almanac_draft.acquired
 	local pages = math.max(1, math.ceil(#acquired / 6))
 	V.page = math.max(1, math.min(V.page, pages))
 	local rows = { text_row("YOUR ALMANAC DECK - " .. #acquired .. " acquired", 0.4) }
@@ -204,7 +204,7 @@ end
 -- Extend the native viewer without replacing its Full/Remaining tabs or click.
 local tabs = create_tabs
 function create_tabs(args)
-	if G.GAME and G.GAME.chaos_draft and args and args.tabs then
+	if G.GAME and G.GAME.almanac_draft and args and args.tabs then
 		local deck_tabs, already_added = false, false
 		for _, tab in ipairs(args.tabs) do
 			if tab.tab_definition_function == G.UIDEF.view_deck then deck_tabs = true end

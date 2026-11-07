@@ -39,7 +39,7 @@ function D.preview(key)
 end
 
 function D.show()
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	if not state or not state.pending or state.busy then return end
 	local pending = state.pending
 	local title = row("YOUR ALMANAC DECK", 0.48)
@@ -123,7 +123,7 @@ function D.show()
 end
 
 G.FUNCS.pvp_almanac_select = function(e)
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	if not state or not state.pending or state.busy then return end
 	local key = e.config.ref_table.key
 	local offered = false
@@ -145,13 +145,13 @@ G.FUNCS.pvp_almanac_inspect = function()
 end
 
 G.FUNCS.pvp_almanac_confirm = function()
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	local pending = state and state.pending
 	if not pending or not pending.selected then return end
 	local key = pending.selected
 	if not D.can_acquire(key) then return end
 	if PVP.rlog_active() then
-		PVP.RLOG.record("chaos_pick", { state.seed, pending.ante, key, table.concat(pending.choices, ",") })
+		PVP.RLOG.record("almanac_pick", { state.seed, pending.ante, key, table.concat(pending.choices, ",") })
 	end
 	-- Close before callbacks: Orange opens a pack after the acquisition settles.
 	G.FUNCS.exit_overlay_menu()
@@ -159,13 +159,13 @@ G.FUNCS.pvp_almanac_confirm = function()
 end
 
 G.FUNCS.pvp_almanac_pass = function()
-	local state = G.GAME.chaos_draft
+	local state = G.GAME.almanac_draft
 	if not state or not state.pending then return end
 	for _, key in ipairs(state.pending.choices) do
 		if D.can_acquire(key) then return end
 	end
 	if PVP.rlog_active() then
-		PVP.RLOG.record("chaos_pick", {
+		PVP.RLOG.record("almanac_pick", {
 			state.seed,
 			state.pending.ante,
 			"pass",
