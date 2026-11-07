@@ -154,6 +154,19 @@ local function player_name(lobby, player_id)
 	return nil
 end
 
+-- A departed player is often already absent from the live roster. The mirror
+-- still has their last known name, so use it before falling back to their id.
+local function departed_player_name(lobby, player_id)
+	local name = player_name(lobby, player_id)
+	if name then return name end
+	for _, player in ipairs({ PVP.LOBBY.host, PVP.LOBBY.guest }) do
+		if player and player.id == player_id and player.username then
+			return player.username
+		end
+	end
+	return tostring(player_id or "Opponent")
+end
+
 -- Copy the host-authored shared metadata into PVP.LOBBY.config / PVP.LOBBY.deck so
 -- PVP's ruleset/gamemode/option reads resolve. Metadata carries the lobby config
 -- fields plus PvP keys (gamemode/ruleset/kind/deck/stake).
@@ -260,6 +273,9 @@ end
 PVP.mirror_players = mirror_players
 
 PVP.setup_lobby_mirror = function(lobby)
+	-- Kept per lobby: a later PLAYER_LEFT after a socket drop means the
+	-- disconnect grace period expired, rather than a voluntary leave.
+	local disconnected_players = {}
 	-- Who was out of the last lobby's match (the referee's lives, the lives
 	-- cache) means nothing in another lobby: a group back home from its public
 	-- match otherwise showed whoever lost there crossed out on the home
@@ -365,6 +381,14 @@ PVP.setup_lobby_mirror = function(lobby)
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)
+		local departed_name = departed_player_name(lobby, player_id)
+		local disconnected = disconnected_players[player_id]
+		if player_id ~= lobby.player_id then
+			local message = disconnected and (departed_name .. " did not reconnect.")
+				or (departed_name .. " left the lobby.")
+			PVP.UI.UTILS.overlay_message(message)
+		end
+		disconnected_players[player_id] = nil
 		if PVP.lobby and PVP.lobby.ready then
 			PVP.lobby.ready:remove(player_id)
 		end
@@ -399,11 +423,17 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- disconnected. See pvp_api/reconnect_tail.lua.
 	-- A Party lobby's Find Game pillars (ui/main_menu/find_game.lua) refuse
 	-- while a player is away, so they follow players dropping and coming back.
-	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function()
+	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function(player_id)
+		if player_id and player_id ~= lobby.player_id then
+			local departed_name = departed_player_name(lobby, player_id)
+			disconnected_players[player_id] = true
+			PVP.UI.UTILS.overlay_message(departed_name .. " disconnected.\nWaiting for reconnection...")
+		end
 		refresh()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
+		disconnected_players[player_id] = nil
 		refresh()
 		PVP.TRAP_ROW.on_player_back(player_id)
 		PVP.reconcile_round()
