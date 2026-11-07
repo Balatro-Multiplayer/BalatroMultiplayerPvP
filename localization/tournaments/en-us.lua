@@ -294,7 +294,7 @@ return {
 			k_tn_status_round_checked_in = "Checked in for #1#, starts #2#",
 			k_tn_status_round_later = "#1# starts #2#",
 			k_tn_round_check_in_heading = "Check in for #1#",
-			k_tn_sub_round_check_in = "Starts #1#. Check in or you forfeit your match.",
+			k_tn_sub_round_check_in = "Check in or you forfeit your match.",
 			k_tn_round_starts_in = "#1# starts in",
 			k_tn_sub_round_later = "Check-in opens #1# before. Check in or you forfeit your match.",
 			k_tn_banner_round_check_in = "Check-in is open",

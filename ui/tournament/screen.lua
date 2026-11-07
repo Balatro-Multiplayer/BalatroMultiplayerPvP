@@ -137,7 +137,7 @@ local function centre(view)
 	elseif s.kind == "round_check_in" then
 		local rc = s.round_check_in
 		heading = PVP.T("k_tn_round_check_in_heading", rc.name):upper()
-		sub = PVP.T("k_tn_sub_round_check_in", PVP.TournamentTime.describe(rc.startsAt))
+		sub = PVP.T("k_tn_sub_round_check_in")
 		button, button_label = TUI.button(PVP.T("k_tn_b_check_in"), "mp_pvp_tournament_check_in", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "CHECK IN"
 	elseif s.kind == "round_checked_in" then
 		heading, sub = PVP.T("k_tn_starts_in"), s.text
