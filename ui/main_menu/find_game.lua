@@ -335,6 +335,7 @@ end
 local TABS = {
 	{ key = "ranked", label = "RANKED", colour = G.C.RED },
 	{ key = "casual", label = "CASUAL", colour = G.C.BLUE },
+	{ key = "tournaments", label = "TOURNAMENTS", colour = G.C.PURPLE },
 }
 
 local function build_tab_row(category)
@@ -392,6 +393,10 @@ end
 -- api/ui_pillar_row.lua's header comment for why that's required.
 function PVP.build_find_game_ui(category, group)
 	category = group and "casual" or category or "ranked"
+	-- The tournaments tab is its own page body (ui/main_menu/tournaments.lua).
+	if category == "tournaments" then
+		return PVP.build_tournaments_ui(build_tab_row(category))
+	end
 	local modes = category == "casual" and CASUAL_MODES or RANKED_MODES
 
 	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(modes, group) })

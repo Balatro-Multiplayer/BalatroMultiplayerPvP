@@ -466,6 +466,13 @@ MPAPI.on_loaded(function()
 			return self._pillar_row.definition
 		end,
 		on_enter = function(self)
+			-- The tournaments tab is taller than the pillar rows: placed like the
+			-- other tournament pages (ui/tournament/common.lua).
+			if self.params and self.params.category == "tournaments" then
+				PVP.TUI.page_enter()
+				PVP.start_tournaments_tab()
+				return
+			end
 			if G.MAIN_MENU_UI then
 				G.MAIN_MENU_UI.alignment.offset.y = 1.5
 				G.MAIN_MENU_UI:align_to_major()
@@ -487,6 +494,7 @@ MPAPI.on_loaded(function()
 				self._pillar_row:dispose()
 			end
 			PVP.stop_find_game_polling()
+			PVP.stop_tournaments_tab()
 		end,
 	})
 
