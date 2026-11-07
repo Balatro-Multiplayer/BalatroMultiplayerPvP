@@ -301,6 +301,9 @@ function Game:update(dt)
 
 	-- Bail fast: not an PVP PvP-timer context
 	if G.STATE == G.STATES.GAME_OVER then return end
+	if PVP.SHARED_RULES.offer then return end
+	local draft = G.GAME and G.GAME.chaos_draft
+	if draft and (draft.pending or draft.busy or G.GAME.round_resets.ante > draft.last_ante) then return end
 	if not PVP.LOBBY.code then return end
 	if not PVP.LOBBY.config.timer then return end
 	if PVP.GAME.timer_consumed then return end

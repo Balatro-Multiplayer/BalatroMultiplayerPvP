@@ -18,6 +18,8 @@ local stub = setmetatable({}, {
 	end,
 })
 SMODS = stub
+local cocktail_definition
+SMODS.Back = function(definition) cocktail_definition = definition end
 Back, Card, CardArea, Controller = {}, {}, {}, {}
 generate_card_ui = noop
 Event = noop
@@ -73,7 +75,7 @@ dofile("objects/decks/ZZ_cocktail.lua")
 dofile("pvp_api/lobby_bridge.lua")
 PVP.force_lobby_options = noop
 PVP.SETUP = { apply_results = noop }
-G.P_CENTERS.b_mp_cocktail = { set = "Back", order = 99, deck_blacklist = { b_mp_cocktail = true }, mod_whitelist = {} }
+G.P_CENTERS.b_mp_cocktail = { set = "Back", order = 99, deck_blacklist = cocktail_definition.deck_blacklist, mod_whitelist = {} }
 
 local failures = 0
 local function check(cond, msg)
@@ -174,6 +176,10 @@ MPAPI.get_current_lobby = function()
 end
 PVP.on_game_start({ seed = "test" })
 check(rejected == 8, "a late start event cannot bypass recipe validation")
+G.P_CENTERS.b_mp_chaos = { key = "b_mp_chaos", set = "Back" }
+check(join({ cocktail_recipe = { decks = { "b_mp_chaos" } } }) == false,
+	"explicit recipes cannot bypass the Almanac carrier blacklist")
+G.P_CENTERS.b_mp_chaos = nil
 PVP.pvp_leave_lobby = real_leave
 join({ cocktail_recipe = { decks = { "b_red", "b_blue" } } })
 check(localize({ type = "name_text", set = "Back", key = "b_mp_cocktail" }) == "Cocktail Deck", "no name keeps the usual one")

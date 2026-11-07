@@ -37,7 +37,40 @@ A_host("pvp_start_blind", function(_at, _from, params)
 	if not lobby or PVP.GAME.eliminated then
 		return
 	end
+	if params.shared_rules then
+		local R = PVP.SHARED_RULES
+		local result = params.shared_rules
+		if type(result) ~= "table" or type(result.ante) ~= "number" then return end
+		local previous = G.GAME.pvp_shared_rules
+		if R.starting_id == result.id then return end
+		if previous and previous.id == result.id and (previous.active or previous.finished) then return end
+		if G.GAME.round_resets.ante > result.ante then return end
+		-- Rejoin may still be replaying a shop/hand. Keep the complete target
+		-- start envelope, including its round ID and starting-hand counts.
+		if not R.can_start(result) then
+			R.pending_start = { from = _from, params = copy_table(params) }
+			R.offer = nil
+			return
+		end
+		if not R.prepare(result) then return end
+	end
 	if PVP.begin_round_sync(params.round_id, _from) == false then return end
+	if params.shared_rules then
+		local R = PVP.SHARED_RULES
+		R.starting_id = params.shared_rules.id
+		PVP.GAME.next_blind_context = PVP.GAME.next_blind_context or { UIBox = G.blind_select }
+		R.offer = nil
+		if G.OVERLAY_MENU then G.FUNCS.exit_overlay_menu() end
+		R.show_result(params.shared_rules)
+		if PVP.RLOG then
+			PVP.RLOG.record("shared_rules", {
+				params.shared_rules.id,
+				params.shared_rules.ante,
+				params.shared_rules.rules[1],
+				params.shared_rules.rules[2],
+			})
+		end
+	end
 	-- action_start_blind compares firstPlayer to (is_host and "host" or "guest");
 	-- translate the authoritative first-player id into this client's frame.
 	local me = lobby.is_host and "host" or "guest"
