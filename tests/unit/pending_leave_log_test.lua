@@ -1,5 +1,5 @@
--- Plain LuaJIT test: Leave from the Pending death screen writes the end event
--- before the lobby is left; Leave from any other end screen does not.
+-- Plain LuaJIT test: Leave from the end screen, Pending or not, leaves the lobby and
+-- writes no end event itself: MPAPI's lobby:leave() ends the log.
 -- Run from the repo root: luajit tests/unit/pending_leave_log_test.lua
 local noop = function() end
 local calls = {}
@@ -37,11 +37,9 @@ end
 
 PVP.GAME.pending_death_screen = true
 G.FUNCS.mp_pvp_leave_from_game()
-check("pending leave: end event first, then lobby leave", table.concat(calls, ","), "end_run,lobby_leave,go_to_menu")
-check("pending leave: result is pending", ended and ended.result, "pending")
-check("pending leave: last life is lost", ended and ended.lives, 0)
+check("pending leave: the lobby leave ends the log, not this button", table.concat(calls, ","), "lobby_leave,go_to_menu")
 
-calls, ended = {}, nil
+calls = {}
 PVP.GAME.pending_death_screen = false
 G.FUNCS.mp_pvp_leave_from_game()
 check("normal end screen leave writes no end event", table.concat(calls, ","), "lobby_leave,go_to_menu")
