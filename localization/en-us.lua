@@ -110,6 +110,15 @@ return {
 					"{s:0.8}Card changes every round",
 				},
 			},
+			j_mp_reserved_parking = {
+				name = "Reserved Parking",
+				text = {
+					"Each {C:attention}face{} card",
+					"held in hand has",
+					"a {C:green}#2# in #3#{} chance",
+					"to give {C:money}$#1#{}",
+				},
+			},
 			j_mp_ticket = {
 				name = "Golden Ticket",
 				text = {
@@ -919,6 +928,14 @@ return {
 					"instead of first card twice",
 				},
 			},
+			mp_sticker_balanced_j_mp_reserved_parking = {
+				name = "Balanced",
+				text = {
+					"{C:attention}Mime{} and {C:attention}Red Seal{}",
+					"retrigger after a miss",
+					"instead of skipping",
+				},
+			},
 			mp_sticker_balanced_j_mp_ticket = {
 				name = "Balanced",
 				text = {
@@ -1559,7 +1576,7 @@ return {
 			k_wsob = "WSOB",
 			k_wsob_description = "World Series of Balatro ruleset.\n\nNear-vanilla card pool with minimal balance changes:\n- Hanging Chad, Bloodstone, and Glass reworked\n- Justice banned\n- No Multiplayer-original content\n\n(See bans and reworks tabs for details)",
 			k_mp_ruleset_balanced = "Balanced",
-			k_mp_ruleset_balanced_description = "Near-vanilla Balatro with a few balance changes.\n\nReworks Hanging Chad, Bloodstone and Glass.\nJustice is banned.\nNo Multiplayer-original cards.\n\n(See bans and reworks tabs for details)",
+			k_mp_ruleset_balanced_description = "Near-vanilla Balatro with a few balance changes.\n\nReworks Hanging Chad, Bloodstone, Reserved Parking and Glass.\nJustice is banned.\nNo Multiplayer-original cards.\n\n(See bans and reworks tabs for details)",
 			k_legacy_ranked = "Legacy Ranked",
 			k_legacy_ranked_description = "A minimal competitive ruleset.\n\nNo Multiplayer cards or balance changes\nexcept Glass. Has locked settings:\n- Attrition gamemode\n- The Order enabled\n- Requires recommended Steamodded version",
 			k_experimental_balanced = "Experimental (Balanced)",
