@@ -61,7 +61,7 @@ function TUI.official_badge()
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.05, r = 0.08, colour = G.C.GOLD },
-		nodes = { TUI.text("OFFICIAL", 0.26, G.C.BLACK) },
+		nodes = { TUI.text(PVP.T("k_tn_official_badge"), 0.26, G.C.BLACK) },
 	}
 end
 
@@ -70,11 +70,10 @@ function TUI.ranked_badge()
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.05, r = 0.08, colour = G.C.BLUE },
-		nodes = { TUI.text("RANKED PROFILE", 0.26, G.C.UI.TEXT_LIGHT) },
+		nodes = { TUI.text(PVP.T("k_tn_ranked_badge"), 0.26, G.C.UI.TEXT_LIGHT) },
 	}
 end
 
-TUI.RANKED_HOWTO = "Ranked profile required: launch a ranked profile through the BET launcher and keep the launcher open."
 
 -- What a ranked-profile tournament means for this player, as a line (nil
 -- for other tournaments): green when they're on their ranked profile, red
@@ -84,9 +83,9 @@ function TUI.ranked_lines(summary, profile, align)
 	if not summary or not summary.requireRanked then
 		return nil
 	end
-	local text, colour = TUI.RANKED_HOWTO, G.C.GOLD
+	local text, colour = PVP.T("k_tn_ranked_howto"), G.C.GOLD
 	if profile and profile.ok then
-		text, colour = "Ranked profile required: you're on yours.", G.C.GREEN
+		text, colour = PVP.T("k_tn_ranked_ok"), G.C.GREEN
 	elseif profile then
 		colour = G.C.RED
 	end
@@ -165,8 +164,16 @@ function TUI.row(left_nodes, buttons, width, official)
 	}
 end
 
+-- "Double Elim": k_tn_format_<format>, else the format as stored.
 function TUI.format_name(format)
-	return PVP.Tournaments.FORMAT_NAMES[format] or tostring(format)
+	local key = "k_tn_format_" .. tostring(format)
+	local text = PVP.T(key)
+	return text ~= key and text or tostring(format)
+end
+
+-- "1 deck" / "3 decks": key .. "_1" for one, key .. "_n" for any other count.
+function TUI.count(n, key)
+	return PVP.T(key .. (n == 1 and "_1" or "_n"), n)
 end
 
 function TUI.game_type(key)
@@ -222,72 +229,145 @@ function TUI.status_for(summary, view)
 	if summary.status == "registration" then
 		s.kind = summary.role == "waitlist" and "waitlist" or "registered"
 		s.until_ms = summary.startsAt
-		s.text = (summary.role == "waitlist" and "On the waitlist  -  starts " or "Starts ") .. TT.describe(summary.startsAt)
+		s.text = PVP.T(summary.role == "waitlist" and "k_tn_status_waitlist" or "k_tn_status_starts", TT.describe(summary.startsAt))
 	elseif summary.status == "check_in" then
 		local me = view and TN.me_in(view)
 		s.until_ms = summary.startsAt
 		if me and me.checkedIn then
 			s.kind, s.colour = "checked_in", G.C.GREEN
-			s.text = "Checked in  -  starts " .. TT.describe(summary.startsAt)
+			s.text = PVP.T("k_tn_status_checked_in", TT.describe(summary.startsAt))
 		else
 			s.kind, s.colour = "check_in", G.C.GOLD
-			s.text = "Check in now  -  closes " .. TT.describe(summary.startsAt)
-			s.action = { label = "CHECK IN", button = "mp_pvp_tournament_check_in", colour = G.C.GREEN }
+			s.text = PVP.T("k_tn_status_check_in", TT.describe(summary.startsAt))
+			s.action = { label = PVP.T("k_tn_b_check_in"), button = "mp_pvp_tournament_check_in", colour = G.C.GREEN }
 		end
 	elseif summary.status == "running" then
 		if not view then
-			s.kind, s.text = "running", "Running"
+			s.kind, s.text = "running", PVP.T("k_tn_status_running")
 		elseif view.you and view.you.dropped then
-			s.kind, s.text, s.colour = "dropped", "Dropped out", G.C.UI.TEXT_INACTIVE
+			s.kind, s.text, s.colour = "dropped", PVP.T("k_tn_status_dropped"), G.C.UI.TEXT_INACTIVE
 		elseif view.you and view.you.eliminated then
-			s.kind, s.text, s.colour = "eliminated", "Knocked out", G.C.UI.TEXT_INACTIVE
+			s.kind, s.text, s.colour = "eliminated", PVP.T("k_tn_status_knocked_out"), G.C.UI.TEXT_INACTIVE
 		elseif view.paused then
-			s.kind, s.text, s.colour = "paused", "Paused by the organiser", G.C.UI.TEXT_INACTIVE
+			s.kind, s.text, s.colour = "paused", PVP.T("k_tn_status_paused"), G.C.UI.TEXT_INACTIVE
+		elseif TUI.round_check_in(view) then
+			-- A round at a set time with its own check-in comes next.
+			local rc = TUI.round_check_in(view)
+			s.round_check_in = rc
+			if rc.open and not rc.checkedIn then
+				s.kind, s.colour, s.until_ms = "round_check_in", G.C.GOLD, rc.startsAt
+				s.text = PVP.T("k_tn_status_round_check_in", rc.name)
+				s.action = { label = PVP.T("k_tn_b_check_in"), button = "mp_pvp_tournament_check_in", colour = G.C.GREEN }
+			elseif rc.open then
+				s.kind, s.colour, s.until_ms = "round_checked_in", G.C.GREEN, rc.startsAt
+				s.text = PVP.T("k_tn_status_round_checked_in", rc.name, PVP.TournamentTime.describe(rc.startsAt))
+			else
+				s.kind, s.until_ms = "round_later", rc.startsAt
+				s.text = PVP.T("k_tn_status_round_later", rc.name, PVP.TournamentTime.describe(rc.startsAt))
+			end
 		else
 			local match = TN.my_match(view)
 			s.match = match
 			local vs = match and opponent_of(match)
 			local clock = match and match.clock
-			local score = match and (match.bestOf or 1) > 1 and string.format("  (%d-%d)", match.wins[TN.my_side(match) or 1] or 0, match.wins[3 - (TN.my_side(match) or 1)] or 0) or ""
+			local score = match and (match.bestOf or 1) > 1 and PVP.T("k_tn_status_score", match.wins[TN.my_side(match) or 1] or 0, match.wins[3 - (TN.my_side(match) or 1)] or 0) or ""
 			if not match then
-				s.kind, s.text = "waiting", "Waiting for your next match"
+				s.kind, s.text = "waiting", PVP.T("k_tn_status_wait_next")
 			elseif match.status == "waiting" or not clock then
-				s.kind, s.text = "waiting", vs and ("Next: vs " .. vs) or "Waiting for your opponent"
+				s.kind, s.text = "waiting", vs and PVP.T("k_tn_status_next_vs", vs) or PVP.T("k_tn_status_wait_opponent")
 			elseif clock.phase == "ready_up" then
 				s.until_ms = clock.deadline
 				local side = TN.my_side(match)
 				local left = clock.deadline and TT.countdown(clock.deadline) or nil
-				local due = left and ("  -  " .. left .. " left") or ""
+				local due = left and PVP.T("k_tn_status_left", left) or ""
 				if side and clock.ready and clock.ready[side] then
 					s.kind, s.colour = "readied", G.C.GREEN
-					s.text = "Ready  -  waiting for " .. tostring(vs) .. score .. due
-					s.action = { label = "UNREADY", button = "mp_pvp_tournament_unready", colour = G.C.ORANGE }
+					s.text = PVP.T("k_tn_status_readied", tostring(vs)) .. score .. due
+					s.action = { label = PVP.T("k_tn_b_unready"), button = "mp_pvp_tournament_unready", colour = G.C.ORANGE }
 				else
 					s.kind, s.colour = "ready_up", G.C.GOLD
-					s.text = "Ready up vs " .. tostring(vs) .. score .. due
-					s.action = { label = "READY", button = "mp_pvp_tournament_ready", colour = G.C.GREEN }
+					s.text = PVP.T("k_tn_status_ready_up", tostring(vs)) .. score .. due
+					s.action = { label = PVP.T("k_tn_b_ready"), button = "mp_pvp_tournament_ready", colour = G.C.GREEN }
 				end
 			elseif clock.phase == "in_game" then
 				s.kind, s.colour = "in_game", G.C.GREEN
-				s.text = "Playing vs " .. tostring(vs) .. score
+				s.text = PVP.T("k_tn_status_playing", tostring(vs)) .. score
 			elseif clock.phase == "unplayed" then
 				s.kind, s.colour = "unplayed", G.C.RED
-				s.text = "Not played in time  -  the organiser decides"
+				s.text = PVP.T("k_tn_status_unplayed")
 			else
-				s.kind, s.text = "waiting", "vs " .. tostring(vs)
+				s.kind, s.text = "waiting", PVP.T("k_tn_vs", tostring(vs))
 			end
 		end
 	elseif summary.status == "finished" then
 		s.kind, s.colour = "finished", G.C.UI.TEXT_INACTIVE
-		s.text = "Finished"
+		s.text = PVP.T("k_tn_status_finished")
 	else
 		s.kind, s.colour = "cancelled", G.C.UI.TEXT_INACTIVE
-		s.text = "Cancelled"
+		s.text = PVP.T("k_tn_status_cancelled")
 	end
 	if busy then
 		s.text, s.colour, s.action = busy .. "...", G.C.UI.TEXT_INACTIVE, nil
 	end
 	return s
+end
+
+-- Why a cancelled tournament ended, from its event log: { who, line }.
+-- who is a short phrase for a small card ("By a moderator"); line is the
+-- full sentence for the tournament screen, with the moderator's reason.
+-- nil when it isn't cancelled or the event has scrolled out of the log.
+local CANCEL_WHO = {
+	moderator = "k_tn_cancelled_by_moderator",
+	organiser = "k_tn_cancelled_by_organiser",
+	not_enough_players = "k_tn_cancelled_not_enough",
+	start_failed = "k_tn_cancelled_start_failed",
+}
+
+function TUI.cancel_reason(view)
+	if not (view and view.summary and view.summary.status == "cancelled") then
+		return nil
+	end
+	local events = view.events or {}
+	for i = #events, 1, -1 do
+		local e = events[i]
+		if type(e) == "table" and e.kind == "cancelled" then
+			local key = CANCEL_WHO[e.reason]
+			if not key then
+				return nil
+			end
+			local who = PVP.T(key)
+			local message = e.reason == "moderator" and type(e.message) == "string" and e.message ~= "" and e.message or nil
+			return { who = who, line = message and PVP.T("k_tn_cancelled_reason", who, message) or (who .. ".") }
+		end
+	end
+	return nil
+end
+
+-- The next round with its own check-in (view.you.roundCheckIn, from the
+-- server), when it is what the player should look at: not while they have a
+-- match to ready up for or play, and before its check-in opens only if their
+-- next match is in it (or they have none yet). Adds .name ("the final").
+function TUI.round_check_in(view)
+	local rc = view and view.you and view.you.roundCheckIn
+	if type(rc) ~= "table" or not rc.startsAt then
+		return nil
+	end
+	local TN = PVP.Tournaments
+	local match = TN.my_match(view)
+	local phase = match and match.clock and match.clock.phase
+	if phase == "ready_up" or phase == "in_game" or phase == "unplayed" then
+		return nil
+	end
+	local layout = PVP.BracketLayout
+	if not rc.open and match and layout and layout.step_of(view, match.stage, match.round) < (rc.firstRound or 0) then
+		return nil
+	end
+	local out = {}
+	for k, v in pairs(rc) do
+		out[k] = v
+	end
+	out.name = layout and layout.step_name(view, rc.firstRound or 1) or PVP.T("k_tn_round", rc.firstRound or 1)
+	return out
 end
 
 -- Where the tournament pages sit. The page box is anchored to the bottom of
@@ -349,7 +429,7 @@ end
 function TUI.stake_name(index)
 	local center = G.P_CENTER_POOLS and G.P_CENTER_POOLS.Stake and G.P_CENTER_POOLS.Stake[index]
 	if not center then
-		return "stake " .. tostring(index)
+		return PVP.T("k_tn_stake_n", tostring(index))
 	end
 	local ok, name = pcall(localize, { type = "name_text", set = "Stake", key = center.key })
 	return ok and type(name) == "string" and name ~= "ERROR" and name or center.key
@@ -359,7 +439,7 @@ end
 -- on Gold Stake", "ban and pick: 12 decks + 1 Cocktail, 3 stakes".
 function TUI.deck_rule(deck)
 	if type(deck) ~= "table" then
-		return "random draft: ban and pick from 9 random decks and stakes"
+		return PVP.T("k_tn_rule_random")
 	end
 	if deck.kind == "locked" then
 		local name = TUI.deck_name(deck.deck)
@@ -368,41 +448,50 @@ function TUI.deck_rule(deck)
 			for _, k in ipairs(deck.cocktail.decks) do
 				mix[#mix + 1] = (TUI.deck_name(k):gsub(" Deck$", ""))
 			end
-			name = (deck.cocktail.name or name) .. " (" .. table.concat(mix, " + ") .. ")"
+			name = PVP.T("k_tn_cocktail_mix", deck.cocktail.name or name, table.concat(mix, " + "))
 		end
-		return name .. " on " .. TUI.stake_name(deck.stake)
+		return PVP.T("k_tn_deck_on_stake", name, TUI.stake_name(deck.stake))
 	end
 	local cocktails = type(deck.cocktails) == "table" and #deck.cocktails or 0
 	local stakes = #(deck.stakes or {})
-	return string.format("ban and pick: %d decks%s, %d stake%s", #(deck.decks or {}), cocktails > 0 and (" + " .. cocktails .. " Cocktail" .. (cocktails > 1 and "s" or "")) or "", stakes, stakes == 1 and "" or "s")
+	return PVP.T("k_tn_rule_pool", TUI.pool_size(#(deck.decks or {}), cocktails, stakes))
+end
+
+-- "5 decks + 1 Cocktail, 2 stakes"
+function TUI.pool_size(decks, cocktails, stakes)
+	local text = TUI.count(decks, "k_tn_n_decks")
+	if cocktails > 0 then
+		text = PVP.T("k_tn_plus", text, TUI.count(cocktails, "k_tn_n_cocktails"))
+	end
+	return PVP.T("k_tn_list2", text, TUI.count(stakes, "k_tn_n_stakes"))
 end
 
 -- "45 min", "2 hours", "3 days"
 function TUI.duration(minutes)
 	minutes = tonumber(minutes) or 0
 	if minutes >= 24 * 60 and minutes % (24 * 60) == 0 then
-		local d = minutes / (24 * 60)
-		return d .. (d == 1 and " day" or " days")
+		return TUI.count(math.floor(minutes / (24 * 60)), "k_tn_n_days")
 	elseif minutes >= 60 and minutes % 60 == 0 then
-		local h = minutes / 60
-		return h .. (h == 1 and " hour" or " hours")
+		return TUI.count(math.floor(minutes / 60), "k_tn_n_hours")
 	end
-	return minutes .. " min"
+	return PVP.T("k_tn_n_min", minutes)
 end
 
+-- Named round keys -> text keys (FINAL is the grand final in double elimination).
 local ROUND_NAMES = {
-	single_elim = { FINAL = "Final", SEMI = "Semifinals", QUARTER = "Quarterfinals" },
-	double_elim = { FINAL = "Grand final", WINNERS_FINAL = "Winners final", LOSERS_FINAL = "Losers final" },
+	single_elim = { FINAL = "k_tn_key_final", SEMI = "k_tn_semifinals", QUARTER = "k_tn_quarterfinals" },
+	double_elim = { FINAL = "k_tn_key_grand_final", WINNERS_FINAL = "k_tn_key_winners_final", LOSERS_FINAL = "k_tn_key_losers_final" },
 }
 
 -- A round key the server uses: "R3" -> "Round 3", "SEMI" -> "Semifinals".
 function TUI.round_key_label(format, key)
 	local n = tostring(key):match("^R(%d+)$")
 	if n then
-		return "Round " .. n
+		return PVP.T("k_tn_round", n)
 	end
 	local names = ROUND_NAMES[format] or {}
-	return names[key] or ROUND_NAMES.single_elim[key] or ROUND_NAMES.double_elim[key] or tostring(key)
+	local text_key = names[key] or ROUND_NAMES.single_elim[key] or ROUND_NAMES.double_elim[key]
+	return text_key and PVP.T(text_key) or tostring(key)
 end
 
 -- Round keys in playing order: numbered first, then the named ones.
@@ -432,21 +521,21 @@ function TUI.timing_text(t)
 	end
 	local parts = {}
 	if t.startAt then
-		parts[#parts + 1] = "continues " .. PVP.TournamentTime.format_local(t.startAt)
+		parts[#parts + 1] = PVP.T("k_tn_timing_continues", PVP.TournamentTime.format_local(t.startAt))
 	elseif t.manualStart then
-		parts[#parts + 1] = "the organiser starts it"
+		parts[#parts + 1] = PVP.T("k_tn_timing_manual")
 	elseif t.breakBefore and t.breakBefore > 0 then
-		parts[#parts + 1] = TUI.duration(t.breakBefore) .. " break first"
+		parts[#parts + 1] = PVP.T("k_tn_timing_break", TUI.duration(t.breakBefore))
 	end
 	if type(t.play) == "table" then
 		if t.play.kind == "live" then
-			parts[#parts + 1] = "live, " .. TUI.duration(t.play.readyUpMinutes) .. " to ready up"
+			parts[#parts + 1] = PVP.T("k_tn_timing_live", TUI.duration(t.play.readyUpMinutes))
 		else
-			parts[#parts + 1] = "by a deadline, " .. TUI.duration(t.play.durationMinutes) .. " to play"
+			parts[#parts + 1] = PVP.T("k_tn_timing_window", TUI.duration(t.play.durationMinutes))
 		end
 		if t.onward then
-			parts[#parts + 1] = "and every later round"
+			parts[#parts + 1] = PVP.T("k_tn_timing_onward")
 		end
 	end
-	return table.concat(parts, ", ")
+	return table.concat(parts, PVP.T("k_tn_list_sep"))
 end

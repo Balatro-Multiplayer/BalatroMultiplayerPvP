@@ -12,14 +12,14 @@ MPAPI.on_loaded(function()
 		category = "game_select",
 		build = function(self)
 			local nodes = {
-				TUI.hbox({ TUI.button("BACK", "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.6), TUI.text("ORGANISE", 0.45, G.C.PURPLE) }, "cm", 0.1),
+				TUI.hbox({ TUI.button(PVP.T("k_tn_b_back"), "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.6), TUI.text(PVP.T("k_tn_organise"), 0.45, G.C.PURPLE) }, "cm", 0.1),
 			}
 			for _, section in ipairs(PVP._tournament_sections or {}) do
 				local ok, node = pcall(section.build)
-				nodes[#nodes + 1] = ok and node or TUI.message("Organiser section failed: " .. tostring(node), G.C.RED)
+				nodes[#nodes + 1] = ok and node or TUI.message(PVP.T("k_tn_section_failed", tostring(node)), G.C.RED)
 			end
 			if #(PVP._tournament_sections or {}) == 0 then
-				nodes[#nodes + 1] = TUI.message("Hosting tournaments needs the Tournament Organiser mod.")
+				nodes[#nodes + 1] = TUI.message(PVP.T("k_tn_needs_organiser_mod"))
 			end
 			return {
 				n = G.UIT.ROOT,

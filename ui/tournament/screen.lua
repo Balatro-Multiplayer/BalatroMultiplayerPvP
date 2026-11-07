@@ -93,12 +93,12 @@ local function centre(view)
 	local big
 	local until_ms = s.until_ms
 	if s.kind == "registered" then
-		heading, sub = "STARTS IN", "Check-in opens before the start."
+		heading, sub = PVP.T("k_tn_starts_in"), PVP.T("k_tn_sub_registered")
 	elseif s.kind == "waitlist" then
-		heading, sub = "STARTS IN", "You're on the waitlist. The organiser can move you in."
+		heading, sub = PVP.T("k_tn_starts_in"), PVP.T("k_tn_sub_waitlist")
 	elseif s.kind == "check_in" then
-		heading, sub = "CHECK-IN CLOSES IN", "Check in or you'll be removed when it starts."
-		button, button_label = TUI.button("CHECK IN", "mp_pvp_tournament_check_in", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "CHECK IN"
+		heading, sub = PVP.T("k_tn_check_in_closes_in"), PVP.T("k_tn_sub_check_in")
+		button, button_label = TUI.button(PVP.T("k_tn_b_check_in"), "mp_pvp_tournament_check_in", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "CHECK IN"
 	elseif s.kind == "checked_in" then
 		local total, ready = 0, 0
 		for _, e in ipairs(view.entrants or {}) do
@@ -107,45 +107,57 @@ local function centre(view)
 				ready = ready + 1
 			end
 		end
-		heading, sub = "STARTS IN", string.format("You're checked in. %d of %d players checked in.", ready, total)
+		heading, sub = PVP.T("k_tn_starts_in"), PVP.T("k_tn_sub_checked_in", ready, total)
 	elseif s.kind == "ready_up" or s.kind == "readied" then
 		local m = s.match
 		local game = m and ((m.wins[1] or 0) + (m.wins[2] or 0) + 1) or 1
-		heading = (m and (m.bestOf or 1) > 1) and string.format("GAME %d  -  READY UP", game) or "READY UP"
-		sub = "vs " .. tostring(TUI.opponent_of(m))
+		heading = (m and (m.bestOf or 1) > 1) and PVP.T("k_tn_game_ready_up", game) or PVP.T("k_tn_ready_up")
+		sub = PVP.T("k_tn_vs", tostring(TUI.opponent_of(m)))
 		if m and (m.bestOf or 1) > 1 then
 			-- Your wins first: in bracket order the player in the second slot
 			-- saw the score the wrong way round.
 			local mine = PVP.Tournaments.my_side(m) or 1
-			sub = sub .. string.format("   (best of %d, %d-%d)", m.bestOf, m.wins[mine] or 0, m.wins[3 - mine] or 0)
+			sub = sub .. PVP.T("k_tn_sub_series", m.bestOf, m.wins[mine] or 0, m.wins[3 - mine] or 0)
 		end
 		if s.kind == "readied" then
-			sub = sub .. "   -   waiting for them"
-			button, button_label = TUI.button("UNREADY", "mp_pvp_tournament_unready", { id = view.summary.id }, G.C.ORANGE, 4, 0.6), "UNREADY"
+			sub = sub .. PVP.T("k_tn_sub_waiting_for_them")
+			button, button_label = TUI.button(PVP.T("k_tn_b_unready"), "mp_pvp_tournament_unready", { id = view.summary.id }, G.C.ORANGE, 4, 0.6), "UNREADY"
 		else
-			button, button_label = TUI.button("READY", "mp_pvp_tournament_ready", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "READY"
+			button, button_label = TUI.button(PVP.T("k_tn_b_ready"), "mp_pvp_tournament_ready", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "READY"
 		end
 	elseif s.kind == "in_game" then
-		heading, sub, until_ms = "GAME IN PROGRESS", s.text, nil
+		heading, sub, until_ms = PVP.T("k_tn_game_in_progress"), s.text, nil
 		-- Not in the match's lobby (a missed notification): offer to join it.
 		local m = s.match
 		local current = MPAPI.get_current_lobby()
 		if m and m.lobby and m.lobby.code and not (current and current.code == m.lobby.code) then
-			button = TUI.button("JOIN GAME", "mp_pvp_tournament_join_game", { id = view.summary.id, match_id = m.id, code = m.lobby.code }, G.C.GREEN, 4, 0.6)
+			button = TUI.button(PVP.T("k_tn_b_join_game"), "mp_pvp_tournament_join_game", { id = view.summary.id, match_id = m.id, code = m.lobby.code }, G.C.GREEN, 4, 0.6)
 			button_label = "JOIN GAME"
 		end
+	elseif s.kind == "round_check_in" then
+		local rc = s.round_check_in
+		heading = PVP.T("k_tn_round_check_in_heading", rc.name):upper()
+		sub = PVP.T("k_tn_sub_round_check_in", PVP.TournamentTime.describe(rc.startsAt))
+		button, button_label = TUI.button(PVP.T("k_tn_b_check_in"), "mp_pvp_tournament_check_in", { id = view.summary.id }, G.C.GREEN, 4, 0.6), "CHECK IN"
+	elseif s.kind == "round_checked_in" then
+		heading, sub = PVP.T("k_tn_starts_in"), s.text
+	elseif s.kind == "round_later" then
+		local rc = s.round_check_in
+		local minutes = math.floor((rc.startsAt - rc.opensAt) / 60000 + 0.5)
+		heading = PVP.T("k_tn_round_starts_in", rc.name):upper()
+		sub = PVP.T("k_tn_sub_round_later", TUI.duration(minutes))
 	elseif s.kind == "waiting" then
-		heading, sub, until_ms = "WAITING", s.text, nil
+		heading, sub, until_ms = PVP.T("k_tn_waiting"), s.text, nil
 	elseif s.kind == "dropped" then
-		heading, sub, until_ms = "DROPPED OUT", "You left the tournament. Follow the rest in the bracket.", nil
+		heading, sub, until_ms = PVP.T("k_tn_dropped_out"), PVP.T("k_tn_sub_dropped_out"), nil
 		big = { colour = G.C.RED }
 	elseif s.kind == "eliminated" then
-		heading, sub, until_ms = "KNOCKED OUT", "Thanks for playing. Follow the rest in the bracket.", nil
+		heading, sub, until_ms = PVP.T("k_tn_knocked_out"), PVP.T("k_tn_sub_knocked_out"), nil
 		big = { colour = G.C.RED }
 	elseif s.kind == "paused" then
-		heading, sub, until_ms = "PAUSED", "The organiser paused the tournament. Deadlines are on hold.", nil
+		heading, sub, until_ms = PVP.T("k_tn_paused"), PVP.T("k_tn_sub_paused"), nil
 	elseif s.kind == "unplayed" then
-		heading, sub, until_ms = "NOT PLAYED IN TIME", "The organiser decides this match.", nil
+		heading, sub, until_ms = PVP.T("k_tn_not_played"), PVP.T("k_tn_sub_not_played"), nil
 	elseif s.kind == "finished" then
 		local place
 		local me = PVP.Tournaments.me_in(view)
@@ -154,13 +166,20 @@ local function centre(view)
 				place = p.place
 			end
 		end
-		heading, sub, until_ms = "FINISHED", place and ("You placed #" .. place) or "The tournament is over.", nil
+		heading, sub, until_ms = PVP.T("k_tn_finished"), place and PVP.T("k_tn_sub_placed", place) or PVP.T("k_tn_sub_over"), nil
 		if place == 1 then
-			heading, sub, big = "CHAMPION!", "You won the tournament!", { colour = G.C.GOLD, scale = 1.4 }
+			heading, sub, big = PVP.T("k_tn_champion"), PVP.T("k_tn_sub_champion"), { colour = G.C.GOLD, scale = 1.4 }
 		elseif place and place <= 3 then
-			heading, sub, big = "#" .. place .. " PLACE", "Well played!", { colour = G.C.BLUE }
+			heading, sub, big = PVP.T("k_tn_place", place), PVP.T("k_tn_sub_well_played"), { colour = G.C.BLUE }
 		elseif place then
-			heading, big = "#" .. place .. " PLACE", { colour = G.C.UI.TEXT_LIGHT, scale = 0.9 }
+			heading, big = PVP.T("k_tn_place", place), { colour = G.C.UI.TEXT_LIGHT, scale = 0.9 }
+		end
+	elseif s.kind == "cancelled" then
+		-- Who cancelled it, with a moderator's reason in full.
+		local why = TUI.cancel_reason(view)
+		heading, sub, until_ms = s.text:upper(), why and why.line or "", nil
+		if view.summary.status == "cancelled" then
+			big = { colour = G.C.RED }
 		end
 	else
 		heading, sub, until_ms = s.text:upper(), "", nil
@@ -173,7 +192,10 @@ local function centre(view)
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { TUI.live_text(screen.clock, BIG) } }
 	end
 	if sub and sub ~= "" then
-		rows[#rows + 1] = TUI.message(sub, G.C.UI.TEXT_LIGHT)
+		-- Wrapped: a moderator's reason can run to 200 characters.
+		for _, line in ipairs(TUI.wrap(sub, 64)) do
+			rows[#rows + 1] = TUI.message(line, G.C.UI.TEXT_LIGHT)
+		end
 	end
 	if PVP.Tournaments.state.busy[view.summary.id] then
 		rows[#rows + 1] = TUI.message(PVP.Tournaments.state.busy[view.summary.id] .. "...")
@@ -209,19 +231,19 @@ local function build()
 	local view = screen.view
 	local nodes = {}
 	if not view then
-		nodes[#nodes + 1] = TUI.message(screen.error or "Loading...")
+		nodes[#nodes + 1] = TUI.message(screen.error or PVP.T("k_tn_loading"))
 	else
 		local summary = view.summary
 		nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = { TUI.name_line(summary, 0.55) } } } }
-		nodes[#nodes + 1] = TUI.message(TUI.meta_line(summary) .. "  -  by " .. tostring(summary.organiserName))
+		nodes[#nodes + 1] = TUI.message(PVP.T("k_tn_meta_by", TUI.meta_line(summary), tostring(summary.organiserName)))
 		-- Ranked profile required: say it while there is time to switch.
 		nodes[#nodes + 1] = TUI.ranked_lines(summary, view.rankedProfile)
 		local rows, s = centre(view)
 		nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm", minh = 2.6, padding = 0.05 }, nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = rows } } }
 		local buttons = {
-			TUI.button("BACK", "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.8),
-			TUI.button("BRACKET", "mp_pvp_tournament_bracket", { id = summary.id }, G.C.BLUE, 1.8),
-			TUI.button("DETAILS", "mp_pvp_tournament_details", { id = summary.id }, G.C.UI.BACKGROUND_INACTIVE, 1.8),
+			TUI.button(PVP.T("k_tn_b_back"), "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.8),
+			TUI.button(PVP.T("k_tn_b_bracket"), "mp_pvp_tournament_bracket", { id = summary.id }, G.C.BLUE, 1.8),
+			TUI.button(PVP.T("k_tn_b_details"), "mp_pvp_tournament_details", { id = summary.id }, G.C.UI.BACKGROUND_INACTIVE, 1.8),
 		}
 		local can_leave = (view.role == "entrant" or view.role == "waitlist") and (summary.status == "registration" or summary.status == "check_in" or (summary.status == "running" and s.kind ~= "eliminated" and s.kind ~= "dropped"))
 		local running = summary.status == "running"
@@ -229,15 +251,14 @@ local function build()
 		local confirming = can_leave and screen.confirm_leave == summary.id
 		if confirming then
 			buttons = {
-				TUI.button("STAY IN", "mp_pvp_tournament_screen_stay", nil, G.C.GREEN, 2.2),
-				TUI.button(running and "YES, DROP OUT" or "YES, LEAVE", "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, 2.8),
+				TUI.button(PVP.T("k_tn_b_stay_in"), "mp_pvp_tournament_screen_stay", nil, G.C.GREEN, 2.2),
+				TUI.button(PVP.T(running and "k_tn_b_yes_drop_out" or "k_tn_b_yes_leave"), "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, 2.8),
 			}
 		elseif can_leave then
-			buttons[#buttons + 1] = TUI.button(running and "DROP OUT" or "LEAVE TOURNAMENT", "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, running and 1.8 or 3.2)
+			buttons[#buttons + 1] = TUI.button(PVP.T(running and "k_tn_b_drop_out" or "k_tn_b_leave_tournament"), "mp_pvp_tournament_screen_leave", { id = summary.id }, G.C.RED, running and 1.8 or 3.2)
 		end
 		if confirming then
-			local why = running and "Dropping out forfeits every match you have left. You can't rejoin."
-				or "This removes you from the tournament and frees your spot. To play, you'd have to join again (if there's room)."
+			local why = PVP.T(running and "k_tn_drop_out_warning" or "k_tn_leave_warning")
 			-- Wrapped: one long line ran past the panel's edges.
 			for _, line in ipairs(TUI.wrap(why, 64)) do
 				nodes[#nodes + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { TUI.text(line, TUI.TEXT, G.C.RED) } }
@@ -258,7 +279,7 @@ local function build()
 	-- A thin gold frame round a black board nearly as wide, with room
 	-- inside so the text never touches its edges.
 	local width = TUI.WIDTH - 2
-	local lines = { { n = G.UIT.R, config = { align = "cm", padding = 0.06 }, nodes = { TUI.text("NOTICE FROM THE ORGANISERS", TUI.SMALL, G.C.GOLD) } } }
+	local lines = { { n = G.UIT.R, config = { align = "cm", padding = 0.06 }, nodes = { TUI.text(PVP.T("k_tn_notice_heading"), TUI.SMALL, G.C.GOLD) } } }
 	for _, line in ipairs(TUI.wrap(notice, 70)) do
 		lines[#lines + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.025 }, nodes = { { n = G.UIT.T, config = { text = line, scale = 0.34, colour = G.C.UI.TEXT_LIGHT } } } }
 	end

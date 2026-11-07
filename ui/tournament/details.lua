@@ -5,8 +5,14 @@
 PVP.TUI = PVP.TUI or {}
 local TUI = PVP.TUI
 
-local PRESETS = { live_event = "Live event", live_fixed_rounds = "Live, fixed round times", league = "League (play by a deadline)" }
-local SEEDING = { rating = "By ranked rating", random = "Random", manual = "Set by the organiser" }
+-- Stored names -> text keys (looked up when drawn).
+local PRESETS = { live_event = "k_tn_preset_live_event", live_fixed_rounds = "k_tn_preset_live_fixed_rounds", league = "k_tn_preset_league" }
+local SEEDING = { rating = "k_tn_seeding_rating", random = "k_tn_seeding_random", manual = "k_tn_seeding_manual" }
+
+local function text_of(map, value)
+	local key = map[value]
+	return key and PVP.T(key) or tostring(value or "?")
+end
 
 local overlay_lists = {}
 
@@ -33,21 +39,21 @@ local function format_text(view)
 	local o = view.formatOptions or {}
 	local text = TUI.format_name(s.format)
 	if s.format == "double_elim" then
-		text = text .. (o.grandFinalReset == false and ", no grand-final reset" or ", grand-final reset")
+		text = PVP.T("k_tn_list2", text, PVP.T(o.grandFinalReset == false and "k_tn_no_gf_reset" or "k_tn_gf_reset"))
 	elseif s.format == "swiss" and o.swissRounds then
-		text = text .. ", " .. o.swissRounds .. " rounds"
+		text = PVP.T("k_tn_list2", text, TUI.count(o.swissRounds, "k_tn_n_rounds"))
 	elseif s.format == "round_robin" and o.groupSize then
-		text = text .. ", groups of " .. o.groupSize
+		text = PVP.T("k_tn_list2", text, PVP.T("k_tn_groups_of", o.groupSize))
 	end
 	return text
 end
 
-local ORDERS = { lower_seed_first = "lower seed bans first", lower_seed_last = "higher seed bans first", random = "random ban order", previous_loser_first = "last game's loser bans first" }
+local ORDERS = { lower_seed_first = "k_tn_order_lower_first", lower_seed_last = "k_tn_order_higher_first", random = "k_tn_order_random", previous_loser_first = "k_tn_order_loser_first" }
 
 local function deck_text(deck)
 	local text = TUI.deck_rule(deck)
 	if type(deck) == "table" and deck.kind == "draft" then
-		text = text .. " (" .. (ORDERS[deck.banOrder] or tostring(deck.banOrder)) .. ")"
+		text = PVP.T("k_tn_cocktail_mix", text, text_of(ORDERS, deck.banOrder))
 	end
 	return (text:gsub("^%l", string.upper))
 end
@@ -65,9 +71,9 @@ local function override_text(o)
 		parts[#parts + 1] = TUI.deck_rule(o.deck)
 	end
 	if o.bestOf then
-		parts[#parts + 1] = "best of " .. o.bestOf
+		parts[#parts + 1] = PVP.T("k_tn_best_of_lower", o.bestOf)
 	end
-	return table.concat(parts, ", ")
+	return table.concat(parts, PVP.T("k_tn_list_sep"))
 end
 
 -- A sub-list under a heading: "  Round 3: 15 min break first".
@@ -138,45 +144,46 @@ local function starts_card(view)
 	local s = view.summary
 	local TT = PVP.TournamentTime
 	if s.status == "running" then
-		return card("STATUS", "Running", view.paused and "paused by the organiser" or ("started " .. TT.format_local(view.startedAt or s.startsAt)), G.C.GREEN)
+		return card(PVP.T("k_tn_card_status"), PVP.T("k_tn_status_running"), view.paused and PVP.T("k_tn_paused_lower") or PVP.T("k_tn_started_at", TT.format_local(view.startedAt or s.startsAt)), G.C.GREEN)
 	elseif s.status == "finished" then
-		return card("STATUS", "Finished", view.finishedAt and TT.format_local(view.finishedAt) or "")
+		return card(PVP.T("k_tn_card_status"), PVP.T("k_tn_status_finished"), view.finishedAt and TT.format_local(view.finishedAt) or "")
 	elseif s.status == "cancelled" then
-		return card("STATUS", "Cancelled", "", G.C.RED)
+		local why = PVP.TUI.cancel_reason(view)
+		return card(PVP.T("k_tn_card_status"), PVP.T("k_tn_status_cancelled"), why and why.who or "", G.C.RED)
 	end
 	local left = TT.countdown(s.startsAt)
-	return card("STARTS", TT.format_local(s.startsAt), left and ("in " .. left) or "your local time")
+	return card(PVP.T("k_tn_card_starts"), TT.format_local(s.startsAt), left and PVP.T("k_tn_in", left) or PVP.T("k_tn_your_local_time"))
 end
 
 local function format_card(view)
 	local s = view.summary
-	local players = string.format("%d / %d players", s.players or 0, s.maxPlayers or 0)
+	local players = PVP.T("k_tn_n_of_max_players", s.players or 0, s.maxPlayers or 0)
 	if (s.waitlist or 0) > 0 then
-		players = players .. ", " .. s.waitlist .. " waiting"
+		players = PVP.T("k_tn_list2", players, PVP.T("k_tn_n_waiting", s.waitlist))
 	end
-	return card("FORMAT", TUI.format_name(s.format), players)
+	return card(PVP.T("k_tn_card_format"), TUI.format_name(s.format), players)
 end
 
 local function game_card(view)
 	local d = view.rounds and view.rounds.defaults or {}
 	local differ = next(view.rounds and view.rounds.overrides or {}) ~= nil
-	return card("GAME", TUI.game_type(d.gameMode), TUI.ruleset_name(d.ruleset) .. ", best of " .. tostring(d.bestOf or 1) .. (differ and "*" or ""))
+	return card(PVP.T("k_tn_card_game"), TUI.game_type(d.gameMode), PVP.T("k_tn_list2", TUI.ruleset_name(d.ruleset), PVP.T("k_tn_best_of_lower", tostring(d.bestOf or 1))) .. (differ and "*" or ""))
 end
 
 local function decks_card(view)
 	local d = view.rounds and view.rounds.defaults or {}
 	local deck = d.deck
 	if type(deck) ~= "table" then
-		return card("DECKS & STAKES", "Random draft", "ban and pick, 9 random tiles")
+		return card(PVP.T("k_tn_card_decks"), PVP.T("k_tn_random_draft"), PVP.T("k_tn_random_draft_sub"))
 	elseif deck.kind == "locked" then
 		local name = TUI.deck_name(deck.deck)
 		if type(deck.cocktail) == "table" and deck.cocktail.name then
 			name = deck.cocktail.name
 		end
-		return card("DECKS & STAKES", (name:gsub(" Deck$", "")), TUI.stake_name(deck.stake))
+		return card(PVP.T("k_tn_card_decks"), (name:gsub(" Deck$", "")), TUI.stake_name(deck.stake))
 	end
 	local cocktails = type(deck.cocktails) == "table" and #deck.cocktails or 0
-	return card("DECKS & STAKES", "Ban and pick", string.format("%d decks%s, %d stakes", #(deck.decks or {}), cocktails > 0 and (" + " .. cocktails .. " Cocktail" .. (cocktails > 1 and "s" or "")) or "", #(deck.stakes or {})))
+	return card(PVP.T("k_tn_card_decks"), PVP.T("k_tn_ban_and_pick"), TUI.pool_size(#(deck.decks or {}), cocktails, #(deck.stakes or {})))
 end
 
 local function heading(text)
@@ -185,7 +192,7 @@ end
 
 -- A ban pool's VIEW POOL button (MORE DETAILS): label names whose pool.
 local function pool_button(label, deck)
-	return { n = G.UIT.C, config = { align = "cm", padding = 0.02 }, nodes = { TUI.button("VIEW POOL", "mp_pvp_tdetails_pool", { label = label, deck = deck }, G.C.BLUE, 1.8, 0.28) } }
+	return { n = G.UIT.C, config = { align = "cm", padding = 0.02 }, nodes = { TUI.button(PVP.T("k_tn_b_view_pool"), "mp_pvp_tdetails_pool", { label = label, deck = deck }, G.C.BLUE, 1.8, 0.28) } }
 end
 
 local function is_pool(deck)
@@ -210,13 +217,13 @@ end
 local function pool_rows(pool)
 	local deck = pool.deck
 	local rows = {}
-	rows[#rows + 1] = heading("BAN POOL  -  " .. pool.label)
+	rows[#rows + 1] = heading(PVP.T("k_tn_pool_heading", pool.label))
 	rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.02 }, nodes = { TUI.text(deck_text(deck), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
 	local decks = {}
 	for _, key in ipairs(deck.decks or {}) do
 		decks[#decks + 1] = TUI.deck_name(key)
 	end
-	rows[#rows + 1] = sub_heading("DECKS  (" .. #decks .. ")")
+	rows[#rows + 1] = sub_heading(PVP.T("k_tn_pool_decks", #decks))
 	pool_grid(rows, decks, 3, 3.9)
 	local cocktails = {}
 	for _, c in ipairs(type(deck.cocktails) == "table" and deck.cocktails or {}) do
@@ -224,24 +231,24 @@ local function pool_rows(pool)
 		for _, k in ipairs(c.decks or {}) do
 			mix[#mix + 1] = (TUI.deck_name(k):gsub(" Deck$", ""))
 		end
-		cocktails[#cocktails + 1] = (c.name or "Cocktail") .. ": " .. table.concat(mix, " + ")
+		cocktails[#cocktails + 1] = PVP.T("k_tn_pool_cocktail", c.name or PVP.T("k_tn_cocktail"), table.concat(mix, " + "))
 	end
 	if #cocktails > 0 then
-		rows[#rows + 1] = sub_heading("COCKTAILS  (" .. #cocktails .. ")")
+		rows[#rows + 1] = sub_heading(PVP.T("k_tn_pool_cocktails", #cocktails))
 		pool_grid(rows, cocktails, 2, 5.9)
 	end
 	local stakes = {}
 	for _, n in ipairs(deck.stakes or {}) do
 		stakes[#stakes + 1] = TUI.stake_name(n)
 	end
-	rows[#rows + 1] = sub_heading("STAKES  (" .. #stakes .. ")")
+	rows[#rows + 1] = sub_heading(PVP.T("k_tn_pool_stakes", #stakes))
 	pool_grid(rows, stakes, 3, 3.9)
 	rows[#rows + 1] = {
 		n = G.UIT.R,
 		config = { align = "cl", padding = 0.04 },
-		nodes = { TUI.text("Each tile is a deck (or Cocktail) on a stake; the Draft deals up to 9 of them.", 0.24, G.C.UI.TEXT_INACTIVE) },
+		nodes = { TUI.text(PVP.T("k_tn_pool_note"), 0.24, G.C.UI.TEXT_INACTIVE) },
 	}
-	rows[#rows + 1] = TUI.hbox({ TUI.button("BACK", "mp_pvp_tdetails_pool_close", nil, G.C.ORANGE, 2.2, 0.3) }, "cm", 0.06)
+	rows[#rows + 1] = TUI.hbox({ TUI.button(PVP.T("k_tn_b_back"), "mp_pvp_tdetails_pool_close", nil, G.C.ORANGE, 2.2, 0.3) }, "cm", 0.06)
 	return rows
 end
 
@@ -250,24 +257,28 @@ local function more_rows(view)
 	local s = view.summary
 	local TT = PVP.TournamentTime
 	local rows = {}
-	rows[#rows + 1] = heading("WHEN")
-	rows[#rows + 1] = kv("Starts", TT.format_local(s.startsAt) .. "  (your local time)")
-	rows[#rows + 1] = kv("Check-in", s.checkInAt and ("from " .. TT.format_local(s.checkInAt) .. " until the start") or "None: everyone signed up plays")
-	rows[#rows + 1] = kv("Timetable", view.timetable and (view.timetable.kind == "preset" and (PRESETS[view.timetable.preset] or view.timetable.preset) or "Custom") or "?")
-	sub_lines(rows, "Rounds with their own timing", view.timetable and view.timetable.rounds, TUI.timing_text, s.format)
-	rows[#rows + 1] = heading("HOW IT'S PLAYED")
-	rows[#rows + 1] = kv("Format", format_text(view))
-	rows[#rows + 1] = kv("Seeding", (SEEDING[view.seeding and view.seeding.kind] or "?") .. (view.seeding and view.seeding.kind == "rating" and ("  (" .. TUI.ruleset_name((view.seeding.board or ""):gsub("^ranked:", "")) .. ")") or ""))
+	rows[#rows + 1] = heading(PVP.T("k_tn_heading_when"))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_starts"), PVP.T("k_tn_local_time_note", TT.format_local(s.startsAt)))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_check_in"), s.checkInAt and PVP.T("k_tn_check_in_from", TT.format_local(s.checkInAt)) or PVP.T("k_tn_check_in_none"))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_timetable"), view.timetable and (view.timetable.kind == "preset" and text_of(PRESETS, view.timetable.preset) or PVP.T("k_tn_custom")) or "?")
+	sub_lines(rows, PVP.T("k_tn_rounds_own_timing"), view.timetable and view.timetable.rounds, TUI.timing_text, s.format)
+	rows[#rows + 1] = heading(PVP.T("k_tn_heading_how"))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_format"), format_text(view))
+	local seeding = text_of(SEEDING, view.seeding and view.seeding.kind)
+	if view.seeding and view.seeding.kind == "rating" then
+		seeding = PVP.T("k_tn_cocktail_mix", seeding, TUI.ruleset_name((view.seeding.board or ""):gsub("^ranked:", "")))
+	end
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_seeding"), seeding)
 	local default_deck = view.rounds and view.rounds.defaults and view.rounds.defaults.deck
-	rows[#rows + 1] = kv("Decks", deck_text(default_deck))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_decks"), deck_text(default_deck))
 	-- VIEW POOL on its own line, under the text (beside it, a long rule ran into it).
 	if is_pool(default_deck) then
-		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.01 }, nodes = { { n = G.UIT.C, config = { minw = 2.6 } }, pool_button("every round", default_deck) } }
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.01 }, nodes = { { n = G.UIT.C, config = { minw = 2.6 } }, pool_button(PVP.T("k_tn_every_round"), default_deck) } }
 	end
 	local overrides = view.rounds and view.rounds.overrides or {}
-	sub_lines(rows, "Rounds that play differently", overrides, override_text, s.format)
+	sub_lines(rows, PVP.T("k_tn_rounds_differ"), overrides, override_text, s.format)
 	-- Rounds with a pool of their own: a button each (up to 4 on the line).
-	local line = { { n = G.UIT.C, config = { align = "cl", minw = 2.6 }, nodes = { TUI.text("  Their pools", TUI.SMALL, G.C.UI.TEXT_INACTIVE) } } }
+	local line = { { n = G.UIT.C, config = { align = "cl", minw = 2.6 }, nodes = { TUI.text("  " .. PVP.T("k_tn_their_pools"), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } } }
 	for _, key in ipairs(TUI.sorted_round_keys(overrides)) do
 		if is_pool(overrides[key].deck) and #line <= 4 then
 			local label = TUI.round_key_label(s.format, key)
@@ -281,7 +292,7 @@ local function more_rows(view)
 	if #line > 1 then
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.02 }, nodes = line }
 	end
-	rows[#rows + 1] = kv("Organiser", tostring(s.organiserName))
+	rows[#rows + 1] = kv(PVP.T("k_tn_kv_organiser"), tostring(s.organiserName))
 	return rows
 end
 
@@ -318,14 +329,14 @@ local function players_panel()
 			n = G.UIT.R,
 			config = { align = "cl", padding = 0.04 },
 			nodes = {
-				TUI.text("PLAYERS", TUI.TEXT, G.C.GOLD),
+				TUI.text(PVP.T("k_tn_players"), TUI.TEXT, G.C.GOLD),
 				TUI.spacer(0.2),
 				TUI.text(string.format("%d / %d", s.players or 0, s.maxPlayers or 0), TUI.SMALL, G.C.UI.TEXT_INACTIVE),
 			},
 		},
 	}
 	if #entrants == 0 then
-		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", minh = PLAYER_ROWS * 0.36, minw = 4.3 }, nodes = { TUI.text("Nobody yet: be the first!", TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", minh = PLAYER_ROWS * 0.36, minw = 4.3 }, nodes = { TUI.text(PVP.T("k_tn_nobody_yet"), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
 	else
 		-- Down the first column, then the second.
 		for r = 1, PLAYER_ROWS do
@@ -362,14 +373,14 @@ local function build_details()
 	local view = details.view
 	local s = view.summary
 	local title = { TUI.name_line(s, 0.55, true) }
-	title[#title + 1] = { n = G.UIT.R, config = { align = "cl" }, nodes = { TUI.text("by " .. tostring(s.organiserName), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
+	title[#title + 1] = { n = G.UIT.R, config = { align = "cl" }, nodes = { TUI.text(PVP.T("k_tn_by", tostring(s.organiserName)), TUI.SMALL, G.C.UI.TEXT_INACTIVE) } }
 	-- Ranked profile required: and whether this player is on theirs.
 	title[#title + 1] = TUI.ranked_lines(s, view.rankedProfile, "cl")
 	local left = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = { starts_card(view), format_card(view), game_card(view), decks_card(view) } },
 	}
 	if next(view.rounds and view.rounds.overrides or {}) ~= nil then
-		left[#left + 1] = { n = G.UIT.R, config = { align = "cr" }, nodes = { TUI.text("* some rounds play differently: MORE DETAILS", 0.24, G.C.UI.TEXT_INACTIVE) } }
+		left[#left + 1] = { n = G.UIT.R, config = { align = "cr" }, nodes = { TUI.text(PVP.T("k_tn_some_rounds_differ"), 0.24, G.C.UI.TEXT_INACTIVE) } }
 	end
 	if view.description and view.description ~= "" then
 		local desc = {}
@@ -391,8 +402,8 @@ local function build_details()
 		left[#left + 1] = { n = G.UIT.R, config = { align = "cl", padding = 0.1 }, nodes = { { n = G.UIT.C, config = { align = "cl" }, nodes = desc } } }
 	end
 	left[#left + 1] = TUI.hbox({
-		TUI.button("BRACKET", "mp_pvp_tournament_bracket", { id = s.id }, G.C.BLUE, 2.6),
-		TUI.button(details.more and "LESS" or "MORE DETAILS", "mp_pvp_tournament_more", nil, G.C.UI.BACKGROUND_INACTIVE, 2.8),
+		TUI.button(PVP.T("k_tn_b_bracket"), "mp_pvp_tournament_bracket", { id = s.id }, G.C.BLUE, 2.6),
+		TUI.button(PVP.T(details.more and "k_tn_b_less" or "k_tn_b_more_details"), "mp_pvp_tournament_more", nil, G.C.UI.BACKGROUND_INACTIVE, 2.8),
 	}, "cm", 0.06)
 	if details.more then
 		left[#left + 1] = {
@@ -457,8 +468,11 @@ G.FUNCS.mp_pvp_tournament_more = function()
 	end
 end
 
-local function open_overlay(contents)
+-- instant: in place, without sliding up from the bottom (coming back from
+-- the bracket, where the slide made the pane jump in a second time).
+local function open_overlay(contents, instant)
 	G.FUNCS.overlay_menu({
+		config = instant and { offset = { x = 0, y = 0 } } or nil,
 		definition = create_UIBox_generic_options({
 			back_func = "mp_pvp_tournament_overlay_back",
 			contents = { { n = G.UIT.R, config = { align = "cm", padding = 0.15 }, nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = contents } } } },
@@ -489,6 +503,25 @@ end
 -- restore: reopened from the bracket, with MORE DETAILS as it was.
 function PVP.open_tournament_details(id, restore)
 	local more = restore and details.return_more or false
+	local cached = restore and PVP.Tournaments.state.views[id]
+	if cached then
+		-- Back from the bracket: show what we have at once, in place, and
+		-- update it in place when the server answers.
+		close_lists()
+		open_overlay(details_contents(cached, more), true)
+		PVP.Tournaments.get({ id = id }, function(err, data)
+			if err or not (data and data.tournament) then
+				return
+			end
+			PVP.Tournaments.state.views[id] = data.tournament
+			local shown = details.view and details.view.summary
+			if G.OVERLAY_MENU and details.el and shown and shown.id == id then
+				details.view = data.tournament
+				details.el:update()
+			end
+		end)
+		return
+	end
 	with_view(id, function(view)
 		close_lists()
 		open_overlay(details_contents(view, more))

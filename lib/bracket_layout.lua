@@ -65,18 +65,18 @@ end
 local function winners_label(round, rounds, double)
 	if double then
 		if round == rounds then
-			return "Winners Final"
+			return PVP.T("k_tn_winners_final")
 		end
-		return "Winners R" .. round
+		return PVP.T("k_tn_winners_round", round)
 	end
 	if round == rounds then
-		return "Final"
+		return PVP.T("k_tn_final")
 	elseif round == rounds - 1 then
-		return "Semifinals"
+		return PVP.T("k_tn_semifinals")
 	elseif round == rounds - 2 and rounds >= 4 then
-		return "Quarterfinals"
+		return PVP.T("k_tn_quarterfinals")
 	end
-	return "Round " .. round
+	return PVP.T("k_tn_round", round)
 end
 
 -- Which round (1-based, in playing order) a bracket round is: as the server
@@ -100,6 +100,28 @@ function L.step_of(view, stage, round)
 		end
 	end
 	return round
+end
+
+-- What to call round `step` (in playing order) in a sentence: the grand
+-- final, the final, the semifinals... or "Round 3".
+function L.step_name(view, step)
+	local format = view.summary and view.summary.format
+	local rounds = 0
+	for _, m in ipairs(view.bracket or {}) do
+		if m.stage == "W" then
+			rounds = math.max(rounds, m.round or 0)
+		end
+	end
+	for _, m in ipairs(view.bracket or {}) do
+		if L.step_of(view, m.stage, m.round) == step then
+			if m.stage == "GF" then
+				return PVP.T("k_tn_grand_final")
+			elseif format == "single_elim" and m.stage == "W" then
+				return winners_label(m.round, rounds, false)
+			end
+		end
+	end
+	return PVP.T("k_tn_round", step)
 end
 
 local function elimination(view, lh, timing)
@@ -258,22 +280,20 @@ local function elimination(view, lh, timing)
 		label(winners_label(r, rounds.W, double), "W", r, r, 0, w_bottom)
 	end
 	for r = 1, rounds.L do
-		label("Losers R" .. r, "L", r, r, l_top - lh, l_bottom)
+		label(PVP.T("k_tn_losers_round", r), "L", r, r, l_top - lh, l_bottom)
 	end
 	if rounds.GF > 0 then
 		local gy = (y[GF1] or 0) - lh
 		local gf_bottom = (y[GF1] or 0) + L.BOX_H + L.ROW_GAP
-		label("Grand Final", "GF", 1, gf_col, gy, gf_bottom)
+		label(PVP.T("k_tn_grand_final"), "GF", 1, gf_col, gy, gf_bottom)
 		if box_of(GF2) then
-			label("Reset", "GF", 2, gf_col + 1, gy, gf_bottom)
-			out.labels[#out.labels].tip = {
-				"The grand final reset: if the player",
-				"from the losers bracket wins the grand",
-				"final, both have now lost once, so",
-				"one more match decides the winner.",
-				"Not played if the winners-bracket",
-				"player wins the grand final.",
-			}
+			label(PVP.T("k_tn_reset"), "GF", 2, gf_col + 1, gy, gf_bottom)
+			-- One line per \n in the text.
+			local tip = {}
+			for line in (PVP.T("k_tn_reset_tip") .. "\n"):gmatch("([^\n]*)\n") do
+				tip[#tip + 1] = line
+			end
+			out.labels[#out.labels].tip = tip
 		end
 	end
 
@@ -304,7 +324,7 @@ local function by_rounds(view, lh, timing)
 			table.sort(list, function(a, b)
 				return (a.order or 0) < (b.order or 0)
 			end)
-			local label = (multi and ("Group " .. string.char(64 + g) .. "  -  ") or "") .. "Round " .. r
+			local label = multi and PVP.T("k_tn_group_round", string.char(64 + g), r) or PVP.T("k_tn_round", r)
 			-- Timing on the first group's headings (every group plays together).
 			local info = timing and g == 1 and timing(r) or {}
 			out.labels[#out.labels + 1] = { text = label, x = col_x(r), y = top, sub = info.start, sub2 = info.play }

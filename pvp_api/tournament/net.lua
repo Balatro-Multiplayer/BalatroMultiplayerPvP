@@ -23,12 +23,6 @@ TN.NotifyCode = {
 	UPDATED = 114,
 }
 
-TN.FORMAT_NAMES = {
-	single_elim = "Single Elim",
-	double_elim = "Double Elim",
-	round_robin = "Round Robin",
-	swiss = "Swiss",
-}
 
 -- What the tab shows: refreshed by TN.refresh().
 TN.state = TN.state
@@ -127,7 +121,7 @@ local function act(rpc_id, id, body, what, cb)
 end
 
 function TN.join(id, cb)
-	act("tournament_join", id, { id = id }, "joining", cb)
+	act("tournament_join", id, { id = id }, PVP.T("k_tn_busy_joining"), cb)
 end
 
 function TN.join_code(code, cb)
@@ -135,15 +129,15 @@ function TN.join_code(code, cb)
 end
 
 function TN.leave(id, cb)
-	act("tournament_leave", id, { id = id }, "leaving", cb)
+	act("tournament_leave", id, { id = id }, PVP.T("k_tn_busy_leaving"), cb)
 end
 
 function TN.check_in(id, cb)
-	act("tournament_check_in", id, { id = id }, "checking in", cb)
+	act("tournament_check_in", id, { id = id }, PVP.T("k_tn_busy_checking_in"), cb)
 end
 
 function TN.ready(id, ready, cb)
-	act("tournament_ready", id, { id = id, ready = ready ~= false }, ready ~= false and "readying" or "unreadying", cb)
+	act("tournament_ready", id, { id = id, ready = ready ~= false }, PVP.T(ready ~= false and "k_tn_busy_readying" or "k_tn_busy_unreadying"), cb)
 end
 
 -- The tournaments whose full view the tab needs (check-in state, the
@@ -262,7 +256,7 @@ if notify and notify.on then
 		-- Check-in opened and this player isn't on their ranked profile, or an
 		-- organiser sent their match a message.
 		local kind = content and content.kind
-		if (kind == "ranked_profile_needed" or kind == "organiser_message") and PVP.show_tournament_banner then
+		if (kind == "ranked_profile_needed" or kind == "organiser_message" or kind == "round_check_in") and PVP.show_tournament_banner then
 			PVP.show_tournament_banner(content)
 		end
 	end)

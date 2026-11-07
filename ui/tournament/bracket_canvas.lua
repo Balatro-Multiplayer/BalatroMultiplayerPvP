@@ -40,7 +40,7 @@ function Canvas:init(args)
 	self.on_select = args.on_select
 	self.fitted = false
 	-- What to say while there is no bracket (set_empty_text).
-	self.empty_text = "Loading..."
+	self.empty_text = PVP.T("k_tn_loading")
 	self.states.collide.can = false
 end
 
@@ -167,14 +167,14 @@ end
 local function player_line(m, side)
 	local p = m.players and m.players[side]
 	if p == "tbd" then
-		return "TBD", nil, true
+		return PVP.T("k_tn_tbd"), nil, true
 	end
 	if type(p) ~= "table" then
-		return "bye", nil, true
+		return PVP.T("k_tn_bye"), nil, true
 	end
 	-- A provisional bracket's empty slots (the server's open-spot-N).
 	if tostring(p.id):find("^open%-spot%-") then
-		return p.name, nil, true
+		return PVP.T("k_tn_open_spot"), nil, true
 	end
 	return p.name, p.id, false
 end

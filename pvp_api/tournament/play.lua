@@ -410,35 +410,35 @@ function PVP.build_tournament_lobby_status()
 		rows[#rows + 1] = TUI.name_line(view.summary, 0.45)
 	end
 	if not m then
-		rows[#rows + 1] = TUI.message("Starting your match...", G.C.UI.TEXT_LIGHT)
+		rows[#rows + 1] = TUI.message(PVP.T("k_tn_lobby_starting_match"), G.C.UI.TEXT_LIGHT)
 		return rows
 	end
 	local a = type(m.players[1]) == "table" and m.players[1].name or "?"
 	local b = type(m.players[2]) == "table" and m.players[2].name or "?"
 	rows[#rows + 1] = TUI.title(string.format("%s   %d - %d   %s", a, m.wins[1] or 0, m.wins[2] or 0, b), G.C.UI.TEXT_LIGHT, 0.5)
 	if (m.bestOf or 1) > 1 then
-		rows[#rows + 1] = TUI.message("Best of " .. m.bestOf)
+		rows[#rows + 1] = TUI.message(PVP.T("k_tn_best_of", m.bestOf))
 	end
 	local clock = m.clock
 	local side = PVP.Tournaments.my_side(m)
 	if m.status == "done" then
-		rows[#rows + 1] = TUI.message("Match over. Back to the tournament...", G.C.GREEN)
+		rows[#rows + 1] = TUI.message(PVP.T("k_tn_lobby_match_over"), G.C.GREEN)
 	elseif clock and clock.phase == "ready_up" then
 		local readied = side and clock.ready and clock.ready[side]
 		local left = clock.deadline and PVP.TournamentTime.clock(clock.deadline) or nil
-		TUI.set_live(status_live, left and ("Next game  -  ready up  " .. left) or "Next game  -  ready up", readied and G.C.GREEN or G.C.GOLD)
+		TUI.set_live(status_live, left and PVP.T("k_tn_lobby_next_game_left", left) or PVP.T("k_tn_lobby_next_game"), readied and G.C.GREEN or G.C.GOLD)
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.06 }, nodes = { TUI.live_text(status_live, 0.42) } }
 		local id = PVP._tournament_lobby.id
 		rows[#rows + 1] = {
 			n = G.UIT.R,
 			config = { align = "cm", padding = 0.08 },
 			nodes = {
-				readied and TUI.button("UNREADY", "mp_pvp_tournament_unready", { id = id }, G.C.ORANGE, 3, 0.5)
-					or TUI.button("READY", "mp_pvp_tournament_ready", { id = id }, G.C.GREEN, 3, 0.5),
+				readied and TUI.button(PVP.T("k_tn_b_unready"), "mp_pvp_tournament_unready", { id = id }, G.C.ORANGE, 3, 0.5)
+					or TUI.button(PVP.T("k_tn_b_ready"), "mp_pvp_tournament_ready", { id = id }, G.C.GREEN, 3, 0.5),
 			},
 		}
 	else
-		rows[#rows + 1] = TUI.message("Starting the game...", G.C.UI.TEXT_LIGHT)
+		rows[#rows + 1] = TUI.message(PVP.T("k_tn_lobby_starting_game"), G.C.UI.TEXT_LIGHT)
 	end
 	return rows
 end
@@ -474,7 +474,7 @@ tick = function()
 			if m and m.clock and m.clock.phase == "ready_up" and m.clock.deadline then
 				local side = PVP.Tournaments.my_side(m)
 				local readied = side and m.clock.ready and m.clock.ready[side]
-				TUI.set_live(status_live, "Next game  -  ready up  " .. PVP.TournamentTime.clock(m.clock.deadline), readied and G.C.GREEN or G.C.GOLD)
+				TUI.set_live(status_live, PVP.T("k_tn_lobby_next_game_left", PVP.TournamentTime.clock(m.clock.deadline)), readied and G.C.GREEN or G.C.GOLD)
 			end
 			tick()
 			return true

@@ -40,17 +40,20 @@ function PVP.show_tournament_banner(content)
 	banner.id = content.tournamentId
 	banner.serial = banner.serial + 1
 	local serial = banner.serial
-	local vs = content.opponent and content.opponent.name or "your opponent"
-	local headline = content.kind == "reminder" and "Your match closes soon" or content.kind == "series" and "Next game: ready up" or "Your match is open"
-	local detail = "Ready up vs " .. tostring(vs) .. (content.minutesLeft and ("  -  " .. content.minutesLeft .. " min left") or "")
+	local vs = content.opponent and content.opponent.name or PVP.T("k_tn_your_opponent")
+	local headline = PVP.T(content.kind == "reminder" and "k_tn_banner_closes_soon" or content.kind == "series" and "k_tn_banner_next_game" or "k_tn_banner_open")
+	local detail = PVP.T("k_tn_status_ready_up", tostring(vs)) .. (content.minutesLeft and PVP.T("k_tn_banner_min_left", content.minutesLeft) or "")
 	if ranked then
-		headline = "Switch to your ranked profile"
-		detail = "Check-in is open: launch a ranked profile through the BET launcher and keep it open"
+		headline = PVP.T("k_tn_banner_ranked")
+		detail = PVP.T("k_tn_banner_ranked_detail")
+	elseif content.kind == "round_check_in" then
+		headline = PVP.T("k_tn_banner_round_check_in")
+		detail = content.startsAt and PVP.T("k_tn_banner_round_check_in_detail", PVP.TournamentTime.describe(content.startsAt)) or ""
 	end
 	-- An organiser's message: their words, over as many lines as it takes.
 	local detail_lines = { TUI.line({ TUI.text(detail, TUI.SMALL) }) }
 	if message then
-		headline = tostring(content.from or "The organiser") .. " (organiser)"
+		headline = PVP.T("k_tn_banner_from_organiser", tostring(content.from or PVP.T("k_tn_the_organiser")))
 		detail_lines = {}
 		for _, line in ipairs(TUI.wrap(content.text or "", 60)) do
 			detail_lines[#detail_lines + 1] = TUI.line({ TUI.text(line, 0.32, G.C.UI.TEXT_LIGHT) })
@@ -58,7 +61,7 @@ function PVP.show_tournament_banner(content)
 	end
 	local buttons = {}
 	if in_menus() and not message then
-		buttons[#buttons + 1] = TUI.button("GO", "mp_pvp_tournament_banner_go", { id = content.tournamentId }, G.C.GREEN, 1.2)
+		buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_go"), "mp_pvp_tournament_banner_go", { id = content.tournamentId }, G.C.GREEN, 1.2)
 	end
 	buttons[#buttons + 1] = TUI.button("X", "mp_pvp_tournament_banner_close", nil, G.C.UI.BACKGROUND_INACTIVE, 0.6)
 	local body = TUI.panel({

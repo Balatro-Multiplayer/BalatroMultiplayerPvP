@@ -91,21 +91,21 @@ end
 
 local function build_row(t)
 	local state = PVP.Tournaments.state
-	local buttons = { TUI.button("DETAILS", "mp_pvp_tournament_details", { id = t.id }, G.C.UI.BACKGROUND_INACTIVE, 1.6) }
+	local buttons = { TUI.button(PVP.T("k_tn_b_details"), "mp_pvp_tournament_details", { id = t.id }, G.C.UI.BACKGROUND_INACTIVE, 1.6) }
 	if state.busy[t.id] then
 		buttons[#buttons + 1] = TUI.text(state.busy[t.id] .. "...", TUI.SMALL, G.C.UI.TEXT_INACTIVE)
 	elseif joined(t.id) then
-		buttons[#buttons + 1] = TUI.button("JOINED", "mp_pvp_tournament_open", { id = t.id }, G.C.GREEN, 1.6)
+		buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_joined"), "mp_pvp_tournament_open", { id = t.id }, G.C.GREEN, 1.6)
 	elseif t.registrationOpen then
 		local full = (t.players or 0) >= (t.maxPlayers or 0)
-		buttons[#buttons + 1] = TUI.button(full and "WAITLIST" or "JOIN", "mp_pvp_tournament_join", { id = t.id }, full and G.C.ORANGE or G.C.BLUE, 1.6)
+		buttons[#buttons + 1] = TUI.button(PVP.T(full and "k_tn_b_waitlist" or "k_tn_b_join"), "mp_pvp_tournament_join", { id = t.id }, full and G.C.ORANGE or G.C.BLUE, 1.6)
 	else
-		buttons[#buttons + 1] = TUI.text("CLOSED", TUI.SMALL, G.C.UI.TEXT_INACTIVE)
+		buttons[#buttons + 1] = TUI.text(PVP.T("k_tn_closed"), TUI.SMALL, G.C.UI.TEXT_INACTIVE)
 	end
 	return TUI.row({
 		TUI.name_line(t, 0.36),
-		TUI.line({ TUI.text(TUI.meta_line(t) .. "  -  by " .. tostring(t.organiserName), TUI.SMALL, G.C.UI.TEXT_INACTIVE) }),
-		TUI.line({ TUI.text("Starts " .. PVP.TournamentTime.describe(t.startsAt), TUI.SMALL) }),
+		TUI.line({ TUI.text(PVP.T("k_tn_meta_by", TUI.meta_line(t), tostring(t.organiserName)), TUI.SMALL, G.C.UI.TEXT_INACTIVE) }),
+		TUI.line({ TUI.text(PVP.T("k_tn_status_starts", PVP.TournamentTime.describe(t.startsAt)), TUI.SMALL) }),
 	}, buttons, TUI.WIDTH - 0.6, t.official)
 end
 
@@ -139,20 +139,39 @@ local function chip_row(chips)
 end
 
 local function build_filters()
-	local formats = { chip("ALL FORMATS", browser.format == nil, "mp_pvp_tbrowse_format", { value = false }) }
+	local formats = { chip(PVP.T("k_tn_all_formats"), browser.format == nil, "mp_pvp_tbrowse_format", { value = false }) }
 	for _, f in ipairs(FORMATS) do
 		formats[#formats + 1] = chip(TUI.format_name(f):upper(), browser.format == f, "mp_pvp_tbrowse_format", { value = f })
 	end
-	local types = { chip("ALL GAME TYPES", browser.game_type == nil, "mp_pvp_tbrowse_type", { value = false }) }
+	local types = { chip(PVP.T("k_tn_all_game_types"), browser.game_type == nil, "mp_pvp_tbrowse_type", { value = false }) }
 	for _, key in ipairs(game_types()) do
 		types[#types + 1] = chip(TUI.game_type(key):upper(), browser.game_type == key, "mp_pvp_tbrowse_type", { value = key })
 	end
 	-- The on/off filters on a row of their own (beside the game types, the
 	-- gap between the two groups read as uneven spacing).
 	local toggles = {
-		chip("OFFICIAL", browser.official, "mp_pvp_tbrowse_toggle", { key = "official" }),
-		chip("OPEN SPOTS", browser.open_spots, "mp_pvp_tbrowse_toggle", { key = "open_spots" }),
-		chip("TODAY", browser.today, "mp_pvp_tbrowse_toggle", { key = "today" }),
+		chip(PVP.T("k_tn_official_badge"), browser.official, "mp_pvp_tbrowse_toggle", { key = "official" }),
+		chip(PVP.T("k_tn_open_spots"), browser.open_spots, "mp_pvp_tbrowse_toggle", { key = "open_spots" }),
+		chip(PVP.T("k_tn_today"), browser.today, "mp_pvp_tbrowse_toggle", { key = "today" }),
+	}
+	-- REFRESH, set apart on the right of the on/off filters. Greyed out
+	-- while a refresh is under way.
+	local loading = PVP.Tournaments.state.loading
+	toggles[#toggles + 1] = TUI.spacer(0.25)
+	toggles[#toggles + 1] = {
+		n = G.UIT.C,
+		config = {
+			align = "cm",
+			padding = 0.06,
+			r = 0.08,
+			minh = 0.4,
+			minw = 1.5,
+			colour = loading and G.C.UI.BACKGROUND_INACTIVE or G.C.GREEN,
+			hover = not loading,
+			shadow = not loading,
+			button = not loading and "mp_pvp_tbrowse_refresh" or nil,
+		},
+		nodes = { TUI.text(PVP.T(loading and "k_tn_refreshing" or "k_tn_b_refresh"), 0.28, loading and G.C.UI.TEXT_INACTIVE or G.C.UI.TEXT_LIGHT) },
 	}
 	local count = #shown()
 	local total = #(PVP.Tournaments.state.browse or {})
@@ -165,7 +184,7 @@ local function build_filters()
 					chip_row(formats),
 					chip_row(types),
 					chip_row(toggles),
-					TUI.message(string.format("%d of %d tournaments", count, total)),
+					TUI.message(PVP.T("k_tn_browse_count", count, total)),
 				},
 			},
 		},
@@ -187,9 +206,9 @@ local function empty_text()
 		return state.error
 	end
 	if not state.browse then
-		return "Loading..."
+		return PVP.T("k_tn_loading")
 	end
-	return #state.browse == 0 and "No open tournaments right now." or "No tournaments match your search."
+	return PVP.T(#state.browse == 0 and "k_tn_browse_none" or "k_tn_browse_no_match")
 end
 
 local function build_page()
@@ -210,8 +229,8 @@ local function build_page()
 		n = G.UIT.R,
 		config = { align = "cm", padding = 0.06 },
 		nodes = {
-			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.button("BACK", "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.6) } },
-			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.text("BROWSE TOURNAMENTS", 0.45, G.C.BLUE) } },
+			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.button(PVP.T("k_tn_b_back"), "mp_pvp_tournaments_back", nil, G.C.ORANGE, 1.6) } },
+			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.text(PVP.T("k_tn_browse_title"), 0.45, G.C.BLUE) } },
 			{
 				n = G.UIT.C,
 				config = { align = "cm", padding = 0.05 },
@@ -220,7 +239,7 @@ local function build_page()
 						id = "mp_pvp_tbrowse_search",
 						ref_table = browser.search,
 						ref_value = "text",
-						prompt_text = "Search name or organiser",
+						prompt_text = PVP.T("k_tn_search_prompt"),
 						max_length = 24,
 						w = 4.6,
 						h = 0.5,
@@ -228,7 +247,7 @@ local function build_page()
 					}),
 				},
 			},
-			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.button("JOIN WITH CODE", "mp_pvp_tournament_join_code", nil, G.C.PURPLE, 2.5) } },
+			{ n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = { TUI.button(PVP.T("k_tn_join_with_code"), "mp_pvp_tournament_join_code", nil, G.C.PURPLE, 2.5) } },
 		},
 	}
 	local body = TUI.panel({
@@ -324,6 +343,11 @@ G.FUNCS.mp_pvp_tbrowse_toggle = function(e)
 	redraw()
 end
 
+G.FUNCS.mp_pvp_tbrowse_refresh = function()
+	PVP.Tournaments.refresh()
+	redraw()
+end
+
 -- Join a private tournament by its invite code. The code table is captured
 -- directly (see ui/pvp_main_menu.lua's join overlay for why).
 local code_ref = { text = "" }
@@ -337,13 +361,13 @@ G.FUNCS.mp_pvp_tournament_join_code = function()
 					n = G.UIT.R,
 					config = { align = "cm", padding = 0.2 },
 					nodes = {
-						TUI.title("JOIN WITH CODE", G.C.PURPLE),
+						TUI.title(PVP.T("k_tn_join_with_code"), G.C.PURPLE),
 						{
 							n = G.UIT.R,
 							config = { align = "cm", padding = 0.1 },
-							nodes = { create_text_input({ id = "mp_pvp_tournament_code_input", ref_table = code_ref, ref_value = "text", prompt_text = "INVITE CODE", max_length = 6, all_caps = true, w = 4, h = 0.6 }) },
+							nodes = { create_text_input({ id = "mp_pvp_tournament_code_input", ref_table = code_ref, ref_value = "text", prompt_text = PVP.T("k_tn_invite_code_prompt"), max_length = 6, all_caps = true, w = 4, h = 0.6 }) },
 						},
-						{ n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = { TUI.button("JOIN", "mp_pvp_tournament_join_code_confirm", nil, G.C.GREEN, 2.0, 0.42) } },
+						{ n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = { TUI.button(PVP.T("k_tn_b_join"), "mp_pvp_tournament_join_code_confirm", nil, G.C.GREEN, 2.0, 0.42) } },
 					},
 				},
 			},

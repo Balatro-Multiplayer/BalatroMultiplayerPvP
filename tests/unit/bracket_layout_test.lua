@@ -1,5 +1,6 @@
 -- Run from the repo root: lua5.4 tests/unit/bracket_layout_test.lua
 -- lib/bracket_layout.lua: where the bracket viewer puts every match.
+dofile("lib/_tournament_text.lua")
 dofile("lib/bracket_layout.lua")
 local L = PVP.BracketLayout
 

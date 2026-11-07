@@ -101,7 +101,7 @@ local function build_row(t)
 	if s.action then
 		buttons[#buttons + 1] = TUI.button(s.action.label, s.action.button, { id = t.id }, s.action.colour, 1.7)
 	end
-	buttons[#buttons + 1] = TUI.button("OPEN", "mp_pvp_tournament_open", { id = t.id }, G.C.BLUE, 1.3)
+	buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_open"), "mp_pvp_tournament_open", { id = t.id }, G.C.BLUE, 1.3)
 	local left = {
 		TUI.name_line(t),
 		TUI.line({ TUI.text(TUI.meta_line(t), TUI.SMALL, G.C.UI.TEXT_INACTIVE) }),
@@ -109,24 +109,24 @@ local function build_row(t)
 	}
 	-- Signed up to a ranked-profile tournament, but not on it right now.
 	if t.rankedOk == false then
-		left[#left + 1] = TUI.line({ TUI.plain("Ranked profile required", TUI.SMALL, G.C.RED) })
+		left[#left + 1] = TUI.line({ TUI.plain(PVP.T("k_tn_ranked_required"), TUI.SMALL, G.C.RED) })
 	end
 	return TUI.row(left, buttons, TUI.WIDTH - 0.6, t.official)
 end
 
 local function build_header()
 	local state = PVP.Tournaments.state
-	local left = TUI.text(tab.past and "PAST TOURNAMENTS" or "YOUR TOURNAMENTS", 0.45, G.C.GOLD)
+	local left = TUI.text(PVP.T(tab.past and "k_tn_past_tournaments" or "k_tn_your_tournaments"), 0.45, G.C.GOLD)
 	local buttons = {}
 	local past_count = #playing(true)
 	if tab.past then
-		buttons[#buttons + 1] = TUI.button("SHOW CURRENT", "mp_pvp_tournaments_toggle_past", nil, G.C.UI.BACKGROUND_INACTIVE, 2.4)
+		buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_show_current"), "mp_pvp_tournaments_toggle_past", nil, G.C.UI.BACKGROUND_INACTIVE, 2.4)
 	elseif past_count > 0 then
-		buttons[#buttons + 1] = TUI.button("SHOW PAST (" .. past_count .. ")", "mp_pvp_tournaments_toggle_past", nil, G.C.UI.BACKGROUND_INACTIVE, 2.4)
+		buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_show_past", past_count), "mp_pvp_tournaments_toggle_past", nil, G.C.UI.BACKGROUND_INACTIVE, 2.4)
 	end
-	buttons[#buttons + 1] = TUI.button("BROWSE", "mp_pvp_tournaments_browse", nil, G.C.BLUE, 2.0)
+	buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_b_browse"), "mp_pvp_tournaments_browse", nil, G.C.BLUE, 2.0)
 	if #PVP._tournament_sections > 0 then
-		buttons[#buttons + 1] = TUI.button("ORGANISE", "mp_pvp_tournaments_organise", nil, G.C.PURPLE, 2.0)
+		buttons[#buttons + 1] = TUI.button(PVP.T("k_tn_organise"), "mp_pvp_tournaments_organise", nil, G.C.PURPLE, 2.0)
 	end
 	local right = {}
 	for _, b in ipairs(buttons) do
@@ -151,9 +151,9 @@ end
 local function empty_text()
 	local state = PVP.Tournaments.state
 	if not state.mine then
-		return state.error and "" or "Loading..."
+		return state.error and "" or PVP.T("k_tn_loading")
 	end
-	return tab.past and "No past tournaments." or "You haven't joined a tournament yet. Press BROWSE to find one."
+	return PVP.T(tab.past and "k_tn_no_past" or "k_tn_none_joined")
 end
 
 -- After any change: rebuild the header or the list only when what they show

@@ -1,5 +1,6 @@
 -- Run from the repo root: lua5.4 tests/unit/tournament_time_test.lua
 -- lib/tournament_time.lua: 12-hour local times and countdowns.
+dofile("lib/_tournament_text.lua")
 dofile("lib/tournament_time.lua")
 local T = PVP.TournamentTime
 

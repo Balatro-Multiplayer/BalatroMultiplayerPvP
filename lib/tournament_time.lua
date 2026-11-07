@@ -15,8 +15,17 @@ local MINUTE = 60 * 1000
 local HOUR = 60 * MINUTE
 local DAY = 24 * HOUR
 
-local DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
-local MONTHS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+-- Day and month names are looked up when drawn (localization/tournaments).
+local DAYS = { "sun", "mon", "tue", "wed", "thu", "fri", "sat" }
+local MONTHS = { "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec" }
+
+local function day_name(wday)
+	return PVP.T("k_tn_day_" .. DAYS[wday])
+end
+
+local function month_name(month)
+	return PVP.T("k_tn_month_" .. MONTHS[month])
+end
 
 -- Server time minus local time, in ms.
 T.offset_ms = 0
@@ -44,7 +53,7 @@ local function clock_text(t)
 	if hour == 0 then
 		hour = 12
 	end
-	return string.format("%d:%02d %s", hour, t.min, t.hour < 12 and "AM" or "PM")
+	return PVP.T(t.hour < 12 and "k_tn_clock_am" or "k_tn_clock_pm", hour, string.format("%02d", t.min))
 end
 
 -- epoch ms -> the player's local time: "Today 6:00 PM", "Tomorrow 9:30 AM",
@@ -61,13 +70,13 @@ function T.format_local(epoch_ms, now_ms, date_fn)
 	end
 	local days_away = math.floor(day_number(at) - day_number(today) + 0.5)
 	if days_away == 0 then
-		return "Today " .. time
+		return PVP.T("k_tn_today_at", time)
 	elseif days_away == 1 then
-		return "Tomorrow " .. time
+		return PVP.T("k_tn_tomorrow_at", time)
 	elseif days_away > 1 and days_away < 7 then
-		return DAYS[at.wday] .. " " .. time
+		return PVP.T("k_tn_weekday_at", day_name(at.wday), time)
 	end
-	return string.format("%s %d, %s", MONTHS[at.month], at.day, time)
+	return PVP.T("k_tn_date_at", month_name(at.month), at.day, time)
 end
 
 -- The time left until epoch ms, for a countdown: nil a day or more away
@@ -80,13 +89,13 @@ function T.countdown(epoch_ms, now_ms)
 		return nil
 	end
 	if left <= 0 then
-		return "0s"
+		return PVP.T("k_tn_countdown_s", 0)
 	end
 	local seconds = math.floor(left / 1000)
 	if left >= HOUR then
-		return string.format("%dh %02dm", math.floor(seconds / 3600), math.floor(seconds % 3600 / 60))
+		return PVP.T("k_tn_countdown_hm", math.floor(seconds / 3600), string.format("%02d", math.floor(seconds % 3600 / 60)))
 	end
-	return string.format("%dm %02ds", math.floor(seconds / 60), seconds % 60)
+	return PVP.T("k_tn_countdown_ms", math.floor(seconds / 60), string.format("%02d", seconds % 60))
 end
 
 -- A big clock for the tournament screen: "54:10" under an hour, "1:05:10"
@@ -117,9 +126,9 @@ function T.describe(epoch_ms, now_ms, date_fn)
 		return T.format_local(epoch_ms, now_ms, date_fn)
 	end
 	if epoch_ms <= now_ms then
-		return "now"
+		return PVP.T("k_tn_now")
 	end
-	return "in " .. left
+	return PVP.T("k_tn_in", left)
 end
 
 return T

@@ -38,8 +38,15 @@ local page = {
 	show_times = true,
 }
 
-local HINT = "Drag to move  -  mouse wheel to zoom  -  click a match for details"
-local STAGES = { W = "Winners", L = "Losers", GF = "Grand final", RR = "Round", SW = "Round" }
+-- Stage -> text key for the info line's "Winners 2".
+local STAGES = { W = "k_tn_stage_winners", L = "k_tn_stage_losers", GF = "k_tn_stage_grand_final", RR = "k_tn_stage_round", SW = "k_tn_stage_round" }
+
+-- Why a match ended, when not by playing: "dropped" -> "dropped out".
+local function reason_text(reason)
+	local key = "k_tn_reason_" .. tostring(reason)
+	local text = PVP.T(key)
+	return text ~= key and text or (tostring(reason):gsub("_", " "))
+end
 
 local function me()
 	return MPAPI.connection_state and MPAPI.connection_state.player_id or nil
@@ -56,23 +63,23 @@ end
 
 local function name_of(p)
 	if p == "tbd" then
-		return "TBD"
+		return PVP.T("k_tn_tbd")
 	end
-	return type(p) == "table" and p.name or "bye"
+	return type(p) == "table" and p.name or PVP.T("k_tn_bye")
 end
 
 -- The info line for the selected match: who, the score, and what is happening.
 local function info_for(m)
 	if not m then
 		if page.view and page.view.provisional then
-			return "Bracket Preview (not final)", G.C.GOLD
+			return PVP.T("k_tn_bracket_preview"), G.C.GOLD
 		end
-		return HINT, G.C.UI.TEXT_INACTIVE
+		return PVP.T("k_tn_bracket_hint"), G.C.UI.TEXT_INACTIVE
 	end
-	local round = (STAGES[m.stage] or m.stage) .. " " .. m.round
-	local head = string.format("%s:  %s  %d - %d  %s", round, name_of(m.players[1]), m.wins and m.wins[1] or 0, m.wins and m.wins[2] or 0, name_of(m.players[2]))
+	local round = STAGES[m.stage] and PVP.T(STAGES[m.stage], m.round) or (tostring(m.stage) .. " " .. m.round)
+	local head = PVP.T("k_tn_info_head", round, name_of(m.players[1]), m.wins and m.wins[1] or 0, m.wins and m.wins[2] or 0, name_of(m.players[2]))
 	if (m.bestOf or 1) > 1 then
-		head = head .. "  (best of " .. m.bestOf .. ")"
+		head = head .. PVP.T("k_tn_info_best_of", m.bestOf)
 	end
 	local TT = PVP.TournamentTime
 	local clock = m.clock
@@ -84,16 +91,17 @@ local function info_for(m)
 				winner = p.name
 			end
 		end
-		local how = m.outcome and m.outcome.reason ~= "played" and ("  (" .. tostring(m.outcome.reason):gsub("_", " ") .. ")") or ""
-		return head .. "  -  " .. (winner and (winner .. " won") or (m.outcome and m.outcome.draw and "draw" or "no winner")) .. how, G.C.UI.TEXT_LIGHT
+		local how = m.outcome and m.outcome.reason ~= "played" and PVP.T("k_tn_info_how", reason_text(m.outcome.reason)) or ""
+		local result = winner and PVP.T("k_tn_info_won", winner) or PVP.T(m.outcome and m.outcome.draw and "k_tn_info_draw" or "k_tn_info_no_winner")
+		return PVP.T("k_tn_info_line", head, result) .. how, G.C.UI.TEXT_LIGHT
 	elseif clock and clock.phase == "in_game" then
-		return head .. "  -  playing now", G.C.GREEN
+		return PVP.T("k_tn_info_line", head, PVP.T("k_tn_info_playing")), G.C.GREEN
 	elseif clock and clock.phase == "ready_up" and clock.deadline then
-		return head .. "  -  ready up, " .. (TT.countdown(clock.deadline) or TT.format_local(clock.deadline)) .. " left", G.C.GOLD
+		return PVP.T("k_tn_info_line", head, PVP.T("k_tn_info_ready_up", TT.countdown(clock.deadline) or TT.format_local(clock.deadline))), G.C.GOLD
 	elseif clock and clock.phase == "unplayed" then
-		return head .. "  -  not played in time, the organiser decides", G.C.RED
+		return PVP.T("k_tn_info_line", head, PVP.T("k_tn_info_unplayed")), G.C.RED
 	elseif m.status == "waiting" then
-		return head .. "  -  waiting for the earlier matches", G.C.UI.TEXT_INACTIVE
+		return PVP.T("k_tn_info_line", head, PVP.T("k_tn_info_waiting")), G.C.UI.TEXT_INACTIVE
 	end
 	return head, G.C.UI.TEXT_LIGHT
 end
@@ -113,7 +121,7 @@ local function rules_for(m)
 	if type(m.deck) == "table" then
 		parts[#parts + 1] = TUI.deck_rule(m.deck)
 	end
-	return #parts > 0 and ("Plays: " .. table.concat(parts, ", ")) or ""
+	return #parts > 0 and PVP.T("k_tn_plays", table.concat(parts, PVP.T("k_tn_list_sep"))) or ""
 end
 
 -- A round's timing (in playing order) for the bracket: { start, play, brk }.
@@ -139,17 +147,20 @@ local function raw_timing(view, step)
 	local start = b.start or {}
 	if step == first and not clock.startedAt then
 		if start.kind == "at" then
-			out.start = "continues " .. TT.format_local(start.at)
+			out.start = PVP.T("k_tn_timing_continues", TT.format_local(start.at))
+			if (b.checkInMinutes or 0) > 0 then
+				out.start = out.start .. PVP.T("k_tn_timing_check_in", TUI.duration(b.checkInMinutes))
+			end
 		elseif start.kind == "manual" then
-			out.start = "organiser starts it"
+			out.start = PVP.T("k_tn_bt_manual")
 		elseif i == 1 then
 			if not page.preview then
-				out.start = "starts " .. TT.format_local(view.summary.startsAt)
+				out.start = PVP.T("k_tn_bt_starts", TT.format_local(view.summary.startsAt))
 			end
 		elseif (start.breakMinutes or 0) > 0 then
 			local before = view.blocks and view.blocks[i - 1]
 			if before and before.finishedAt then
-				out.start = "starts " .. TT.format_local(before.finishedAt + start.breakMinutes * 60000)
+				out.start = PVP.T("k_tn_bt_starts", TT.format_local(before.finishedAt + start.breakMinutes * 60000))
 			end
 		end
 	end
@@ -158,10 +169,10 @@ local function raw_timing(view, step)
 	end
 	local play = b.play or {}
 	if play.kind == "live" then
-		out.play = "live, " .. TUI.duration(play.readyUpMinutes) .. " ready-up"
+		out.play = PVP.T("k_tn_bt_live", TUI.duration(play.readyUpMinutes))
 	elseif play.kind == "window" then
 		local closes = play.closesAt or (clock.startedAt and play.durationMinutes and (clock.startedAt + play.durationMinutes * 60000))
-		out.play = closes and ("deadline " .. TT.format_local(closes)) or (TUI.duration(play.durationMinutes) .. " to play")
+		out.play = closes and PVP.T("k_tn_bt_deadline", TT.format_local(closes)) or PVP.T("k_tn_bt_to_play", TUI.duration(play.durationMinutes))
 	end
 	return out
 end
@@ -182,7 +193,7 @@ local function update_info()
 	TUI.set_live(page.rules, rules_for(m), G.C.UI.TEXT_INACTIVE)
 	if page.preview then
 		local p = page.preview
-		TUI.set_live(page.round_label, p.step == 0 and "Not started" or (p.step >= p.steps and "Finished" or ("After round " .. p.step .. " of " .. p.steps)), G.C.GOLD)
+		TUI.set_live(page.round_label, p.step == 0 and PVP.T("k_tn_preview_not_started") or (p.step >= p.steps and PVP.T("k_tn_status_finished") or PVP.T("k_tn_preview_after_round", p.step, p.steps)), G.C.GOLD)
 	end
 end
 
@@ -203,16 +214,15 @@ end
 local function empty_text(view)
 	-- Until the first answer: the cached view may be from before the preview.
 	if not page.preview and not page.loaded then
-		return "Loading..."
+		return PVP.T("k_tn_loading")
 	end
 	local status = view and view.summary and view.summary.status
 	if status == "draft" or status == "registration" or status == "check_in" then
-		local n = status == "check_in" and "checked in" or "signed up"
-		return "No bracket yet: it appears once 2 players have " .. n .. "."
+		return PVP.T(status == "check_in" and "k_tn_no_bracket_checked_in" or "k_tn_no_bracket_signed_up")
 	elseif status == "cancelled" then
-		return "This tournament was cancelled before it started."
+		return PVP.T("k_tn_cancelled_before_start")
 	end
-	return "The bracket is drawn when the tournament starts."
+	return PVP.T("k_tn_bracket_at_start")
 end
 
 local function apply_view(view)
@@ -264,7 +274,7 @@ local function standings_rows()
 	end
 	for g, table_rows in ipairs(view.standings) do
 		if #view.standings > 1 then
-			rows[#rows + 1] = { text = "Group " .. string.char(64 + g), colour = G.C.GOLD }
+			rows[#rows + 1] = { text = PVP.T("k_tn_group", string.char(64 + g)), colour = G.C.GOLD }
 		end
 		for _, r in ipairs(table_rows) do
 			local mine = r.id == me()
@@ -309,17 +319,17 @@ local function build_page()
 	end
 	local title
 	if page.preview then
-		title = TUI.text(page.preview.title or "PREVIEW", 0.45, G.C.PURPLE)
+		title = TUI.text(page.preview.title or PVP.T("k_tn_preview"), 0.45, G.C.PURPLE)
 	else
-		title = view and TUI.name_line(view.summary, 0.45) or TUI.text("Bracket", 0.45)
+		title = view and TUI.name_line(view.summary, 0.45) or TUI.text(PVP.T("k_tn_bracket"), 0.45)
 	end
 	local header_nodes = {
-		col(TUI.button("BACK", "mp_pvp_tbracket_back", nil, G.C.ORANGE, 1.6)),
+		col(TUI.button(PVP.T("k_tn_b_back"), "mp_pvp_tbracket_back", nil, G.C.ORANGE, 1.6)),
 		{ n = G.UIT.C, config = { align = "cm", padding = 0.1, minw = width - (page.preview and 13.9 or 11.3) }, nodes = { title } },
 		col(TUI.button("-", "mp_pvp_tbracket_zoom", { factor = 1 / 1.3 }, G.C.UI.BACKGROUND_INACTIVE, 0.7, 0.45)),
 		col(TUI.button("+", "mp_pvp_tbracket_zoom", { factor = 1.3 }, G.C.UI.BACKGROUND_INACTIVE, 0.7, 0.45)),
-		col(TUI.button("FIT", "mp_pvp_tbracket_fit", nil, G.C.UI.BACKGROUND_INACTIVE, 1.2)),
-		col(TUI.button("TIMES", "mp_pvp_tbracket_times", nil, page.show_times and G.C.GOLD or G.C.UI.BACKGROUND_INACTIVE, 1.4)),
+		col(TUI.button(PVP.T("k_tn_b_fit"), "mp_pvp_tbracket_fit", nil, G.C.UI.BACKGROUND_INACTIVE, 1.2)),
+		col(TUI.button(PVP.T("k_tn_b_times"), "mp_pvp_tbracket_times", nil, page.show_times and G.C.GOLD or G.C.UI.BACKGROUND_INACTIVE, 1.4)),
 	}
 	if page.preview then
 		-- Step through the made-up results a round at a time.
@@ -327,7 +337,7 @@ local function build_page()
 		header_nodes[#header_nodes + 1] = { n = G.UIT.C, config = { align = "cm", minw = 3.0 }, nodes = { TUI.live_text(page.round_label, TUI.TEXT) } }
 		header_nodes[#header_nodes + 1] = col(TUI.button(">", "mp_pvp_tbracket_step", { delta = 1 }, G.C.RED, 0.7, 0.45))
 	else
-		header_nodes[#header_nodes + 1] = col(TUI.button("MY MATCH", "mp_pvp_tbracket_mine", nil, G.C.BLUE, 2.0))
+		header_nodes[#header_nodes + 1] = col(TUI.button(PVP.T("k_tn_b_my_match"), "mp_pvp_tbracket_mine", nil, G.C.BLUE, 2.0))
 	end
 	local header = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = header_nodes }
 	local body_nodes = { { n = G.UIT.C, config = { align = "cm" }, nodes = { { n = G.UIT.O, config = { object = page.canvas } } } } }
@@ -343,13 +353,13 @@ local function build_page()
 			visible = 15,
 			row_h = 0.4,
 			width = 3.8,
-			empty = "No results yet.",
+			empty = PVP.T("k_tn_no_results"),
 		})
 		body_nodes[#body_nodes + 1] = TUI.spacer(0.15)
 		body_nodes[#body_nodes + 1] = {
 			n = G.UIT.C,
 			config = { align = "tm", padding = 0.06 },
-			nodes = { TUI.text("STANDINGS", TUI.TEXT, G.C.GOLD), page.standings.node },
+			nodes = { TUI.text(PVP.T("k_tn_standings"), TUI.TEXT, G.C.GOLD), page.standings.node },
 		}
 	end
 	local body = TUI.panel({
@@ -461,10 +471,10 @@ G.FUNCS.mp_pvp_tbracket_back = function()
 	local details_id = page.back_to_details and page.id
 	MPAPI.pages.back()
 	if details_id and PVP.open_tournament_details then
-		-- Once the page underneath is back.
+		-- Next frame, once the page underneath is back.
 		G.E_MANAGER:add_event(Event({
 			trigger = "after",
-			delay = 0.1,
+			delay = 0,
 			timer = "REAL",
 			blockable = false,
 			blocking = false,
