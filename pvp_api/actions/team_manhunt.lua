@@ -112,6 +112,7 @@ MPAPI.ActionType({
 		local sid = self_id()
 		local target = params.pairing and params.pairing[sid]
 		PVP.GAME.team_card_target_id = (target and target ~= "") and target or nil
+		PVP.refresh_target_lives()
 	end),
 })
 
@@ -128,6 +129,7 @@ MPAPI.ActionType({
 			return
 		end
 		PVP.GAME.manhunt_target_id = (params.target_id and params.target_id ~= "") and params.target_id or nil
+		PVP.refresh_target_lives()
 	end),
 })
 
