@@ -106,15 +106,12 @@ local function info_for(m)
 	return head, G.C.UI.TEXT_LIGHT
 end
 
--- "Plays: Nemesis, Balanced, Black Deck on Orange Stake"
+-- "Plays: Balanced, Black Deck on Orange Stake"
 local function rules_for(m)
 	if not m then
 		return ""
 	end
 	local parts = {}
-	if m.gameMode then
-		parts[#parts + 1] = TUI.game_type(m.gameMode)
-	end
 	if m.ruleset then
 		parts[#parts + 1] = TUI.ruleset_name(m.ruleset)
 	end

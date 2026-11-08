@@ -16,7 +16,7 @@ local FORMATS = { "single_elim", "double_elim", "round_robin", "swiss" }
 local browser = {
 	-- Filters: nil = all.
 	format = nil,
-	game_type = nil,
+	ruleset = nil,
 	official = false,
 	open_spots = false,
 	today = false,
@@ -41,7 +41,7 @@ local function matches(t)
 	if browser.format and t.format ~= browser.format then
 		return false
 	end
-	if browser.game_type and t.gameMode ~= browser.game_type then
+	if browser.ruleset and t.ruleset ~= browser.ruleset then
 		return false
 	end
 	if browser.official and not t.official then
@@ -73,17 +73,17 @@ local function shown()
 	return out
 end
 
--- The game types present in the list (plus any picked one), for the chips.
-local function game_types()
+-- The rulesets present in the list (plus any picked one), for the chips.
+local function rulesets()
 	local seen, out = {}, {}
 	for _, t in ipairs(PVP.Tournaments.state.browse or {}) do
-		if t.gameMode and not seen[t.gameMode] then
-			seen[t.gameMode] = true
-			out[#out + 1] = t.gameMode
+		if t.ruleset and not seen[t.ruleset] then
+			seen[t.ruleset] = true
+			out[#out + 1] = t.ruleset
 		end
 	end
-	if browser.game_type and not seen[browser.game_type] then
-		out[#out + 1] = browser.game_type
+	if browser.ruleset and not seen[browser.ruleset] then
+		out[#out + 1] = browser.ruleset
 	end
 	table.sort(out)
 	return out
@@ -143,11 +143,11 @@ local function build_filters()
 	for _, f in ipairs(FORMATS) do
 		formats[#formats + 1] = chip(TUI.format_name(f):upper(), browser.format == f, "mp_pvp_tbrowse_format", { value = f })
 	end
-	local types = { chip(PVP.T("k_tn_all_game_types"), browser.game_type == nil, "mp_pvp_tbrowse_type", { value = false }) }
-	for _, key in ipairs(game_types()) do
-		types[#types + 1] = chip(TUI.game_type(key):upper(), browser.game_type == key, "mp_pvp_tbrowse_type", { value = key })
+	local types = { chip(PVP.T("k_tn_all_rulesets"), browser.ruleset == nil, "mp_pvp_tbrowse_ruleset", { value = false }) }
+	for _, key in ipairs(rulesets()) do
+		types[#types + 1] = chip(TUI.ruleset_name(key):upper(), browser.ruleset == key, "mp_pvp_tbrowse_ruleset", { value = key })
 	end
-	-- The on/off filters on a row of their own (beside the game types, the
+	-- The on/off filters on a row of their own (beside the rulesets, the
 	-- gap between the two groups read as uneven spacing).
 	local toggles = {
 		chip(PVP.T("k_tn_official_badge"), browser.official, "mp_pvp_tbrowse_toggle", { key = "official" }),
@@ -325,9 +325,9 @@ G.FUNCS.mp_pvp_tbrowse_format = function(e)
 	redraw()
 end
 
-G.FUNCS.mp_pvp_tbrowse_type = function(e)
+G.FUNCS.mp_pvp_tbrowse_ruleset = function(e)
 	local v = e.config.ref_table.value
-	browser.game_type = v or nil
+	browser.ruleset = v or nil
 	if browser.list then
 		browser.list.offset = 0
 	end

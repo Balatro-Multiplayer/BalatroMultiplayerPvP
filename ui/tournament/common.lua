@@ -176,11 +176,6 @@ function TUI.count(n, key)
 	return PVP.T(key .. (n == 1 and "_1" or "_n"), n)
 end
 
-function TUI.game_type(key)
-	local def = PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[key]
-	return def and def.display or tostring(key)
-end
-
 function TUI.ruleset_name(key)
 	local ok, name = pcall(PVP.ruleset_display_name, key)
 	if ok and type(name) == "string" and name ~= "ERROR" and name ~= "" then
@@ -189,14 +184,14 @@ function TUI.ruleset_name(key)
 	return (tostring(key):gsub("^ruleset_mp_", ""):gsub("^%l", string.upper))
 end
 
--- "Swiss  -  12/64  -  Nemesis"
+-- "Swiss  -  12/64  -  Balanced"
 function TUI.meta_line(summary)
 	return string.format(
 		"%s  -  %d/%d  -  %s",
 		TUI.format_name(summary.format),
 		summary.players or 0,
 		summary.maxPlayers or 0,
-		TUI.game_type(summary.gameMode)
+		TUI.ruleset_name(summary.ruleset)
 	)
 end
 

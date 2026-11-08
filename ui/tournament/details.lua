@@ -61,9 +61,6 @@ end
 -- What a round override changes: "Black Deck on Orange Stake, best of 5".
 local function override_text(o)
 	local parts = {}
-	if o.gameMode then
-		parts[#parts + 1] = TUI.game_type(o.gameMode)
-	end
 	if o.ruleset then
 		parts[#parts + 1] = TUI.ruleset_name(o.ruleset)
 	end
@@ -167,7 +164,7 @@ end
 local function game_card(view)
 	local d = view.rounds and view.rounds.defaults or {}
 	local differ = next(view.rounds and view.rounds.overrides or {}) ~= nil
-	return card(PVP.T("k_tn_card_game"), TUI.game_type(d.gameMode), PVP.T("k_tn_list2", TUI.ruleset_name(d.ruleset), PVP.T("k_tn_best_of_lower", tostring(d.bestOf or 1))) .. (differ and "*" or ""))
+	return card(PVP.T("k_tn_card_ruleset"), TUI.ruleset_name(d.ruleset), PVP.T("k_tn_best_of_lower", tostring(d.bestOf or 1)) .. (differ and "*" or ""))
 end
 
 local function decks_card(view)
