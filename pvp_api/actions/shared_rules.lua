@@ -6,7 +6,9 @@ for _, key in ipairs({ "pvp_rules_open", "pvp_rules_pick", "pvp_rules_sync" }) d
 end
 H.A_host("pvp_rules_offer", function(_, _, params)
 	if not R.enabled(MPAPI.get_current_lobby()) then return end
-	if type(params.id) ~= "string" or type(params.choices) ~= "table" or #params.choices ~= 3 then return end
+	if type(params.id) ~= "string" or type(params.choices) ~= "table" or #params.choices ~= 4 then return end
+	local state = G.GAME and G.GAME.pvp_shared_rules
+	if R.starting_id == params.id or (state and state.retired and state.retired[params.id]) then return end
 	for _, key in ipairs(params.choices) do
 		if not R.definitions[key] then return end
 	end

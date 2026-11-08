@@ -90,7 +90,9 @@ function D.show()
 		}
 	end
 	contents[#contents + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = columns }
-	if pending.selected then
+	if pending.submitted then
+		contents[#contents + 1] = row(localize("k_almanac_locking"), 0.27)
+	elseif pending.selected then
 		local preview = D.preview(pending.selected)
 		if preview then contents[#contents + 1] = row(preview, 0.27) end
 		local allowed, reason = D.can_acquire(pending.selected)
@@ -124,7 +126,7 @@ end
 
 G.FUNCS.pvp_almanac_select = function(e)
 	local state = G.GAME.almanac_draft
-	if not state or not state.pending or state.busy then return end
+	if not state or not state.pending or state.busy or state.pending.submitted then return end
 	local key = e.config.ref_table.key
 	local offered = false
 	for _, choice in ipairs(state.pending.choices) do
@@ -150,6 +152,17 @@ G.FUNCS.pvp_almanac_confirm = function()
 	if not pending or not pending.selected then return end
 	local key = pending.selected
 	if not D.can_acquire(key) then return end
+	if D.networked and D.networked() then
+		pending.submitted = true
+		D.request("pvp_almanac_pick", { id = pending.id, ante = pending.ante, deck = key })
+		D.show()
+		return
+	end
+	D.accept(state, key)
+end
+
+function D.accept(state, key)
+	local pending = state.pending
 	if PVP.rlog_active() then
 		PVP.RLOG.record("almanac_pick", { state.seed, pending.ante, key, table.concat(pending.choices, ",") })
 	end
@@ -161,6 +174,7 @@ end
 G.FUNCS.pvp_almanac_pass = function()
 	local state = G.GAME.almanac_draft
 	if not state or not state.pending then return end
+	if D.networked and D.networked() then return end
 	for _, key in ipairs(state.pending.choices) do
 		if D.can_acquire(key) then return end
 	end

@@ -384,7 +384,7 @@ check(not state.pack_active and saved == before + 2, "pack completion saved once
 
 -- UI callback contracts (not a renderer).
 function localize(args)
-	return args.key
+	return type(args) == "table" and args.key or args
 end
 function Sprite()
 	return {}
@@ -469,4 +469,106 @@ check(G.GAME.round_resets.hands == 5 and D.has(G.GAME.almanac_draft, "b_blue"), 
 G.GAME.almanac_draft.busy = nil
 handler(records[1][2], { is_pov = true })
 check(G.GAME.round_resets.hands == 5, "duplicate replay does not grant twice")
+
+-- Actual multiplayer request/ack path, with transport stubbed. The server may
+-- commit before our client saves, but only our normal gate applies effects.
+reset()
+G.STATE, G.STAGE = G.STATES.BLIND_SELECT, G.STAGES.RUN
+G.GAME.round_resets.ante = 2
+G.OVERLAY_MENU = nil
+local now, requests = 10, {}
+love = { timer = {
+	getTime = function()
+		return now
+	end,
+} }
+copy_table = copy
+local network_lobby = {
+	code = "ABC123",
+	player_id = "a",
+	is_host = true,
+	server_features = { almanac_draft = 1 },
+	_game = { started = { run_id = "RUN" } },
+	action = function(_, def)
+		return {
+			broadcast = function(_, params)
+				requests[#requests + 1] = { key = def.key, params = copy(params) }
+			end,
+		}
+	end,
+}
+MPAPI.get_current_lobby = function()
+	return network_lobby
+end
+MPAPI.ActionTypes = {}
+MPAPI.ActionType = function(def)
+	MPAPI.ActionTypes[def.key] = def
+end
+MPAPI.sendWarnMessage = function() end
+G.C.UI = { TEXT_LIGHT = {} }
+PVP.SHARED_RULES = { definitions = {} }
+dofile("pvp_api/actions/_helpers.lua")
+dofile("pvp_api/actions/almanac.lua")
+dofile("ui/almanac_forecast.lua")
+state = G.GAME.almanac_draft
+check(D.gate() and not state.pending, "network draft never rolls a local offer")
+check(requests[1].key == "pvp_almanac_open", "either player requests the shared offer")
+local receive = MPAPI.ActionTypes.pvp_almanac_offer.on_receive
+local params = { id = "RUN:decks:2", ante = 2, choices = { "b_blue", "b_yellow", "b_red" } }
+receive(nil, "b", params)
+check(not D.network_reply, "peer cannot forge a deck offer")
+local old = copy(params)
+old.id = "OLD:decks:2"
+receive(nil, "a", old)
+check(not D.network_reply, "delayed offers from the previous run are ignored")
+receive(nil, "a", params)
+check(D.gate() and state.pending.id == params.id, "shared offer installed at the gate")
+check(not D.waiting_state, "received offer replaces the waiting overlay")
+local selected = { config = { ref_table = { key = "b_blue" } } }
+G.FUNCS.pvp_almanac_select(selected)
+G.FUNCS.pvp_almanac_select(selected)
+check(#state.acquired == 0 and state.pending.submitted, "click waits for server commitment")
+check(requests[#requests].key == "pvp_almanac_pick", "confirmation submits the selected deck")
+now = 13
+D.gate()
+check(
+	requests[#requests].key == "pvp_almanac_pick" and requests[#requests].params.deck == "b_blue",
+	"lost acknowledgement retransmits the same choice"
+)
+params.picked = "b_blue"
+receive(nil, "a", params)
+D.gate()
+check(
+	#state.acquired == 1 and state.acquired[1] == "b_blue" and state.busy,
+	"acknowledged choice applies once through the acquisition barrier"
+)
+receive(nil, "a", params)
+check(not D.network_reply, "duplicate acknowledgement cannot grant twice")
+Game:update(0)
+check(not state.busy and not D.gate(), "settled commitment saves and releases the shop gate")
+
+-- Restore the pre-commit checkpoint: the server's locked result reapplies once
+-- to that old board, rather than generating a different offer.
+reset()
+G.GAME.round_resets.ante = 2
+state = G.GAME.almanac_draft
+receive(nil, "a", params)
+D.gate()
+check(
+	G.GAME.round_resets.hands == 5 and state.last_ante == 2,
+	"crash recovery applies server commitment to old checkpoint"
+)
+Game:update(0)
+receive(nil, "a", params)
+D.gate()
+check(G.GAME.round_resets.hands == 5, "recovered commitment remains exactly once")
+local prior_pending, prior_acquired = state.pending, #state.acquired
+local forecast = D.forecast(state, 2)
+check(#forecast == 6 and forecast[2]:find("k_almanac_complete"), "forecast shows completed milestone and full schedule")
+check(
+	state.pending == prior_pending and #state.acquired == prior_acquired,
+	"forecast never generates offers or acquisitions"
+)
+network_lobby.code = nil
+check(not D.networked(), "practice and replay retain the local draft path")
 print("Almanac draft: " .. checks .. " checks passed")

@@ -22,7 +22,7 @@ for _, entry in ipairs({
 end
 
 function R.supported(lobby)
-	return lobby and lobby.server_features and lobby.server_features.shared_pvp_rules == 1
+	return lobby and lobby.server_features and lobby.server_features.shared_pvp_rules == 2
 end
 
 function R.enabled(lobby)
@@ -30,8 +30,14 @@ function R.enabled(lobby)
 		and R.supported(lobby)
 		and MPAPI.has_server_referee(lobby)
 		and #lobby:get_players() == 2
-		and (lobby:get_metadata() or {}).kind == PVP.LobbyAccess.PRIVATE
-		and (lobby:get_metadata() or {}).shared_pvp_rules == true
+		and (
+			(lobby:get_metadata() or {}).ruleset == "ruleset_mp_almanac"
+			or (lobby:get_metadata() or {}).deck == "Almanac"
+			or (
+				(lobby:get_metadata() or {}).kind == PVP.LobbyAccess.PRIVATE
+				and (lobby:get_metadata() or {}).shared_pvp_rules == true
+			)
+		)
 end
 
 function R.prepare(result)
@@ -45,9 +51,13 @@ function R.prepare(result)
 		if not def or def.ante > result.ante then return false end
 	end
 	local previous = G.GAME.pvp_shared_rules
+	if previous and previous.retired and previous.retired[result.id] then return false end
 	if previous and previous.id == result.id then return not previous.active and not previous.finished end
 	if previous and previous.active then return false end
-	G.GAME.pvp_shared_rules = { id = result.id, ante = result.ante, rules = copy_table(result.rules) }
+	local retired = previous and copy_table(previous.retired or {}) or {}
+	if previous then retired[previous.id] = true end
+	G.GAME.pvp_shared_rules =
+		{ id = result.id, ante = result.ante, rules = copy_table(result.rules), retired = retired }
 	return true
 end
 
