@@ -120,6 +120,7 @@ end
 -- Wire PvP's Draft policy and presentation into MPAPI.BanPick.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
+	if MPAPI.resolve_ruleset_field(ruleset, "draft_policy") == "almanac" then bp = PVP.DRAFT.almanac_policy end
 	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
 	return {
 		id = PVP.SETUP.Step.DRAFT,
@@ -247,6 +248,8 @@ function PVP.on_game_start(params)
 		else
 			deck_ref = picked
 		end
+		local required_back = MPAPI.resolve_ruleset_field(PVP.LOBBY.config.ruleset, "required_back")
+		if required_back then deck_ref = required_back end
 		if deck_ref then
 			-- Draft survivors are center KEYS (e.g. 'b_red'); PVP's run start wants a deck
 			-- NAME. Resolve either form to a name, and pin it as the lobby deck so PVP's
@@ -279,7 +282,7 @@ function PVP.on_game_start(params)
 		plan = PVP.SETUP.plan(
 			meta.queue_mode,
 			PVP._pvp_kind == PVP.LobbyAccess.CASUAL,
-			PVP.is_matchmaking and PVP.is_matchmaking(),
+			(PVP.is_matchmaking and PVP.is_matchmaking()) or meta.ruleset == "ruleset_mp_almanac",
 			#((started and started.players) or lobby:get_players()),
 			gm_def and gm_def.ban_pick
 		)

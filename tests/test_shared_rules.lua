@@ -17,7 +17,7 @@ PVP = { LOBBY = { is_host = true }, GAME = {}, LobbyAccess = { PRIVATE = "privat
 local dispatched, records, sends = {}, {}, {}
 local meta = { kind = "private", shared_pvp_rules = true }
 local lobby = {
-	server_features = { shared_pvp_rules = 1 },
+	server_features = { shared_pvp_rules = 2 },
 	player_id = "a",
 	is_host = true,
 	get_players = function()
@@ -244,8 +244,13 @@ check(R.enabled(lobby), "Opt-in private two-player server lobby enabled")
 lobby.server_features = nil
 check(not R.enabled(lobby), "Older server cannot enable unsupported rule protocol")
 lobby.server_features = { shared_pvp_rules = 1 }
+check(not R.enabled(lobby), "Three-rule prototype server cannot enable the four-rule protocol")
+lobby.server_features = { shared_pvp_rules = 2 }
 meta.shared_pvp_rules = false
 check(not R.enabled(lobby), "Default games unchanged")
+meta.deck = "Almanac"
+check(R.enabled(lobby), "Almanac always drafts rules without the prototype opt-in switch")
+meta.deck = nil
 meta.shared_pvp_rules = true
 check(not R.prepare({ id = "bad", ante = 3, rules = { "hook", "plant" } }), "Ante gates validated on receipt")
 check(not R.prepare({ id = "bad", ante = 5, rules = { "manacle", "manacle" } }), "No duplicate stacking")
@@ -372,12 +377,14 @@ check(not R.has("house"), "Disabled rules stop applying")
 
 -- Actual transport/UI entry points: no independent client rolls.
 dofile("pvp_api/round_sync.lua")
-PVP.current_target_id = function() return "b" end
+PVP.current_target_id = function()
+	return "b"
+end
 local offer = MPAPI.ActionTypes.pvp_rules_offer.on_receive
-offer(nil, "b", { id = "OFFER", choices = { "club", "head", "arm" }, ms_left = 10000 })
+offer(nil, "b", { id = "OFFER", choices = { "club", "head", "arm", "house" }, ms_left = 10000 })
 check(R.offer == nil, "Forged non-host offer ignored")
-offer(nil, "a", { id = "OFFER", choices = { "club", "head", "arm" }, ms_left = 10000 })
-check(R.offer and #G.OVERLAY_MENU.contents == 6, "Offer builds three real choice controls")
+offer(nil, "a", { id = "OFFER", choices = { "club", "head", "arm", "house" }, ms_left = 10000 })
+check(R.offer and #G.OVERLAY_MENU.contents == 7, "Offer builds four real choice controls")
 G.FUNCS.pvp_shared_pick({ config = { ref_table = { key = "club" } } })
 check(sends[#sends].key == "pvp_rules_pick" and sends[#sends].params.rule == "club", "Click sends offered rule request")
 local result = { id = "RESOLVED", ante = 5, rules = { "tooth", "house" } }
@@ -394,16 +401,37 @@ check(PVP.GAME.next_blind_context.UIBox == G.blind_select, "Recovered start uses
 R.finish()
 G.STATE = "shop"
 receive(nil, "a", {
-	first_player = "a", round_id = "DEFERRED-ROUND", starting_hands = { b = 3 },
+	first_player = "a",
+	round_id = "DEFERRED-ROUND",
+	starting_hands = { b = 3 },
 	shared_rules = { id = "DEFERRED", ante = 5, rules = { "arm", "house" } },
 })
 check(R.pending_start ~= nil and #dispatched == 1, "Recovery result waits through unfinished shop")
 G.STATE = G.STATES.BLIND_SELECT
 Game:update(0)
 check(R.pending_start == nil and #dispatched == 2, "Recovery resumes once blind UI is available")
-check(PVP.GAME.round_sync.id == "DEFERRED-ROUND" and dispatched[2][2].startingHands == 3,
-	"Deferred recovery keeps the complete start envelope")
+check(
+	PVP.GAME.round_sync.id == "DEFERRED-ROUND" and dispatched[2][2].startingHands == 3,
+	"Deferred recovery keeps the complete start envelope"
+)
 R.finish()
+receive(nil, "a", {
+	first_player = "a",
+	round_id = "SECOND-SAME-ANTE",
+	shared_rules = { id = "SECOND-SAME-ANTE", ante = 5, rules = { "manacle", "psychic" } },
+})
+check(
+	#dispatched == 3 and G.GAME.pvp_shared_rules.id == "SECOND-SAME-ANTE",
+	"a second PvP in the same ante gets its own draft result"
+)
+R.finish()
+receive(nil, "a", envelope)
+check(
+	#dispatched == 3 and G.GAME.pvp_shared_rules.id == "SECOND-SAME-ANTE",
+	"delayed result for a retired encounter cannot restart it"
+)
+offer(nil, "a", { id = "RESOLVED", choices = { "club", "head", "arm", "house" }, ms_left = 10000 })
+check(R.offer == nil, "delayed offer cannot reopen a retired encounter")
 MPAPI.playback.shared_rules({ "REPLAY", 5, "club", "head" }, { is_pov = true })
 check(G.GAME.pvp_shared_rules.id == "REPLAY", "POV replay prepares recorded pair without RNG")
 MPAPI.playback.shared_rules({ "OTHER", 5, "arm", "head" }, { is_pov = false })

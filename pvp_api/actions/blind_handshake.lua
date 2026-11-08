@@ -20,11 +20,11 @@ A_host("pvp_ready_check", function(_at, _from, params)
 	for _, id in ipairs(params.players or {}) do
 		asked = asked or (lobby and id == lobby.player_id)
 	end
-	if not asked then
-		return
-	end
+	if not asked then return end
 	local ready = PVP.GAME.ready_blind == true and not PVP.GAME.eliminated and G.STATE == G.STATES.BLIND_SELECT
-	lobby:action(MPAPI.ActionTypes["pvp_ready_ack"]):broadcast({ nonce = params.nonce, ready = ready and true or false })
+	lobby
+		:action(MPAPI.ActionTypes["pvp_ready_ack"])
+		:broadcast({ nonce = params.nonce, ready = ready and true or false })
 end)
 
 A("pvp_ready_ack", function(_at, from, params)
@@ -34,14 +34,13 @@ end)
 A_host("pvp_start_blind", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
 	-- An eliminated player sits out the blinds the others still play.
-	if not lobby or PVP.GAME.eliminated then
-		return
-	end
+	if not lobby or PVP.GAME.eliminated then return end
 	if params.shared_rules then
 		local R = PVP.SHARED_RULES
 		local result = params.shared_rules
 		if type(result) ~= "table" or type(result.ante) ~= "number" then return end
 		local previous = G.GAME.pvp_shared_rules
+		if previous and previous.retired and previous.retired[result.id] then return end
 		if R.starting_id == result.id then return end
 		if previous and previous.id == result.id and (previous.active or previous.finished) then return end
 		if G.GAME.round_resets.ante > result.ante then return end

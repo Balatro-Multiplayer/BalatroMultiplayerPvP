@@ -11,6 +11,7 @@ function D.gate()
 		state.seed_pending = nil
 	end
 	if G.GAME.round_resets.ante > state.last_ante and not MPAPI.playback._queues_empty() then return true end
+	if D.networked and D.networked() then return D.network_gate(state) end
 	local pending = D.offer(state, G.GAME.round_resets.ante, G.P_CENTERS)
 	if pending then
 		if not G.OVERLAY_MENU and D.show then

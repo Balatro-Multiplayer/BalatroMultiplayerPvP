@@ -54,6 +54,53 @@ end
 
 local board_rng = PVP.new_rng()
 
+-- Keep the existing two-player first/second roles: three alternating bans,
+-- then the second player picks from the last two. Only the pool size changes.
+D.almanac_policy = {
+	pool_size = 5,
+	schedule = {
+		{ actor = 1, action = "ban", count = 1 },
+		{ actor = 2, action = "ban", count = 1 },
+		{ actor = 1, action = "ban", count = 1 },
+		{ actor = 2, action = "pick", count = 1 },
+	},
+}
+
+function D.almanac_board(stake_keys, opts)
+	opts = opts or {}
+	local indices = {}
+	for index, key in ipairs(stake_keys) do
+		indices[key] = index
+	end
+	local function index(key)
+		local value = assert(indices[key], "Almanac draft needs " .. key)
+		assert(
+			not opts.max_stake or opts.max_stake <= 0 or value <= opts.max_stake,
+			"Almanac draft is incompatible with this stake cap"
+		)
+		return value
+	end
+	-- Validate both variants before rolling. Never silently change the agreed
+	-- probabilities because a client is missing a stake or has a lower cap.
+	local stakes = {
+		index("stake_white"),
+		index("stake_green"),
+		index("stake_black"),
+		index("stake_purple"),
+		index("stake_gold"),
+	}
+	local white_minus, spectral = index("stake_mp_white_minus"), index("stake_mp_spectralplus")
+	local rng = opts.rng or board_rng
+	if rng() < 0.5 then stakes[1] = white_minus end
+	if rng() < 0.5 then stakes[5] = spectral end
+	local board = {}
+	for _, stake in ipairs(stakes) do
+		board[#board + 1] = { id = "b_mp_almanac@" .. stake, key = "b_mp_almanac", stake = stake }
+	end
+	table.sort(board, D.tile_order)
+	return board
+end
+
 function D.board(decks, stakes, opts)
 	opts = opts or {}
 	local rng = opts.rng or board_rng
@@ -125,6 +172,7 @@ function D.build(opts)
 	local function field(key)
 		return MPAPI.resolve_ruleset_field(opts.ruleset, key)
 	end
+	if field("draft_policy") == "almanac" then return D.almanac_board(stake_keys, opts) end
 	-- Explicitly allowed stakes may exceed the vanilla default of 8.
 	-- A compatibility cap still limits both explicit and default stakes.
 	local cap = opts.max_stake and opts.max_stake > 0 and opts.max_stake or nil

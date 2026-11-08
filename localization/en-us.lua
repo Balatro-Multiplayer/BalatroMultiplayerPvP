@@ -1087,6 +1087,14 @@ return {
 			},
 		},
 		Stake = {
+			stake_mp_white_minus = {
+				name = "White- Stake",
+				text = {
+					"Start with {C:attention}Grabber{}",
+					"and {C:attention}Wasteful{} vouchers",
+					"{s:0.8}Applies White Stake",
+				},
+			},
 			stake_mp_planet = {
 				name = "Planet Stake",
 				text = {
@@ -1488,6 +1496,21 @@ return {
 			k_almanac_how_to_play = "How to play",
 			k_almanac_baseline = "Expanded rules. Start with the Almanac Deck.",
 			k_almanac_decks = "Almanac decks",
+			k_almanac_forecast = "Almanac forecast",
+			k_almanac_clear_skies = "Ante 1: clear skies.",
+			k_almanac_complete = "Complete",
+			k_almanac_pending = "Choose now",
+			k_almanac_upcoming = "Upcoming",
+			k_almanac_deck_draft = "Deck acquisition",
+			k_almanac_rule_schedule = "Every PvP from Ante 3: draft two shared boss rules.",
+			k_almanac_rule_locked = "Boss-rule choice locked; waiting for opponent.",
+			k_almanac_rule_pending = "Boss-rule draft in progress.",
+			k_almanac_locking = "Locking your deck choice...",
+			k_almanac_waiting = "Waiting for the shared deck offer and prior picks.",
+			k_almanac_server_required = "This run needs a server with Almanac drafting support.",
+			k_almanac_two_players = "Almanac requires exactly two players.",
+			k_almanac_nemesis_required = "Use a two-player Nemesis lobby for Almanac.",
+			k_almanac_stakes_required = "Almanac needs White- and Spectral+ with no incompatible stake cap.",
 			k_almanac_queue_description_1 = "Your Deck evolves.",
 			k_almanac_queue_description_2 = "Expect interference.",
 			k_wait_enemy = "Waiting for enemy to finish...",

@@ -9,6 +9,7 @@ local RULESET_KEYS = {
 	PVP.RulesetKey.VANILLA,
 	PVP.RulesetKey.BALANCED,
 	PVP.RulesetKey.EXPANDED,
+	PVP.RulesetKey.ALMANAC,
 	PVP.RulesetKey.SMALLWORLD,
 }
 local DEFAULT_RULESET_KEY = PVP.RulesetKey.BALANCED -- what every gamemode key creates a lobby on.

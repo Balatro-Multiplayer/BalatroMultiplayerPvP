@@ -156,6 +156,38 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
+	if PVP.LOBBY.config.ruleset == "ruleset_mp_almanac" then
+		if #lobby:get_players() ~= 2 then
+			PVP.UI.UTILS.overlay_message(localize("k_almanac_two_players"))
+			return
+		end
+		local format = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
+		if format ~= PVP.GamemodeKey.PVP_NEMESIS then
+			PVP.UI.UTILS.overlay_message(localize("k_almanac_nemesis_required"))
+			return
+		end
+		if
+			not PVP.SHARED_RULES.supported(lobby)
+			or not (lobby.server_features and lobby.server_features.almanac_draft == 1)
+		then
+			PVP.UI.UTILS.overlay_message(localize("k_almanac_server_required"))
+			return
+		end
+		local stake_keys = {}
+		for i, stake in ipairs(G.P_CENTER_POOLS.Stake or {}) do
+			stake_keys[i] = stake.key
+		end
+		local supported = pcall(PVP.DRAFT.almanac_board, stake_keys, {
+			max_stake = PVP.DECK.MAX_STAKE,
+			rng = function()
+				return 1
+			end, -- Validate the catalogue without consuming the draft RNG.
+		})
+		if not supported then
+			PVP.UI.UTILS.overlay_message(localize("k_almanac_stakes_required"))
+			return
+		end
+	end
 	local mismatches = PVP.UTILS.version_mismatches()
 	if #mismatches > 0 then
 		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
