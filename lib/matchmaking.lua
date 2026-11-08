@@ -34,7 +34,7 @@ function PVP:generate_hash()
 	PVP.MOD_STRING = mod_string
 	PVP.MOD_HASH = hash(mod_string) or "0000"
     if PVP.ACTIONS.set_username then
-        PVP.ACTIONS.set_username(PVP.LOBBY.username)
+        PVP.ACTIONS.set_username(PVP.CLIENT.username)
     end
 end
 

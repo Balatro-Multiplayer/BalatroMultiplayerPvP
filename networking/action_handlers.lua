@@ -36,18 +36,18 @@ end
 
 -- Server to Client
 function PVP.ACTIONS.set_username(username)
-	PVP.LOBBY.username = username or "Guest"
+	PVP.CLIENT.username = username or "Guest"
 	if PVP.LOBBY.connected then
 		Client.send({
 			action = "username",
-			username = PVP.LOBBY.username .. "~" .. PVP.LOBBY.blind_col,
+			username = PVP.CLIENT.username .. "~" .. PVP.CLIENT.blind_col,
 			modHash = PVP.MOD_STRING,
 		})
 	end
 end
 
 function PVP.ACTIONS.set_blind_col(num)
-	PVP.LOBBY.blind_col = num or 1
+	PVP.CLIENT.blind_col = num or 1
 end
 
 -- Stops both ante timers and drops a held-back timer start.
@@ -66,7 +66,7 @@ local function action_connected()
 	PVP.UI.update_connection_status()
 	Client.send({
 		action = "username",
-		username = PVP.LOBBY.username .. "~" .. PVP.LOBBY.blind_col,
+		username = PVP.CLIENT.username .. "~" .. PVP.CLIENT.blind_col,
 		modHash = PVP.MOD_STRING,
 	})
 
@@ -323,9 +323,9 @@ function G.FUNCS.lobby_start_run(e, args)
 	if PVP.LOBBY.config.different_decks == false then G.FUNCS.copy_host_deck() end
 
 	if PVP.LOBBY.config.different_decks and PVP.LOBBY.config.random_loadout then
-		PVP.LOBBY.deck.back = roll_random_back_name(args.seed, PVP.LOBBY.username)
+		PVP.LOBBY.deck.back = roll_random_back_name(args.seed, PVP.CLIENT.username)
 		PVP.LOBBY.deck.challenge = ""
-		PVP.LOBBY.deck.stake = roll_random_stake(args.seed, PVP.LOBBY.username)
+		PVP.LOBBY.deck.stake = roll_random_stake(args.seed, PVP.CLIENT.username)
 	end
 
 	local challenge = nil
