@@ -57,6 +57,7 @@ MPAPI.ActionType({
 		local partner = params.pairing and params.pairing[sid]
 		PVP.GAME.nemesis_partner_id = (partner and partner ~= "") and partner or nil
 		PVP.GAME.nemesis_pairing_received = true
+		PVP.refresh_target_lives()
 		if PVP.CURRENT_LOBBY then PVP.mirror_players(PVP.CURRENT_LOBBY) end
 		PVP.on_nemesis_pairing(params.ante)
 	end),
@@ -79,6 +80,7 @@ MPAPI.ActionType({
 		local sid = self_id()
 		local target = params.targets and params.targets[sid]
 		PVP.GAME.royale_target_id = (target and target ~= "") and target or nil
+		PVP.refresh_target_lives()
 		local safe = params.safe and params.safe[sid]
 		-- Not `x and y or nil`: a losing player's false would collapse to nil.
 		PVP.GAME.royale_target_safe = nil
