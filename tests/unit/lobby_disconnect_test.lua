@@ -5,6 +5,7 @@ local noop = function() end
 local left = 0
 PVP = {
 	id = "MultiplayerPvP",
+	CLIENT = {},
 	LOBBY = { config = {}, deck = {} },
 	GAME = {},
 	UTILS = {},

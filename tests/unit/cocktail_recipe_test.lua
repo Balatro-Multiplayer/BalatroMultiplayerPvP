@@ -66,6 +66,7 @@ G = {
 	},
 }
 
+dofile("state.lua")
 dofile("lib/matchmaking_policy.lua")
 dofile("pvp_api/flow.lua")
 dofile("lib/_random.lua")

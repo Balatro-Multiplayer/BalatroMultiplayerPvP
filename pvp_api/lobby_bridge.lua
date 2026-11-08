@@ -183,10 +183,7 @@ local function mirror_metadata(lobby)
 	-- still needs.
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
-		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
-			PVP.LOBBY.config[k] = v
-		end
+		PVP.apply_lobby_setting(k, v)
 	end
 	-- nemesis_pairing isn't part of the shared metadata schema, so it can't ride the
 	-- generic loop above -- but every client (not just the host, who's the only one
@@ -246,7 +243,7 @@ PVP.mirror_lobby_metadata = mirror_metadata
 -- "Team A"/"Team B" mirrors the exact enemy_team derivation team_manhunt.lua's
 -- own pvp_team_score_board receive handler already uses for the same purpose.
 local function mirror_players(lobby)
-	local self_name = player_name(lobby, lobby.player_id) or PVP.LOBBY.username or "Guest"
+	local self_name = player_name(lobby, lobby.player_id) or PVP.CLIENT.username or "Guest"
 	local opp_id = PVP.current_target_id()
 	local opp_name
 	if PVP.LOBBY.config.team_based and PVP.LOBBY.team_id then

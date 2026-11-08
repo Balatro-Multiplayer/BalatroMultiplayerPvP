@@ -19,27 +19,6 @@ PVP.BANNED_MODS = {
 	["FantomsPreview"] = true,
 }
 
-PVP.LOBBY = {
-	connected = false,
-	temp_code = "",
-	temp_seed = "",
-	code = nil,
-	type = "",
-	config = {}, -- Now set in PVP.reset_lobby_config
-	deck = {
-		back = "Red Deck",
-		sleeve = "sleeve_casl_none",
-		stake = 1,
-		challenge = "",
-	},
-	username = "Guest",
-	blind_col = 1,
-	host = {},
-	guest = {},
-	is_host = false,
-	ready_to_start = false,
-}
-PVP.GAME = {}
 PVP.UI = {}
 PVP.ACTIONS = {}
 PVP.MOD_ACTIONS = {}
@@ -147,7 +126,7 @@ PVP.ante_based = MPAPI.ante_based
 PVP.order_round_based = MPAPI.order_round_based
 PVP.sorted_hand_list = MPAPI.sorted_hand_list
 
--- Forward-declaration stub: PVP.reset_game_states() below calls PVP.UTILS.timer_base(),
+-- Forward-declaration stub: PVP.reset_game_states() (state.lua) calls PVP.UTILS.timer_base(),
 -- which reads PVP.current_ruleset() -- but that call happens synchronously at this
 -- file's own load time, before rulesets/_rulesets.lua (loaded later via
 -- PVP.load_mp_dir("rulesets", true)) defines the real PVP.current_ruleset(). Without
@@ -202,131 +181,16 @@ function PVP.load_mp_dir(directory, recursive)
 	end
 end
 
+PVP.load_mp_file("state.lua")
 PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
-function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
-	PVP.match_log("debug", "Resetting lobby options")
-	PVP.LOBBY.config = {
-		gold_on_life_loss = true,
-		no_gold_on_round_loss = false,
-		death_on_round_loss = true,
-		different_seeds = false,
-		the_order = true,
-		starting_lives = 4,
-		pvp_start_round = 2,
-		-- Manhunt only: each Hunter's individual life count (Runner is always
-		-- fixed at 1, not configurable -- see PVP.referee_reset).
-		manhunt_hunter_lives = 7,
-		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
-		trap_cards = false,
-		timer_base_seconds = 150,
-		timer_increment_seconds = 60,
-		pvp_countdown_seconds = 3,
-		ruleset = persist_ruleset_and_gamemode and PVP.LOBBY.config.ruleset or "ruleset_mp_expanded",
-		gamemode = persist_ruleset_and_gamemode and PVP.LOBBY.config.gamemode or "gamemode_mp_attrition",
-		weekly = nil,
-		custom_seed = "random",
-		different_decks = false,
-		random_loadout = false,
-		back = "Red Deck",
-		sleeve = "sleeve_casl_none",
-		stake = 1,
-		challenge = "",
-		cocktail = "",
-		multiplayer_jokers = true,
-		timer = true,
-		timer_forgiveness = 0,
-		forced_config = false,
-		preview_disabled = false,
-		legacy_smallworld = false,
-	}
-end
 PVP.reset_lobby_config()
 
-function PVP.reset_game_states()
-	PVP.match_log("debug", "Resetting game states")
-	-- §17.10: fresh per-match roster collection -- must not carry over from
-	-- whatever match (if any) this player was previously in.
-	PVP._collected_results = {}
-	-- Players who started the match (lib/match_players.lua); set by action_start_game.
-	PVP._match_players = nil
-	PVP.GAME = {
-		ready_blind = false,
-		ready_blind_text = localize("b_ready"),
-		processed_round_done = false,
-		lives = 0,
-		loaded_ante = 0,
-		loading_blinds = false,
-		comeback_bonus_given = true,
-		comeback_bonus = 0,
-		end_pvp = false,
-		enemy = {
-			score = PVP.Score.ZERO,
-			real_score = PVP.Score.ZERO,
-			score_text = PVP.Score.ZERO,
-			hands = 4,
-			hands_text = "4",
-			-- Whether an enemyInfo message has arrived this blind.
-			info_received = false,
-			location = localize("loc_selecting"),
-			-- " (catching up)" while the target is replaying its run after a crash, else "".
-			catching_up_text = "",
-			skips = 0,
-			skips_before_pvp = 0,
-			lives = PVP.LOBBY.config.starting_lives,
-			sells = 0,
-			sells_per_ante = {},
-			spent_in_shop = {},
-			highest_score = PVP.Score.ZERO,
-		},
-		location = "loc_selecting",
-		next_blind_context = nil,
-		ante_key = tostring(math.random()),
-		antes_keyed = {},
-		prevent_eval = false,
-		round_ended = false,
-		duplicate_end = false,
-		misprint_display = "",
-		spent_total = 0,
-		skips_before_pvp = 0,
-		skips_difference = 0,
-		spent_before_shop = 0,
-		highest_score = PVP.Score.ZERO,
-		-- §17.10: PVP.GAME.highest_score above tracks the best SINGLE-BLIND
-		-- score of any kind (updated unconditionally in every play_hand,
-		-- including plain Small/Big/Boss blinds) -- not what the end-of-run
-		-- roster needs ("highest PvP-blind score"). Tracked separately here,
-		-- only updated while PVP.is_pvp_boss() is true.
-		highest_pvp_score = PVP.Score.ZERO,
-		timer = PVP.UTILS.timer_base(),
-		timer_started = false,
-		timer_threshold_pending = false,
-		timer_consumed = false,
-		pvp_reached = false,
-		pvp_countdown = 0,
-		real_money = 0,
-		ce_cache = false,
-		furthest_blind = 0,
-		pincher_index = -3,
-		pincher_unlock = false,
-		asteroids = 0,
-		pizza_discards = 0,
-		disable_live_and_timer_hud = false,
-		timers_forgiven = 0,
-		stats = {
-			reroll_count = 0,
-			reroll_cost_total = 0,
-			-- Add more stats here in the future
-		},
-	}
-end
 PVP.reset_game_states()
 
-PVP.LOBBY.username = PVP.UTILS.get_username()
-PVP.LOBBY.blind_col = PVP.UTILS.get_blind_col()
-
-PVP.LOBBY.config.weekly = PVP.UTILS.get_weekly()
+PVP.CLIENT.username = PVP.UTILS.get_username()
+PVP.CLIENT.blind_col = PVP.UTILS.get_blind_col()
 
 if not SMODS.current_mod.lovely then
 	G.E_MANAGER:add_event(Event({
