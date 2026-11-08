@@ -52,17 +52,13 @@ local RANKED_MODES = {
 		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 	{
 		key = "almanac_preview",
-		name = localize("k_almanac"),
-		desc = {
-			localize("k_almanac_queue_description_1"),
-			localize("k_almanac_queue_description_2"),
-			localize("k_almanac_queue_description_3"),
-			localize("k_almanac_queue_description_4"),
-			localize("k_almanac_queue_description_5"),
-			localize("k_almanac_queue_description_6"),
-			localize("k_almanac_queue_description_7"),
+		name_key = "k_almanac",
+		desc_keys = {
+			"k_almanac_queue_description_1",
+			"k_almanac_queue_description_2",
 		},
 		coming_soon = true,
+		explanation = true,
 		colour = G.C.ORANGE,
 		chip_row = CHIP_ROW.expanded,
 	},
@@ -343,24 +339,61 @@ local function build_rating_box(mode)
 	return el.node
 end
 
--- Mirrors SPDRN's game_select.lua build_order_card exactly (same the_order_open button,
--- MPAPI's own G.FUNCS handler, ui/the_order.lua) -- reused as-is, not reimplemented.
-local function build_order_card()
+-- Same explanation card as The Order; Almanac opens its own rules instead.
+local function build_order_card(almanac)
 	return MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.C, config = {
 				align = "cm", minw = 2.2, minh = 0.6, padding = 0.06, r = 0.1,
-				colour = G.C.BLUE, shadow = true, hover = true, one_press = true, button = "the_order_open",
+				colour = almanac and G.C.ORANGE or G.C.BLUE, shadow = true, hover = true, one_press = not almanac,
+				button = almanac and "pvp_almanac_explanation" or "the_order_open",
 			}, nodes = {
 				{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-					{ n = G.UIT.T, config = { text = "Uses", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+					{ n = G.UIT.T, config = { text = almanac and localize("k_almanac_how_to_play") or "Uses", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 				} },
 				{ n = G.UIT.R, config = { align = "cm" }, nodes = {
-					{ n = G.UIT.T, config = { text = "The Order", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+					{ n = G.UIT.T, config = { text = almanac and localize("k_almanac") or "The Order", scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 				} },
 			} },
 		} },
 	} })
+end
+
+G.FUNCS.pvp_almanac_explanation = function()
+	local sections = {}
+	for _, key in ipairs({ "mp_almanac_deck_rules", "mp_almanac_boss_rules" }) do
+		local lines = {}
+		localize({ type = "other", key = key, nodes = lines, default_col = G.C.UI.TEXT_LIGHT })
+		local rows = {}
+		for _, line in ipairs(lines) do
+			rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = line }
+		end
+		sections[#sections + 1] = {
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.15 },
+			nodes = { { n = G.UIT.C, config = { align = "cm", padding = 0.03 }, nodes = rows } },
+		}
+	end
+	-- Use the deck atlas without creating a playable Back or touching draft state.
+	local art = Sprite(0, 0, 2.13, 2.85, G.ASSET_ATLAS.mp_almanac_back, { x = 0, y = 0 })
+	G.FUNCS.overlay_menu({
+		definition = create_UIBox_generic_options({
+			minw = 8,
+			snap_back = true,
+			contents = {
+				{ n = G.UIT.R, config = { align = "cm", padding = 0.15 }, nodes = {
+					{ n = G.UIT.T, config = { text = localize("k_almanac"), scale = 0.65, colour = G.C.ORANGE, shadow = true } },
+				} },
+				{ n = G.UIT.R, config = { align = "cm", padding = 0.25 }, nodes = {
+					{ n = G.UIT.O, config = { object = art } },
+					{ n = G.UIT.C, config = { align = "cm", padding = 0.1 }, nodes = sections },
+				} },
+				{ n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
+					{ n = G.UIT.T, config = { text = localize("k_almanac_baseline"), scale = 0.3, colour = G.C.UI.TEXT_LIGHT } },
+				} },
+			},
+		}),
+	})
 end
 
 -- Ranked pillars read "<ruleset> / Ranked"; a Casual pillar may take its name from its ruleset.
@@ -371,6 +404,9 @@ local function pillar_name(mode)
 	if mode.display_ruleset then
 		return PVP.ruleset_display_name(mode.display_ruleset)
 	end
+	if mode.name_key then
+		return localize(mode.name_key)
+	end
 	return mode.name
 end
 
@@ -380,6 +416,14 @@ local function build_items(modes, group)
 	_rating_els = {}
 	local items = {}
 	for _, mode in ipairs(modes) do
+		-- Mod localization is not installed yet when this file first loads.
+		local description = mode.desc
+		if mode.desc_keys then
+			description = {}
+			for _, key in ipairs(mode.desc_keys) do
+				description[#description + 1] = localize(key)
+			end
+		end
 		items[#items + 1] = {
 			id = mode.key,
 			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or PVP.mode_chip_sprite(mode.chip_row),
@@ -394,7 +438,7 @@ local function build_items(modes, group)
 			-- ('cm' align) within whatever minh it's given, same as the name plate above, so
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
-			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
+			description = MPAPI.ui_pillar_description_box({ lines = description, minh = 1.3 }),
 			stat_box = not mode.coming_soon and (
 				(mode.ruleset_key and not group)
 					and { n = G.UIT.C, config = { align = "cm" }, nodes = {
@@ -403,7 +447,7 @@ local function build_items(modes, group)
 					} }
 					or build_stat_box(mode)
 			) or nil,
-			extra = mode.uses_order and build_order_card() or nil,
+			extra = (mode.uses_order or mode.explanation) and build_order_card(mode.explanation) or nil,
 		}
 	end
 	return items
