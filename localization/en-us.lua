@@ -899,6 +899,26 @@ return {
 			},
 		},
 		Other = {
+		        mp_almanac_deck_rules = {
+		                name = "Almanac",
+		                text = {
+		                        "At Antes {C:attention}2, 3, 5 and 7{},",
+		                        "choose {C:attention}1{} of {C:attention}3 Decks{}.",
+		                        "Keep their effects.",
+		                        "{s:0.8}(Both players get the same offers)",
+		                },
+		        },
+		        mp_almanac_boss_rules = {
+		                name = "Boss rules",
+		                text = {
+		                        "Before each {C:red}PvP Blind{}",
+		                        "from Ante {C:attention}3{}, choose",
+		                        "{C:attention}1{} of {C:attention}4 Boss Blind effects{}.",
+		                        "{C:attention}Both{} choices affect {C:attention}both{} players",
+		                        "for that Blind.",
+		                        "{s:0.8}(10 seconds to choose)",
+		                },
+		        },
 			mp_sticker_extra_credit = {
 				name = "Extra Credit",
 				text = {
@@ -1465,14 +1485,11 @@ return {
 			k_bye = "Bye",
 			k_coming_soon = "Coming Soon!",
 			k_almanac = "Almanac",
+			k_almanac_how_to_play = "How to play",
+			k_almanac_baseline = "Expanded rules. Start with the Almanac Deck.",
 			k_almanac_decks = "Almanac decks",
-			k_almanac_queue_description_1 = "Build your Deck’s",
-			k_almanac_queue_description_2 = "rules as you go.",
-			k_almanac_queue_description_3 = "Before each PvP",
-			k_almanac_queue_description_4 = "from Ante 3, both",
-			k_almanac_queue_description_5 = "players choose a",
-			k_almanac_queue_description_6 = "rule that affects",
-			k_almanac_queue_description_7 = "them both.",
+			k_almanac_queue_description_1 = "Your Deck evolves.",
+			k_almanac_queue_description_2 = "Expect interference.",
 			k_wait_enemy = "Waiting for enemy to finish...",
 			k_pvp_sync_failed = "Round sync unconfirmed. Reconnect to retry.",
 			k_lives = "Lives",
