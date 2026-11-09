@@ -2,8 +2,8 @@
 -- Standalone source/data check, not a live server test.
 local server = assert(os.getenv("SERVER_DIR"), "Set SERVER_DIR to the BalatroMultiplayerServer checkout")
 PVP = {}
-dofile("lib/almanac_draft.lua")
-dofile("lib/shared_pvp_rules.lua")
+dofile("lib/almanac/draft.lua")
+dofile("lib/almanac/shared_rules.lua")
 local checks = 0
 local function mirror(path, name, client, field)
 	local file = assert(io.open(server .. "/" .. path, "r"))

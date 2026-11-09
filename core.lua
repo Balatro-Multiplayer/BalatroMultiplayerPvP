@@ -203,6 +203,8 @@ function PVP.load_mp_dir(directory, recursive)
 end
 
 PVP.load_mp_dir("lib")
+-- Almanac draft and shared PvP rules; before overrides, which read their tables at load.
+PVP.load_mp_dir("lib/almanac")
 PVP.load_mp_dir("overrides")
 
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)

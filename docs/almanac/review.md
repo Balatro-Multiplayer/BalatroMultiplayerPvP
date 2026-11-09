@@ -40,7 +40,7 @@ from the last two. White- (`objects/stakes/zz_white_minus.lua` +
 through the run-start event queue. it's appended, not inserted above White, so
 existing stake ids don't move.
 
-**deck draft (in-run).** the core is `lib/almanac_draft.lua`. it hand-codes each
+**deck draft (in-run).** the core is `lib/almanac/draft.lua`. it hand-codes each
 deck's effect, because `Back:apply_to_run` only works at run setup. `D.commit`
 records the deck *before* applying it, `state.busy` blocks `save_run` until the
 apply's events drain, and Orange's free Giga pack has its own `pack_due` →
@@ -55,7 +55,7 @@ with a preview of resource changes), `ui/almanac_backs.lua` (a purely cosmetic
 fan of acquired backs on the deck, no state), `ui/almanac_forecast.lua` (pause
 menu, schedule and status only, never rolls future offers).
 
-**boss rules.** `lib/shared_pvp_rules.lua` holds the catalogue and lifecycle,
+**boss rules.** `lib/almanac/shared_rules.lua` holds the catalogue and lifecycle,
 `overrides/shared_pvp_rules.lua` the effects. effects compose with the PvP blind
 instead of replacing it, and they go through SMODS's debuff arbitration, so
 immunity still wins. flow: both players ready → after the ready check the referee
@@ -71,7 +71,7 @@ pauses while a rule offer or deck draft is open (`ui/game/timer.lua`).
 **recovery and replay.** `lobby_bridge.lua` calls `SHARED_RULES.sync()` on
 reconnect and on replay tails. the server checkpoint keeps both ledgers and pushes
 the rule deadline back by however long the server was down.
-`lib/almanac_draft_replay.lua` and `lib/shared_rules_replay.lua` replay the POV
+`lib/almanac/draft_replay.lua` and `lib/almanac/shared_rules_replay.lua` replay the POV
 player's picks, including a recorded "pass" when no offer is legal.
 
 ## where to push in review
@@ -119,6 +119,3 @@ for those.
 - competitive baseline enforcement (lives, modifiers, the rest of Expanded
   Ranked) and rejecting Almanac in other queues are both still open.
 - no ante scaling change (decision 6).
-- at the time of writing, the working tree is moving `lib/almanac_draft*.lua` and
-  `lib/shared_*` into `lib/almanac/` and dropping `tests/test_almanac_setup.lua`.
-  the paths above are the committed ones.

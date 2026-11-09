@@ -1,7 +1,6 @@
 local D = PVP.ALMANAC_DRAFT
 
--- Block state construction, not just clicks: the first shop of an ante must
--- generate its stock AFTER voucher/pool acquisitions have resolved.
+-- Stop any state construction until we say go, not just clicks
 function D.gate()
 	local state = G.GAME and G.GAME.almanac_draft
 	if not state then return false end
@@ -74,8 +73,9 @@ function Game:update(dt)
 	end
 end
 
--- Never persist a partially applied acquisition (voucher/destruction animations
--- can enqueue more events). The prior saved pending offer remains the checkpoint.
+
+-- use the prior saved pending offer as the checkpoint rather than
+-- a partially applied acquisition (voucher/destruction animations can queue events)
 local save = save_run
 function save_run(...)
 	local state = G.GAME and G.GAME.almanac_draft
