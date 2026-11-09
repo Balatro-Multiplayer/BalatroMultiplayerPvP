@@ -301,6 +301,9 @@ function Game:update(dt)
 
 	-- Bail fast: not an PVP PvP-timer context
 	if G.STATE == G.STATES.GAME_OVER then return end
+	-- Almanac pauses: no tick while the shared-rules pick is open, or while the
+	-- deck draft has an unanswered offer, is applying a pick, or is still owed
+	-- for this ante (ante advanced past last_ante; the gate is about to offer).
 	if PVP.SHARED_RULES.offer then return end
 	local draft = G.GAME and G.GAME.almanac_draft
 	if draft and (draft.pending or draft.busy or G.GAME.round_resets.ante > draft.last_ante) then return end

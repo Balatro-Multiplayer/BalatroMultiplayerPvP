@@ -35,6 +35,10 @@ A_host("pvp_start_blind", function(_at, _from, params)
 	local lobby = MPAPI.get_current_lobby()
 	-- An eliminated player sits out the blinds the others still play.
 	if not lobby or PVP.GAME.eliminated then return end
+	-- A start carrying shared_rules is the PvP blind whose two shared rules the
+	-- server has settled. Drop it if malformed, already started or retired, or
+	-- for an ante this client has passed; otherwise record the rules in
+	-- G.GAME.pvp_shared_rules (R.prepare) before the round sync begins.
 	if params.shared_rules then
 		local R = PVP.SHARED_RULES
 		local result = params.shared_rules
@@ -45,7 +49,8 @@ A_host("pvp_start_blind", function(_at, _from, params)
 		if previous and previous.id == result.id and (previous.active or previous.finished) then return end
 		if G.GAME.round_resets.ante > result.ante then return end
 		-- Rejoin may still be replaying a shop/hand. Keep the complete target
-		-- start envelope, including its round ID and starting-hand counts.
+		-- start envelope, including its round ID and starting-hand counts;
+		-- ui/shared_pvp_rules.lua re-delivers it once R.can_start passes.
 		if not R.can_start(result) then
 			R.pending_start = { from = _from, params = copy_table(params) }
 			R.offer = nil
@@ -54,6 +59,10 @@ A_host("pvp_start_blind", function(_at, _from, params)
 		if not R.prepare(result) then return end
 	end
 	if PVP.begin_round_sync(params.round_id, _from) == false then return end
+	-- Round sync accepted: mark this rule set as starting so duplicate starts and
+	-- late offers are ignored, close the pick overlay, reveal the two rules, and
+	-- log them for replay (lib/almanac/shared_rules_replay.lua). Blind:set_blind
+	-- activates them once the PvP boss is set.
 	if params.shared_rules then
 		local R = PVP.SHARED_RULES
 		R.starting_id = params.shared_rules.id

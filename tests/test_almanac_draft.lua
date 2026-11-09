@@ -15,7 +15,7 @@ local function copy(value)
 end
 PVP = {}
 G = { P_CENTERS = {}, GAME = {} }
-dofile("lib/almanac_draft.lua")
+dofile("lib/almanac/draft.lua")
 local D = PVP.ALMANAC_DRAFT
 for key in pairs(D.definitions) do
 	G.P_CENTERS[key] = { config = {}, key = key }
@@ -459,7 +459,7 @@ PVP._playback_wait_for = function(predicate, fn)
 	check(predicate(), "replay ready boundary")
 	fn()
 end
-dofile("lib/almanac_draft_replay.lua")
+dofile("lib/almanac/draft_replay.lua")
 reset()
 G.STATE = G.STATES.BLIND_SELECT
 handler(records[1][2], { is_pov = false })

@@ -190,13 +190,13 @@ PVP._playback_wait_for = function(predicate, fn)
 	check(predicate(), "Replay waits at blind selection")
 	fn()
 end
-dofile("lib/shared_pvp_rules.lua")
+dofile("lib/almanac/shared_rules.lua")
 dofile("overrides/shared_pvp_rules.lua")
 dofile("pvp_api/actions/_helpers.lua")
 dofile("pvp_api/actions/blind_handshake.lua")
 dofile("pvp_api/actions/shared_rules.lua")
 dofile("ui/shared_pvp_rules.lua")
-dofile("lib/shared_rules_replay.lua")
+dofile("lib/almanac/shared_rules_replay.lua")
 local R = PVP.SHARED_RULES
 local serial = 0
 local function begin(a, b, ante)
