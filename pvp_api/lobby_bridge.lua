@@ -304,12 +304,35 @@ PVP.setup_lobby_mirror = function(lobby)
 	if mirror_metadata(lobby) == false then return end
 	mirror_players(lobby)
 	PVP._version_mismatch_shown = false
+	PVP._start_held = false
+
+	-- A start held back over versions (flow.lua) goes again once every
+	-- version is known, they all match, and that is news since it was held.
+	-- A start the server keeps refusing on the same versions can't loop.
+	local function retry_held_start()
+		local held = PVP._start_held
+		if not held then
+			return
+		end
+		local known, complete = PVP.UTILS.versions_known()
+		if not complete or known == held then
+			return
+		end
+		PVP._start_held = false
+		if PVP.lobby then
+			PVP.lobby.start_broadcasted = false
+		end
+		if PVP.maybe_autostart then
+			PVP.maybe_autostart()
+		end
+	end
 
 	-- Shows the version overlay once per run of mismatches; it re-arms when they clear.
 	local function check_version_mismatch()
 		local mismatches = PVP.UTILS.version_mismatches()
 		if #mismatches == 0 then
 			PVP._version_mismatch_shown = false
+			retry_held_start()
 		elseif not PVP._version_mismatch_shown then
 			PVP._version_mismatch_shown = true
 			PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))

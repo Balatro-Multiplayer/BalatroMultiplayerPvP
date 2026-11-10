@@ -6,6 +6,9 @@ PVP.LobbyAccess = {
 	PRACTICE = "practice",
 	RANKED = "ranked",
 	CASUAL = "casual",
+	-- A tournament match's lobby, made by the server: played like a matchmade
+	-- game, with the tournament's round settings.
+	TOURNAMENT = "tournament",
 	-- A Party lobby's metadata kind (pvp_api/party_lobby.lua). Its client kind stays PRIVATE.
 	PARTY = MPAPI.Party.KIND,
 	RANKED_PREFIX = "ranked:",
@@ -253,8 +256,13 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
+	-- A start held back over versions keeps what this client knew of them
+	-- then; lobby_bridge.lua retries it once that changes and all match. Only
+	-- version refusals: any other error would fail the same way again.
 	local mismatches = PVP.UTILS.version_mismatches()
 	if #mismatches > 0 then
+		PVP._start_held = PVP.UTILS.versions_known()
+		PVP._version_mismatch_shown = true
 		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
 		return
 	end
@@ -277,6 +285,7 @@ function PVP.pvp_start_match()
 			options = { queue_mode = queue_mode },
 		}, function(err)
 			if err and PVP.VersionGate.is_server_refusal(err) then
+				PVP._start_held = PVP.UTILS.versions_known()
 				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
 			elseif err then
 				PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_start_refused", vars = { tostring(err) } }))

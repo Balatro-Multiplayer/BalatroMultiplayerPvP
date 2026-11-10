@@ -102,6 +102,58 @@ players = {
 fire("PLAYER_JOINED", "other")
 check("a later mismatch shows again", #overlays, 2)
 
+-- A start held back over versions is retried when the versions it lacked arrive.
+PVP.UTILS.versions_known = function()
+	return PVP.VersionGate.versions_known(lobby:get_players(), lobby.player_id)
+end
+local starts = 0
+PVP.maybe_autostart = function()
+	starts = starts + 1
+end
+local function hold_start()
+	PVP.lobby.start_broadcasted = true
+	PVP._start_held = PVP.UTILS.versions_known()
+end
+PVP.lobby = {}
+local before = #overlays
+
+-- Steph's case: the server refuses before the guest's mod list arrives, so this
+-- client never saw a mismatch.
+players = {
+	{ id = "me", mods = { "MultiplayerPvP-1.0.3" } },
+	{ id = "guest" },
+}
+fire("PLAYER_JOINED", "guest")
+-- Clears the earlier mismatch (and with it any retry it set off).
+starts = 0
+hold_start()
+players[2].mods = { "MultiplayerPvP-1.0.3" }
+fire("PLAYER_INFO", "guest")
+check("matching versions arriving retry the start", starts, 1)
+check("the retry can broadcast again", PVP.lobby.start_broadcasted, false)
+check("the held start is used up", PVP._start_held, false)
+check("no overlay for matching versions", #overlays, before)
+
+-- Refused again on the same versions: no new info, no retry.
+hold_start()
+fire("PLAYER_INFO", "guest")
+check("the same versions don't retry again", starts, 1)
+check("the start stays held", PVP._start_held, "guest=1.0.3")
+
+-- Still unknown: no retry until the version is known.
+players[2] = { id = "guest2" }
+fire("PLAYER_JOINED", "guest2")
+check("an unknown version doesn't retry", starts, 1)
+
+-- A shown mismatch that clears retries, as before.
+players[2] = { id = "guest2", mods = { "MultiplayerPvP-1.0.4" } }
+fire("PLAYER_INFO", "guest2")
+hold_start()
+check("a mismatch shows the overlay", #overlays, before + 1)
+players[2] = { id = "guest2", mods = { "MultiplayerPvP-1.0.3" } }
+fire("PLAYER_INFO", "guest2")
+check("a cleared mismatch retries the start", starts, 2)
+
 -- Leaving the lobby re-arms too.
 fire("DISCONNECTED")
 check("disconnect re-arms the overlay", PVP._version_mismatch_shown, false)

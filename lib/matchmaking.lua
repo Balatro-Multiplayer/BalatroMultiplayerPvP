@@ -196,6 +196,15 @@ function PVP.UTILS.version_mismatches()
 	return PVP.VersionGate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
 end
 
+-- PVP.VersionGate.versions_known for the current lobby.
+function PVP.UTILS.versions_known()
+	local lobby = MPAPI.get_current_lobby()
+	if not lobby then
+		return "", false
+	end
+	return PVP.VersionGate.versions_known(lobby:get_players(), lobby.player_id)
+end
+
 function PVP.UTILS.get_banned_mods(mods)
 	local banned_mods = {}
 	if not mods then return banned_mods end

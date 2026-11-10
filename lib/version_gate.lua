@@ -48,6 +48,22 @@ function Gate.mismatches(our_version, players, own_id)
 	return found
 end
 
+-- What this client knows of the other players' PvP versions: one string by
+-- player id ("a=1.0.6,b=?", "?" until their mod list arrives), and whether
+-- every version is known.
+function Gate.versions_known(players, own_id)
+	local parts, complete = {}, true
+	for _, player in ipairs(players or {}) do
+		if player.id ~= own_id then
+			local theirs = Gate.pvp_prefix(player.mods)
+			complete = complete and theirs ~= nil
+			parts[#parts + 1] = tostring(player.id) .. "=" .. (theirs or "?")
+		end
+	end
+	table.sort(parts)
+	return table.concat(parts, ","), complete
+end
+
 -- True when a start refusal from the server is the version gate.
 function Gate.is_server_refusal(err)
 	return tostring(err and err.message or err) == Gate.SERVER_REASON
