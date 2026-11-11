@@ -266,7 +266,7 @@ local function draft(players)
 		if not start("ranked") then return end
 		end_search()
 	end
-	Q.dismiss_reveal()
+	Q.finish_reveal()
 	DRAFT.start(players or { me(), opponent() }, picked)
 end
 
