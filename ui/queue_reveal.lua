@@ -22,6 +22,10 @@ local ease_to = Widgets.ease_to
 -- later than the opponent appearing here).
 local JOIN_SECONDS, START_GRACE_SECONDS = 15, 5
 local OFFSCREEN_Y, CARD_X, AVATAR_SCALE, SPIN_FOUND = -5, 2.6, 0.6, 1.2
+-- The last seconds of the countdown land on the VS, one beat each.
+local BEATS_FROM = 3
+-- How long the player cards take to leave once the game starts.
+local OUTRO_SECONDS = 0.5
 
 local function after(delay, generation, fn)
 	Widgets.after(delay, function()
@@ -72,26 +76,68 @@ local function show_ui(view)
 	view.hidden = {}
 end
 
-function Reveal.dismiss()
+-- Every box and scene the view made. Safe to call again: each piece is removed once.
+local function remove_view(view)
+	if view.particles then pcall(function()
+		view.particles:remove()
+	end) end
+	Cards.remove_scatter(view.scatter)
+	for _, key in ipairs({ "flash", "title", "left", "right", "vs", "footer" }) do
+		remove_box(view[key])
+		view[key] = nil
+	end
+	view.particles, view.scatter = nil, nil
+end
+
+-- Gives the screen back: cancels the view's pending events, shows the menus it hid, and
+-- restores the swirl. Returns the view, whose boxes are still up.
+local function close()
 	Reveal.generation = Reveal.generation + 1
 	seen_players = 0
 	local view = Reveal.view
 	Reveal.view = nil
 	Reveal.lobby = nil
 	if view then
-		if view.particles then pcall(function()
-			view.particles:remove()
-		end) end
-		Cards.remove_scatter(view.scatter)
-		remove_box(view.flash)
-		remove_box(view.title)
-		remove_box(view.left)
-		remove_box(view.right)
-		remove_box(view.vs)
-		remove_box(view.footer)
 		show_ui(view)
+		if Backdrop.mode == "reveal" then Backdrop.restore() end
 	end
-	if view and Backdrop.mode == "reveal" then Backdrop.restore() end
+	return view
+end
+
+-- Ends the reveal at once, and an outro still playing. For a failed match, a menu opening, and
+-- the run starting (which deletes the menu stage's objects, these boxes among them).
+function Reveal.dismiss()
+	local view = close()
+	if view then remove_view(view) end
+	if Reveal.leaving then
+		remove_view(Reveal.leaving)
+		Reveal.leaving = nil
+	end
+end
+
+-- Ends the reveal for the game starting. The menus come back at once (the votes and the Draft
+-- open in them) and the player cards slide off over them. Reduced motion ends it at once.
+function Reveal.finish()
+	if not Reveal.view or reduced_motion() then return Reveal.dismiss() end
+	if Reveal.leaving then remove_view(Reveal.leaving) end
+	local view = close()
+	Reveal.leaving = view
+	if view.particles then pcall(function()
+		view.particles:remove()
+	end) end
+	Cards.remove_scatter(view.scatter)
+	remove_box(view.flash)
+	remove_box(view.vs)
+	view.particles, view.scatter, view.flash, view.vs = nil, nil, nil, nil
+	slide(view.left, -CARD_X * 5, nil)
+	slide(view.right, CARD_X * 5, nil)
+	slide(view.title, nil, OFFSCREEN_Y)
+	slide(view.footer, nil, -OFFSCREEN_Y)
+	play_sound("cardSlide1", 1.1, 0.5)
+	Widgets.after(OUTRO_SECONDS, nil, function()
+		remove_view(view)
+		if Reveal.leaving == view then Reveal.leaving = nil end
+	end)
 end
 
 local function face(avatar, unknown)
@@ -215,6 +261,7 @@ function Reveal.start(search, fan_cards)
 	-- A menu opened after this one (a notice, the version overlay) ends the reveal.
 	view.overlay = G.OVERLAY_MENU
 	view.footer_text = localize("k_pvp_shuffling")
+	view.vs_text = "VS"
 	local calm = reduced_motion()
 	if PVP.config.queue_match_sound ~= false then
 		play_sound("explosion_buildup1")
@@ -285,7 +332,13 @@ function Reveal.start(search, fan_cards)
 	after(0.9, generation, function()
 		view.vs = room_box(
 			clear_root({
-				text_object(nil, { "VS" }, 1.1, G.C.RED, { bump = true, pop_in = 0, pop_in_rate = 10 }),
+				text_object(
+					nil,
+					{ { ref_table = view, ref_value = "vs_text" } },
+					1.1,
+					G.C.RED,
+					{ bump = true, pop_in = 0, pop_in_rate = 10 }
+				),
 			}),
 			{ x = 0, y = 0.4 },
 			true
@@ -332,6 +385,16 @@ local function read_reveal_ratings()
 	end
 end
 
+-- One beat of the countdown: the number takes the VS's place and both cards feel it.
+local function beat(view, secs)
+	view.vs_text = tostring(secs)
+	juice(view.vs, 0.5, 0.18)
+	juice(view.left, 0.12, 0.04)
+	juice(view.right, 0.12, 0.04)
+	play_sound("multhit1", 0.8 + (BEATS_FROM - secs) * 0.15, 0.5)
+	if G.ROOM and not reduced_motion() then G.ROOM.jiggle = G.ROOM.jiggle + 1.5 end
+end
+
 function Reveal.update()
 	if not Reveal.view then return end
 	local lobby = Reveal.lobby
@@ -367,5 +430,9 @@ function Reveal.update()
 	if view and view.starts_at then
 		local secs = math.max(1, math.ceil(view.starts_at - now()))
 		view.footer_text = localize({ type = "variable", key = "k_pvp_starting_in", vars = { secs } })
+		if secs ~= view.beat then
+			view.beat = secs
+			if secs <= BEATS_FROM then beat(view, secs) end
+		end
 	end
 end

@@ -407,12 +407,29 @@ do
 	assert(rebuilds > rebuilds_before, "the player cards were rebuilt when the opponent joined")
 	eq(avatars[#avatars], "j_turtle_bean", "the opponent's card shows their avatar")
 	eq(Reveal.view.footer_text, "k_pvp_starting_in:4", "the footer counts down from the opponent's arrival")
-	clock = clock + 3.5
+	eq(Reveal.view.vs_text, "VS", "the VS stands until the last three seconds")
+	local function beats()
+		local n = 0
+		for _, key in ipairs(sounds) do
+			if key == "multhit1" then n = n + 1 end
+		end
+		return n
+	end
+	local beats_before = beats()
+	clock = clock + 1.5
+	Game.update({}, 0)
+	eq(Reveal.view.vs_text, "3", "then each second lands on it")
+	eq(beats(), beats_before + 1, "with a beat")
+	Game.update({}, 0)
+	eq(beats(), beats_before + 1, "one beat a second, not one a frame")
+	clock = clock + 2
 	Game.update({}, 0)
 	eq(Reveal.view.footer_text, "k_pvp_starting_in:1", "the countdown reaches 1")
+	eq(Reveal.view.vs_text, "1", "on the VS too")
 	clock = clock + 2
 	Game.update({}, 0)
 	eq(Reveal.view.footer_text, "k_pvp_starting_in:1", "and holds there until the game starts")
+	eq(beats(), beats_before + 2, "without beating again while it holds")
 
 	Game.start_run({}, {})
 	eq(Reveal.view, nil, "the run starting ends the reveal")
@@ -492,6 +509,56 @@ do
 	end
 	for _, object in ipairs(owned) do
 		eq(object.removals, 1, "all cards and areas are removed exactly once")
+	end
+	-- The game starting gives the menus back at once and lets the player cards slide off, then
+	-- removes them. A run starting mid-outro removes them first.
+	local function outro_setup()
+		events = {}
+		Q.start({ kind = "ranked", key = "balanced" })
+		Q.match_found()
+		for _, event in ipairs(events) do
+			if event.trigger == "after" then event.func() end
+		end
+		events = {}
+		local view = Reveal.view
+		assert(view.left and view.right and view.title and view.vs, "the reveal is fully dealt")
+		return view, view.left, view.right, view.title, view.vs
+	end
+	local view, left, right, title, vs = outro_setup()
+	Game.update({}, 0)
+	eq(menu_box.states.visible, false, "the reveal hides the menu until the game starts")
+	Q.finish_reveal()
+	eq(Reveal.view, nil, "the game starting ends the reveal")
+	eq(menu_box.states.visible, true, "and shows the menu at once, for the Draft")
+	eq(shader(), "splash", "over the menu's swirl")
+	eq(SMODS.Sound:get_current_music(), "other_mod_music", "with the menu's music")
+	eq(vs.removed, true, "the VS goes at once")
+	eq(left.removed, false, "our card is still up, sliding off")
+	eq(right.removed, false, "and the opponent's")
+	assert(left.alignment.offset.x < -10 and right.alignment.offset.x > 10, "the cards slide apart, off screen")
+	assert(title.alignment.offset.y < -4, "the title slides up, off screen")
+	Game.update({}, 0)
+	eq(menu_box.states.visible, true, "the outro doesn't hide the menu again")
+	for _, event in ipairs(events) do
+		if event.trigger == "after" then event.func() end
+	end
+	assert(left.removed and right.removed and title.removed, "the outro removes its boxes when it ends")
+	eq(Reveal.leaving, nil, "and lets go of them")
+	eq(view.scatter, nil, "the scatter went with it")
+
+	view, left, right = outro_setup()
+	Q.finish_reveal()
+	Game.start_run({}, {})
+	assert(left.removed and right.removed, "a run starting mid-outro removes the cards before the stage is deleted")
+	eq(Reveal.leaving, nil, "nothing is left sliding")
+
+	view, left = outro_setup()
+	G.SETTINGS = { reduced_motion = true }
+	Q.finish_reveal()
+	eq(left.removed, true, "reduced motion ends the reveal at once")
+	G.SETTINGS = nil
+	for _, object in ipairs(owned) do
+		eq(object.removals, 1, "the outro removes every card and area exactly once")
 	end
 	-- Responses from a cancelled search must not overwrite a restart on the same board.
 	G.E_MANAGER.add_event = function(_, event)

@@ -317,6 +317,10 @@ function Hud.dismiss_reveal()
 	PVP.QUEUE_REVEAL.dismiss()
 end
 
+function Hud.finish_reveal()
+	PVP.QUEUE_REVEAL.finish()
+end
+
 function Hud.lobby_ready(lobby)
 	PVP.QUEUE_REVEAL.lobby_ready(lobby)
 end

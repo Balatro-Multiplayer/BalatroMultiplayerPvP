@@ -16,6 +16,7 @@ hud = {
 	dismiss_reveal = function()
 		dismissals = dismissals + 1
 	end,
+	finish_reveal = function() end,
 	match_found = function()
 		matches = matches + 1
 	end,
