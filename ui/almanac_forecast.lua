@@ -16,9 +16,9 @@ function D.forecast(state, ante)
 			.. localize(status)
 	end
 	lines[#lines + 1] = localize("k_almanac_rule_schedule")
-	local rules = G.GAME and G.GAME.pvp_shared_rules
-	if rules and rules.ante == ante and not rules.finished then
-		for _, key in ipairs(rules.rules) do
+	local round = G.GAME and G.GAME.pvp_shared_rules
+	if round and round.ante == ante and round.phase ~= PVP.SHARED_RULES.Round.Phase.FINISHED then
+		for _, key in ipairs(round.rules) do
 			lines[#lines + 1] = PVP.SHARED_RULES.definitions[key].label
 		end
 	elseif PVP.SHARED_RULES.offer then

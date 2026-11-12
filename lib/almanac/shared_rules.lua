@@ -1,24 +1,37 @@
--- The catalogue is mirrored by the server's RULE_ANTES. Rules compose without
--- pair exclusions; eligibility is only by encounter ante, never by build.
+-- A shared rule is a boss effect added on top of the PvP blind. Each rule is a
+-- record with the hooks a Blind has, under the same names and signatures:
+--
+--   set_blind(self)                               the round became active
+--   disable(self)                                 undo set_blind; runs once
+--   press_play(self) -> triggered
+--   debuff_hand(self, cards, hand, handname, check) -> debuffed
+--   recalc_debuff(self, card) -> debuffed         playing cards only
+--   stay_flipped(self, area, card, from_area) -> face_down
+--   calculate(self, context)                      any other SMODS context
+--   final_scoring_step(self, chips, mult) -> chips, mult
+--
+-- overrides/shared_pvp_rules.lua calls them for the rules in force
+-- (R.in_force). Keys and antes are mirrored by the server's RULE_ANTES.
 PVP.SHARED_RULES = { definitions = {} }
 local R = PVP.SHARED_RULES
-for _, entry in ipairs({
-	{ "manacle", "The Manacle", "-1 hand size.", 3 },
-	{ "psychic", "The Psychic", "Must play exactly 5 cards.", 3 },
-	{ "house", "The House", "Initial hand drawn face down.", 3 },
-	{ "club", "The Club", "Clubs are debuffed.", 3 },
-	{ "goad", "The Goad", "Spades are debuffed.", 3 },
-	{ "window", "The Window", "Diamonds are debuffed.", 3 },
-	{ "head", "The Head", "Hearts are debuffed.", 3 },
-	{ "glass_cannon", "Glass Cannon", "-2 hands (minimum 1); X4 Mult.", 3 },
-	{ "tooth", "The Tooth", "Lose $1 per card played.", 3 },
-	{ "arm", "The Arm", "Played hand loses 1 level before scoring (minimum 1).", 3 },
-	{ "leaf", "Verdant Leaf", "Playing cards debuffed until you sell a Joker.", 4 },
-	{ "hook", "The Hook", "Discard 2 random held cards after each played hand.", 5 },
-	{ "plant", "The Plant", "Face cards are debuffed.", 5 },
-	{ "water", "The Water", "Start with 0 discards.", 5 },
-}) do
-	R.definitions[entry[1]] = { label = entry[2], text = entry[3], ante = entry[4] }
+
+local Rule = {}
+Rule.__index = Rule
+
+function R.Rule(def)
+	R.definitions[def.key] = setmetatable(def, Rule)
+end
+
+-- Queues fn as an event. It runs only if this rule is still in force in the
+-- same round by then.
+function Rule:queue(fn, config)
+	local round = R.Round.current()
+	config = config or {}
+	config.func = function()
+		if R.Round.current() == round and R.has(self.key) then fn() end
+		return true
+	end
+	G.E_MANAGER:add_event(Event(config))
 end
 
 function R.supported(lobby)
@@ -40,41 +53,29 @@ function R.enabled(lobby)
 		)
 end
 
-function R.prepare(result)
-	if type(result) ~= "table" or type(result.id) ~= "string" or type(result.rules) ~= "table" then return false end
-	if type(result.ante) ~= "number" or result.ante < 3 or #result.rules ~= 2 then return false end
-	local current_ante = G.GAME.round_resets and G.GAME.round_resets.ante
-	if current_ante and result.ante ~= current_ante then return false end
-	if result.rules[1] == result.rules[2] then return false end
-	for _, key in ipairs(result.rules) do
-		local def = R.definitions[key]
-		if not def or def.ante > result.ante then return false end
-	end
-	local previous = G.GAME.pvp_shared_rules
-	if previous and previous.retired and previous.retired[result.id] then return false end
-	if previous and previous.id == result.id then return not previous.active and not previous.finished end
-	if previous and previous.active then return false end
-	local retired = previous and copy_table(previous.retired or {}) or {}
-	if previous then retired[previous.id] = true end
-	G.GAME.pvp_shared_rules =
-		{ id = result.id, ante = result.ante, rules = copy_table(result.rules), retired = retired }
-	return true
-end
-
-function R.can_start(result)
-	return G.STATE == G.STATES.BLIND_SELECT
-		and G.blind_select ~= nil
-		and G.GAME.round_resets.ante == result.ante
-		and (not MPAPI.playback._queues_empty or MPAPI.playback._queues_empty())
-end
-
+-- Whether `key` is one of the active round's rules and has not been disabled.
 function R.has(key)
-	local state = G.GAME and G.GAME.pvp_shared_rules
-	if not state or not state.active or state.finished then return false end
-	for _, rule in ipairs(state.rules) do
+	local round = R.Round.current()
+	if not round or round.phase ~= R.Round.Phase.ACTIVE or round.disabled[key] then return false end
+	for _, rule in ipairs(round.rules) do
 		if rule == key then return true end
 	end
 	return false
+end
+
+-- Iterates the active round's rules that are in force, in the round's order.
+-- With `hook`, only the rules that define it.
+function R.in_force(hook)
+	local round = R.Round.current()
+	local keys = round and round.phase == R.Round.Phase.ACTIVE and round.rules or {}
+	local i = 0
+	return function()
+		while i < #keys do
+			i = i + 1
+			local rule = R.definitions[keys[i]]
+			if not round.disabled[rule.key] and (not hook or rule[hook]) then return rule end
+		end
+	end
 end
 
 function R.refresh_debuffs()
@@ -83,31 +84,173 @@ function R.refresh_debuffs()
 	end
 end
 
-function R.activate()
-	local state = G.GAME.pvp_shared_rules
-	if not state or state.active or state.finished then return end
-	state.active = true
-	if R.has("manacle") then
-		G.hand:change_size(-1)
-		state.hand_size_delta = -1
+local function debuffs_suit(suit)
+	return function(_, card)
+		return card:is_suit(suit, true)
 	end
-	if R.has("glass_cannon") then
-		local hands = G.GAME.current_round.hands_left
-		ease_hands_played(math.max(1, hands - 2) - hands)
-	end
-	if R.has("water") then ease_discard(-G.GAME.current_round.discards_left) end
-	R.refresh_debuffs()
 end
 
-function R.finish()
-	local state = G.GAME and G.GAME.pvp_shared_rules
-	if not state or state.finished then return end
-	state.finished, state.active = true, false
-	if state.hand_size_delta and G.hand then
-		G.hand:change_size(-state.hand_size_delta)
-		state.hand_size_delta = nil
-	end
-	-- Hands/discards were encounter-local balances, not round_resets changes.
-	-- Debuffs are recalculated through all owners, not cleared unconditionally.
-	R.refresh_debuffs()
-end
+R.Rule({
+	key = "manacle",
+	label = "The Manacle",
+	text = "-1 hand size.",
+	ante = 3,
+	set_blind = function()
+		G.hand:change_size(-1)
+	end,
+	disable = function()
+		if G.hand then G.hand:change_size(1) end
+	end,
+})
+
+R.Rule({
+	key = "psychic",
+	label = "The Psychic",
+	text = "Must play exactly 5 cards.",
+	ante = 3,
+	debuff_hand = function(_, cards)
+		return #cards ~= 5
+	end,
+})
+
+R.Rule({
+	key = "house",
+	label = "The House",
+	text = "Initial hand drawn face down.",
+	ante = 3,
+	stay_flipped = function(_, area)
+		return area == G.hand and G.GAME.current_round.hands_played == 0 and G.GAME.current_round.discards_used == 0
+	end,
+})
+
+R.Rule({
+	key = "club",
+	label = "The Club",
+	text = "Clubs are debuffed.",
+	ante = 3,
+	recalc_debuff = debuffs_suit("Clubs"),
+})
+
+R.Rule({
+	key = "goad",
+	label = "The Goad",
+	text = "Spades are debuffed.",
+	ante = 3,
+	recalc_debuff = debuffs_suit("Spades"),
+})
+
+R.Rule({
+	key = "window",
+	label = "The Window",
+	text = "Diamonds are debuffed.",
+	ante = 3,
+	recalc_debuff = debuffs_suit("Diamonds"),
+})
+
+R.Rule({
+	key = "head",
+	label = "The Head",
+	text = "Hearts are debuffed.",
+	ante = 3,
+	recalc_debuff = debuffs_suit("Hearts"),
+})
+
+-- The lost hands are this round's only: round_resets is untouched, so there is
+-- nothing to undo.
+R.Rule({
+	key = "glass_cannon",
+	label = "Glass Cannon",
+	text = "-2 hands (minimum 1); X4 Mult.",
+	ante = 3,
+	set_blind = function()
+		local hands = G.GAME.current_round.hands_left
+		ease_hands_played(math.max(1, hands - 2) - hands)
+	end,
+	final_scoring_step = function(_, chips, mult)
+		return chips, mult * 4
+	end,
+})
+
+R.Rule({
+	key = "tooth",
+	label = "The Tooth",
+	text = "Lose $1 per card played.",
+	ante = 3,
+	press_play = function(self)
+		-- The played cards reach G.play through events queued before press_play.
+		self:queue(function()
+			ease_dollars(-#G.play.cards)
+		end, { trigger = "after", delay = 0.2 })
+		return true
+	end,
+})
+
+R.Rule({
+	key = "arm",
+	label = "The Arm",
+	text = "Played hand loses 1 level before scoring (minimum 1).",
+	ante = 3,
+	debuff_hand = function(_, _, _, handname, check)
+		if not check and G.GAME.hands[handname].level > 1 then
+			level_up_hand(G.GAME.blind.children.animatedSprite, handname, nil, -1)
+		end
+	end,
+})
+
+R.Rule({
+	key = "leaf",
+	label = "Verdant Leaf",
+	text = "Playing cards debuffed until you sell a Joker.",
+	ante = 4,
+	recalc_debuff = function()
+		return true
+	end,
+	calculate = function(self, context)
+		if context.selling_card and context.card and context.card.ability.set == "Joker" then
+			R.Round.disable_rule(self.key)
+		end
+	end,
+})
+
+R.Rule({
+	key = "hook",
+	label = "The Hook",
+	text = "Discard 2 random held cards after each played hand.",
+	ante = 5,
+	press_play = function(self)
+		self:queue(function()
+			local pool = {}
+			for _, card in ipairs(G.hand.cards) do
+				pool[#pool + 1] = card
+			end
+			for _ = 1, math.min(2, #pool) do
+				local card, index = pseudorandom_element(pool, pseudoseed("hook"))
+				G.hand:add_to_highlighted(card, true)
+				table.remove(pool, index)
+			end
+			if #pool < #G.hand.cards then G.FUNCS.discard_cards_from_highlighted(nil, true) end
+		end)
+		delay(0.7)
+		return true
+	end,
+})
+
+R.Rule({
+	key = "plant",
+	label = "The Plant",
+	text = "Face cards are debuffed.",
+	ante = 5,
+	recalc_debuff = function(_, card)
+		return card:is_face(true)
+	end,
+})
+
+R.Rule({
+	key = "water",
+	label = "The Water",
+	text = "Start with 0 discards.",
+	ante = 5,
+	set_blind = function()
+		ease_discard(-G.GAME.current_round.discards_left)
+	end,
+})
