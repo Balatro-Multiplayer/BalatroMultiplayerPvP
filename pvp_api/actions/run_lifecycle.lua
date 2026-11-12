@@ -120,7 +120,8 @@ end
 -- Wire PvP's Draft policy and presentation into MPAPI.BanPick.
 function PVP._ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
-	if MPAPI.resolve_ruleset_field(ruleset, "draft_policy") == "almanac" then bp = PVP.DRAFT.almanac_policy end
+	local almanac = MPAPI.resolve_ruleset_field(ruleset, "draft_policy") == "almanac"
+	if almanac then bp = PVP.DRAFT.almanac_policy end
 	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
 	return {
 		id = PVP.SETUP.Step.DRAFT,
@@ -135,7 +136,7 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			})
 		end,
 		-- The server shuffles the pool; show it lowest stake first, then by deck.
-		tile_order = PVP.DRAFT.tile_order,
+		tile_order = almanac and PVP.DRAFT.almanac_tile_order or PVP.DRAFT.tile_order,
 		max_stake = max_stake,
 		-- Pin an enlarged stake chip to each deck back's corner (the stock back sticker is too small
 		-- to read at this tile size). The chip is its own object: hovering it shows what the stake
@@ -192,11 +193,13 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 				Node.hover(self)
 			end
 		end,
-		on_refresh = function()
+		-- Only the matchmaking controls carry the inline Draft panel; a private lobby
+		-- (Almanac's only way in) gets MPAPI's own overlay instead.
+		on_refresh = PVP.is_matchmaking() and function()
 			if PVP.lobby and PVP.lobby.refresh_mm_status then
 				PVP.lobby.refresh_mm_status()
 			end
-		end,
+		end or nil,
 	}
 end
 

@@ -343,6 +343,7 @@ local function project()
 		almanac_offers = P.offers or "-",
 		almanac_acquired = draft and #draft.acquired or "-",
 		shared_rules = P.rules or "-",
+		stake_board = P.stake_board or "-",
 		stake = G.GAME and G.GAME.stake or "-",
 	}
 end
