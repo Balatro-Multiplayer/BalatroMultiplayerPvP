@@ -7,6 +7,9 @@ without two humans clicking through a lobby.
 ```sh
 bash scripts/run_pair.sh pair_almanac     # ~2 min
 bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
+bash scripts/run_pair.sh pair_almanac_stakes  # Planet variant; screenshots in run dir
+BMP_STAKE_VARIANT=spectral bash scripts/run_pair.sh pair_almanac_stakes
+BMP_STAKE_VARIANT=neither bash scripts/run_pair.sh pair_almanac_stakes
 ```
 
 ## what it does

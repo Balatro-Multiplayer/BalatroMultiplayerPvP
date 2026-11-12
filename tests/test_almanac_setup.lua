@@ -32,12 +32,12 @@ local function rolls(first, second)
 	local calls = 0
 	return function()
 		calls = calls + 1
-		assert(calls <= 2, "Almanac rolls exactly two independent substitutions")
+		assert(calls <= 2, "Almanac uses one White roll and one exclusive replacement roll")
 		return calls == 1 and first or second
 	end
 end
 for _, a in ipairs({ 0, 0.499999, 0.5, 0.999999 }) do
-	for _, b in ipairs({ 0, 0.499999, 0.5, 0.999999 }) do
+	for _, b in ipairs({ 0, 0.249999, 0.25, 0.499999, 0.5, 0.999999 }) do
 		local board = D.almanac_board(keys, { rng = rolls(a, b) })
 		local stakes, ids = {}, {}
 		check(#board == 5, "exactly five tiles")
@@ -46,11 +46,16 @@ for _, a in ipairs({ 0, 0.499999, 0.5, 0.999999 }) do
 			check(tile.id == tile.key .. "@" .. tile.stake and not ids[tile.id], "unique deck/stake tile IDs")
 			ids[tile.id], stakes[tile.stake] = true, true
 		end
-		check(stakes[3] and stakes[4] and stakes[6], "Green, Black and Purple always offered")
+		check(stakes[3] and stakes[4], "Green and Black always offered")
+		check(stakes[b < 0.25 and 9 or 6] and not stakes[b < 0.25 and 6 or 9], "Planet replaces Purple at 25%")
+		check(not (stakes[9] and stakes[11]), "Planet and Spectral+ are mutually exclusive")
+		check(board[1].stake == (a < 0.5 and 12 or 1) and board[2].stake == 3
+			and board[3].stake == 4 and board[4].stake == (b < 0.25 and 9 or 6)
+			and board[5].stake == (b >= 0.25 and b < 0.5 and 11 or 8), "board follows difficulty slots")
 		check(stakes[a < 0.5 and 12 or 1] and not stakes[a < 0.5 and 1 or 12], "White- replaces White at 50%")
 		check(
-			stakes[b < 0.5 and 11 or 8] and not stakes[b < 0.5 and 8 or 11],
-			"Spectral+ replaces Gold independently at 50%"
+			stakes[b >= 0.25 and b < 0.5 and 11 or 8] and not stakes[b >= 0.25 and b < 0.5 and 8 or 11],
+			"Spectral+ replaces Gold at 25%"
 		)
 	end
 end
@@ -68,6 +73,13 @@ check(
 	not valid and tostring(reason):find("stake_mp_white_minus", 1, true),
 	"missing White- is not silently substituted"
 )
+
+local without_planet = {}
+for _, key in ipairs(keys) do
+	if key ~= "stake_mp_planet" then without_planet[#without_planet + 1] = key end
+end
+valid, reason = pcall(D.almanac_board, without_planet, { rng = bad_rng })
+check(not valid and tostring(reason):find("stake_mp_planet", 1, true), "missing Planet fails before RNG")
 
 -- Real layer resolver and the real run-start Draft config.
 local api = os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/"
@@ -107,6 +119,7 @@ for i, key in ipairs(keys) do
 	G.P_CENTER_POOLS.Stake[i] = { key = key }
 end
 PVP.DECK = { MAX_STAKE = 0 }
+PVP.is_matchmaking = function() return false end
 PVP._pvp_action_helpers = { A = function() end, A_host = function() end, relay = function() end }
 dofile("pvp_api/setup.lua")
 dofile("pvp_api/actions/run_lifecycle.lua")
@@ -117,6 +130,16 @@ check(#board == 5, "real setup builds five tiles")
 for _, tile in ipairs(board) do
 	check(tile.key == "b_mp_almanac", "real setup never offers another deck")
 end
+-- The server may shuffle offers: the UI comparator must restore difficulty order.
+for _, replacement in ipairs({ 0, 0.25, 0.5 }) do
+	local expected = D.almanac_board(keys, { rng = rolls(0, replacement) })
+	local shuffled = { expected[5], expected[3], expected[1], expected[4], expected[2] }
+	table.sort(shuffled, config.tile_order)
+	for i, tile in ipairs(expected) do
+		check(shuffled[i].id == tile.id, "UI restores difficulty order after server shuffle")
+	end
+end
+
 check(#config.schedule == 4 and config.schedule[4].action == "pick", "three alternating bans then a pick from two")
 for i, turn in ipairs(config.schedule) do
 	check(turn.count == 1 and turn.actor == (i % 2 == 1 and 1 or 2), "same first/second roles as Expanded")
@@ -298,4 +321,27 @@ for _, event in ipairs(stale) do
 	event.func()
 end
 check(#grants == 0, "an abandoned run cannot grant vouchers to a later run")
+
+-- Apply real modifier functions through the stake inheritance chain.
+local stake_defs = {}
+SMODS = { Stake = function(def) stake_defs[def.key] = def end }
+G.C.Planet = {}
+HEX = function(value) return value end
+dofile("objects/stakes/00_planet.lua")
+dofile("objects/stakes/01_spectral.lua")
+dofile("objects/stakes/02_spectralplus.lua")
+local function apply_stake(key)
+	local def = stake_defs[key]
+	for _, parent in ipairs(def.applied_stakes) do apply_stake(parent) end
+	def.modifiers()
+end
+for _, key in ipairs({ "planet", "spectral", "spectralplus" }) do
+	G.GAME = { modifiers = {} }
+	apply_stake(key)
+	local mods = G.GAME.modifiers
+	check(mods.enable_rentals_in_shop, key .. " has rentals")
+	check(not not mods.enable_perishables_in_shop == (key ~= "planet"), key .. " has intended perishables")
+	check(mods.scaling == ({ planet = 3, spectral = 4, spectralplus = 5 })[key], key .. " retains scaling")
+	check(mods.enable_eternals_in_shop and mods.no_blind_reward.Small, key .. " retains base effects")
+end
 print("Almanac setup: " .. checks .. " checks passed")

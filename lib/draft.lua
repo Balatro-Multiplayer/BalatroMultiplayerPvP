@@ -52,6 +52,21 @@ function D.tile_order(a, b)
 	return deck_order(a.key) < deck_order(b.key)
 end
 
+-- Almanac variants occupy their difficulty slot, regardless of registry order.
+local ALMANAC_STAKE_ORDER = {
+	stake_mp_white_minus = 1, stake_white = 2, stake_green = 3,
+	stake_black = 4, stake_purple = 5, stake_mp_planet = 6,
+	stake_gold = 7, stake_mp_spectralplus = 8,
+}
+
+function D.almanac_tile_order(a, b)
+	local pool = G.P_CENTER_POOLS.Stake
+	local ar = ALMANAC_STAKE_ORDER[pool[a.stake].key] or math.huge
+	local br = ALMANAC_STAKE_ORDER[pool[b.stake].key] or math.huge
+	if ar ~= br then return ar < br end
+	return D.tile_order(a, b)
+end
+
 local board_rng = PVP.new_rng()
 
 -- Keep the existing two-player first/second roles: three alternating bans,
@@ -80,7 +95,7 @@ function D.almanac_board(stake_keys, opts)
 		)
 		return value
 	end
-	-- Validate both variants before rolling. Never silently change the agreed
+	-- Validate all variants before rolling. Never silently change the agreed
 	-- probabilities because a client is missing a stake or has a lower cap.
 	local stakes = {
 		index("stake_white"),
@@ -90,14 +105,20 @@ function D.almanac_board(stake_keys, opts)
 		index("stake_gold"),
 	}
 	local white_minus, spectral = index("stake_mp_white_minus"), index("stake_mp_spectralplus")
+	local planet = index("stake_mp_planet")
 	local rng = opts.rng or board_rng
 	if rng() < 0.5 then stakes[1] = white_minus end
-	if rng() < 0.5 then stakes[5] = spectral end
+	local replacement = rng()
+	if replacement < 0.25 then
+		stakes[4] = planet
+	elseif replacement < 0.5 then
+		stakes[5] = spectral
+	end
 	local board = {}
 	for _, stake in ipairs(stakes) do
 		board[#board + 1] = { id = "b_mp_almanac@" .. stake, key = "b_mp_almanac", stake = stake }
 	end
-	table.sort(board, D.tile_order)
+	-- Slots already run from easiest to hardest, including replacements.
 	return board
 end
 

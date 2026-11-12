@@ -68,12 +68,12 @@ check(almanac.id == "almanac_preview", "Almanac preview appears in Ranked")
 check(almanac.name_plate.lines == "Almanac", "queue is named Almanac")
 check(
 	table.concat(almanac.description.lines, " ")
-		== "Your Deck evolves. Expect interference.",
+		== "Your deck grows. The rules get worse.",
 	"approved queue copy"
 )
 check(#almanac.description.lines == 2, "queue blurb stays two lines")
 for _, line in ipairs(almanac.description.lines) do
-	check(#line <= 21, "queue copy stays hand-wrapped for the narrow pillar")
+	check(#line <= 22, "queue copy stays hand-wrapped for the narrow pillar")
 end
 local button = almanac.select.nodes[1]
 check(button.config.button == nil, "preview cannot queue")
