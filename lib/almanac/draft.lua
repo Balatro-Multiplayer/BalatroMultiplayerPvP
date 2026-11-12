@@ -3,6 +3,8 @@
 PVP.ALMANAC_DRAFT = { definitions = {}, milestones = { [2] = true, [3] = true, [5] = true, [7] = true } }
 local D = PVP.ALMANAC_DRAFT
 
+-- Online, the server rolls one shared offer per ante; both players see the same decks.
+-- This per-player seed only rolls offline offers and Erratic's reshuffle (different per player).
 function D.new(seed, player)
 	return {
 		version = 1,
