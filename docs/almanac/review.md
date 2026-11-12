@@ -1,121 +1,33 @@
-# almanac-v1: what this branch is and how to review it
+# almanac-v1: reading guide
 
-Almanac is a 1v1 Nemesis format on Expanded's baseline. you play the Almanac deck,
-you draft extra decks at antes 2, 3, 5 and 7 and keep their effects, and from ante 3
-every PvP blind runs under two boss rules that hit both players. the product
-statement and approved decisions live in `v1.md`. this doc covers the code.
+The game mode is in `v1.md` and the remaining work in `release-checklist.md`. This file maps the code.
 
-it spans three repos, each on an `almanac-v1` branch:
+The branch is `almanac-v1` in three repos: PvP (this one, ~4.3k lines, mostly tests), Server (~1.5k lines including the regenerated bundle: `nakama/src/lobby/almanac.ts`, `shared_rules.ts`), and API (19 lines: `lobby.server_features` from the snapshot's `serverFeatures`).
 
-| repo | size | what |
-| --- | --- | --- |
-| PvP (this one) | ~4.3k lines, mostly tests | deck, ruleset, both drafts, rule effects, UI, harness |
-| Server | ~1.5k lines incl. regenerated bundle | `nakama/src/lobby/almanac.ts`, `shared_rules.ts` |
-| API | 19 lines | `lobby.server_features` from the snapshot's `serverFeatures` |
+The server owns every decision: deck offers, both players' acquisition histories, rule offers and picks, the 10 s deadline, timeout rolls and resolution. The host only asks for a rule draft to start. Clients apply results and never send offers or their own history. Push back on any change that lets a client decide something.
 
-the shape to hold onto: **the server owns every decision, the client applies
-results.** offers, both acquisition histories, rule picks, the 10s deadline,
-timeout rolls and resolution are all match state on the server. the host only asks
-for a rule draft to start. clients never send offers or their own history. if a
-change makes a client decide something, that's the thing to push back on.
+## Reading order
 
-## the pieces
+1. **Entry.** `rulesets/zz_almanac.lua` appends `layers/almanac.lua` to Expanded's `_layer_order`. The layer pins `b_mp_almanac` and turns off sleeves and challenges. `PVP.pvp_start_match` (`pvp_api/flow.lua`) refuses anything except two players in a Nemesis lobby on a server with `almanac_draft = 1` and `shared_pvp_rules = 2`.
+2. **Stake draft.** `lib/draft.lua` (`almanac_board`, `almanac_tile_order`) is switched on in `pvp_api/actions/run_lifecycle.lua`. The stakes are in `objects/stakes/` (`00_planet`, `01_spectral`, `02_spectralplus`, `zz_white_minus`) and White-'s vouchers are in `overrides/white_minus.lua`.
+3. **Deck draft.** `lib/almanac/draft.lua`. `D.definitions` hand-codes each deck because `Back:apply_to_run` only works at setup. `D.commit` records a pick before applying it, `state.busy` holds `save_run` until the pick has applied, and Orange's Giga pack has its own `pack_due` → `pack_active` checkpoint. Online polling is in `pvp_api/actions/almanac.lua` and the shop/blind-select gate is in `overrides/almanac_draft.lua`.
+4. **Shared rules.** `lib/almanac/shared_rules.lua` defines the rules as Blind-shaped hooks and `shared_rules_round.lua` defines `R.Round` (`resolved` → `active` → `finished`). Dispatch is in `overrides/shared_pvp_rules.lua`. `pvp_api/referee.lua` `start_blind_2p` sends `pvp_rules_open` in place of `pvp_start_blind` from ante 3.
+5. **Recovery.** `pvp_api/lobby_bridge.lua` calls `SHARED_RULES.sync()`. `lib/almanac/draft_replay.lua` and `shared_rules_replay.lua` replay the POV player's picks.
+6. **UI.** `ui/almanac_draft.lua` (offer), `ui/almanac_backs.lua` (cosmetic back fan), `ui/almanac_forecast.lua` (pause menu), `ui/game/timer.lua` (pauses during drafts), `ui/main_menu/find_game.lua` (Coming Soon preview, no queue).
 
-**entry.** `rulesets/zz_almanac.lua` copies Expanded's actual `_layer_order` and
-appends `layers/almanac.lua`, so content can't drift from Expanded. the layer pins
-the carrier deck `b_mp_almanac`, no sleeve, no challenge, shared rules on. the
-only path in is private Nemesis lobby → Lobby Options → Almanac. `PVP.pvp_start_match`
-(`pvp_api/flow.lua`) refuses anything but exactly two players in Nemesis on a
-server advertising `almanac_draft = 1` and `shared_pvp_rules = 2`. the ranked pillar
-in `ui/main_menu/find_game.lua` is a Coming Soon preview with a How to Play overlay.
-it doesn't queue.
+## Where to push
 
-**stake draft (pre-run).** reuses the existing server Setup/BanPick. it's turned on
-for Almanac in `run_lifecycle.lua` through the `PVP.SETUP.plan` draft flag.
-`lib/draft.lua` `almanac_board` deals five stake tiles of the same deck: White,
-Green, Black, Purple and Gold, with independent 50% rolls swapping White → White-
-and Gold → Spectral+. bans alternate three times, then the second player picks
-from the last two. White- (`objects/stakes/zz_white_minus.lua` +
-`overrides/white_minus.lua`) is White plus Grabber and Wasteful, granted once
-through the run-start event queue. it's appended, not inserted above White, so
-existing stake ids don't move.
+- **Catalogue copies.** Deck and rule antes exist in both the client (`D.definitions`, `R.definitions`) and the server (`DECK_ANTES`, `RULE_ANTES`). Only `tests/test_almanac_contract.lua` keeps them aligned.
+- **Hand-coded decks.** Abandoned, Erratic and Checkered destroy or rewrite cards. Anaglyph, Heidelberg and Echo run every round through `D.calculate`. These need a check against the real deck config.
+- **Detection.** Server `isAlmanac` and client `R.enabled` trust lobby metadata the host can edit. Move this to `rankedMode` before a queue exists.
+- **Soft lock.** If the server never answers, the draft gate leaves the run on the "waiting" overlay.
+- **Prototype toggle.** Lobby Options keeps "Shared PvP rules (prototype)" for non-Almanac private lobbies. Ship it or remove it.
 
-**deck draft (in-run).** the core is `lib/almanac/draft.lua`. it hand-codes each
-deck's effect, because `Back:apply_to_run` only works at run setup. `D.commit`
-records the deck *before* applying it, `state.busy` blocks `save_run` until the
-apply's events drain, and Orange's free Giga pack has its own `pack_due` →
-`pack_active` checkpoint. `overrides/almanac_draft.lua` gates `update_shop` and
-`update_blind_select` while a draft is open. online, `pvp_api/actions/almanac.lua`
-polls the server every 2s with `pvp_almanac_open`/`pick` and only accepts an offer
-whose id matches `<run>:decks:<ante>`. the server deals one shared offer, waits
-until both players have picked the previous milestone, and excludes the *union* of
-both histories. solo practice and local replay still roll offers on the client.
-UI: `ui/almanac_draft.lua` (click a deck to select it, click again to confirm,
-with a preview of resource changes), `ui/almanac_backs.lua` (a purely cosmetic
-fan of acquired backs on the deck, no state), `ui/almanac_forecast.lua` (pause
-menu, schedule and status only, never rolls future offers).
+## Running it
 
-**boss rules.** `lib/almanac/shared_rules.lua` holds the catalogue and lifecycle,
-`overrides/shared_pvp_rules.lua` the effects. effects compose with the PvP blind
-instead of replacing it, and they go through SMODS's debuff arbitration, so
-immunity still wins. flow: both players ready → after the ready check the referee
-(`referee.lua` `start_blind_2p`) sends `pvp_rules_open` instead of
-`pvp_start_blind` at ante ≥ 3 → the server sends each player its own four-rule
-offer → picks lock → the server sends `pvp_start_blind` with the two rules. if both
-pick the same rule, the server adds a random second one from the whole eligible
-pool. the encounter id is run + round id. retired ids reject late opens, offers
-and starts (`blind_handshake.lua`, `R.prepare`). rules turn on in `Blind:set_blind`
-and turn off on defeat, disable, cash out or going to the menu. the PvP timer
-pauses while a rule offer or deck draft is open (`ui/game/timer.lua`).
+- **Offline:** run `lua` and `luajit` on `tests/test_almanac_*.lua` and `tests/test_shared_rules.lua`. The contract test needs `SERVER_DIR`; the setup test needs `MPAPI_DIR` with a trailing slash. Also `luajit tests/unit/draft_board_test.lua` and `ready_check_referee_test.lua`.
+- **Server:** `corepack pnpm --dir nakama typecheck`, then `test`, then `build`.
+- **Live:** `bash scripts/run_pair.sh pair_almanac` runs two real clients through the lobby, the stake draft, the ante-2 and ante-3 deck drafts, the rule reveal and two PvP blinds. `pair_almanac_stakes` takes `BMP_STAKE_VARIANT=planet|spectral|neither`. See `tests/scenarios/pair.md`.
+- **Not covered live:** reconnect, replay, host migration, rule timeouts, matching picks, rule effects in play, antes 5 and 7, rematch and rendered layout. The product gate in `release-checklist.md` stays open until these are covered.
 
-**recovery and replay.** `lobby_bridge.lua` calls `SHARED_RULES.sync()` on
-reconnect and on replay tails. the server checkpoint keeps both ledgers and pushes
-the rule deadline back by however long the server was down.
-`lib/almanac/draft_replay.lua` and `lib/almanac/shared_rules_replay.lua` replay the POV
-player's picks, including a recorded "pass" when no offer is legal.
-
-## where to push in review
-
-- **three copies of each catalogue.** deck min antes are in `D.definitions`
-  (client) and `DECK_ANTES` (server). rule antes are in `R.definitions` and
-  `RULE_ANTES`. `tests/test_almanac_contract.lua` (needs `SERVER_DIR`) is the only
-  thing keeping them in sync. any catalogue edit should touch both and that test.
-- **hand-coded deck effects are the risk surface.** each `add(...)` is our
-  reimplementation of a vanilla or MP deck, mid-run. check each against the
-  deck's real config, especially the destructive ones (Abandoned, Erratic,
-  Checkered) and the ones that run every round through `D.calculate`
-  (Anaglyph, Heidelberg, Echo).
-- **what decides "this is Almanac".** the server's `isAlmanac` and the client's
-  `R.enabled` both accept `metadata.ruleset == almanac` *or* `metadata.deck ==
-  "Almanac"`, and both are host-editable metadata. fine for private lobbies, but it
-  should become `rankedMode` before a queue exists.
-- **the private toggle is still there.** Lobby Options has "Shared PvP rules
-  (prototype)" for non-Almanac private lobbies. i'd rather decide whether that
-  ships than let it survive by accident.
-- **gates freeze the state machine.** the draft gate returns early from shop and
-  blind-select updates until the server answers. a server that never answers is
-  a soft-locked run with a "waiting" overlay. make sure that's the failure we want.
-
-## evidence
-
-offline, from the repo root: `lua` and `luajit` on `tests/test_almanac_{backs,
-contract,draft,identity,setup}.lua` and `tests/test_shared_rules.lua` (contract
-needs `SERVER_DIR`, setup needs `MPAPI_DIR` with a trailing slash), plus
-`tests/unit/ready_check_referee_test.lua`. server: `corepack pnpm --dir nakama
-typecheck`, `test` and `build`. `release-checklist.md` has the last recorded counts.
-
-live: `bash scripts/run_pair.sh pair_almanac` (see `tests/scenarios/pair.md`). two
-real clients get through the lobby, stake draft, the ante-2 and ante-3 deck drafts
-with the same offers and the union excluded, their own four-rule offers, an
-identical reveal, and two played PvP blinds with matching lives. that's the first
-real two-player evidence on this branch. it does **not** cover reconnect, replay,
-host migration, timeouts, matching picks, rule effects in play, antes 5 and 7, the
-rematch, or rendered layout. the product gate in the checklist stays unchecked
-for those.
-
-## not done, on purpose or otherwise
-
-- no queue. `pvp_ranked_almanac` exists server-side; nothing queues into it.
-- competitive baseline enforcement (lives, modifiers, the rest of Expanded
-  Ranked) and rejecting Almanac in other queues are both still open.
-- no ante scaling change (decision 6).
+**Out of scope:** the queue (`pvp_ranked_almanac` exists, but nothing feeds it), baseline enforcement, rejecting Almanac in other queues, and ante scaling.
