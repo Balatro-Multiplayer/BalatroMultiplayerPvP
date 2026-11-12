@@ -60,15 +60,7 @@ end
 local update = Game.update
 function Game:update(dt)
 	update(self, dt)
-	if R.pending_start then
-		local pending = R.pending_start
-		if not R.enabled(MPAPI.get_current_lobby()) then
-			R.pending_start = nil
-		elseif R.can_start(pending.params.shared_rules) then
-			R.pending_start = nil
-			MPAPI.ActionTypes.pvp_start_blind.on_receive(nil, pending.from, pending.params)
-		end
-	end
+	R.Round.redeliver()
 	if not R.offer then return end
 	if not R.enabled(MPAPI.get_current_lobby()) or G.STAGE ~= G.STAGES.RUN then
 		R.offer = nil

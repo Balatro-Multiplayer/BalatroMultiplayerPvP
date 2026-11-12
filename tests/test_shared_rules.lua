@@ -115,12 +115,23 @@ Blind = {
 		card:set_debuff(not flags.prevent_debuff and (flags.debuff or card.external or false))
 		return "card"
 	end,
-	stay_flipped = function()
-		local flags = SMODS.calculate_context({ stay_flipped = true, to_area = G.hand })
+	stay_flipped = function(_, to_area, card, from_area)
+		local flags = SMODS.calculate_context({
+			stay_flipped = true,
+			to_area = to_area,
+			other_card = card,
+			from_area = from_area,
+		})
 		return not flags.prevent_stay_flipped and flags.stay_flipped
 	end,
-	debuff_hand = function(_, cards)
-		local flags = SMODS.calculate_context({ debuff_hand = true, full_hand = cards })
+	debuff_hand = function(_, cards, hand, handname, check)
+		local flags = SMODS.calculate_context({
+			debuff_hand = true,
+			full_hand = cards,
+			poker_hands = hand,
+			scoring_name = handname,
+			check = check,
+		})
 		return not flags.prevent_debuff and flags.debuff
 	end,
 	press_play = function()
@@ -191,6 +202,7 @@ PVP._playback_wait_for = function(predicate, fn)
 	fn()
 end
 dofile("lib/almanac/shared_rules.lua")
+dofile("lib/almanac/shared_rules_round.lua")
 dofile("overrides/shared_pvp_rules.lua")
 dofile("pvp_api/actions/_helpers.lua")
 dofile("pvp_api/actions/blind_handshake.lua")
@@ -200,13 +212,14 @@ dofile("lib/almanac/shared_rules_replay.lua")
 local R = PVP.SHARED_RULES
 local serial = 0
 local function begin(a, b, ante)
-	R.finish()
+	R.Round.finish()
 	serial = serial + 1
 	G.GAME = {
 		round_resets = { hands = 4, discards = 3, ante = ante or 5 },
 		current_round = { hands_left = 4, discards_left = 3, hands_played = 0, discards_used = 0 },
 		hands = { Pair = { level = 3 } },
 		dollars = 20,
+		blind = blind,
 	}
 	G.hand = {
 		config = { card_limit = 8 },
@@ -222,7 +235,7 @@ local function begin(a, b, ante)
 	G.play = { cards = { {}, {}, {}, {}, {} } }
 	G.playing_cards = {}
 	queue = {}
-	check(R.prepare({ id = "rule" .. serial, ante = ante or 5, rules = { a, b } }), "Valid rule pair prepared")
+	check(R.Round.resolve({ id = "rule" .. serial, ante = ante or 5, rules = { a, b } }), "Valid rule pair prepared")
 	check(blind:set_blind({ key = "bl_mp_nemesis" }) == "set", "Native blind setup return preserved")
 end
 local function card(suit, face, external)
@@ -252,8 +265,8 @@ meta.deck = "Almanac"
 check(R.enabled(lobby), "Almanac always drafts rules without the prototype opt-in switch")
 meta.deck = nil
 meta.shared_pvp_rules = true
-check(not R.prepare({ id = "bad", ante = 3, rules = { "hook", "plant" } }), "Ante gates validated on receipt")
-check(not R.prepare({ id = "bad", ante = 5, rules = { "manacle", "manacle" } }), "No duplicate stacking")
+check(not R.Round.resolve({ id = "bad", ante = 3, rules = { "hook", "plant" } }), "Ante gates validated on receipt")
+check(not R.Round.resolve({ id = "bad", ante = 5, rules = { "manacle", "manacle" } }), "No duplicate stacking")
 local count = 0
 for _ in pairs(R.definitions) do
 	count = count + 1
@@ -263,7 +276,7 @@ check(count == 14 and not R.definitions.needle and not R.definitions.flint, "Acc
 begin("manacle", "glass_cannon")
 check(G.hand.config.card_limit == 7 and G.GAME.current_round.hands_left == 2, "Encounter resources adjusted")
 check(G.GAME.round_resets.hands == 4, "Deck baseline unchanged")
-R.activate()
+R.Round.activate()
 check(G.hand.config.card_limit == 7, "Activation idempotent")
 local saved = copy_table(G.GAME)
 G.GAME = saved
@@ -272,11 +285,11 @@ check(G.hand.config.card_limit == 7, "Save reconstruction does not reapply size 
 G.hand:change_size(2)
 local chips, mult = Back.trigger_effect({}, { context = "final_scoring_step", chips = 12, mult = 3 })
 check(chips == 12 and mult == 12, "Glass Cannon modifies Mult without replacing Chips")
-R.finish()
-R.finish()
+R.Round.finish()
+R.Round.finish()
 check(G.hand.config.card_limit == 10, "Cleanup preserves permanent capacity changes and runs once")
 check(
-	not R.prepare({ id = saved.pvp_shared_rules.id, ante = 5, rules = { "manacle", "glass_cannon" } }),
+	not R.Round.resolve({ id = saved.pvp_shared_rules.id, ante = 5, rules = { "manacle", "glass_cannon" } }),
 	"Late result cannot restart finished encounter"
 )
 
@@ -287,10 +300,10 @@ check(
 )
 G.GAME.current_round.hands_left = 1
 -- A new activation against a one-hand baseline floors at one.
-R.finish()
+R.Round.finish()
 G.GAME.pvp_shared_rules = nil
-assert(R.prepare({ id = "one", ante = 5, rules = { "water", "glass_cannon" } }))
-R.activate()
+assert(R.Round.resolve({ id = "one", ante = 5, rules = { "water", "glass_cannon" } }))
+R.Round.activate()
 check(G.GAME.current_round.hands_left == 1, "Glass Cannon floors at one")
 
 for key, suit in pairs({ club = "Clubs", goad = "Spades", window = "Diamonds", head = "Hearts" }) do
@@ -301,7 +314,7 @@ for key, suit in pairs({ club = "Clubs", goad = "Spades", window = "Diamonds", h
 	blind:debuff_card(other)
 	check(suited.debuff and face.debuff and not other.debuff, "Suit plus Plant composes: " .. key)
 	G.playing_cards = { suited, face, card("Other", false, true) }
-	R.finish()
+	R.Round.finish()
 	check(
 		not suited.debuff and not face.debuff and G.playing_cards[3].debuff,
 		"Cleanup preserves unrelated debuff: " .. key
@@ -328,7 +341,7 @@ blind:debuff_hand({}, {}, "Pair", false)
 blind:debuff_hand({}, {}, "Pair", false)
 blind:debuff_hand({}, {}, "Pair", false)
 check(G.GAME.hands.Pair.level == 1, "Arm floors at level one")
-R.finish()
+R.Round.finish()
 check(G.GAME.hands.Pair.level == 1, "Lost levels persist")
 
 begin("house", "psychic")
@@ -361,13 +374,13 @@ queue[1].func()
 check(G.GAME.dollars == 15, "Tooth charges cards actually transferred to play")
 queue[2].func()
 check(discarded == 2, "Hook discards exactly two held cards")
-R.finish()
+R.Round.finish()
 check(G.GAME.dollars == 15, "Tooth money loss persists")
 begin("tooth", "hook")
 G.hand.cards = { {}, {}, {} }
 blind:press_play()
 local stale_event = queue[2]
-R.finish()
+R.Round.finish()
 stale_event.func()
 check(discarded == 2, "Stale Hook event cannot affect next encounter")
 
@@ -388,7 +401,7 @@ check(R.offer and #G.OVERLAY_MENU.contents == 7, "Offer builds four real choice 
 G.FUNCS.pvp_shared_pick({ config = { ref_table = { key = "club" } } })
 check(sends[#sends].key == "pvp_rules_pick" and sends[#sends].params.rule == "club", "Click sends offered rule request")
 local result = { id = "RESOLVED", ante = 5, rules = { "tooth", "house" } }
-R.finish()
+R.Round.finish()
 G.blind_select = {}
 local receive = MPAPI.ActionTypes.pvp_start_blind.on_receive
 local envelope = { first_player = "a", shared_rules = result, round_id = "ROUND", starting_hands = { b = 5 } }
@@ -398,7 +411,7 @@ check(PVP.GAME.round_sync.id == "ROUND", "Shared-rule start retains target round
 check(dispatched[1][2].startingHands == 5, "Shared-rule start retains opponent starting hands")
 check(#dispatched == 1 and #records == 1 and R.offer == nil, "Resolved message starts/logs once and closes picker")
 check(PVP.GAME.next_blind_context.UIBox == G.blind_select, "Recovered start uses rebuilt blind UI")
-R.finish()
+R.Round.finish()
 G.STATE = "shop"
 receive(nil, "a", {
 	first_player = "a",
@@ -406,15 +419,15 @@ receive(nil, "a", {
 	starting_hands = { b = 3 },
 	shared_rules = { id = "DEFERRED", ante = 5, rules = { "arm", "house" } },
 })
-check(R.pending_start ~= nil and #dispatched == 1, "Recovery result waits through unfinished shop")
+check(R.Round.deferred ~= nil and #dispatched == 1, "Recovery result waits through unfinished shop")
 G.STATE = G.STATES.BLIND_SELECT
 Game:update(0)
-check(R.pending_start == nil and #dispatched == 2, "Recovery resumes once blind UI is available")
+check(R.Round.deferred == nil and #dispatched == 2, "Recovery resumes once blind UI is available")
 check(
 	PVP.GAME.round_sync.id == "DEFERRED-ROUND" and dispatched[2][2].startingHands == 3,
 	"Deferred recovery keeps the complete start envelope"
 )
-R.finish()
+R.Round.finish()
 receive(nil, "a", {
 	first_player = "a",
 	round_id = "SECOND-SAME-ANTE",
@@ -424,7 +437,7 @@ check(
 	#dispatched == 3 and G.GAME.pvp_shared_rules.id == "SECOND-SAME-ANTE",
 	"a second PvP in the same ante gets its own draft result"
 )
-R.finish()
+R.Round.finish()
 receive(nil, "a", envelope)
 check(
 	#dispatched == 3 and G.GAME.pvp_shared_rules.id == "SECOND-SAME-ANTE",

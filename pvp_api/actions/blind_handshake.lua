@@ -31,52 +31,25 @@ A("pvp_ready_ack", function(_at, from, params)
 	PVP.referee_on_ready_ack(from, params and params.nonce, params and params.ready)
 end)
 
-A_host("pvp_start_blind", function(_at, _from, params)
+A_host("pvp_start_blind", function(_at, from, params)
 	local lobby = MPAPI.get_current_lobby()
 	-- An eliminated player sits out the blinds the others still play.
 	if not lobby or PVP.GAME.eliminated then return end
-	-- A start carrying shared_rules is the PvP blind whose two shared rules the
-	-- server has settled. Drop it if malformed, already started or retired, or
-	-- for an ante this client has passed; otherwise record the rules in
-	-- G.GAME.pvp_shared_rules (R.prepare) before the round sync begins.
-	if params.shared_rules then
-		local R = PVP.SHARED_RULES
-		local result = params.shared_rules
-		if type(result) ~= "table" or type(result.ante) ~= "number" then return end
-		local previous = G.GAME.pvp_shared_rules
-		if previous and previous.retired and previous.retired[result.id] then return end
-		if R.starting_id == result.id then return end
-		if previous and previous.id == result.id and (previous.active or previous.finished) then return end
-		if G.GAME.round_resets.ante > result.ante then return end
-		-- Rejoin may still be replaying a shop/hand. Keep the complete target
-		-- start envelope, including its round ID and starting-hand counts;
-		-- ui/shared_pvp_rules.lua re-delivers it once R.can_start passes.
-		if not R.can_start(result) then
-			R.pending_start = { from = _from, params = copy_table(params) }
-			R.offer = nil
-			return
-		end
-		if not R.prepare(result) then return end
+	local R = PVP.SHARED_RULES
+	local result = params.shared_rules
+	if result then
+		local admission = R.Round.admit(result)
+		if admission == "drop" then return end
+		if admission == "wait" then return R.Round.defer(from, params) end
 	end
-	if PVP.begin_round_sync(params.round_id, _from) == false then return end
-	-- Round sync accepted: mark this rule set as starting so duplicate starts and
-	-- late offers are ignored, close the pick overlay, reveal the two rules, and
-	-- log them for replay (lib/almanac/shared_rules_replay.lua). Blind:set_blind
-	-- activates them once the PvP boss is set.
-	if params.shared_rules then
-		local R = PVP.SHARED_RULES
-		R.starting_id = params.shared_rules.id
+	if PVP.begin_round_sync(params.round_id, from) == false then return end
+	if result then
+		R.Round.start(result)
 		PVP.GAME.next_blind_context = PVP.GAME.next_blind_context or { UIBox = G.blind_select }
-		R.offer = nil
 		if G.OVERLAY_MENU then G.FUNCS.exit_overlay_menu() end
-		R.show_result(params.shared_rules)
+		R.show_result(result)
 		if PVP.RLOG then
-			PVP.RLOG.record("shared_rules", {
-				params.shared_rules.id,
-				params.shared_rules.ante,
-				params.shared_rules.rules[1],
-				params.shared_rules.rules[2],
-			})
+			PVP.RLOG.record("shared_rules", { result.id, result.ante, result.rules[1], result.rules[2] })
 		end
 	end
 	-- action_start_blind compares firstPlayer to (is_host and "host" or "guest");
