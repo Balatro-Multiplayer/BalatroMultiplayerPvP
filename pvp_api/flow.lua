@@ -57,6 +57,7 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 			meta[key] = PVP.LOBBY.config[key]
 		end
 		meta.deck_mode = PVP.LOBBY.config.deck_mode or PVP.DeckMode.SELECT
+		meta.verified_lobby = PVP.compute_verified_lobby()
 	end
 	return meta
 end
@@ -71,7 +72,6 @@ PVP.PRIVATE_OPTION_KEYS = {
 	"death_on_round_loss",
 	"multiplayer_jokers",
 	"normal_bosses",
-	"hide_score_until_played",
 	"timer",
 	"timer_base_seconds",
 	"timer_increment_seconds",
@@ -79,6 +79,10 @@ PVP.PRIVATE_OPTION_KEYS = {
 	"preview_disabled",
 	"the_order",
 	"smallerworld",
+	"different_seeds",
+	"different_decks",
+	"random_loadout",
+	"custom_seed",
 }
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:

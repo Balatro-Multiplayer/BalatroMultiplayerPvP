@@ -73,8 +73,23 @@ local function run_rows(lobby, player_data, rows)
 	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. PVP.Score.display(best_score))
 end
 
+-- A private lobby marks each player Verified (green) or Not verified (red).
+local function verified_row(player_data)
+	local verified = PVP.player_is_verified(player_data)
+	return { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = {
+		{ n = G.UIT.T, config = {
+			text = localize(verified and "k_pvp_verified" or "k_pvp_not_verified"),
+			scale = 0.35,
+			colour = verified and G.C.GREEN or G.C.RED,
+		} },
+	} }
+end
+
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)
 	local rows = { lives_row(player_data) }
+	if (lobby:get_metadata() or {}).kind == PVP.LobbyAccess.PRIVATE then
+		rows[#rows + 1] = verified_row(player_data)
+	end
 	run_rows(lobby, player_data, rows)
 	local meta = lobby:get_metadata() or {}
 	if meta.kind == PVP.LobbyAccess.RANKED then

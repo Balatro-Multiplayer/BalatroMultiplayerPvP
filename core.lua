@@ -240,8 +240,6 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		forced_config = false,
 		preview_disabled = false,
 		smallerworld = false,
-		-- Baseline off; start_lobby sets it on for standard-layer rulesets.
-		hide_score_until_played = false,
 	}
 end
 PVP.reset_lobby_config()

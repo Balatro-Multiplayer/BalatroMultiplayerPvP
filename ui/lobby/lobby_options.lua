@@ -97,13 +97,20 @@ local function number_row(key, label_key)
 	}).node)
 end
 
+-- Deck Mode cycle: Select (host picks), Draft, or Different (every player picks their own).
+local function deck_mode_index()
+	if PVP.LOBBY.config.different_decks then
+		return 3
+	end
+	return (PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT) and 2 or 1
+end
+
 local function deck_mode_row()
-	local current = (PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT) and 2 or 1
 	return option_row(MPAPI.disableable_option_cycle({
 		id = "mp_pvp_deck_mode",
 		label = "Deck Mode",
-		options = { "Select", "Draft" },
-		current_option = current,
+		options = { "Select", "Draft", "Different" },
+		current_option = deck_mode_index(),
 		opt_callback = "mp_pvp_change_deck_mode",
 		w = 4,
 		scale = 0.6,
@@ -112,6 +119,60 @@ local function deck_mode_row()
 			local lobby = MPAPI.get_current_lobby()
 			return lobby and lobby.is_host and MPAPI.has_server_referee(lobby)
 		end,
+	}).node)
+end
+
+-- Seed Mode cycle: one shared random seed, a host-set seed, or a different seed per player.
+local function seed_mode_index()
+	if PVP.LOBBY.config.different_seeds then
+		return 3
+	end
+	return (PVP.LOBBY.config.custom_seed or "random") ~= "random" and 2 or 1
+end
+
+local function seed_mode_row()
+	return option_row(MPAPI.disableable_option_cycle({
+		id = "mp_pvp_seed_mode",
+		label = localize("k_pvp_seed_mode"),
+		options = { localize("k_random"), "Set", "Different" },
+		current_option = seed_mode_index(),
+		opt_callback = "mp_pvp_change_seed_mode",
+		w = 4,
+		scale = 0.6,
+		enabled = is_host,
+	}).node)
+end
+
+local function seed_button_row()
+	local seed = PVP.LOBBY.config.custom_seed
+	local label = localize("k_pvp_seed_set_current")
+	if seed_mode_index() == 2 then
+		label = label .. ": " .. tostring(seed)
+	end
+	return option_row(MPAPI.disableable_button({
+		id = "mp_pvp_set_seed",
+		button = "mp_pvp_seed_overlay",
+		colour = G.C.BLUE,
+		minw = 4,
+		minh = 0.5,
+		label = { label },
+		scale = 0.4,
+		enabled = function()
+			return is_host() and seed_mode_index() == 2
+		end,
+	}).node)
+end
+
+local function verified_defaults_row()
+	return option_row(MPAPI.disableable_button({
+		id = "mp_pvp_set_verified_defaults",
+		button = "mp_pvp_set_verified_defaults",
+		colour = G.C.GREEN,
+		minw = 4,
+		minh = 0.55,
+		label = { localize("k_pvp_set_verified_defaults") },
+		scale = 0.4,
+		enabled = is_host,
 	}).node)
 end
 
@@ -147,7 +208,6 @@ local function lobby_tab(lobby)
 		rows[#rows + 1] = number_row("starting_lives", "b_opts_lives")
 		rows[#rows + 1] = toggle_row("mp_pvp_multiplayer_jokers", "b_opts_multiplayer_jokers", "multiplayer_jokers")
 		rows[#rows + 1] = toggle_row("mp_pvp_normal_bosses", "b_opts_normal_bosses", "normal_bosses")
-		rows[#rows + 1] = toggle_row("mp_pvp_hide_score", "b_opts_hide_score", "hide_score_until_played")
 	end
 	return rows
 end
@@ -163,6 +223,17 @@ local function gameplay_tab()
 		toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld", function()
 			return is_host() and PVP.LOBBY.config.ruleset == PVP.RulesetKey.SMALLWORLD
 		end),
+	}
+end
+
+local function advanced_tab()
+	return {
+		seed_mode_row(),
+		seed_button_row(),
+		toggle_row("mp_pvp_random_loadout", "b_opts_random_loadout", "random_loadout", function()
+			return is_host() and PVP.LOBBY.config.different_decks == true
+		end),
+		verified_defaults_row(),
 	}
 end
 
@@ -240,6 +311,7 @@ function PVP.build_lobby_options()
 		end)
 		add_tab("Gameplay", gameplay_tab)
 		add_tab("Timers", timer_tab)
+		add_tab("Advanced", advanced_tab)
 	else
 		-- Matchmade lobbies: only each player's own role/team pick.
 		add_tab("Lobby", player_rows)
@@ -252,8 +324,59 @@ end
 
 G.FUNCS.mp_pvp_change_deck_mode = function(e)
 	PVP.LOBBY.config.deck_mode = (e.to_key == 2) and PVP.DeckMode.DRAFT or PVP.DeckMode.SELECT
+	PVP.LOBBY.config.different_decks = e.to_key == 3
+	if e.to_key ~= 3 then
+		PVP.LOBBY.config.random_loadout = false
+	end
 	publish_options()
 	MPAPI.refresh_current_view()
+end
+
+G.FUNCS.mp_pvp_change_seed_mode = function(e)
+	PVP.LOBBY.config.different_seeds = e.to_key == 3
+	if e.to_key == 1 or e.to_key == 3 then
+		PVP.LOBBY.config.custom_seed = "random"
+	elseif (PVP.LOBBY.config.custom_seed or "random") == "random" then
+		-- A set seed needs a value to be set at all; start from a fresh one.
+		PVP.LOBBY.config.custom_seed = generate_starting_seed()
+	end
+	publish_options()
+	-- Reopen so the Set Seed button shows the new state.
+	G.FUNCS.mp_pvp_lobby_options()
+end
+
+G.FUNCS.mp_pvp_seed_overlay = function()
+	PVP.LOBBY.temp_seed = ""
+	G.FUNCS.overlay_menu({
+		definition = create_UIBox_generic_options({
+			back_func = "mp_pvp_lobby_options",
+			contents = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
+				create_text_input({
+					max_length = 8,
+					all_caps = true,
+					ref_table = PVP.LOBBY,
+					ref_value = "temp_seed",
+					prompt_text = localize("k_enter_seed"),
+					keyboard_offset = 4,
+					callback = function()
+						local seed = PVP.LOBBY.temp_seed
+						if seed and seed ~= "" then
+							PVP.LOBBY.config.custom_seed = seed
+							publish_options()
+						end
+					end,
+				}),
+				{ n = G.UIT.T, config = { text = localize("k_enter_to_save"), scale = 0.3, colour = G.C.UI.TEXT_LIGHT } },
+			} } },
+		}),
+	})
+end
+
+G.FUNCS.mp_pvp_set_verified_defaults = function()
+	PVP.apply_verified_defaults()
+	publish_options()
+	-- Reopen so every control shows the restored values.
+	G.FUNCS.mp_pvp_lobby_options()
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)

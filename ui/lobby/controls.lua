@@ -55,7 +55,8 @@ local function deck_button()
 		scale = 0.5,
 		col = true,
 		enabled = function()
-			return lobby and lobby.is_host and not lobby.group_queue
+			-- With Different Decks every player picks their own.
+			return lobby and (lobby.is_host or PVP.LOBBY.config.different_decks == true) and not lobby.group_queue
 		end,
 	}).node
 end
