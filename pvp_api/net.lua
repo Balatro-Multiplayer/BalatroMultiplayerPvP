@@ -50,9 +50,9 @@ local function relay_enemy_info(payload)
 end
 
 local function gen_seed()
-	local cfg = PVP.LOBBY.config
-	if cfg.custom_seed and cfg.custom_seed ~= "random" and cfg.custom_seed ~= "" then
-		return cfg.custom_seed
+	local seed = PVP.setting("custom_seed")
+	if seed and seed ~= "random" and seed ~= "" then
+		return seed
 	end
 	return PVP.generate_seed()
 end

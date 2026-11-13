@@ -112,13 +112,19 @@ local function host_of(lobby)
 	return lobby and lobby.is_host and lobby or nil
 end
 
-function PVP.set_lobby_option(lobby, key, value)
+-- Sets several options in one metadata write, for options that only make sense
+-- together.
+function PVP.set_lobby_options(lobby, changes)
 	if not host_of(lobby) then return end
 	local custom = PVP.lobby_custom(lobby)
 	local options = {}
 	for k, v in pairs(custom.options) do options[k] = v end
-	options[key] = value
+	for k, v in pairs(changes) do options[k] = v end
 	lobby:set_metadata({ custom = PVP.filter_custom({ options = options, layers = custom.layers }, (lobby:get_metadata() or {}).ruleset) })
+end
+
+function PVP.set_lobby_option(lobby, key, value)
+	PVP.set_lobby_options(lobby, { [key] = value })
 end
 
 function PVP.set_lobby_layer(lobby, name, on)
