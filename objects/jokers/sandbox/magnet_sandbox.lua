@@ -49,6 +49,10 @@ MPAPI.Joker({
 			local chosen_card = candidates[random_index]
 			return { send = { type = "response", card = MPAPI.serialize_card(chosen_card) } }
 		elseif d.type == "response" then
+			-- Only accept a response to a request we actually sent, and only once.
+			local pending = PVP.magnet_request_at
+			PVP.magnet_request_at = nil
+			if not pending or os.time() - pending > 60 then return nil end
 			if d.card then MPAPI.rebuild_card(d.card, G.jokers) end
 		end
 	end,
@@ -107,6 +111,7 @@ MPAPI.Joker({
 			and (card.ability.extra.current_rounds >= card.ability.extra.rounds)
 			and not context.blueprint
 		then
+			PVP.magnet_request_at = os.time()
 			return { send = { type = "request" } }
 		end
 	end,
