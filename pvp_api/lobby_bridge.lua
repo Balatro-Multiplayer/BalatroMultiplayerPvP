@@ -211,10 +211,12 @@ local function mirror_metadata(lobby)
 		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 	end
-	if meta.deck then
+	-- With Different Decks a guest keeps their own pick; the host's deck is only the host's.
+	local own_deck = PVP.LOBBY.config.different_decks == true and not lobby.is_host
+	if meta.deck and not own_deck then
 		PVP.LOBBY.deck.back = meta.deck
 	end
-	if meta.stake then
+	if meta.stake and not own_deck then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
@@ -368,6 +370,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
 		PVP.TRAP_ROW.on_player_back(player_id)
+		PVP.refresh_verified_lobby(lobby)
 		refresh()
 		check_version_mismatch()
 	end)
@@ -376,10 +379,12 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- it once their client reports its mods), so the join alone cannot judge
 	-- their version.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_INFO, function()
+		PVP.refresh_verified_lobby(lobby)
 		check_version_mismatch()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)
+		PVP.refresh_verified_lobby(lobby)
 		if PVP.lobby and PVP.lobby.ready then
 			PVP.lobby.ready:remove(player_id)
 		end
@@ -465,6 +470,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- a game is on: a rejoin's playback starts from the main menu, and a
 	-- rebuild under it replays its first actions twice.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_STANDING_CHANGED, function(_, standing, before)
+		PVP.refresh_verified_lobby(lobby)
 		if MPAPI.matchmaking.group.changes_refusal(before, standing) and not lobby:is_game_started() then
 			refresh()
 		end
