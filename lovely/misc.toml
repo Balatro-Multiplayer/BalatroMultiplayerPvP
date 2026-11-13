@@ -92,7 +92,7 @@ match_indent = true
 target = "back.lua"
 pattern = '''local card = create_card('Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
 position = "at"
-payload = '''local card = create_card((PVP.in_session() and not PVP.legacy_smallworld()) and G.P_CENTERS[v].set or 'Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
+payload = '''local card = create_card(PVP.in_session() and G.P_CENTERS[v].set or 'Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
 match_indent = true
 
 # Added in 0a583263 ("fix voucher desync", BalatroMultiplayer, 2025-08-28): The

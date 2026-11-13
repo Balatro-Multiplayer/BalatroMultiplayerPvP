@@ -1381,7 +1381,6 @@ return {
 			b_opts_timer = "Ativar Temporizador",
 			b_opts_disable_preview = "Desativar Prévia de Pontuação",
 			b_opts_the_order = "Ativar A Ordem",
-			b_opts_legacy_smallworld = "Mecânicas legadas de Mundo Pequeno",
 			b_reset = "Redefinir",
 			b_set_custom_seed = "Definir Código Personalizado",
 			b_opts_modifier_smallworld = "Mundo Pequeno",

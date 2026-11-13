@@ -839,7 +839,6 @@ return {
 			b_opts_timer = "Cho Phép Đếm Ngược",
 			b_opts_disable_preview = "Tắt Xem Trước Điểm",
 			b_opts_the_order = "Bật The Order",
-			b_opts_legacy_smallworld = "Cơ chế Small World Cổ Điểm",
 			b_reset = "Đặt lại",
 			b_set_custom_seed = "Đặt Giống Tuỳ Chỉnh",
 			b_mp_kofi_button = "Ủng hộ tôi trên Ko-fi",
