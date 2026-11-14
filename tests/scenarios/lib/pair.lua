@@ -276,7 +276,7 @@ function P.next_round(stop)
 	}
 end
 
--- Readies for the PvP boss, runs any between steps, then
+-- Readies for the PvP boss, runs any between steps (e.g. a rule pick), then
 -- plays leftmost-card hands until the round resolves on this side. Real cards,
 -- real scoring, real referee. Host plays five cards, guest one, so the shared
 -- seed doesn't make every blind a tie.
@@ -342,6 +342,7 @@ local function project()
 		lives_guest = role == "guest" and mine or theirs,
 		almanac_offers = P.offers or "-",
 		almanac_acquired = draft and #draft.acquired or "-",
+		shared_rules = P.rules or "-",
 		stake = G.GAME and G.GAME.stake or "-",
 	}
 end
