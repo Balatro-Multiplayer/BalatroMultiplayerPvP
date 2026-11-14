@@ -191,6 +191,7 @@ PVP._pvp_action_helpers = setmetatable({}, {
 		return noop
 	end,
 })
+PVP.is_matchmaking = function() return false end
 dofile("pvp_api/actions/run_lifecycle.lua")
 
 local function pool_stakes_and_decks(ruleset, pool_size)

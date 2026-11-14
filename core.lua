@@ -203,6 +203,8 @@ function PVP.load_mp_dir(directory, recursive)
 end
 
 PVP.load_mp_dir("lib")
+-- Almanac draft and shared PvP rules; before overrides, which read their tables at load.
+PVP.load_mp_dir("lib/almanac")
 PVP.load_mp_dir("overrides")
 
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
@@ -220,6 +222,7 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		manhunt_hunter_lives = 7,
 		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
 		trap_cards = false,
+		shared_pvp_rules = false,
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,
 		pvp_countdown_seconds = 3,

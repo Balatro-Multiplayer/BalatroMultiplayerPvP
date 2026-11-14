@@ -899,6 +899,26 @@ return {
 			},
 		},
 		Other = {
+		        mp_almanac_deck_rules = {
+		                name = "Almanac",
+		                text = {
+		                        "At Antes {C:attention}2, 3, 5 and 7{},",
+		                        "choose {C:attention}1{} of {C:attention}3 Decks{}.",
+		                        "Keep their effects.",
+		                        "{s:0.8}(Both players get the same offers)",
+		                },
+		        },
+		        mp_almanac_boss_rules = {
+		                name = "Boss rules",
+		                text = {
+		                        "Before each {C:red}PvP Blind{}",
+		                        "from Ante {C:attention}3{}, choose",
+		                        "{C:attention}1{} of {C:attention}4 Boss Blind effects{}.",
+		                        "{C:attention}Both{} choices affect {C:attention}both{} players",
+		                        "for that Blind.",
+		                        "{s:0.8}(10 seconds to choose)",
+		                },
+		        },
 			mp_sticker_extra_credit = {
 				name = "Extra Credit",
 				text = {
@@ -1067,12 +1087,19 @@ return {
 			},
 		},
 		Stake = {
+			stake_mp_white_minus = {
+				name = "White- Stake",
+				text = {
+					"Start with {C:attention}Grabber{}",
+					"and {C:attention}Wasteful{} vouchers",
+					"{s:0.8}Applies White Stake",
+				},
+			},
 			stake_mp_planet = {
 				name = "Planet Stake",
 				text = {
 					"Applies {C:black}Black Stake{} effects, plus:",
-					"Shop can have {C:attention}Perishable{} Jokers",
-					"{C:inactive,s:0.8}(Debuffed after 5 Rounds)",
+					"Shop can have {C:money}Rental{} Jokers",
 					"Required score scales",
 					"faster for each {C:attention}Ante",
 				},
@@ -1081,7 +1108,8 @@ return {
 				name = "Spectral Stake",
 				text = {
 					"Applies {C:planet}Planet Stake{} effects, plus:",
-					"{C:money}Rental{} Jokers appear in shop",
+					"Shop can have {C:attention}Perishable{} Jokers",
+					"{C:inactive,s:0.8}(Debuffed after 5 Rounds)",
 					"Required score scales",
 					"faster for each {C:attention}Ante",
 				},
@@ -1464,6 +1492,27 @@ return {
 			-- The PvP boss's name for a player with no nemesis this ante.
 			k_bye = "Bye",
 			k_coming_soon = "Coming Soon!",
+			k_almanac = "Almanac",
+			k_almanac_how_to_play = "How to play",
+			k_almanac_baseline = "Start with the Almanac Deck.",
+			k_almanac_decks = "Almanac decks",
+			k_almanac_forecast = "Almanac forecast",
+			k_almanac_clear_skies = "Ante 1: clear skies.",
+			k_almanac_complete = "Complete",
+			k_almanac_pending = "Choose now",
+			k_almanac_upcoming = "Upcoming",
+			k_almanac_deck_draft = "Deck acquisition",
+			k_almanac_rule_schedule = "Every PvP from Ante 3: draft two shared boss rules.",
+			k_almanac_rule_locked = "Boss-rule choice locked; waiting for opponent.",
+			k_almanac_rule_pending = "Boss-rule draft in progress.",
+			k_almanac_locking = "Locking your deck choice...",
+			k_almanac_waiting = "Waiting for the shared deck offer and prior picks.",
+			k_almanac_server_required = "This run needs a server with Almanac drafting support.",
+			k_almanac_two_players = "Almanac requires exactly two players.",
+			k_almanac_nemesis_required = "Use a two-player Nemesis lobby for Almanac.",
+			k_almanac_stakes_required = "Almanac needs White- and Spectral+ with no incompatible stake cap.",
+			k_almanac_queue_description_1 = "Your deck grows.",
+			k_almanac_queue_description_2 = "The rules get worse.",
 			k_wait_enemy = "Waiting for enemy to finish...",
 			k_pvp_sync_failed = "Round sync unconfirmed. Reconnect to retry.",
 			k_lives = "Lives",
