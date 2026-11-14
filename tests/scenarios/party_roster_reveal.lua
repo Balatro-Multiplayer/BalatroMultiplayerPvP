@@ -2,6 +2,7 @@
 -- Two Party lobbies of two group-queue Battle Royale and meet in one public lobby. Every client
 -- gets the roster reveal (a lobby of more than two has no single opponent): it fills to four,
 -- restarts its countdown on each arrival, and slides off when the public host starts the game.
+-- Then each client votes and drafts through the panels on screen, into the first blind.
 -- Run with scripts/run_pair.sh party_roster_reveal.
 local P = assert(SMODS.load_file("tests/scenarios/lib/pair.lua", "MultiplayerPvP"))()
 
@@ -42,6 +43,85 @@ local function roster_texts()
 end
 
 local seen = { arrivals = 0, restarts = 0, n = 0, max_n = 0 }
+
+-- A live button on screen: a visible node whose `button` its check func has armed. `check`
+-- finds the button by its check func instead, armed or not (the panel is up).
+local function find_node(match)
+	local function walk(node)
+		if not node or (node.states and node.states.visible == false) then return nil end
+		if node.config and match(node.config) then return node end
+		for _, child in ipairs(node.children or {}) do
+			local found = walk(child)
+			if found then return found end
+		end
+	end
+	for _, box in ipairs(G.I.UIBOX) do
+		local found = walk(box.UIRoot)
+		if found then return found end
+	end
+end
+
+local function armed(name)
+	return find_node(function(config)
+		return config.button == name
+	end)
+end
+
+local function panel(check)
+	return find_node(function(config)
+		return config.func == check
+	end) ~= nil
+end
+
+-- After the reveal: the Casual votes, then the Draft, then the run. Every vote and pick goes
+-- through the panel's own Random and Confirm buttons, so a panel nobody can see fails here.
+local setup = { votes = {}, missing = {}, shots = {} }
+
+local function shoot(name)
+	if not setup.shots[name] then
+		setup.shots[name] = true
+		P.screenshot(name)
+	end
+end
+
+local function press(random, confirm)
+	local button = armed(confirm) or armed(random)
+	if button and not G.CONTROLLER.locked then button:click() end
+end
+
+local function play_setup()
+	P.note_state()
+	local page = MPAPI.pages.current_key and MPAPI.pages.current_key() or "-"
+	if page ~= setup.page then
+		setup.page = page
+		P.note("page " .. tostring(page))
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local open = lobby and MPAPI.Setup.open_step(lobby)
+	local step = open and open.kind == "vote" and open.id or (MPAPI.BanPick.is_active() and "draft") or nil
+	if step ~= setup.step then
+		setup.step, setup.step_at = step, now()
+		if step then P.note("setup step " .. step) end
+	end
+	-- A sent vote leaves the panel without its buttons; only an unsent one needs them.
+	if step and (step == "draft" or not MPAPI.Setup.has_voted(lobby)) then
+		local up = step == "draft" and panel("mpapi_ban_pick_random_check") or panel("pvp_setup_random_check")
+		setup.votes[step] = setup.votes[step] or up
+		if up then
+			if now() - setup.step_at > 0.5 then shoot("setup_" .. step) end
+			if step == "draft" then
+				press("mpapi_ban_pick_random", "mpapi_ban_pick_confirm")
+			else
+				press("pvp_setup_random", "pvp_setup_confirm")
+			end
+		elseif now() - setup.step_at > 3 and not setup.missing[step] then
+			setup.missing[step] = true
+			P.note("setup step " .. step .. " open but its panel isn't on screen (page " .. tostring(page) .. ")")
+			shoot("missing_" .. step)
+		end
+	end
+	return G.STATE == G.STATES.BLIND_SELECT and G.blind_select_opts ~= nil
+end
 
 local function watch()
 	local view = Reveal.view
@@ -86,10 +166,28 @@ end
 return P.steps(
 	P.connect(),
 
+	-- Into PvP's menu, as the Multiplayer panel's PvP button does: MPAPI draws the lobby view
+	-- (and the Setup panels in it) only for the mod in focus.
+	{
+		until_ = function()
+			return find_node(function(config)
+				return config.button == "mpapi_mod_button" and config.ref_table and config.ref_table.mod_id == PVP.id
+			end)
+		end,
+		timeout = 20,
+		run = function()
+			local button = find_node(function(config)
+				return config.button == "mpapi_mod_button" and config.ref_table and config.ref_table.mod_id == PVP.id
+			end)
+			button:click()
+		end,
+	},
+
 	-- Each host makes a Party lobby and hands its code to its guest.
 	P.only(hosts, {
+		wait = 1,
 		run = function()
-			PVP.pvp_create_party_lobby()
+			G.FUNCS.mp_pvp_create_lobby_party()
 		end,
 	}),
 	P.only(hosts, {
@@ -137,9 +235,17 @@ return P.steps(
 	-- Both parties queue together, so neither waits out the other's launch.
 	P.sync("parties_ready", 60),
 	P.only(hosts, {
+		run = function()
+			G.FUNCS.mp_pvp_group_queue_mode({ config = { ref_table = { gamemode_key = MODE } } })
+		end,
+	}),
+	P.only(hosts, {
+		until_ = function()
+			return lobby() and lobby().group_queue ~= nil
+		end,
+		timeout = 10,
 		run = function(S)
-			local handle, refusal = PVP._join_group_queue(MODE)
-			S.check(handle ~= nil, P.role .. " group-queued " .. MODE .. " " .. tostring(refusal or ""))
+			S.check(true, P.role .. " group-queued " .. MODE)
 		end,
 	}),
 
@@ -194,6 +300,36 @@ return P.steps(
 		end,
 	},
 
-	-- Nobody quits (and leaves the public lobby) until everyone has seen the reveal end.
-	P.sync("reveal_done", 60)
+	-- Votes, Draft, first blind. The votes' clock closes them for anyone whose panel is missing.
+	{
+		wait = 0,
+		until_ = play_setup,
+		timeout = 240,
+		run = function(S)
+			shoot("blind_select")
+			for _, step in ipairs({ "ruleset", "traps", "draft" }) do
+				if setup.votes[step] ~= nil or setup.missing[step] then
+					S.check(
+						setup.votes[step] and not setup.missing[step],
+						P.role .. " " .. step .. " panel was on screen to " .. (step == "draft" and "pick" or "vote")
+					)
+				end
+			end
+			S.check(setup.votes.ruleset ~= nil, P.role .. " ran the ruleset vote")
+			S.check(setup.votes.draft ~= nil, P.role .. " ran the Draft")
+			S.check(G.GAME.round_resets.ante == 1, P.role .. " in ante 1 blind select")
+			sendInfoMessage(
+				("BMP_SCENARIO STATE run ruleset=%s deck=%s stake=%s seed=%s"):format(
+					tostring(PVP.LOBBY.config.ruleset),
+					tostring(G.GAME.selected_back and G.GAME.selected_back.name),
+					tostring(G.GAME.stake),
+					tostring(G.GAME.pseudorandom and G.GAME.pseudorandom.seed)
+				),
+				"MPAPI"
+			)
+		end,
+	},
+
+	-- Nobody quits (and leaves the public lobby) until everyone is in the run.
+	P.sync("in_run", 120)
 )

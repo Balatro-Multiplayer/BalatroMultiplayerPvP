@@ -26,7 +26,7 @@ bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
 - more than two clients: put `-- roles: a_host a_guest b_host b_guest` at the top
   of the scenario. one client per role, `P.sync` waits for all of them, `P.only`
   takes a list, and every role's STATE is diffed against the first's.
-  `party_roster_reveal` runs four (~25s).
+  `party_roster_reveal` runs four, through the votes and Draft to the first blind (~40s).
 
 ## what's real and what's a fixture
 
