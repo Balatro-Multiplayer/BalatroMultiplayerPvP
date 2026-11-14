@@ -18,8 +18,10 @@ function Card:set_ability(center, initial, delay_sprites)
 	-- with an existing config -- see api/ruleset/reworks.lua). Unlike persistent/
 	-- unreliable/draining above, this isn't an optional per-match toggle: it's
 	-- always-on transparency, so it's applied unconditionally rather than gated
-	-- on a G.GAME.modifiers flag.
-	if self.ability and self.ability.mp_balanced then
+	-- on a G.GAME.modifiers flag. Read the new center, not self.ability: set_ability
+	-- keeps the old center's config keys, so a Glass card turned Steel still has
+	-- ability.mp_balanced.
+	if self.config.center.config.mp_balanced then
 		SMODS.Stickers["mp_sticker_balanced"]:apply(self, true)
 	end
 end
