@@ -12,19 +12,17 @@ G.FUNCS.pvp_ready_button = function(e)
 end
 
 function G.FUNCS.mp_toggle_ready(e)
+	-- The blind is starting (the countdown runs): a Ready now would ready the next round.
+	if PVP.GAME.pvp_countdown_in_progress then return end
 	PVP.match_log("trace", "Toggling Ready")
-	PVP.GAME.ready_blind = not PVP.GAME.ready_blind
-	PVP.GAME.ready_blind_text = PVP.GAME.ready_blind and localize("b_unready") or localize("b_ready")
-	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, PVP.GAME.ready_blind and 1 or 0)
+	-- What the player means; the button itself shows the server's state (pvp_api/ready_net.lua).
+	PVP.GAME.ready_intent = not PVP.GAME.ready_intent
 
-    PVP.GAME.pvp_reached = true
-
-	if PVP.GAME.ready_blind then
+	if PVP.GAME.ready_intent then
 		PVP.ACTIONS.set_location("loc_ready")
 		PVP.ACTIONS.ready_blind(e)
 	else
 		PVP.ACTIONS.set_location("loc_selecting")
-		PVP.ACTIONS.pause_ante_timer()
 		PVP.ACTIONS.unready_blind()
 	end
 end
@@ -61,6 +59,7 @@ local select_blind_ref = G.FUNCS.select_blind
 function G.FUNCS.select_blind(e)
 	PVP.GAME.end_pvp = false
 	PVP.GAME.prevent_eval = false
+	local selected_blind = G.GAME.blind_on_deck
 	select_blind_ref(e)
 	-- Confirmed-safe checkpoint for Phase 9's reconnect tail-replay -- drains
 	-- any pending opponent catch-up queued since the last checkpoint.
@@ -74,8 +73,14 @@ function G.FUNCS.select_blind(e)
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
 		PVP.RLOG.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
-		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands)
 		PVP.ACTIONS.new_round()
+		-- Selecting a blind is progress the server orders against the team's failed blinds.
+		local furthest =
+			PVP.RoundFacts.selected_furthest(G.GAME.round_resets.ante, selected_blind, PVP.GAME.furthest_blind)
+		if furthest then
+			PVP.GAME.furthest_blind = furthest
+			PVP.ACTIONS.set_furthest_blind(furthest)
+		end
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
 		if PVP.UI.hide_enemy_location then PVP.UI.hide_enemy_location() end
 	end
@@ -90,11 +95,6 @@ G.FUNCS.skip_blind = function(e)
 		-- a blind this player went past, so there is nothing left to beat.
 		PVP.ACTIONS.blind_result(true, skipped_blind)
 
-		-- Old timer: skip time matches how far ahead of the opponent this player is.
-		PVP.GAME.skips_before_pvp = (PVP.GAME.skips_before_pvp or 0) + 1
-		PVP.UI.update_matching_skip_timer(false)
-
-		PVP.ACTIONS.skip(G.GAME.skips)
 		-- RLOG's skip_blind opcode is now recorded once, generically, by
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.skip_blind hook -- nothing left to do here.
@@ -107,13 +107,20 @@ G.FUNCS.skip_blind = function(e)
 			temp_furthest_blind = G.GAME.round_resets.ante * 10 + 1
 		end
 
-		PVP.GAME.pincher_index = PVP.GAME.pincher_index + 1
-
 		PVP.GAME.furthest_blind = (temp_furthest_blind > PVP.GAME.furthest_blind) and temp_furthest_blind
 			or PVP.GAME.furthest_blind
 
 		PVP.ACTIONS.set_furthest_blind(PVP.GAME.furthest_blind)
+
+		-- The server counts the skip and derives the skip time of the Ante bank. It is sent after the
+		-- progress report: the server caps the skips by the ante it already knows.
+		local ante = G.GAME.round_resets.ante
+		local blind_key = (ante and skipped_blind) and (ante .. ":" .. skipped_blind) or nil
+		PVP.ACTIONS.skip(G.GAME.skips, blind_key)
 	end
+	-- Slot k of my blind slots is this skip, whatever the server answers to the skip request. No lobby gate: a
+	-- skip replayed by the crash-rejoin catch-up has no lobby code and is numbered and queued all the same.
+	PVP.OpponentNet.report_skip()
 end
 
 function G.FUNCS.view_nemesis_deck()
@@ -214,8 +221,7 @@ G.FUNCS.wipe_off = function()
 end
 
 function G.FUNCS:continue_in_singleplayer(e)
-	-- Detach from the multiplayer lobby (the API owns leave now; the legacy
-	-- PVP.ACTIONS.leave_lobby() is a no-op here), then update UI. The run itself is kept
+	-- Detach from the multiplayer lobby (the API owns leave), then update UI. The run itself is kept
 	-- and reloaded below so the player continues solo.
 	PVP.LOBBY.code = nil
 	local lobby = MPAPI.get_current_lobby()

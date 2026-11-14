@@ -1,4 +1,2 @@
-MPAPI.Layer("pvp_timer", {
-	pvp_timer_base_seconds = 60,
-	pvp_timer_hand_played_increment_seconds = 10,
-})
+-- The server owns the PvP clock (rules.clocks.pvp). The layer stays as a name for default_modifiers.
+MPAPI.Layer("pvp_timer", {})

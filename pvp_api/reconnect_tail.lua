@@ -1,23 +1,11 @@
 -- §22.5: reconnect tail-replay.
 --
--- Display-only catch-up for the OPPONENT's HUD state after this client's own
--- network reconnect -- NOT a rebuild of this client's own game state, which
--- is assumed to have stayed intact throughout (a mere network drop, not a
--- crash; MPAPI's lobby rejoin already handles that case). What
--- this covers: while disconnected, this client missed any pvp_log_event
--- broadcasts the opponent sent, so its view of the opponent's score/hands is
--- stale until the opponent's next live sync. The server sends the missed
--- events (the lobby match's REPLAY_TAIL, see pvp_api/lobby_bridge.lua) the
--- instant this client rejoins, and this applies them once it's safe to do so.
---
--- Deliberately NOT routed through the referee/nemesis-blind live-sync
--- pipeline (objects/blinds/nemesis.lua's `receive`) -- that path expects a
--- full sync payload (score, handsLeft, skips, lives together) and is designed
--- for one-shot live transitions; the buffered hand_result carbon event only
--- carries {score, hands_left} (see pvp_api/net.lua). Writes directly to the
--- same PVP.GAME.enemy.* fields `receive` writes instead. skips/lives are a
--- known, accepted gap -- bounded to the grace-period window and
--- self-correcting via the opponent's next live sync (see the design plan).
+-- Catch-up bookkeeping after this client's own network reconnect: while
+-- disconnected it missed pvp_log_event broadcasts the opponent sent. The server sends the
+-- missed events (the lobby match's REPLAY_TAIL, see pvp_api/lobby_bridge.lua) the instant this
+-- client rejoins, and this notes them once it's safe to do so. It sets no opponent HUD value:
+-- score and hands come only from the server's "pvp.round" (one owner per fact), skips/lives
+-- from the opponent's next live sync.
 PVP.RECONNECT_TAIL = PVP.RECONNECT_TAIL or {}
 
 -- Pushed tails received so far, keyed by the opponent player id they belong
@@ -29,47 +17,16 @@ PVP.RECONNECT_TAIL._received_tails = PVP.RECONNECT_TAIL._received_tails or {}
 -- just replaces it.
 local pending_opponent_id = nil
 
-local function apply_hand_result(ev)
-	local args = ev.args or {}
-	local score_str, hands_left = args[1], args[2]
-
-	if score_str ~= nil then
-		local score = PVP.Score.or_zero(score_str)
-		-- .score (not just .real_score) is what blind_hud.lua's score_text
-		-- actually renders from -- set both so the visible number, not just
-		-- comparisons like highest_score, catches up. An instant snap (no
-		-- easing event, unlike nemesis.lua's live-sync animation) is fine here:
-		-- this is a one-time catch-up after a gap, not an incremental update.
-		PVP.GAME.enemy.score = score
-		PVP.GAME.enemy.real_score = score
-		if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then
-			PVP.GAME.enemy.highest_score = score
-		end
-	end
-
-	if hands_left ~= nil then
-		PVP.GAME.enemy.hands = tonumber(hands_left) or PVP.GAME.enemy.hands
-	end
-
-	-- We've now heard from the opponent (even if only via the buffered tail,
-	-- not a live sync) -- unmask their hands/score same as a real receive().
-	PVP.GAME.enemy.info_received = true
-end
-
+-- The tail writes no enemy fact: the opponent's score and hands are the server's alone
+-- (pvp_api/enemy_score_net.lua reads "pvp.round", again on CONNECTED). It only moves the
+-- last seen time, so the replay log knows how far it has heard.
 local function apply_tail(opponent_id, events)
 	local last_t = PVP.RLOG._last_seen_t[opponent_id] or 0
 	for _, ev in ipairs(events or {}) do
-		if ev.opcode == MPAPI.OPCODE.HAND_RESULT then
-			apply_hand_result(ev)
-		end
-		if ev.t and ev.t > last_t then
-			last_t = ev.t
-		end
+		if ev.t and ev.t > last_t then last_t = ev.t end
 	end
 	PVP.RLOG._last_seen_t[opponent_id] = last_t
-	if PVP.UI and PVP.UI.juice_up_pvp_hud then
-		pcall(PVP.UI.juice_up_pvp_hud)
-	end
+	if PVP.UI and PVP.UI.juice_up_pvp_hud then pcall(PVP.UI.juice_up_pvp_hud) end
 end
 
 -- Called from the lobby's REPLAY_TAIL event (pvp_api/lobby_bridge.lua) the
@@ -113,7 +70,5 @@ function PVP.RECONNECT_TAIL.on_checkpoint()
 	pending_opponent_id = nil
 	local events = PVP.RECONNECT_TAIL._received_tails[opponent_id]
 	PVP.RECONNECT_TAIL._received_tails[opponent_id] = nil
-	if events then
-		apply_tail(opponent_id, events)
-	end
+	if events then apply_tail(opponent_id, events) end
 end

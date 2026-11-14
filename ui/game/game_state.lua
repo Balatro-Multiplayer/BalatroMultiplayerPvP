@@ -11,6 +11,8 @@ function Game:update_draw_to_hand(dt)
 			and G.GAME.facing_blind
 		then
 			if PVP.is_pvp_boss() then
+				-- The blind's starting hands, once its setup effects have run (pvp_api/blind_start_net.lua).
+				PVP.BlindStartNet.start()
 				PVP.GAME.pincher_unlock = true
 				G.after_pvp = true -- i can't find a reasonable way to detect end of pvp (for pizza) so i'm doing something strange instead
 
@@ -38,7 +40,7 @@ function Game:update_draw_to_hand(dt)
 					G.E_MANAGER:add_event(Event({
 						func = function()
 							for i = 1, PVP.GAME.asteroids do
-								PVP.broadcast_asteroid()
+								PVP.EffectsNet.send_effect("asteroid")
 							end
 							PVP.GAME.asteroids = 0
 							return true
@@ -195,7 +197,7 @@ function Game:update_hand_played(dt)
 
 				if G.GAME.current_round.hands_left < 1 then
 					if practice then
-						-- No referee to wait on -- always continue to the next blind,
+						-- No server to wait on -- always continue to the next blind,
 						-- regardless of score (see update_new_round's practice branch).
 						PVP.GAME.end_pvp = true
 					else
@@ -276,7 +278,7 @@ local update_selecting_hand_ref = Game.update_selecting_hand
 function Game:update_selecting_hand(dt)
 	-- Out of cards with hands left. On a PvP blind this always counts as playing the
 	-- last hand (even with extra hands, e.g. Burglar, or before any hand was played),
-	-- so the referee gets 0 hands left instead of the player leaving through end_round.
+	-- so the server gets 0 hands left instead of the player leaving through end_round.
 	if
 		#G.hand.cards < 1
 		and #G.deck.cards < 1
@@ -289,9 +291,6 @@ function Game:update_selecting_hand(dt)
 			G.STATE_COMPLETE = false
 			G.STATE = G.STATES.NEW_ROUND
 		else
-			if not PVP.is_practice_mode() then
-				PVP.ACTIONS.play_hand(G.GAME.chips, 0)
-			end
 			G.STATE_COMPLETE = false
 			G.STATE = G.STATES.HAND_PLAYED
 		end
@@ -312,6 +311,7 @@ local update_shop_ref = Game.update_shop
 function Game:update_shop(dt)
 	if not G.STATE_COMPLETE then
 		PVP.GAME.ready_blind = false
+		PVP.GAME.ready_intent = false
 		PVP.GAME.ready_blind_text = localize("b_ready")
 		PVP.GAME.end_pvp = false
 	end
@@ -320,9 +320,10 @@ function Game:update_shop(dt)
 	if PVP.LOBBY.code and not G.STATE_COMPLETE and not updated_location and not G.GAME.USING_RUN then
 		updated_location = true
 		PVP.ACTIONS.set_location("loc_shop")
-		PVP.GAME.spent_before_shop = to_big(PVP.GAME.spent_total) + to_big(0)
 		if PVP.UI.show_enemy_location then PVP.UI.show_enemy_location() end
 	end
+	-- Also in the catch-up playback of a crash rejoin (no lobby code yet); a visit already marked keeps its mark.
+	if not G.STATE_COMPLETE then PVP.open_shop_visit() end
 	if G.STATE_COMPLETE and updated_location then updated_location = false end
 	update_shop_ref(self, dt)
 end
@@ -403,6 +404,14 @@ function PVP.UI.apply_lobby_hud()
 	PVP.UI.apply_lives_hud()
 end
 
+-- Your lives in the Lives box: "???" until the server's total arrives. Read through __index
+-- so the text node reads it again every frame, and always from the current PVP.GAME.
+local hud_own_lives = setmetatable({}, {
+	__index = function()
+		return PVP.lives_text(PVP.GAME and PVP.GAME.lives)
+	end,
+})
+
 -- The opponent lives in the Lives box (PVP.shown_opponent_lives). Read through
 -- __index so the text node reads it again every frame.
 local hud_opponent_lives = setmetatable({}, {
@@ -412,15 +421,12 @@ local hud_opponent_lives = setmetatable({}, {
 		for _, p in ipairs(lobby and lobby:get_players() or {}) do
 			player_ids[#player_ids + 1] = p.id
 		end
-		return PVP.shown_opponent_lives({
-			ref_players = PVP.REF and PVP.REF.players,
+		return PVP.lives_text(PVP.shown_opponent_lives({
 			self_id = PVP.self_player_id(),
-			own_lives = PVP.GAME and PVP.GAME.lives,
 			cache = PVP._player_lives_cache,
-			starting_lives = PVP.LOBBY.config.starting_lives,
 			player_ids = player_ids,
-			nemesis_id = PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id or nil,
-		})
+			nemesis_id = PVP.LOBBY.config.nemesis_pairing and PVP.TargetsNet.opponent_id() or nil,
+		}))
 	end,
 })
 
@@ -452,7 +458,7 @@ function PVP.UI.apply_lives_hud()
                         {
                             n = G.UIT.T,
                             config = {
-                                ref_table = PVP.GAME,
+                                ref_table = hud_own_lives,
                                 ref_value = "lives",
                                 scale = 2 * scale * 0.8,
                                 colour = G.C.IMPORTANT,

@@ -16,9 +16,9 @@ SMODS.Joker({
 		if context.repetition and context.cardarea == G.play then return {
 			repetitions = 1,
 		} end
-		-- after-hand path runs every blind; mp_pvp_loss only matters under pvp_timer,
-		-- so the layer check sits behind the cheap context field test.
-		if (context.after or (context.mp_pvp_loss and PVP.is_layer_active("pvp_timer"))) and not context.blueprint then
+		-- after-hand path runs every blind; mp_pvp_loss only matters under a PvP hand timer,
+		-- so the clock check sits behind the cheap context field test.
+		if (context.after or (context.mp_pvp_loss and PVP.has_pvp_clock())) and not context.blueprint then
 			local hands_decrease = context.mp_pvp_loss and context.mp_hands_left or 1
 			if card.ability.extra.hands_left - hands_decrease <= 0 then
 				SMODS.destroy_cards(card, nil, nil, true)
@@ -41,9 +41,9 @@ SMODS.Joker({
 local old_seltzer_calculate = G.P_CENTERS.j_selzer.calculate or function(self, card, context) end
 SMODS.Joker:take_ownership("j_selzer", {
 	calculate = function(self, card, context)
-		-- calculate runs every frame on every on-screen joker; keep the layer check
+		-- calculate runs every frame on every on-screen joker; keep the clock check
 		-- gated behind the cheap context field test.
-		if context.mp_pvp_loss and not context.blueprint and PVP.is_layer_active("pvp_timer") then
+		if context.mp_pvp_loss and not context.blueprint and PVP.has_pvp_clock() then
 			local hands_decrease = context.mp_hands_left or 1
 			if card.ability.extra - hands_decrease <= 0 then
 				SMODS.destroy_cards(card, nil, nil, true)

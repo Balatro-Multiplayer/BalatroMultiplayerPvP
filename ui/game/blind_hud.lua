@@ -16,9 +16,9 @@ local hud_opponent_name = setmetatable({}, {
 -- The enemy-score label's text, read each frame through PVP.GAME.enemy.score_label.
 -- Royale tells the player what their shown target's score means: "Beat:" while they
 -- are in the losing half, "Leading:" while safe. Every other mode (and Royale before
--- the host's first target broadcast) keeps the plain "Current Enemy score" label.
+-- the server's first pvp.targets) keeps the plain "Current Enemy score" label.
 function PVP.UI.refresh_enemy_score_label()
-	local safe = PVP.GAME.royale_target_safe
+	local safe = PVP.TargetsNet.safe()
 	local key = "k_enemy_score"
 	if safe ~= nil and PVP.current_target_id() then
 		key = safe and "k_royale_leading" or "k_royale_beat"
@@ -196,7 +196,7 @@ end
 local add_round_eval_rowref = add_round_eval_row
 function add_round_eval_row(config) -- if i could post a skull emoji i would, wtf is this (cashout screen)
 	if config.name == "blind1" and G.GAME.blind.config.blind.key == "bl_mp_nemesis" then
-		G.GAME.blind.chip_text = PVP.Score.display(PVP.GAME.enemy.score)
+		G.GAME.blind.chip_text = PVP.GAME.enemy.score == nil and "???" or PVP.Score.display(PVP.GAME.enemy.score)
 
 		G.P_BLINDS["bl_mp_nemesis"].atlas = "mp_player_blind_col"
 		G.GAME.blind.pos = G.P_BLINDS[PVP.UTILS.get_nemesis_key()].pos -- this one is getting reset so no need to bother
@@ -239,17 +239,18 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 		return
 	end
 
-	-- Hands start at the opponent's starting count (set when the blind starts), so
-	-- there is nothing to hide.
-	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
+	-- The opponent's hands are the server's (pvp.round handsLeft): unknown (nil) until their
+	-- blind_start lands.
+	local hands = PVP.GAME.enemy.hands
+	PVP.GAME.enemy.hands_text = hands ~= nil and tostring(hands) or "???"
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
 	-- a player can't wait for the opponent to go first and then always play
-	-- second. Applies in every mode.
+	-- second. Applies in every mode. The server withholds the score until then, so
+	-- it stays hidden until the server's push for this round has it (score_known).
+	-- An unknown score (nil) is never shown as 0.
 	if
-		PVP.is_pvp_boss()
-		and G.GAME.current_round
-		and G.GAME.current_round.hands_played == 0
+		PVP.GAME.enemy.score == nil or (PVP.is_pvp_boss() and G.GAME.current_round and not PVP.GAME.enemy.score_known)
 	then
 		PVP.GAME.enemy.score_text = "???"
 		return
@@ -265,12 +266,16 @@ end
 -- Counts PVP.GAME.enemy.score up to `new_score` (score text) over 3s while both
 -- are plain numbers; any larger score is set at once. Shared by
 -- objects/blinds/nemesis.lua's raw per-sender relay and
--- pvp_api/actions/team_manhunt.lua's pvp_team_score_board handler (Teams' HUD
--- shows a host-computed team SUM, not a single sender's raw score, so it can't
+-- pvp_api/teams_net.lua's Teams score (Teams' HUD
+-- shows the server's team SUM, not a single sender's raw score, so it can't
 -- reuse the relay itself -- just this animation).
 function PVP.UI.ease_enemy_score(new_score)
-	local target = PVP.Score.or_zero(new_score)
-	local from = PVP.Score.small_number(PVP.GAME.enemy.score)
+	local target = PVP.Score.parse(new_score)
+	if target == nil then
+		return PVP.match_log("info", "[pvp] error: the opponent's score is not a score: " .. tostring(new_score))
+	end
+	-- The count starts at 0 when no score was shown yet this blind (the score is nil until revealed).
+	local from = PVP.GAME.enemy.score == nil and 0 or PVP.Score.small_number(PVP.GAME.enemy.score)
 	local to = PVP.Score.small_number(target)
 	if not (from and to) then
 		PVP.GAME.enemy.score_ease = nil

@@ -82,10 +82,10 @@ function PVP._start_practice(ruleset_key, loadout)
 	PVP._pvp_gamemode = gamemode_key
 	PVP.setup_lobby_mirror(lobby)
 
-	-- No real opponent to populate these from network sync -- give them sane, non-nil
-	-- defaults so nothing that reads them (PVP.UTILS.get_nemesis_key's own lives<=1 check)
-	-- hits a nil comparison. Never decremented in practice (see update_new_round's
-	-- practice branch), so this value just sits here for the whole run.
+	-- Our own lives are the lobby's starting lives; no server tells us in practice. They are
+	-- never decremented (see update_new_round's practice branch). The opponent is not real:
+	-- its lives stay unknown (nil, shown as "???") and readers such as
+	-- PVP.UTILS.get_nemesis_key and the Defensive Joker skip an unknown count.
 	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
 
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()

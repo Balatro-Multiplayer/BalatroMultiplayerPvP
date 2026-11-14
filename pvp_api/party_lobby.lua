@@ -2,7 +2,13 @@
 -- mode (the group queue, pvp_api/group_queue.lua) and come back to it after
 -- the game.
 
-function PVP.pvp_create_party_lobby()
+function PVP.pvp_create_party_lobby(protocol_checked)
+	-- The server must speak the referee protocol before any lobby is made (pvp_api/protocol_check.lua).
+	if not protocol_checked then
+		return PVP.ProtocolCheck.run(function()
+			PVP.pvp_create_party_lobby(true)
+		end)
+	end
 	MPAPI.Party.create(PVP.id, function(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 		PVP._pvp_gamemode = nil

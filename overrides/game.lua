@@ -1,12 +1,3 @@
-local ease_dollars_ref = ease_dollars
-function ease_dollars(mod, instant)
-	PVP.match_log("trace", string.format("Client sent message: action:moneyMoved,amount:%s", tostring(mod)))
-	-- RLOG's money_delta opcode is now recorded once, generically, by
-	-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own ease_dollars
-	-- hook (wrapping the same underlying global) -- nothing left to do here.
-	return ease_dollars_ref(mod, instant)
-end
-
 -- Certain Steamodded builds still call save_run while saving is disabled
 -- In multiplayer runs this can crash when SMODS serializes transient hand data
 local save_run_ref = save_run
@@ -20,9 +11,9 @@ function Card:sell_card()
 	-- RLOG's sell opcode is now recorded once, generically, by
 	-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own Card:sell_card
 	-- hook (wrapping the same underlying method) -- nothing left to do here.
-	-- §18.2: tell the opponent a card was sold -- any of their cards watching
-	-- for opponent_selling_card (e.g. Taxes) reacts via their own calculate.
-	if PVP.LOBBY.code then MPAPI.broadcast_opponent_context({ opponent_selling_card = true }) end
+	-- Tell the server a card was sold (Taxes reads it for my Nemesis). Numbered and sent only in a live run,
+	-- queued during a rejoin catch-up, nothing in practice or playback (pvp_api/opponent_net.lua).
+	PVP.OpponentNet.report_sell()
 	return sell_card_ref(self)
 end
 
@@ -35,7 +26,7 @@ function G.FUNCS.cash_out(e)
 	-- any pending opponent catch-up queued since the last checkpoint.
 	if PVP.RECONNECT_TAIL and PVP.in_session() then PVP.RECONNECT_TAIL.on_checkpoint() end
 	-- The round-eval total actually paid. Part of it comes from the live match
-	-- only (the comeback bonus after a referee life loss, no_gold_on_round_loss),
+	-- only (the comeback bonus after a life loss, no_gold_on_round_loss),
 	-- which a replay or crash-rejoin fast-forward runs without; its cashout
 	-- handler pays this instead (lib/playback_handlers.lua). Recorded here, the
 	-- outer wrapper, so it lands just before MPAPI's own `cashout` event.

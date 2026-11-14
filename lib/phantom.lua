@@ -44,8 +44,7 @@ end
 PVP.NEMESIS_SLOT_GAP = 0.25
 
 local function remove_nemesis_slots()
-	PVP.clear_ante_nemesis()
-	PVP.TRAP_ROW.reset()
+	PVP.reset_ante_nemesis_sort()
 	local removed = {}
 	for _, key in ipairs({ "nemesis_jokers", "nemesis_jokers_hidden", "nemesis_consumeables" }) do
 		-- In the Classic layout the joker and consumable keys name one shared area: remove it once.
@@ -94,7 +93,7 @@ function PVP.create_nemesis_slots(card_area_sizes)
 	PVP.nemesis_jokers_hidden = new_nemesis_row(card_area_sizes.joker_W, card_area_sizes.joker_H)
 	PVP.nemesis_jokers_hidden.states.visible = false
 	place_area(PVP.nemesis_jokers_hidden, -100, -100)
-	PVP.init_ante_nemesis()
+	PVP.sync_ante_nemesis()
 end
 
 -- Leaving a run frees every CardArea, so drop the Nemesis slots with it: the ante Nemesis refresh must not

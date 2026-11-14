@@ -18,13 +18,7 @@ MPAPI.Joker({
 	config = { extra = { odds = 4, xmult = 4, dollars = 10, nemesis_odds = 4, nemesis_dollars = 10 } },
 	-- Shows a display-only copy on the opponent's board (framework wires add/remove_from_deck).
 	phantom = true,
-	-- Opponent receives the "misfire": their showcase copy juices up and they lose dollars
-	-- (was action_lets_go_gambling_nemesis).
-	receive = function(self, context)
-		local copy = PVP.UTILS.get_phantom_joker("j_mp_lets_go_gambling")
-		if copy then copy:juice_up() end
-		ease_dollars(copy and copy.ability and copy.ability.extra and copy.ability.extra.nemesis_dollars or 5)
-	end,
+	-- The Nemesis' misfire dollars are the server's (pvp.effect gambling, applied by pvp_api/effects_net.lua).
 	loc_vars = function(self, info_queue, card)
 		local numerator, denominator =
 			SMODS.get_probability_vars(card, 1, card.ability.extra.odds, "j_mp_lets_go_gambling")
@@ -64,7 +58,7 @@ MPAPI.Joker({
 				)
 			then
 				returns = returns or {}
-				returns.send = true
+				PVP.EffectsNet.send_effect("gambling")
 				returns.message = localize("k_oops_ex")
 			end
 			return returns

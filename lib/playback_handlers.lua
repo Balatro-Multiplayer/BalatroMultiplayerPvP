@@ -76,16 +76,16 @@ end
 -- null out values `skip_blind`'s own handler (below) is responsible for.
 local function project_enemy_hand_result(args)
 	local score_str, hands_left = args and args[1], args and args[2]
-	if not score_str or not hands_left then
+	-- A missing or malformed recorded score or hand count is unknown: nothing is written.
+	local score = PVP.Score.parse(score_str)
+	if not score or not hands_left then
 		return
 	end
-	local score = PVP.Score.or_zero(score_str)
 	if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then
 		PVP.GAME.enemy.highest_score = score
 	end
 	PVP.GAME.enemy.real_score = score
 	PVP.GAME.enemy.hands = hands_left
-	PVP.GAME.enemy.info_received = true
 end
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.MANIFEST, function(args, _ctx)
@@ -215,7 +215,10 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, c
 	else
 		-- Direct projection, same reasoning as project_enemy_hand_result above
 		-- -- MPAPI.calculate_blind would be a silent no-op here.
-		PVP.GAME.enemy.skips = (PVP.GAME.enemy.skips or 0) + 1
+		-- The playback run start (lib/playback_launch.lua) sets the count to 0; before it, it is unknown.
+		local skips = PVP.GAME.enemy.skips
+		if skips == nil then return PVP.match_log("info", "[pvp] playback skip not counted: skip count unknown") end
+		PVP.GAME.enemy.skips = skips + 1
 	end
 end)
 
@@ -281,8 +284,6 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
 			card:sell_card()
 			SMODS.calculate_context({ selling_card = true, card = card })
 		end
-	else
-		PVP.GAME.enemy.sells = (PVP.GAME.enemy.sells or 0) + 1
 	end
 end)
 
@@ -322,24 +323,66 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.USE, function(args, ctx)
 	G.FUNCS.use_card({ config = { ref_table = card } })
 end)
 
+-- A skip_blind whose tag opens a pack lets the driver play on at once, and the pack opens a few
+-- frames later. A pick or skip before that acts on a pack that is not open: a pick finds no card
+-- and is dropped, a skip_booster ends a pack that is not open and the game state comes back as the
+-- interrupted state, which was never set (nil), so every wait for Blind Select after it gives up.
+-- So both wait for the pack to be open, bounded like the blind waits.
+local function pack_is_open()
+	return G.STATE == G.STATES.SMODS_BOOSTER_OPENED
+		and G.STATE_COMPLETE
+		and G.pack_cards ~= nil
+		and #G.pack_cards.cards > 0
+end
+
+-- Pauses the driver, waits for the pack to be open, runs `act`, then plays on.
+local function pack_action(ctx, act)
+	local driver = ctx.driver
+	if driver then
+		driver:pause()
+	end
+	local deadline = love.timer.getTime() + BLIND_WAIT_TIMEOUT_SECONDS
+	PVP._playback_wait_for(function()
+		if pack_is_open() then
+			return true
+		end
+		if love.timer.getTime() >= deadline then
+			MPAPI.playback.record_gave_up_wait('[replay] the pack never opened after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			return true
+		end
+		return false
+	end, function()
+		if pack_is_open() then
+			act()
+		end
+		if driver then
+			driver:play()
+		end
+	end)
+end
+
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PACK_PICK, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
 	local idx, targets = args and args[1], args and args[2]
-	local card = G.pack_cards and G.pack_cards.cards and G.pack_cards.cards[idx]
-	if not card then
-		return
-	end
-	if targets then
-		highlight_hand_indices(targets)
-	end
-	G.FUNCS.use_card({ config = { ref_table = card } })
+	pack_action(ctx, function()
+		local card = G.pack_cards.cards[idx]
+		if not card then
+			return
+		end
+		if targets then
+			highlight_hand_indices(targets)
+		end
+		G.FUNCS.use_card({ config = { ref_table = card } })
+	end)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PACK_SKIP, function(_args, ctx)
 	if ctx.is_pov then
-		G.FUNCS.skip_booster({ config = {} })
+		pack_action(ctx, function()
+			G.FUNCS.skip_booster({ config = {} })
+		end)
 	end
 end)
 
@@ -432,7 +475,7 @@ end)
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx)
 	if ctx.is_pov then
 		-- Pay what the live player was paid: playback runs as practice, with no
-		-- referee life loss, so its own round eval misses the comeback bonus
+		-- life loss, so its own round eval misses the comeback bonus
 		-- (and pays a blind no_gold_on_round_loss withheld). Recordings from
 		-- before round_dollars existed keep the replay's own total. Set at the click,
 		-- once the round evaluation has run: it writes the same field.
@@ -453,5 +496,5 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_PIZZA, function(_args, _
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_MAGNET, function(_args, _ctx) end)
 
 -- life_lost {lost, lives}: bookkeeping for the server's achievements (Mr Bones).
--- The lives themselves replay through the referee's own events.
+-- The lives themselves replay through the life events of the log.
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.LIFE_LOST, function(_args, _ctx) end)

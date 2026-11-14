@@ -46,13 +46,9 @@ end
 
 local function lives_row(player_data)
 	local lives = PVP.lives_of(player_data.id, {
-		ref_players = PVP.REF and PVP.REF.players,
-		self_id = PVP.self_player_id(),
-		own_lives = PVP.GAME and PVP.GAME.lives,
 		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
 	})
-	return text_row(tostring(lives) .. " " .. localize("k_lives"))
+	return text_row(PVP.lives_text(lives) .. " " .. localize("k_lives"))
 end
 
 -- Skips and best PvP score: our own come from G.GAME/PVP.GAME. An opponent's
@@ -69,8 +65,9 @@ local function run_rows(lobby, player_data, rows)
 	else
 		return
 	end
-	rows[#rows + 1] = text_row(tostring(skips or 0) .. " " .. localize("k_skips"))
-	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. PVP.Score.display(best_score))
+	rows[#rows + 1] = text_row((skips == nil and "???" or tostring(skips)) .. " " .. localize("k_skips"))
+	local best_text = best_score == nil and localize("k_best_pvp_score_unknown") or PVP.Score.display(best_score)
+	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. best_text)
 end
 
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)

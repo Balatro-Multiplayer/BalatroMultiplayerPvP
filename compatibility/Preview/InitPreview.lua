@@ -24,15 +24,12 @@ FN.PRE = {
 
 function FN.PRE.start_new_coroutine()
     -- Defaults are vanilla: free preview, slow (5s) delay.
-    -- Layers like pressure_timer set both via ruleset scalars.
-    local timer_delay, timer_cost = 0, 0
+    -- The delay comes from the ruleset scalars of a layer like pressure_timer; the cost is the server's.
+    local timer_delay = 0
     if PVP.LOBBY and PVP.LOBBY.code and PVP.LOBBY.config.timer and not PVP.is_pvp_boss() then
         timer_delay = 5
-        timer_cost = 0
-
         local ruleset = PVP.current_ruleset()
         timer_delay = PVP.LOBBY.config.preview_calculate_delay or ruleset.preview_calculate_delay or timer_delay
-        timer_cost  = PVP.LOBBY.config.preview_calculate_cost or ruleset.preview_calculate_cost or timer_cost
     end
 
     if not FN.PRE.calculate_request then
@@ -44,18 +41,19 @@ function FN.PRE.start_new_coroutine()
             FN.PRE.show_preview = true
             FN.PRE.data = FN.PRE.simulate()
 
-            -- Subtract cost from timer (only if there's a cost — vanilla preview is free).
-            -- Min-clamp prevents an over-zealous calc from killing the player outright.
+            -- The cost is the server's rule (clocks.personal.previewCostMs, only a personal-clock ruleset has
+            -- one): the server takes it off the player's clock, which the box then shows.
+            local clocks = PVP.clocks_rules()
+            local cost_ms = clocks ~= nil and clocks.personal ~= nil and clocks.personal.previewCostMs or nil
             if
-                timer_cost > 0
+                type(cost_ms) == "number" and cost_ms > 0
                 and FN.PRE.data and not FN.PRE.data.empty
                 and PVP.LOBBY.code and not PVP.is_pvp_boss()
                 and PVP.LOBBY.config.timer
                 and not PVP.GAME.timer_started
                 and not PVP.GAME.nemesis_timer_started
-                and not PVP.GAME.timer_consumed
             then
-                PVP.UI.consume_timer(timer_cost, nil, math.max(10, timer_cost))
+                PVP.SkipsNet.spend(cost_ms)
             end
             return true
         end

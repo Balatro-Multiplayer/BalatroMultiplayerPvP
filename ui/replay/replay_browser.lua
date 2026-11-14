@@ -45,30 +45,41 @@ function PVP._launch_replay(run_id)
 		end
 
 		PVP._start_playback(bootstrap, function()
-			local driver = MPAPI.playback.new_driver(timeline, {
-				mod_id = 'pvp',
-				pov_player_id = my_id,
-				schema_version = bootstrap.schema_version,
-				paced = true,
-				on_complete = function()
-					-- No `cover` field: confirmed live (via SPDRN's identical
-					-- on_complete call, ported from this one) to crash --
-					-- functions/UI_definitions.lua's attention_text expects a
-					-- real UI target with its own `.T` transform there, not a
-					-- bare {align=...} table. `cover` is optional, so omitting
-					-- it entirely sidesteps that branch.
-					attention_text({
-						text = 'Replay finished',
-						scale = 1,
-						hold = 3,
-						pos = { x = 0, y = 0 },
-					})
-				end,
-			})
-			driver:finish()
-			driver:play()
+			-- A replay left before Blind Select is not played into the next run.
+			local game = G.GAME
+			MPAPI.playback.when_screen_ready('BLIND_SELECT', function()
+				PVP._play_replay(timeline, my_id, bootstrap)
+			end, function()
+				return G.GAME == game
+			end)
 		end)
 	end)
+end
+
+-- Plays a replay's timeline from the start, once its run shows Blind Select.
+function PVP._play_replay(timeline, my_id, bootstrap)
+	local driver = MPAPI.playback.new_driver(timeline, {
+		mod_id = 'pvp',
+		pov_player_id = my_id,
+		schema_version = bootstrap.schema_version,
+		paced = true,
+		on_complete = function()
+			-- No `cover` field: confirmed live (via SPDRN's identical
+			-- on_complete call, ported from this one) to crash --
+			-- functions/UI_definitions.lua's attention_text expects a
+			-- real UI target with its own `.T` transform there, not a
+			-- bare {align=...} table. `cover` is optional, so omitting
+			-- it entirely sidesteps that branch.
+			attention_text({
+				text = 'Replay finished',
+				scale = 1,
+				hold = 3,
+				pos = { x = 0, y = 0 },
+			})
+		end,
+	})
+	driver:finish()
+	driver:play()
 end
 
 -- MPAPI account overlay's Match History tab dispatches here via

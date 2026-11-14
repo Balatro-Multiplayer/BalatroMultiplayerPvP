@@ -1,0 +1,42 @@
+{
+	"rev": 4,
+	"changed": {
+		"pvp.round": {
+			"runId": "r1",
+			"roundId": 1,
+			"phase": "playing",
+			"players": {
+				"a": {
+					"score": "0",
+					"handsLeft": 4,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": 60000,
+					"canTime": false
+				},
+				"b": {
+					"score": "0",
+					"handsLeft": 4,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": 60000,
+					"canTime": false
+				}
+			},
+			"lastResult": null,
+			"deadline": {
+				"kind": "ante",
+				"by": "a",
+				"against": ["b"],
+				"remainingMs": 30000,
+				"n": 1
+			}
+		}
+	}
+}

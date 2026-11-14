@@ -76,8 +76,10 @@ for _, name in ipairs(ruleset_names) do
 	end
 	check(name .. " PvP-only cards", resolved[name].multiplayer_content, name ~= "balanced")
 end
-check("balanced timer", resolved.balanced.pvp_timer_base_seconds, 60)
-check("expanded timer", resolved.expanded.pvp_timer_base_seconds, 60)
+-- The server owns the PvP clock values; the pvp_timer layer only names them.
+check("balanced timer base", resolved.balanced.pvp_timer_base_seconds, nil)
+check("expanded timer base", resolved.expanded.pvp_timer_base_seconds, nil)
+check("balanced timer increment", resolved.balanced.pvp_timer_hand_played_increment_seconds, nil)
 
 -- Glass is on in a ruleset when any layer it names is in that ruleset's layer chain.
 local glass_layers

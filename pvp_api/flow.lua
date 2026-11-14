@@ -37,6 +37,20 @@ end
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	-- A ranked lobby plays the rules of its queue ticket: the server writes them into the metadata
+	-- (nakama/src/lobby/pvp/ranked_pin.ts) and refuses a host write that differs. The host leaves
+	-- those keys out and publishes only what it owns, the deck, the stake and the kind (the
+	-- ruleset every client loads content from is then `metadata.ruleset`, the server's pin).
+	if kind == PVP.LobbyAccess.RANKED then
+		return {
+			cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
+			gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
+			kind = kind,
+			deck = PVP.LOBBY.config.back or "Red Deck",
+			stake = tostring(PVP.LOBBY.config.stake or 1),
+			trap_cards = PVP.LOBBY.config.trap_cards == true,
+		}
+	end
 	return {
 		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
@@ -49,6 +63,10 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
+		-- The server reads these raw (nil is left out: its own defaults apply).
+		timer_base_seconds = PVP.LOBBY.config.timer_base_seconds,
+		timer_forgiveness = PVP.LOBBY.config.timer_forgiveness,
+		timer_increment_seconds = PVP.LOBBY.config.timer_increment_seconds,
 	}
 end
 
@@ -72,7 +90,13 @@ function PVP.force_lobby_options(kind, ruleset_key)
 	end
 end
 
-function PVP.pvp_create_private_lobby(gamemode_key)
+function PVP.pvp_create_private_lobby(gamemode_key, protocol_checked)
+	-- The server must speak the referee protocol before any lobby is made (pvp_api/protocol_check.lua).
+	if not protocol_checked then
+		return PVP.ProtocolCheck.run(function()
+			PVP.pvp_create_private_lobby(gamemode_key, true)
+		end)
+	end
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	-- Reject an unregistered gamemode key up front instead of silently
 	-- degrading: PVP.reset_ruleset_to_gamemode_default/pvp_lobby_metadata
@@ -144,8 +168,8 @@ function PVP.pvp_join_lobby(code)
 	PVP.setup_lobby_mirror(lobby)
 end
 
--- Host-only: attach a per-run gamemode instance (for forfeit handling + the API's
--- inert blind hooks) then trigger PVP's run-start, which broadcasts pvp_start_game.
+-- Host-only: attach a per-run gamemode instance (for the API's inert blind hooks),
+-- then ask the server to start the game.
 function PVP.pvp_start_match()
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby or not lobby.is_host then
@@ -171,23 +195,18 @@ function PVP.pvp_start_match()
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
 		lobby:set_metadata({ cocktail_recipe = PVP.roll_cocktail_recipe() or false })
 	end
-	if MPAPI.has_server_referee(lobby) then
-		-- The server checks who's ready and picks the seed; everyone starts off
-		-- GAME_STARTED (pvp_api/lobby_bridge.lua), where referee_reset runs host-side.
-		lobby:start_game({
-			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
-			options = { queue_mode = queue_mode },
-		}, function(err)
-			if err and PVP.VersionGate.is_server_refusal(err) then
-				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
-			elseif err then
-				PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_start_refused", vars = { tostring(err) } }))
-			end
-		end)
-		return
-	end
-	-- referee_reset runs host-side inside the pvp_start_game handler (loopback).
-	PVP.ACTIONS.start_game()
+	-- The server checks who's ready and picks the seed; everyone starts off
+	-- GAME_STARTED (pvp_api/lobby_bridge.lua).
+	lobby:start_game({
+		stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
+		options = { queue_mode = queue_mode },
+	}, function(err)
+		if err and PVP.VersionGate.is_server_refusal(err) then
+			PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
+		elseif err then
+			PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_start_refused", vars = { tostring(err) } }))
+		end
+	end)
 end
 
 -- The single leave-lobby path (the legacy G.FUNCS.lobby_leave was folded in here).
@@ -202,7 +221,7 @@ function PVP.pvp_leave_lobby()
 		-- others still see this player's jokers on their end screen. The leave
 		-- waits for the roster to be relayed: it would otherwise reach the
 		-- server first and the roster would be dropped.
-		if G.STAGE == G.STAGES.RUN and PVP._match_players and PVP.GAME and PVP.GAME.lives then
+		if G.STAGE == G.STAGES.RUN and PVP._match_players and PVP.GAME then
 			PVP.report_roster_result(function()
 				lobby:leave()
 			end)

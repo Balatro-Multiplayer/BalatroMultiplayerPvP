@@ -1,6 +1,3 @@
-local A = PVP._pvp_action_helpers.A
-local relay = PVP._pvp_action_helpers.relay
-
 -- Stake indices the hovered stake applies, easiest first. White (and anything
 -- else marked hide_from_run_info) is included only when it is the stake itself.
 local function stake_effect_indices(stake_index)
@@ -19,9 +16,7 @@ local function stake_effect_indices(stake_index)
 	local shown = {}
 	for _, index in ipairs(indices) do
 		local stake = G.P_CENTER_POOLS.Stake[index]
-		if stake and (index == stake_index or not stake.hide_from_run_info) then
-			shown[#shown + 1] = index
-		end
+		if stake and (index == stake_index or not stake.hide_from_run_info) then shown[#shown + 1] = index end
 	end
 	return shown
 end
@@ -30,9 +25,7 @@ end
 -- dropped, because the popup lists those stakes itself.
 local function stake_desc_rows(stake_index)
 	local center = G.P_CENTER_POOLS.Stake[stake_index]
-	if not center then
-		return {}
-	end
+	if not center then return {} end
 	local vars, key, set = {}, center.key, center.set or "Stake"
 	if type(center.loc_vars) == "function" then
 		local ok, res = pcall(center.loc_vars, center, {})
@@ -44,9 +37,7 @@ local function stake_desc_rows(stake_index)
 	end
 	local nodes = {}
 	localize({ type = "descriptions", key = key, set = set, nodes = nodes, vars = vars })
-	if center.applied_stakes and #center.applied_stakes > 0 then
-		nodes[#nodes] = nil
-	end
+	if center.applied_stakes and #center.applied_stakes > 0 then nodes[#nodes] = nil end
 	local rows = {}
 	for _, line in ipairs(nodes) do
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = line }
@@ -142,9 +133,7 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 		decorate_tile = function(card, item)
 			local stake_index = type(item) == "table" and tonumber(item.stake)
 			local stake = stake_index and G.P_CENTER_POOLS.Stake[stake_index]
-			if not stake then
-				return
-			end
+			if not stake then return end
 			local size = card.T.w * 0.5
 			local chip = get_stake_sprite(stake_index, size)
 			-- The card hashes itself after drawing this chip, and the cursor picks the latest
@@ -192,9 +181,7 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			end
 		end,
 		on_refresh = function()
-			if PVP.lobby and PVP.lobby.refresh_mm_status then
-				PVP.lobby.refresh_mm_status()
-			end
+			if PVP.lobby and PVP.lobby.refresh_mm_status then PVP.lobby.refresh_mm_status() end
 		end,
 	}
 end
@@ -206,31 +193,20 @@ end
 -- in the started game itself for a server-run restart.
 function PVP.publish_drafted_loadout(lobby, back, stake)
 	local patch = {}
-	if back then
-		patch.deck = back
-	end
-	if stake then
-		patch.stake = tostring(stake)
-	end
-	if next(patch) then
-		lobby:set_metadata(patch)
-	end
+	if back then patch.deck = back end
+	if stake then patch.stake = tostring(stake) end
+	if next(patch) then lobby:set_metadata(patch) end
 end
 
 -- Every client's start of a game (params = { seed, stake }): run off the
--- pvp_start_game broadcast (host-refereed lobbies) or off GAME_STARTED
--- (server-refereed lobbies, see pvp_api/lobby_bridge.lua) -- the same body.
+-- server's GAME_STARTED (pvp_api/lobby_bridge.lua).
 -- A rejoin into a game still in Setup calls it again (pvp_api/reconnect.lua).
-function PVP.on_game_start(params)
-	if PVP.stop_ready_resync then
-		PVP.stop_ready_resync()
-	end
-	if PVP.reset_ready_state then
-		PVP.reset_ready_state()
-	end
+function PVP.on_game_start(lobby, params)
+	if not lobby then return PVP.match_log("info", "[pvp] game start ignored: no lobby") end
+	if PVP.stop_ready_resync then PVP.stop_ready_resync() end
+	if PVP.reset_ready_state then PVP.reset_ready_state() end
 
-	local lobby = MPAPI.get_current_lobby()
-	local meta = (lobby and lobby:get_metadata()) or {}
+	local meta = lobby:get_metadata() or {}
 	if meta.cocktail_recipe and not PVP.receive_cocktail_recipe(meta.cocktail_recipe) then return end
 	local gm_def = meta.queue_mode and MPAPI.GameModes[meta.queue_mode]
 
@@ -255,30 +231,25 @@ function PVP.on_game_start(params)
 			PVP.LOBBY.config.stake = stake
 			PVP.LOBBY.deck.stake = stake
 		end
-		if lobby and lobby.is_host then
+		if lobby.is_host then
 			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
 		end
-		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
 	end
 
-	-- Setup (pvp_api/setup.lua) runs on the server, so only a server-refereed
-	-- lobby has one: the Casual votes, then the matchmaking Draft. Two Draft
+	-- Setup (pvp_api/setup.lua) runs on the server: the Casual votes, then the matchmaking Draft. Two Draft
 	-- shapes exist (gamemodes.lua): BAN_PICK's explicit schedule addresses
 	-- exactly two actor slots, so it only drafts at exactly 2 players.
 	-- ROTATING_BAN_PICK (Royale/Manhunt/Teams) rotates through however many
 	-- players are in the game, so it runs at any N >= 2.
-	local plan = { votes = false, draft = false }
-	if lobby and MPAPI.has_server_referee(lobby) then
-		local started = lobby._game and lobby._game.started
-		plan = PVP.SETUP.plan(
-			meta.queue_mode,
-			PVP._pvp_kind == PVP.LobbyAccess.CASUAL,
-			PVP.is_matchmaking and PVP.is_matchmaking(),
-			#((started and started.players) or lobby:get_players()),
-			gm_def and gm_def.ban_pick
-		)
-	end
+	local started = lobby._game and lobby._game.started
+	local plan = PVP.SETUP.plan(
+		meta.queue_mode,
+		PVP._pvp_kind == PVP.LobbyAccess.CASUAL,
+		PVP.is_matchmaking and PVP.is_matchmaking(),
+		#((started and started.players) or lobby:get_players()),
+		gm_def and gm_def.ban_pick
+	)
 	if not (plan.votes or plan.draft) then
 		proceed(meta.deck)
 		return
@@ -293,9 +264,3 @@ function PVP.on_game_start(params)
 		proceed(picked or (lobby:get_metadata() or {}).deck)
 	end)
 end
-
-A("pvp_start_game", function(_at, from, params)
-	PVP.on_game_start(params)
-end)
-
-relay("pvp_stop_game", "stopGame")

@@ -101,26 +101,12 @@ times = 1
 
 [[patches]]
 [patches.pattern]
-target = "functions/common_events.lua"
-pattern = '''G.GAME.current_round.hands_left = G.GAME.current_round.hands_left + mod'''
-position = 'after'
-payload = '''if PVP.LOBBY.code and PVP.is_pvp_boss() and mod > 0 then
-		PVP.ACTIONS.play_hand(G.GAME.chips, G.GAME.current_round.hands_left)
-	end'''
-match_indent = true
-times = 1
-
-[[patches]]
-[patches.pattern]
 target = "functions/button_callbacks.lua"
 pattern = '''G.FUNCS.toggle_shop = function(e)'''
 position = 'after'
-# §18.2: tell the opponent how much we spent this shop visit -- any of their
-# cards watching for opponent_spent_in_shop (e.g. Penny Pincher) reacts via
-# their own calculate.
-payload = '''if PVP.LOBBY.code then
-  MPAPI.broadcast_opponent_context({ opponent_spent_in_shop = to_number(to_big(PVP.GAME.spent_total) - to_big(PVP.GAME.spent_before_shop)) })
-end'''
+# Tell the server how much we spent this shop visit: one of my blind slots (Penny Pincher reads it for
+# my Nemesis). Sent only in a live run (pvp_api/opponent_net.lua).
+payload = '''PVP.OpponentNet.report_shop(PVP.close_shop_visit())'''
 match_indent = true
 times = 1
 
@@ -129,9 +115,7 @@ times = 1
 target = "functions/common_events.lua"
 pattern = '''G.GAME.dollars = G.GAME.dollars + mod'''
 position = 'after'
-payload = '''if PVP.LOBBY.code and to_big(mod) < to_big(0) then
-  PVP.GAME.spent_total = to_big(PVP.GAME.spent_total) + (to_big(mod) * to_big(-1))
-end'''
+payload = '''PVP.count_spend(mod)'''
 match_indent = true
 times = 1
 

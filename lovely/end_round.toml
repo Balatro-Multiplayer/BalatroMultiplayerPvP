@@ -133,8 +133,6 @@ payload = '''
 if PVP.LOBBY.code then
 	PVP.GAME.furthest_blind = (temp_furthest_blind > PVP.GAME.furthest_blind) and temp_furthest_blind or PVP.GAME.furthest_blind
 	PVP.ACTIONS.set_furthest_blind(PVP.GAME.furthest_blind)
-
-	PVP.GAME.pincher_index = PVP.GAME.pincher_index + 1
 end
 '''
 match_indent = true
