@@ -201,6 +201,13 @@ local function title_for(queue_id)
 	return def and def.display or tostring(queue_id.key)
 end
 
+-- How many a queue's lobby holds: ranked is two, a casual mode its public size.
+local function capacity_of(queue_id)
+	if queue_id.kind == PVP.LobbyAccess.RANKED then return 2 end
+	local gm = MPAPI.GameModes and MPAPI.GameModes[queue_id.key]
+	return (gm and gm.max_players and gm.max_players.public) or 2
+end
+
 local function poll_counts()
 	local key, generation = Hud.count_key, Hud.generation
 	MPAPI.matchmaking.get_queue_counts(PVP.id, function(err, game_modes)
@@ -232,6 +239,7 @@ function Hud.start(queue_id, handle)
 	Hud.label = title_for(queue_id)
 	Hud.ticket = Hud.ranked and PVP.ranked_ticket(queue_id.key) or nil
 	Hud.count_key = Hud.ticket or queue_id.key
+	Hud.capacity = capacity_of(queue_id)
 	Hud.spread = search_spread()
 	Hud.in_queue = nil
 	Hud.next_poll = now()
@@ -325,14 +333,15 @@ function Hud.lobby_ready(lobby)
 	PVP.QUEUE_REVEAL.lobby_ready(lobby)
 end
 
-function Hud.match_found()
+-- `queue_id` names the queue for a search the HUD didn't show: a group queue's
+-- (pvp_api/group_queue.lua), which waits in its own lobby.
+function Hud.match_found(queue_id)
 	local cards = Cards.detach(Hud.fan)
-	local search = {
-		ranked = Hud.ranked,
-		ticket = Hud.ticket,
-		rating = Hud.rating,
-		avatar = MPAPI.connection_state.preferred_joker,
-	}
+	local search = { ranked = false, capacity = queue_id and capacity_of(queue_id) or 2 }
+	if Hud.active then
+		search = { ranked = Hud.ranked, ticket = Hud.ticket, rating = Hud.rating, capacity = Hud.capacity }
+	end
+	search.avatar = MPAPI.connection_state.preferred_joker
 	Hud.stop()
 	PVP.QUEUE_REVEAL.start(search, cards)
 end

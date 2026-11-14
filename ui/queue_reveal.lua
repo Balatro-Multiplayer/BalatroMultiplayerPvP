@@ -24,8 +24,11 @@ local JOIN_SECONDS, START_GRACE_SECONDS = 15, 5
 local OFFSCREEN_Y, CARD_X, AVATAR_SCALE, SPIN_FOUND = -5, 2.6, 0.6, 1.2
 -- The last seconds of the countdown land on the VS, one beat each.
 local BEATS_FROM = 3
--- How long the player cards take to leave once the game starts.
-local OUTRO_SECONDS = 0.5
+-- How long the player cards take to leave once the game starts, and where to: past the edge
+-- of the room (OFFSCREEN_Y only hides a box that isn't there yet).
+local OUTRO_SECONDS, OUTRO_Y = 0.5, 8
+-- The roster (lobbies of more than two): avatars to a row, and their size by how many there are.
+local ROSTER_ROW = 8
 
 local function after(delay, generation, fn)
 	Widgets.after(delay, function()
@@ -82,7 +85,7 @@ local function remove_view(view)
 		view.particles:remove()
 	end) end
 	Cards.remove_scatter(view.scatter)
-	for _, key in ipairs({ "flash", "title", "left", "right", "vs", "footer" }) do
+	for _, key in ipairs({ "flash", "title", "left", "right", "roster", "vs", "footer" }) do
 		remove_box(view[key])
 		view[key] = nil
 	end
@@ -131,8 +134,9 @@ function Reveal.finish()
 	view.particles, view.scatter, view.flash, view.vs = nil, nil, nil, nil
 	slide(view.left, -CARD_X * 5, nil)
 	slide(view.right, CARD_X * 5, nil)
-	slide(view.title, nil, OFFSCREEN_Y)
-	slide(view.footer, nil, -OFFSCREEN_Y)
+	slide(view.roster, nil, OUTRO_Y)
+	slide(view.title, nil, -OUTRO_Y)
+	slide(view.footer, nil, OUTRO_Y)
 	play_sound("cardSlide1", 1.1, 0.5)
 	Widgets.after(OUTRO_SECONDS, nil, function()
 		remove_view(view)
@@ -140,8 +144,9 @@ function Reveal.finish()
 	end)
 end
 
-local function face(avatar, unknown)
-	local w, h = G.CARD_W * AVATAR_SCALE, G.CARD_H * AVATAR_SCALE
+local function face(avatar, unknown, scale)
+	scale = scale or AVATAR_SCALE
+	local w, h = G.CARD_W * scale, G.CARD_H * scale
 	if unknown then
 		return {
 			n = G.UIT.R,
@@ -228,7 +233,84 @@ local function right_card()
 	return player_card(opp.displayName or "?", Reveal.ratings[opp.id], opp.preferredJoker)
 end
 
-local CARD_BUILDERS = { left = left_card, right = right_card }
+function Reveal.roster_scale(n)
+	return n <= 4 and 0.45 or n <= ROSTER_ROW and 0.36 or 0.3
+end
+
+-- Everyone in the lobby, ourselves first; before the lobby is joined, just us.
+local function roster_players()
+	local lobby = Reveal.lobby
+	local list = {}
+	for _, p in ipairs(lobby and lobby:get_players() or {}) do
+		if p.id == lobby.player_id then
+			table.insert(list, 1, { own = true, avatar = p.preferredJoker or Reveal.own_avatar })
+		else
+			list[#list + 1] = { name = p.displayName or "?", avatar = p.preferredJoker }
+		end
+	end
+	if not (list[1] and list[1].own) then table.insert(list, 1, { own = true, avatar = Reveal.own_avatar }) end
+	return list
+end
+
+-- A lobby of more than two has no one opponent (and in Teams some are teammates, picked in the
+-- lobby after this): one panel of everyone who has joined, filling as they do.
+local function roster_card()
+	local players = roster_players()
+	local scale = Reveal.roster_scale(#players)
+	local rows = {
+		{
+			n = G.UIT.R,
+			config = { align = "cm", padding = 0.04 },
+			nodes = {
+				{
+					n = G.UIT.T,
+					config = {
+						text = Reveal.lobby
+								and localize({ type = "variable", key = "k_pvp_reveal_players", vars = { #players } })
+							or "...",
+						scale = 0.36,
+						colour = G.C.UI.TEXT_DARK,
+					},
+				},
+			},
+		},
+	}
+	local row
+	for i, p in ipairs(players) do
+		if (i - 1) % ROSTER_ROW == 0 then
+			row = { n = G.UIT.R, config = { align = "cm" }, nodes = {} }
+			rows[#rows + 1] = row
+		end
+		row.nodes[#row.nodes + 1] = {
+			n = G.UIT.C,
+			config = { align = "cm", padding = 0.06 },
+			nodes = {
+				face(p.avatar, false, scale),
+				{
+					n = G.UIT.R,
+					config = { align = "cm", maxw = G.CARD_W * scale + 0.25 },
+					nodes = {
+						{
+							n = G.UIT.T,
+							config = {
+								text = p.own and localize("k_pvp_you") or p.name,
+								scale = 0.28,
+								colour = p.own and G.C.FILTER or G.C.UI.TEXT_DARK,
+							},
+						},
+					},
+				},
+			},
+		}
+	end
+	return {
+		n = G.UIT.C,
+		config = { align = "cm", padding = 0.1, r = 0.12, minw = 2.4, colour = G.C.WHITE, emboss = 0.08 },
+		nodes = rows,
+	}
+end
+
+local CARD_BUILDERS = { left = left_card, right = right_card, roster = roster_card }
 local function card_node(side)
 	return { n = G.UIT.C, config = { id = "pvp_reveal_" .. side, align = "cm" }, nodes = { CARD_BUILDERS[side]() } }
 end
@@ -246,12 +328,14 @@ end
 local function refresh_cards()
 	refresh_card("left")
 	refresh_card("right")
+	refresh_card("roster")
 end
 
 function Reveal.start(search, fan_cards)
 	Reveal.dismiss()
 	local generation = Reveal.generation
-	Reveal.view = { hidden = {} }
+	-- Two to a lobby face each other across a VS; more share one roster.
+	Reveal.view = { hidden = {}, duel = (search.capacity or 2) <= 2 }
 	Reveal.ratings = {}
 	Reveal.ranked, Reveal.ticket = search.ranked, search.ticket
 	Reveal.own_rating = search.rating
@@ -327,26 +411,37 @@ function Reveal.start(search, fan_cards)
 			end)
 		end)
 	end
-	deal("left", -CARD_X, 0.35)
-	deal("right", CARD_X, 0.5)
-	after(0.9, generation, function()
-		view.vs = room_box(
-			clear_root({
-				text_object(
-					nil,
-					{ { ref_table = view, ref_value = "vs_text" } },
-					1.1,
-					G.C.RED,
-					{ bump = true, pop_in = 0, pop_in_rate = 10 }
-				),
-			}),
-			{ x = 0, y = 0.4 },
-			true
-		)
-		juice(view.vs, 0.4, 0.15)
-		play_sound("generic1", 0.9, 0.6)
-		if G.ROOM and not calm then G.ROOM.jiggle = G.ROOM.jiggle + 2 end
-	end)
+	if view.duel then
+		deal("left", -CARD_X, 0.35)
+		deal("right", CARD_X, 0.5)
+		after(0.9, generation, function()
+			view.vs = room_box(
+				clear_root({
+					text_object(
+						nil,
+						{ { ref_table = view, ref_value = "vs_text" } },
+						1.1,
+						G.C.RED,
+						{ bump = true, pop_in = 0, pop_in_rate = 10 }
+					),
+				}),
+				{ x = 0, y = 0.4 },
+				true
+			)
+			juice(view.vs, 0.4, 0.15)
+			play_sound("generic1", 0.9, 0.6)
+			if G.ROOM and not calm then G.ROOM.jiggle = G.ROOM.jiggle + 2 end
+		end)
+	else
+		after(0.35, generation, function()
+			view.roster = room_box(clear_root({ card_node("roster") }), { x = 0, y = OUTRO_Y }, true)
+			slide(view.roster, nil, 0.4)
+			after(0.3, generation, function()
+				juice(view.roster, 0.2, 0.06)
+				play_sound("card1", 1, 0.7)
+			end)
+		end)
+	end
 	after(1.3, generation, function()
 		view.footer = room_box(
 			clear_root({
@@ -385,12 +480,13 @@ local function read_reveal_ratings()
 	end
 end
 
--- One beat of the countdown: the number takes the VS's place and both cards feel it.
+-- One beat of the countdown: the number takes the VS's place and the cards feel it.
 local function beat(view, secs)
 	view.vs_text = tostring(secs)
 	juice(view.vs, 0.5, 0.18)
 	juice(view.left, 0.12, 0.04)
 	juice(view.right, 0.12, 0.04)
+	juice(view.roster, 0.1, 0.02)
 	play_sound("multhit1", 0.8 + (BEATS_FROM - secs) * 0.15, 0.5)
 	if G.ROOM and not reduced_motion() then G.ROOM.jiggle = G.ROOM.jiggle + 1.5 end
 end
@@ -407,7 +503,7 @@ function Reveal.update()
 	if lobby then
 		local n = #lobby:get_players()
 		if n ~= seen_players then
-			local had_opp = seen_players > 1
+			local had_opp, joined = seen_players > 1, n > seen_players
 			-- The opponent left before the game started: the lobby's own UI says so.
 			if had_opp and n < 2 then
 				Reveal.dismiss()
@@ -416,11 +512,16 @@ function Reveal.update()
 			seen_players = n
 			read_reveal_ratings()
 			refresh_cards()
-			if n > 1 and not had_opp and Reveal.view then
-				Reveal.view.starts_at = now() + Reveal.HOLD_SECONDS
-				Reveal.expires_at = Reveal.view.starts_at + START_GRACE_SECONDS
-				if Reveal.view.right then
-					juice(Reveal.view.right, 0.35, 0.12)
+			-- The countdown runs from the opponent's arrival. In a roster each arrival restarts
+			-- it, as the host's hold restarts when someone new has yet to report ready.
+			local view = Reveal.view
+			if view and n > 1 and (not had_opp or (joined and not view.duel)) then
+				view.starts_at = now() + Reveal.HOLD_SECONDS
+				view.beat = nil
+				Reveal.expires_at = view.starts_at + START_GRACE_SECONDS
+				local arrived = view.right or view.roster
+				if arrived then
+					juice(arrived, view.duel and 0.35 or 0.15, view.duel and 0.12 or 0.04)
 					play_sound("card1", 0.85, 0.8)
 				end
 			end
