@@ -194,7 +194,8 @@ end
 
 -- Fixture: from a blind select, jump to this ante with Small and Big already
 -- skipped, so the next blind is the PvP boss. The referee hears the ante as it
--- would from ease_ante. The blind select rebuilds on the next update.
+-- would from ease_ante. The blind select rebuilds once anything gating
+-- update_blind_select (the Almanac draft) lets it through.
 function P.jump_to_pvp(ante)
 	return {
 		run = function()
@@ -334,10 +335,13 @@ end
 -- (lives_host, lives_guest), never mine/theirs, so the two lines compare byte for byte.
 local function project()
 	local mine, theirs = PVP.GAME and PVP.GAME.lives, PVP.GAME and PVP.GAME.enemy and PVP.GAME.enemy.lives
+	local draft = G.GAME and G.GAME.almanac_draft
 	return {
 		ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante,
 		lives_host = role == "host" and mine or theirs,
 		lives_guest = role == "guest" and mine or theirs,
+		almanac_offers = P.offers or "-",
+		almanac_acquired = draft and #draft.acquired or "-",
 		stake = G.GAME and G.GAME.stake or "-",
 	}
 end
