@@ -223,9 +223,7 @@ local function count_key(mode)
 	return mode.gamemode_key
 end
 
--- The account's own rating per Ranked pillar (only while the Ranked tab is built) (rating_get: rating, isPlacement, gamesPlayed,
--- placementGames, rank), keyed by mode.key and read afresh each time the page opens, so a
--- match played since shows. false while a read is in flight.
+-- The account's own rating per Ranked pillar 
 local _own_ratings = {}
 local _rating_els = {}
 
