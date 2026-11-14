@@ -25,6 +25,11 @@ check("no lobby hides", hide(false, nil, true, false), true)
 check("no lobby, private kind left over, hides", hide(false, A.PRIVATE, false, false), true)
 check("opt-in shows in a ranked lobby", hide(true, A.RANKED, false, true), false)
 check("opt-in shows with no lobby", hide(false, nil, false, true), false)
+check("practice without PvP-only cards shows all", hide(false, A.PRACTICE, false, false, true), false)
+check("practice with PvP-only cards shows all", hide(false, A.PRACTICE, true, false, true), false)
+check("practice setup before a lobby exists shows all", hide(false, nil, false, false, true), false)
+check("after leaving practice hides again", hide(false, A.PRACTICE, false, false, false), true)
+check("practice kind alone does not show content", hide(false, A.PRACTICE, true, false), true)
 
 if failures > 0 then
 	os.exit(1)
