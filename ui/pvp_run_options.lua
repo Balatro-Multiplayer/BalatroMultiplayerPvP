@@ -5,19 +5,19 @@
 
 G.FUNCS.mp_pvp_seed_change = function()
 	G.FUNCS.exit_overlay_menu()
-	-- A unanimous vote restarts the match on a fresh seed (see pvp_seed_vote action).
+	-- A unanimous vote restarts the match on a fresh seed (see PVP.cast_seed_vote).
 	PVP.cast_seed_vote()
 end
 
 G.FUNCS.mp_pvp_draw_vote = function()
 	G.FUNCS.exit_overlay_menu()
-	-- A unanimous vote ends the match as a draw (see pvp_draw_vote action).
+	-- A unanimous vote ends the match as a draw (see PVP.cast_draw_vote).
 	PVP.cast_draw_vote()
 end
 
 G.FUNCS.mp_pvp_forfeit = function()
 	G.FUNCS.exit_overlay_menu()
-	-- Practice is solo: there is no opponent or host referee to resolve a forfeit
+	-- Practice is solo: there is no opponent or server to resolve a forfeit
 	-- broadcast, so pressing Forfeit did nothing. It ends the practice run instead
 	-- (go_to_menu also leaves practice, see lib/practice_mode.lua).
 	if PVP.is_practice_mode() and not PVP.LOBBY.code then

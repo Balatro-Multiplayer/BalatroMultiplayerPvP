@@ -3,7 +3,7 @@
 -- gamemodes/attrition.lua's banned_vouchers). Same vanilla effect, plus: when the
 -- RUNNER redeems one, every Hunter gains +1 life (compensation for the Runner
 -- buying themselves more time to evade) -- see pvp_api/actions/team_manhunt.lua's
--- pvp_redeem_ante_voucher, the host-authoritative handler.
+-- pvp_redeem_ante_voucher, which asks the server for the Hunters' lives.
 SMODS.Voucher({
 	key = "hieroglyph_manhunt",
 	pos = { x = 5, y = 2 },
@@ -24,9 +24,7 @@ SMODS.Voucher({
 		G.GAME.round_resets.hands = G.GAME.round_resets.hands - card.ability.extra
 		ease_hands_played(-card.ability.extra)
 
-		if PVP.LOBBY.team_id == "RUNNER" then
-			PVP.pvp_redeem_ante_voucher()
-		end
+		if PVP.LOBBY.team_id == "RUNNER" then PVP.pvp_redeem_ante_voucher(self.key) end
 	end,
 })
 
@@ -51,8 +49,6 @@ SMODS.Voucher({
 		G.GAME.round_resets.discards = G.GAME.round_resets.discards - card.ability.extra
 		ease_discard(-card.ability.extra)
 
-		if PVP.LOBBY.team_id == "RUNNER" then
-			PVP.pvp_redeem_ante_voucher()
-		end
+		if PVP.LOBBY.team_id == "RUNNER" then PVP.pvp_redeem_ante_voucher(self.key) end
 	end,
 })

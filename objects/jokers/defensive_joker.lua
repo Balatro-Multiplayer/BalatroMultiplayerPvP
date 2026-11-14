@@ -5,6 +5,9 @@ SMODS.Atlas({
 	py = 95,
 })
 
+-- The warning for unknown lives is logged once per run (keyed by run id), not every frame.
+local warned_unknown_lives = { done = false, run_id = nil }
+
 SMODS.Joker({
 	key = "defensive_joker",
 	atlas = "defensive_joker",
@@ -29,7 +32,16 @@ SMODS.Joker({
 		if G.STAGE ~= G.STAGES.RUN then return end
 
 		local chips = G.GAME.stake >= 6 and card.ability.extra.highstake or card.ability.extra.extra
-		card.ability.t_chips = math.max((PVP.GAME.enemy.lives - PVP.GAME.lives) * chips, 0)
+		-- Unknown lives (either side) give no bonus; the first time is logged, except in
+		-- practice, where the opponent's lives are always unknown.
+		local enemy_lives, own_lives = PVP.GAME.enemy.lives, PVP.GAME.lives
+		local run_id = PVP.current_run_id()
+		local unknown = enemy_lives == nil or own_lives == nil
+		if unknown and not PVP.is_practice_mode() and not (warned_unknown_lives.done and warned_unknown_lives.run_id == run_id) then
+			warned_unknown_lives = { done = true, run_id = run_id }
+			sendWarnMessage("[pvp] Defensive Joker: the lives are unknown, no bonus", "MULTIPLAYER")
+		end
+		card.ability.t_chips = PVP.defensive_bonus(enemy_lives, own_lives, chips)
 	end,
 	calculate = function(self, card, context)
 		if context.cardarea == G.jokers and context.joker_main then

@@ -1,0 +1,16 @@
+{
+	"rev": 12,
+	"changed": {
+		"pvp.ready": {
+			"runId": "r-abc",
+			"round": 2,
+			"ready": { "u1": true },
+			"firstReady": "u1",
+			"lastStart": {
+				"roundId": 2,
+				"firstPlayer": "u2",
+				"players": ["u1", "u2"]
+			}
+		}
+	}
+}

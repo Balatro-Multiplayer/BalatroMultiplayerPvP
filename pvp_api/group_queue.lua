@@ -177,9 +177,16 @@ end
 -- A pillar's group QUEUE: queue the lobby for that mode and go back to it.
 G.FUNCS.mp_pvp_group_queue_mode = function(e)
 	local rt = e.config.ref_table
-	if rt and rt.gamemode_key and PVP._join_group_queue(rt.gamemode_key) then
-		MPAPI.pages.show_deferred("pvp_lobby")
+	if not (rt and rt.gamemode_key) then
+		return
 	end
+	-- The server must speak the referee protocol before the group is queued (pvp_api/protocol_check.lua).
+	local key = rt.gamemode_key
+	PVP.ProtocolCheck.run(function()
+		if PVP._join_group_queue(key) then
+			MPAPI.pages.show_deferred("pvp_lobby")
+		end
+	end)
 end
 
 G.FUNCS.mp_pvp_group_queue_back = function()

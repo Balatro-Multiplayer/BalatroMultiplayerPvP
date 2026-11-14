@@ -1,5 +1,5 @@
 -- The dead player's waiting screen while a pending death waits for the opponent
--- (pvp_death_pending), in a match of any size. Leave goes through
+-- (the server's deathPending), in a match of any size. Leave goes through
 -- mp_pvp_leave_from_game, which is not a forfeit: the opponent plays on and the
 -- result is decided later.
 

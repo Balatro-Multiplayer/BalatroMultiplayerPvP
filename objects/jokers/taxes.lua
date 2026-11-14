@@ -1,8 +1,14 @@
--- The opponent's sells are recorded once, outside any joker (pvp_api/actions/opponent_context.lua);
--- Taxes only reads them.
+-- The sells of my Nemesis are recorded by the server (pvp.opponent), per ante, as each sell happens; Taxes only
+-- reads them (PVP.OpponentNet.nemesis_sells). nil when the server has not said yet: nothing is added then,
+-- never a guessed 0.
 local function next_taxes_total_mult_gain(card)
+	local sells = PVP.OpponentNet.nemesis_sells()
+	if sells == nil then
+		PVP.match_log("info", "[pvp] Taxes: the Nemesis' sells are not known yet, nothing added")
+		return nil
+	end
 	return PVP.OPPONENT_RECORD.taxes_mult_gain(
-		PVP.GAME.enemy.sells_per_ante,
+		sells,
 		G.GAME.round_resets.ante,
 		PVP.LOBBY.config.pvp_start_round,
 		card.ability.extra.mult_gain
@@ -42,7 +48,9 @@ MPAPI.Joker({
 			and not context.blueprint
 			and context.blind.key == "bl_mp_nemesis"
 		then
-			card.ability.extra.mult = card.ability.extra.mult + next_taxes_total_mult_gain(card)
+			local gain = next_taxes_total_mult_gain(card)
+			if gain == nil then return end
+			card.ability.extra.mult = card.ability.extra.mult + gain
 			return {
 				message = localize("k_filed_ex"),
 			}

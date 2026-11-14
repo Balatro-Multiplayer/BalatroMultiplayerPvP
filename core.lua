@@ -42,23 +42,9 @@ PVP.LOBBY = {
 PVP.GAME = {}
 PVP.UI = {}
 PVP.ACTIONS = {}
-PVP.MOD_ACTIONS = {}
 
 -- SMODS flag: lets cards count as multiple enhancements at once (required by Alloy)
 PVP.optional_features = { quantum_enhancements = false }
-
-function PVP.register_mod_action(modAction, callback, modId)
-	if not modId then
-		local mod = SMODS.current_mod
-		if not mod then
-			sendWarnMessage("PVP.register_mod_action called outside of mod init without a modId", "MULTIPLAYER")
-			return
-		end
-		modId = mod.id
-	end
-	PVP.MOD_ACTIONS[modId] = PVP.MOD_ACTIONS[modId] or {}
-	PVP.MOD_ACTIONS[modId][modAction] = callback
-end
 
 PVP.INTEGRATIONS = {
 	Preview = PVP.config.integrations.Preview,
@@ -147,16 +133,6 @@ PVP.ante_based = MPAPI.ante_based
 PVP.order_round_based = MPAPI.order_round_based
 PVP.sorted_hand_list = MPAPI.sorted_hand_list
 
--- Forward-declaration stub: PVP.reset_game_states() below calls PVP.UTILS.timer_base(),
--- which reads PVP.current_ruleset() -- but that call happens synchronously at this
--- file's own load time, before rulesets/_rulesets.lua (loaded later via
--- PVP.load_mp_dir("rulesets", true)) defines the real PVP.current_ruleset(). Without
--- this stub the early call crashes on a nil field. The real definition overwrites
--- this one once rulesets load; this one is never reached again after that.
-function PVP.current_ruleset()
-	return {}
-end
-
 function PVP.load_mp_file(file)
 	local chunk, err = SMODS.load_file(file, PVP.id)
 	if chunk then
@@ -205,6 +181,9 @@ end
 PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
+-- Seconds of the countdown before a PvP blind, when the lobby options do not say (ui/game/timer.lua).
+PVP.DEFAULT_COUNTDOWN_SECONDS = 3
+
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
@@ -216,13 +195,13 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		starting_lives = 4,
 		pvp_start_round = 2,
 		-- Manhunt only: each Hunter's individual life count (Runner is always
-		-- fixed at 1, not configurable -- see PVP.referee_reset).
+		-- fixed at 1 by the server, not configurable).
 		manhunt_hunter_lives = 7,
 		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
 		trap_cards = false,
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,
-		pvp_countdown_seconds = 3,
+		pvp_countdown_seconds = PVP.DEFAULT_COUNTDOWN_SECONDS,
 		ruleset = persist_ruleset_and_gamemode and PVP.LOBBY.config.ruleset or "ruleset_mp_expanded",
 		gamemode = persist_ruleset_and_gamemode and PVP.LOBBY.config.gamemode or "gamemode_mp_attrition",
 		weekly = nil,
@@ -255,30 +234,25 @@ function PVP.reset_game_states()
 		ready_blind = false,
 		ready_blind_text = localize("b_ready"),
 		processed_round_done = false,
-		lives = 0,
 		loaded_ante = 0,
 		loading_blinds = false,
 		comeback_bonus_given = true,
 		comeback_bonus = 0,
 		end_pvp = false,
 		enemy = {
-			score = PVP.Score.ZERO,
-			real_score = PVP.Score.ZERO,
-			score_text = PVP.Score.ZERO,
-			hands = 4,
-			hands_text = "4",
-			-- Whether an enemyInfo message has arrived this blind.
-			info_received = false,
+			-- Unknown (nil) until the server reveals it: 0 is a score, not "not yet".
+			score = nil,
+			real_score = nil,
+			score_text = "???",
+			-- The opponent's hands are unknown (nil) until the server sends them.
+			hands_text = "???",
 			location = localize("loc_selecting"),
 			-- " (catching up)" while the target is replaying its run after a crash, else "".
 			catching_up_text = "",
-			skips = 0,
-			skips_before_pvp = 0,
-			lives = PVP.LOBBY.config.starting_lives,
-			sells = 0,
-			sells_per_ante = {},
-			spent_in_shop = {},
-			highest_score = PVP.Score.ZERO,
+			-- Unknown (nil) until the server reports one (pvp_api/skips_net.lua).
+			skips = nil,
+			-- Unknown (nil) until the server reports one (pvp_api/enemy_score_net.lua).
+			highest_score = nil,
 		},
 		location = "loc_selecting",
 		next_blind_context = nil,
@@ -289,9 +263,8 @@ function PVP.reset_game_states()
 		duplicate_end = false,
 		misprint_display = "",
 		spent_total = 0,
-		skips_before_pvp = 0,
-		skips_difference = 0,
 		spent_before_shop = 0,
+		shop_marked = false,
 		highest_score = PVP.Score.ZERO,
 		-- §17.10: PVP.GAME.highest_score above tracks the best SINGLE-BLIND
 		-- score of any kind (updated unconditionally in every play_hand,
@@ -299,21 +272,25 @@ function PVP.reset_game_states()
 		-- roster needs ("highest PvP-blind score"). Tracked separately here,
 		-- only updated while PVP.is_pvp_boss() is true.
 		highest_pvp_score = PVP.Score.ZERO,
-		timer = PVP.UTILS.timer_base(),
 		timer_started = false,
-		timer_threshold_pending = false,
-		timer_consumed = false,
-		pvp_reached = false,
 		pvp_countdown = 0,
-		real_money = 0,
-		ce_cache = false,
 		furthest_blind = 0,
-		pincher_index = -3,
 		pincher_unlock = false,
+		-- What the server's opponent facts need from this client, each saved with the run and carried across a
+		-- crash rejoin (lib/rejoin.lua CARRIED). Indexes of what I applied, each stamped with the run it
+		-- belongs to (pvp_api/opponent_net.lua):
+		--   opponent_applied, replies_applied, traps_applied, trap_rewards_applied  applied indexes
+		--   traps_sent  trap ids I fired and have not seen settle
+		--   pincher_pending = { runId, items }  Penny Pincher credits waiting for the opponent's shop
+		opponent_applied = nil,
+		replies_applied = nil,
+		traps_applied = nil,
+		traps_sent = nil,
+		trap_rewards_applied = nil,
+		pincher_pending = nil,
 		asteroids = 0,
 		pizza_discards = 0,
 		disable_live_and_timer_hud = false,
-		timers_forgiven = 0,
 		stats = {
 			reroll_count = 0,
 			reroll_cost_total = 0,
@@ -520,8 +497,6 @@ MPAPI.on_loaded(function()
 		"debug",
 		"[pvp] boot: pvp ActionTypes registered="
 			.. n
-			.. " pvp_player_ready="
-			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil)
 	)
 
 	MPAPI.on_connection_state_change(function()

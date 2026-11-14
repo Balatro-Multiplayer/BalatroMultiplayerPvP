@@ -1,84 +1,61 @@
--- The ante's Nemesis, fixed once per ante and read by anything that targets "my Nemesis".
+-- The ante's Nemesis, read from the server and used by anything that targets "my Nemesis".
 -- Read it through these two functions:
---   PVP.ante_nemesis_ids() -> array of player ids (empty before a Nemesis is known). One id in
---     every format, except a Manhunt runner: every hunter.
+--   PVP.ante_nemesis_ids() -> array of player ids; nil while the ante is not known, {} when it is known nobody was my Nemesis.
+--     One id in every format, except a Manhunt runner: every hunter.
 --   PVP.is_ante_nemesis(player_id) -> whether that player is one of them.
--- The value is fixed (see PVP.refresh_ante_nemesis) when the local ante changes, when the match
--- starts, and when the Nemesis pairing for the current ante arrives. A mid-ante change of
--- PVP.current_target_id() (new top hunter, new Royale neighbour) does not change it.
+-- The server freezes the row per ante ("pvp.nemesis".byAnte[ante].each) and says which ante I am at
+-- ("pvp.round".players[me].ante). Nothing is kept here: a mid-ante change of PVP.current_target_id() (new top
+-- hunter, new Royale neighbour) changes nothing, because the frozen row does not move. The Phantom rows and the
+-- trap row are re-sorted when the ids read from the state change (PVP.sync_ante_nemesis).
+local NEMESIS_KEY = "pvp.nemesis"
+local ROUND_KEY = "pvp.round"
+
+local function read_ids()
+	local lobby = PVP.NetBasics.pvp_lobby()
+	if not lobby then return nil end
+	local run_id = PVP.current_run_id()
+	local R = PVP.OPPONENT_RECORD
+	local ante = R.player_ante(MPAPI.get_state(ROUND_KEY), run_id, lobby.player_id)
+	local row = R.nemesis_row(MPAPI.get_state(NEMESIS_KEY), run_id, ante)
+	if row == nil or type(row.each) ~= "table" then return nil end
+	return row.each
+end
+
 function PVP.ante_nemesis_ids()
-	return PVP.ante_nemesis and PVP.ante_nemesis.ids or {}
+	return read_ids()
 end
 
 function PVP.is_ante_nemesis(player_id)
-	return PVP.ante_nemesis ~= nil and PVP.ante_nemesis.set[player_id] == true
-end
-
-function PVP.init_ante_nemesis()
-	PVP.ante_nemesis = { ante = nil, ids = {}, set = {} }
-end
-
-function PVP.clear_ante_nemesis()
-	PVP.ante_nemesis = nil
-end
-
--- A Manhunt runner's Nemesis is every hunter, and none until the roster has arrived: the later re-check then
--- fills the whole list. Everyone else's is their current target.
-local function read_nemesis_ids()
-	if PVP.LOBBY.config.manhunt and PVP.LOBBY.team_id == "RUNNER" then
-		local ids = {}
-		for id, role in pairs(PVP.LOBBY.roster or {}) do
-			if role == "HUNTER" then ids[#ids + 1] = id end
-		end
-		table.sort(ids)
-		return ids
+	for _, id in ipairs(read_ids() or {}) do
+		if id == player_id then return true end
 	end
-	local target = PVP.current_target_id()
-	return target and { target } or {}
+	return false
 end
 
--- Fix the ante's Nemesis from the current target, then show only that player's Phantom jokers.
-function PVP.refresh_ante_nemesis()
-	local state = PVP.ante_nemesis
-	if not (state and PVP.nemesis_jokers and PVP.nemesis_jokers_hidden) then return end
-	local ids = read_nemesis_ids()
-	local set = {}
-	for _, id in ipairs(ids) do
-		set[id] = true
+-- The ids the rows were last sorted for, joined; nil before the first sort.
+local sorted_for = nil
+
+-- The rows were rebuilt (a new run, a loaded save): the next sync sorts them even for the same ids.
+function PVP.reset_ante_nemesis_sort()
+	sorted_for = nil
+end
+
+-- Moves the Phantom jokers and the trap row to match the Nemesis the state names now, when that is not what
+-- they were sorted for.
+function PVP.sync_ante_nemesis()
+	if not (PVP.nemesis_jokers and PVP.nemesis_jokers_hidden) then
+		sorted_for = nil
+		return
 	end
-	local ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante
-	if state.ante ~= ante then PVP.TRAP_ROW.forget_fired() end
-	state.ante = ante
-	state.ids = ids
-	state.set = set
+	local ids = read_ids()
+	local key = ids and table.concat(ids, ",") or "unknown"
+	if key == sorted_for then return end
+	sorted_for = key
 	PVP.sort_phantoms_by_ante_nemesis()
 	PVP.TRAP_ROW.refresh()
 end
 
--- A Nemesis pairing arrived. It moves the Nemesis only when none is fixed for this ante yet, or when it is
--- for an ante this client has reached and the fixed Nemesis is from an older one. A repeat of the same
--- ante's pairing (a rejoin, a recompute) changes nothing.
-function PVP.on_nemesis_pairing(pairing_ante)
-	local state = PVP.ante_nemesis
-	if not state then return end
-	local local_ante = G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante
-	if #state.ids == 0 and not (pairing_ante and local_ante and pairing_ante > local_ante) then
-		PVP.refresh_ante_nemesis()
-	elseif pairing_ante and local_ante and pairing_ante <= local_ante and (state.ante or 0) < pairing_ante then
-		PVP.refresh_ante_nemesis()
-	end
-end
-
--- Detect the start of an ante (the local ante changed), and fill in a Nemesis that was still unknown
--- at that point (a Royale target that arrives after the ante change).
-local game_update_ref = Game.update
-function Game:update(dt)
-	game_update_ref(self, dt)
-	local state = PVP.ante_nemesis
-	if not (state and G.GAME and G.GAME.round_resets and PVP.LOBBY and PVP.LOBBY.config) then return end
-	if state.ante ~= G.GAME.round_resets.ante then
-		PVP.refresh_ante_nemesis()
-	elseif #state.ids == 0 and #read_nemesis_ids() > 0 then
-		PVP.refresh_ante_nemesis()
-	end
+if MPAPI.on_state then
+	MPAPI.on_state(NEMESIS_KEY, PVP.sync_ante_nemesis)
+	MPAPI.on_state(ROUND_KEY, PVP.sync_ante_nemesis)
 end

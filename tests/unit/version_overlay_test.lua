@@ -6,6 +6,22 @@ local noop = function() end
 PVP = {
 	LOBBY = { config = {}, deck = {} },
 	GAME = {},
+	ReadyNet = { on_connected = noop, on_snapshot = noop },
+	TimerNet = { on_connected = noop, on_snapshot = noop },
+	TargetsNet = {
+		on_connected = noop,
+		opponent_id = noop,
+		player_count = function(lobby)
+			return #lobby:get_players()
+		end,
+	},
+	EnemyScoreNet = { on_connected = noop },
+	SkipsNet = { on_connected = noop, update = noop },
+	OpponentNet = { on_connected = noop, update = noop, end_catch_up = noop },
+	ClocksNet = { on_connected = noop },
+	LivesNet = { on_connected = noop },
+	ResultNet = { on_connected = noop },
+	RoundEndNet = { on_connected = noop },
 	UTILS = {},
 	UI = { UTILS = {} },
 	SETUP = { apply_results = noop },
@@ -18,10 +34,25 @@ PVP = {
 G = { STAGE = 1, STAGES = { RUN = 2 } }
 local EVENTS = {}
 for _, name in ipairs({
-	"CONNECTED", "PLAYER_JOINED", "PLAYER_INFO", "PLAYER_LEFT", "DISCONNECTED", "ERROR",
-	"PLAYER_CATCHING_UP", "PLAYER_DISCONNECTED", "PLAYER_RECONNECTED", "REPLAY_TAIL",
-	"METADATA_CHANGED", "PLAYER_STANDING_CHANGED", "HOST_CHANGED", "SETUP_CHANGED",
-	"PLAYER_READY_CHANGED", "GAME_STARTED", "CONTESTED", "GAME_ENDED", "SNAPSHOT_APPLIED",
+	"CONNECTED",
+	"PLAYER_JOINED",
+	"PLAYER_INFO",
+	"PLAYER_LEFT",
+	"DISCONNECTED",
+	"ERROR",
+	"PLAYER_CATCHING_UP",
+	"PLAYER_DISCONNECTED",
+	"PLAYER_RECONNECTED",
+	"REPLAY_TAIL",
+	"METADATA_CHANGED",
+	"PLAYER_STANDING_CHANGED",
+	"HOST_CHANGED",
+	"SETUP_CHANGED",
+	"PLAYER_READY_CHANGED",
+	"GAME_STARTED",
+	"CONTESTED",
+	"GAME_ENDED",
+	"SNAPSHOT_APPLIED",
 }) do
 	EVENTS[name] = name
 end

@@ -51,7 +51,13 @@ function PVP._is_queue_active()
 	return PVP._active_queue_id ~= nil
 end
 
-function PVP._join_queue(kind, gamemode_key)
+function PVP._join_queue(kind, gamemode_key, protocol_checked)
+	-- The server must speak the referee protocol before any ticket is queued (pvp_api/protocol_check.lua).
+	if not protocol_checked then
+		return PVP.ProtocolCheck.run(function()
+			PVP._join_queue(kind, gamemode_key, true)
+		end)
+	end
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	PVP._pvp_kind = kind
 	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
@@ -130,67 +136,6 @@ function PVP._join_queue(kind, gamemode_key)
 	end)
 end
 
--- The finished match's placements for `player_ids`: the winner first, everyone else
--- second. `opts.team` makes `winner` a team id (Manhunt/Teams, resolved through
--- PVP.LOBBY.roster); `opts.draw` places everyone first. `opts.places` (id -> place)
--- overrides all of that: tied players share a place, and a tie for first is no win.
--- metric = each player's best PvP score (the leaderboard's season-best column).
-function PVP.build_placements(player_ids, winner, opts)
-	opts = opts or {}
-	local tied_first = 0
-	for _, id in ipairs(player_ids) do
-		if opts.places and opts.places[id] == 1 then
-			tied_first = tied_first + 1
-		end
-	end
-	local placements = {}
-	for _, id in ipairs(player_ids) do
-		local place, performance
-		if opts.places then
-			place = opts.places[id] or #player_ids
-			performance = (place == 1 and tied_first == 1) and 1 or 0
-		else
-			local won
-			if opts.draw then
-				won = true
-			elseif opts.team then
-				won = PVP.LOBBY.roster and PVP.LOBBY.roster[id] == winner
-			else
-				won = id == winner
-			end
-			place = won and 1 or 2
-			performance = (won and not opts.draw) and 1 or 0
-		end
-		placements[#placements + 1] = {
-			playerId = id,
-			place = place,
-			performance = performance,
-			metric = (PVP.pvp_score_metric and PVP.pvp_score_metric(id)) or 0,
-			metricText = PVP.pvp_score_text and PVP.pvp_score_text(id) or PVP.Score.ZERO,
-		}
-	end
-	return placements
-end
-
--- A server-refereed lobby: every client reports the same placements for the players
--- the game started with. Once per game.
-function PVP.report_server_result(lobby, winner, opts)
-	local started = lobby._game.started
-	if not started or PVP._reported_run_id == started.run_id then
-		return
-	end
-	PVP._reported_run_id = started.run_id
-	local ids = {}
-	for _, p in ipairs(started.players or {}) do
-		ids[#ids + 1] = p.id
-	end
-	lobby:report_result(PVP.build_placements(ids, winner, opts), function(err)
-		if err then
-			sendWarnMessage("report_result error: " .. tostring(err), "MULTIPLAYER")
-		end
-	end)
-end
-
 -- A ranked ruleset's queue ticket, "ranked:pvp_ranked_<ruleset short>": the
 -- game mode the server counts it under and the key of its rating board.
 function PVP.ranked_ticket(ruleset_key)
@@ -207,7 +152,13 @@ end
 -- the server only treats a "ranked:"-prefixed game mode as ranked) so the
 -- server's ELO ladder is per-ruleset, matching the separate leaderboard tabs
 -- (ui/pvp_leaderboard.lua).
-function PVP._join_ranked_ruleset(ruleset_key)
+function PVP._join_ranked_ruleset(ruleset_key, protocol_checked)
+	-- The server must speak the referee protocol before any ticket is queued (pvp_api/protocol_check.lua).
+	if not protocol_checked then
+		return PVP.ProtocolCheck.run(function()
+			PVP._join_ranked_ruleset(ruleset_key, true)
+		end)
+	end
 	local gamemode_key = PVP.GamemodeKey.PVP_NEMESIS
 	PVP._pvp_kind = PVP.LobbyAccess.RANKED
 	PVP.LOBBY.config.ruleset = ruleset_key

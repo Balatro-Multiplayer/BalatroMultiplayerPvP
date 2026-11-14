@@ -163,16 +163,20 @@ for _, recipe in ipairs({
 	check(PVP.LOBBY.code == nil, "rejection leaves the lobby")
 end
 check(rejected == 7 and rejection_message ~= nil, "rejections explain the incompatibility")
-PVP._pvp_action_helpers = { A = noop, relay = noop }
 dofile("pvp_api/actions/run_lifecycle.lua")
-MPAPI.get_current_lobby = function()
-	return {
-		get_metadata = function()
-			return { cocktail_recipe = { decks = { "b_mp_unknown" } } }
-		end,
-	}
+local late_lobby = {
+	get_metadata = function()
+		return { cocktail_recipe = { decks = { "b_mp_unknown" } } }
+	end,
+}
+local logged
+PVP.match_log = function(_, text)
+	logged = text
 end
-PVP.on_game_start({ seed = "test" })
+PVP.on_game_start(nil, { seed = "test" })
+check(logged ~= nil and logged:find("no lobby", 1, true) ~= nil, "a game start with no lobby is logged and ignored")
+check(rejected == 7, "a game start with no lobby reaches no recipe check")
+PVP.on_game_start(late_lobby, { seed = "test" })
 check(rejected == 8, "a late start event cannot bypass recipe validation")
 PVP.pvp_leave_lobby = real_leave
 join({ cocktail_recipe = { decks = { "b_red", "b_blue" } } })

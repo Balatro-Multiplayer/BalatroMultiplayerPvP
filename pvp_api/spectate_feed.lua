@@ -6,9 +6,9 @@
 --
 -- Deliberately NOT built on the normal participant pipeline (lobby actions
 -- delivered through MPAPI's dispatch). That pipeline runs EVERY registered
--- ActionType -- pvp_play_hand, pvp_skip, mpapi_sync, mpapi_opponent_context,
+-- ActionType -- the relay-kept pvp_* keys, mpapi_sync,
 -- etc. -- all of which assume they're running on a live PARTICIPANT's own
--- client, mutating that client's own G.GAME/PVP.GAME/PVP.REF. A spectator has
+-- client, mutating that client's own G.GAME/PVP.GAME. A spectator has
 -- no stake in the match (may not even have an active run at all), so those
 -- handlers firing against unrelated/nonexistent local state would corrupt it
 -- at best, crash at worst. Instead the server's spectator match
@@ -40,7 +40,7 @@ S._snapshot = nil
 -- baseline for the players not in view, through the registered playback handlers
 -- (set_ante_key/hand_result). The player in view gets their real board from their own run.
 -- Known gap: the snapshot has no `lives` field; live lives changes flow through
--- pvp_player_lives, a separate broadcast this file doesn't touch.
+-- pvp.lives, a separate state this file doesn't touch.
 -- Exposed as a module field (not a local) so a test can call it with a synthetic snapshot.
 function S._apply_snapshot(snapshot, pov_player_id)
 	for _, entry in ipairs(snapshot) do

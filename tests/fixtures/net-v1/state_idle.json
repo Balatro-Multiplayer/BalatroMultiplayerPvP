@@ -1,0 +1,12 @@
+{
+	"rev": 14,
+	"changed": {
+		"pvp.ready": {
+			"runId": null,
+			"round": 0,
+			"ready": {},
+			"firstReady": null,
+			"lastStart": null
+		}
+	}
+}

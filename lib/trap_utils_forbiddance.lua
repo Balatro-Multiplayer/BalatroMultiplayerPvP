@@ -56,7 +56,7 @@ function G.FUNCS.draw_from_deck_to_hand(e)
 				local flipped = trap.ability.mp_forbiddance_flipped or 0
 				PVP.TRAP.disarm_forbiddance(trap)
 				if flipped > 0 and not trap.ability.mp_trap_fired then
-					PVP.TRAP.fire(trap, {})
+					PVP.TRAP.fire(trap)
 				end
 				return true
 			end,

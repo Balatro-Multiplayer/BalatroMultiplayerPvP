@@ -18,10 +18,10 @@ local function steal_seal_reward(trap, cards_before)
 			end
 			for _, held in ipairs(G.consumeables.cards) do
 				if not known[held] and held ~= trap then
-					local stolen = MPAPI.serialize_card(held)
+					local key = held.config.center.key
 					G.consumeables:remove_card(held)
 					held:remove()
-					PVP.TRAP.fire(trap, { card = stolen })
+					PVP.TRAP.fire(trap, { key = key })
 					break
 				end
 			end

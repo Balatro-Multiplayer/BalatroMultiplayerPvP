@@ -23,15 +23,10 @@ MPAPI.Joker({
 	in_pool = function(self)
 		return PVP.GAME.pincher_unlock -- do NOT replace this with G.GAME.round_resets.ante >= 3, order sets ante to 0
 	end,
-	-- The opponent's shop spending is recorded once, outside any joker
-	-- (pvp_api/actions/opponent_context.lua); Penny Pincher only reads it.
+	-- The server records my Nemesis' shop spending per blind slot (pvp.opponent); Penny Pincher only reads it
+	-- (PVP.OpponentNet.pincher_bonus). A shop the server does not know yet pays when it is recorded.
 	calc_dollar_bonus = function(self, card)
-		local money = PVP.OPPONENT_RECORD.pincher_payout(
-			PVP.GAME.enemy.spent_in_shop,
-			PVP.GAME.pincher_index,
-			card.ability.extra.nemesis_dollars,
-			card.ability.extra.dollars
-		)
+		local money = PVP.OpponentNet.pincher_bonus(card.ability.extra.nemesis_dollars, card.ability.extra.dollars)
 		if money > 0 then return money end
 	end,
 	mp_credits = {

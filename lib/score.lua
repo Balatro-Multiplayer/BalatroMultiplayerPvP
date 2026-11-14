@@ -1,7 +1,8 @@
 -- PVP.Score: a player's score as score text (MPAPI.BigScore). Every compare and
 -- every display of a score goes through here, never through the installed
--- number mod's own compare. A missing or malformed score counts as zero, so a
--- bad message from a peer cannot break a compare.
+-- number mod's own compare. A missing or malformed score is unknown (nil): it
+-- ranks below every real score, zero included, and equal to another unknown
+-- one, so a bad message from a peer cannot break a compare or pass for a zero.
 
 PVP.Score = {}
 
@@ -18,14 +19,13 @@ function PVP.Score.parse(text)
 	return MPAPI.BigScore.normalize(text)
 end
 
--- Canonical score text, with zero in place of a missing or malformed score.
-function PVP.Score.or_zero(text)
-	return PVP.Score.parse(text) or PVP.Score.ZERO
-end
-
--- -1, 0 or 1.
+-- -1, 0 or 1. An unknown score (nil, or text that is not a score) ranks below
+-- every score and equal to another unknown one (the server's compareRoundScore).
 function PVP.Score.compare(a, b)
-	return MPAPI.BigScore.compare(PVP.Score.or_zero(a), PVP.Score.or_zero(b))
+	a, b = PVP.Score.parse(a), PVP.Score.parse(b)
+	if a == nil then return b == nil and 0 or -1 end
+	if b == nil then return 1 end
+	return MPAPI.BigScore.compare(a, b)
 end
 
 function PVP.Score.greater(a, b)
@@ -36,9 +36,11 @@ function PVP.Score.equal(a, b)
 	return PVP.Score.compare(a, b) == 0
 end
 
--- Text for people, in Balatro notation.
+-- Text for people, in Balatro notation; an unknown score shows as "???".
 function PVP.Score.display(text)
-	return MPAPI.BigScore.display(PVP.Score.or_zero(text))
+	local score = PVP.Score.parse(text)
+	if score == nil then return localize("k_score_unknown") end
+	return MPAPI.BigScore.display(score)
 end
 
 -- The score as a plain number when it is a whole number below the point where
@@ -60,13 +62,15 @@ end
 
 -- Score text of the sum of score texts. The sum uses the installed number type
 -- (doubles with no mod). With no mod, a score past the double range cannot be
--- added, so the largest score stands in for the sum. Malformed scores count as zero.
+-- added, so the largest score stands in for the sum. An unknown score makes the
+-- sum unknown (nil); the sum of no scores is zero.
 -- If the installed mod's add raises an error, the error is logged and the sum
 -- falls back to the double rule.
 function PVP.Score.sum(list)
 	local texts = {}
 	for i = 1, #list do
-		texts[i] = PVP.Score.or_zero(list[i])
+		texts[i] = PVP.Score.parse(list[i])
+		if texts[i] == nil then return nil end
 	end
 	if MPAPI.BigScore.has_number_mod() then
 		local total = to_big(0)

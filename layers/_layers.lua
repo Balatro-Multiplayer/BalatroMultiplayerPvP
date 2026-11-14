@@ -51,9 +51,7 @@ end)
 -- ----------------------------------------------------------------------------
 -- MPAPI.MODIFIERS/add_modifier/etc. already exist (identical shape, same "not
 -- materialized onto the ruleset" design) -- delegate rather than keep a second
--- copy. modifiers_parse is called from networking/action_handlers.lua and
--- apply_default_modifiers from pvp_api/lobby_bridge.lua's mirror_metadata.
-PVP.modifiers_parse = MPAPI.modifiers_parse
+-- copy. apply_default_modifiers is called from pvp_api/lobby_bridge.lua's mirror_metadata.
 
 -- PVP.active_layer_chain()/get_active_ruleset() (rulesets/_rulesets.lua) resolve the
 -- same lobby metadata MPAPI's own equivalents do, but additionally know about PvP's

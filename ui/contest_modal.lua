@@ -72,7 +72,7 @@ function PVP.contest_offered()
 	if not lobby or PVP.is_practice_mode() then
 		return false
 	end
-	return PVP.Contest.should_offer(PVP._pvp_kind, #lobby:get_players(), MPAPI.has_server_referee(lobby))
+	return PVP.Contest.should_offer(PVP._pvp_kind, #lobby:get_players())
 end
 
 function G.FUNCS.mp_pvp_contest_forfeit()
@@ -163,7 +163,7 @@ end
 -- A match of 3 or more players: only the contester leaves. They get the same
 -- contested screen, and the others are told nothing but a chat line. The
 -- contester's leave goes through pvp_forfeit, the same path as leaving the
--- lobby, so the referee drops their hands and ends the match for nobody else
+-- lobby, so the server drops their hands and ends the match for nobody else
 -- unless one player is left (a pending death of theirs is handled there
 -- instead of as a forfeit).
 function PVP.show_contester_contested_screen()

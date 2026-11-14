@@ -15,7 +15,7 @@ end
 local function fire_mental_prison_if_wheel_left(area)
 	local trap = PVP.TRAP.find_planted(PVP.TRAP.KEY.MENTAL_PRISON)
 	if trap and PVP.TRAP.area_holds_wheel(area) then
-		PVP.TRAP.fire(trap, {})
+		PVP.TRAP.fire(trap)
 	end
 end
 

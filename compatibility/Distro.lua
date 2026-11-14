@@ -20,6 +20,9 @@ if SMODS.Mods["Distro"] and SMODS.Mods["Distro"].can_load then
 	function get_multiplayer_details()
 		local enemy_username = PVP.LOBBY.is_host and PVP.LOBBY.guest.username or PVP.LOBBY.host.username
 
+		if PVP.GAME.lives == nil then
+			return "Multiplayer Versus " .. enemy_username
+		end
 		return "Multiplayer Versus " .. enemy_username .. " | " .. tostring(PVP.GAME.lives) .. " Lives Left"
 	end
 

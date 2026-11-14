@@ -69,10 +69,13 @@ function PVP._start_playback(manifest, on_ready)
 	PVP.apply_replay_loadout(PVP.LOBBY, manifest)
 
 	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
+	-- A run starts with no skips: a known fact, so the opponent's skips of the replay count from 0.
+	PVP.GAME.enemy.skips = 0
 
 	-- A restart (a checkpoint seek, the second pass of a crash rejoin) starts this from inside a
-	-- run that is still on screen. on_ready waits for the new run's own blind-select screen: the
-	-- old run's would fire it before the new run exists.
+	-- run that is still on screen. on_ready waits for the new run to exist (G.GAME replaced), and
+	-- only that: a run loaded from a Run save can come up in the shop. The caller waits for the
+	-- screen it needs (MPAPI.playback.when_screen_ready).
 	local old_game = G.GAME
 
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
@@ -89,7 +92,7 @@ function PVP._start_playback(manifest, on_ready)
 	end)
 
 	PVP._playback_wait_for(function()
-		return G.GAME ~= old_game and G.STATE == G.STATES.BLIND_SELECT
+		return G.GAME ~= old_game
 	end, on_ready)
 end
 

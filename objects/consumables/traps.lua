@@ -1,11 +1,12 @@
 -- Trap: a consumable type that reacts to something your Nemesis does. A Trap can only be
 -- taken from a Trap booster pack (objects/boosters/traps.lua); taking one plants it,
--- face-down, in the Trapper's Nemesis's own consumables instead of the Trapper's (see
--- lib/trap_utils.lua's PVP.TRAP.plant/disguise). When the Nemesis's own action satisfies the
--- trap's trigger, it reveals itself on their screen and its effect benefits the ORIGINAL
--- Trapper -- who also gets a "use" animation on their own screen. See lib/trap_utils.lua for
--- the shared plant/disguise/reveal/notify_owner framework every card below reuses, and the
--- layer that gates when these can spawn at all in layers/traps.lua.
+-- face-down, in the Trapper's Nemesis's own consumables instead of the Trapper's (the server
+-- records the plant, see lib/trap_utils.lua's PVP.TRAP.plant/build/disguise). When the Nemesis's own action
+-- satisfies the trap's trigger, it reveals itself on their screen, reports the fire to the server with
+-- PVP.TRAP.fire, and its effect benefits the ORIGINAL Trapper -- who also gets a "use" animation on their own
+-- screen. The Trapper pays the reward once from the server's record (pvp_api/traps_net.lua), through the
+-- `reward` handler of the card below. See lib/trap_utils.lua for the shared plant/disguise/reveal/fire
+-- framework every card below reuses, and the layer that gates when these can spawn at all in layers/traps.lua.
 SMODS.ConsumableType({
 	key = "Trap",
 	primary_colour = PVP.COLOURS.BLACK,
@@ -33,6 +34,19 @@ SMODS.ConsumableType({
 	},
 })
 
+local ALARM_REROLLS = 2
+local PHASE_DOOR_DOLLARS_PER_GOLD = 4
+local MAX_PHASE_DOOR_GOLDS = 30
+
+-- The owner's own check of a fired trap's data against the game's tables (the server checks only its shape).
+local function is_rare_joker(center)
+	return center ~= nil and center.set == "Joker" and (center.rarity == 3 or center.rarity == "Rare")
+end
+
+local function is_consumable_set(set)
+	return SMODS.ConsumableTypes[set] ~= nil and set ~= "Trap"
+end
+
 local TRAPS = {
 	-- Glyph of Warding: when the Nemesis uses a Spectral card, the Trapper gets a Ward Tag
 	-- (objects/tags/ward.lua), which opens a Jumbo Spectral pack at the next blind choice.
@@ -43,14 +57,10 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.using_consumeable and context.consumeable.config.center.set == "Spectral" then
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			add_tag(Tag("tag_mp_ward"))
 			PVP.UI.show_trap_fired_animation("Glyph of Warding")
 		end,
@@ -63,22 +73,19 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Flush"]) then
-				PVP.TRAP.reveal_and_consume(card)
 				for _, scored in ipairs(context.scoring_hand or {}) do
 					local suit = pseudorandom_element({ "Spades", "Hearts", "Clubs", "Diamonds" }, pseudoseed("mp_trap_symbol"))
 					scored:change_suit(suit)
 				end
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Symbol")
 		end,
 	},
 	-- Alarm: when the Nemesis rerolls their shop, the Trapper gains 2 free rerolls (now in a shop, else at the next shop).
+	-- The count is this mod's own: ALARM_REROLLS, whatever the fired data holds.
 	{
 		key = "trap_alarm",
 		idea = "Virtualized",
@@ -86,15 +93,11 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.reroll_shop then
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { rerolls = 2 })
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
-			PVP.TRAP.grant_free_rerolls(context.data.rerolls)
+		reward = function()
+			PVP.TRAP.grant_free_rerolls(ALARM_REROLLS)
 			PVP.UI.show_trap_fired_animation("Alarm")
 		end,
 	},
@@ -115,15 +118,11 @@ local TRAPS = {
 					end
 				end
 				if armed then
-					PVP.TRAP.reveal_and_consume(card)
-					return PVP.TRAP.notify_owner(card, {})
+					PVP.TRAP.fire(card)
 				end
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Explosive Runes")
 		end,
 	},
@@ -139,19 +138,15 @@ local TRAPS = {
 				and context.card.ability.set == "Joker"
 				and (context.card.config.center.rarity == 3 or context.card.config.center.rarity == "Rare")
 			then
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { key = context.card.config.center.key })
+				PVP.TRAP.fire(card, { key = context.card.config.center.key })
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
+			if not is_rare_joker(G.P_CENTERS[data.key]) then return false, "not a Rare Joker: " .. tostring(data.key) end
 			-- The copy needs a free Joker slot, else it is lost.
-			if context.data.key and #G.jokers.cards + G.GAME.joker_buffer < G.jokers.config.card_limit then
-				-- set required -- see glyph_of_warding's comment above (SMODS.add_card
-				-- never infers it from the target center).
-				SMODS.add_card({ key = context.data.key, set = "Joker", area = G.jokers })
+			if #G.jokers.cards + G.GAME.joker_buffer < G.jokers.config.card_limit then
+				-- set required -- SMODS.add_card never infers it from the target center.
+				SMODS.add_card({ key = data.key, set = "Joker", area = G.jokers })
 			end
 			PVP.UI.show_trap_fired_animation("Sepia Snake Sigil")
 		end,
@@ -165,17 +160,13 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.before and context.poker_hands and next(context.poker_hands["Pair"]) then
-				PVP.TRAP.reveal_and_consume(card)
 				for _, scored in ipairs(context.scoring_hand or {}) do
 					PVP.TRAP.decrease_rank(scored)
 				end
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Fire Trap")
 		end,
 	},
@@ -188,7 +179,6 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.playing_card_added then
-				PVP.TRAP.reveal_and_consume(card)
 				-- Added here, on the Nemesis's client. create_playing_card sends no
 				-- playing_card_added context itself, so the Stone cards cannot re-trigger.
 				for _ = 1, 2 do
@@ -197,31 +187,29 @@ local TRAPS = {
 						center = G.P_CENTERS.m_stone,
 					}, G.deck)
 				end
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Guards and Wards")
 		end,
 	},
 	-- Magic Mouth: when the Nemesis triggers a blue or purple seal, steal the consumable.
-	-- No calculate: the trigger is hooked in lib/trap_utils_magic_mouth.lua, which sends the stolen card here.
+	-- No calculate: the trigger is hooked in lib/trap_utils_magic_mouth.lua, which fires with the key of the stolen card.
 	{
 		key = "trap_magic_mouth",
 		idea = "Virtualized",
 		art = "TypeFate",
 		code = "Virtualized",
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
+		reward = function(data)
+			local center = G.P_CENTERS[data.key]
+			if not (center and (center.set == "Tarot" or center.set == "Planet")) then
+				return false, "not a Tarot or Planet card: " .. tostring(data.key)
 			end
 			-- Counts the buffer too, so a card still being made does not leave the area over its limit.
 			local has_room = #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit
 			if has_room then
-				MPAPI.rebuild_card(context.data.card, G.consumeables)
+				SMODS.add_card({ key = data.key, set = center.set, area = G.consumeables })
 			end
 			PVP.UI.show_trap_fired_animation("Magic Mouth")
 		end,
@@ -235,39 +223,43 @@ local TRAPS = {
 		calculate = function(self, card, context)
 			if context.skip_blind then
 				-- Recorded by lib/trap_utils_snare.lua: other tags may be added before this context runs.
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { tag_key = G.GAME.mp_skipped_tag_key, orbital_hand = G.GAME.mp_skipped_orbital_hand })
+				local tag_key = G.GAME.mp_skipped_tag_key
+				if not tag_key then
+					-- As before: the trap is spent and pays nothing; the server is told it was lost.
+					PVP.match_log("info", "[pvp] snare fired with no recorded tag")
+					return PVP.TRAP.fire_unpaid(card)
+				end
+				local data = { tag_key = tag_key }
+				-- Only an Orbital Tag carries its poker hand.
+				if tag_key == "tag_orbital" then data.orbital_hand = G.GAME.mp_skipped_orbital_hand end
+				PVP.TRAP.fire(card, data)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
+		reward = function(data)
+			if not G.P_TAGS[data.tag_key] then return false, "no such tag: " .. tostring(data.tag_key) end
+			if data.tag_key == "tag_orbital" and not G.GAME.hands[data.orbital_hand] then
+				return false, "no such hand: " .. tostring(data.orbital_hand)
 			end
-			if context.data.tag_key then
-				-- Same as the Double Tag: the copy keeps the original's poker hand.
-				G.orbital_hand = context.data.orbital_hand
-				local copy = Tag(context.data.tag_key)
-				G.orbital_hand = nil
-				add_tag(copy)
-				-- add_tag does not run a tag that acts at once (Economy, Orbital, ...): vanilla only does that
-				-- on a skip, which the Trapper has not made.
-				copy:apply_to_run({ type = "immediate" })
-			end
+			-- Same as the Double Tag: the copy keeps the original's poker hand.
+			G.orbital_hand = data.orbital_hand
+			local copy = Tag(data.tag_key)
+			G.orbital_hand = nil
+			add_tag(copy)
+			-- add_tag does not run a tag that acts at once (Economy, Orbital, ...): vanilla only does that
+			-- on a skip, which the Trapper has not made.
+			copy:apply_to_run({ type = "immediate" })
 			PVP.UI.show_trap_fired_animation("Snare")
 		end,
 	},
 	-- Arcane Lock: the next Trap card the Nemesis takes from a Trap pack goes face-down into their
-	-- own consumables, and this card's Trapper becomes its Trapper. The bounce runs in
-	-- PVP.TRAP.plant, so there is no calculate.
+	-- own consumables, and this card's Trapper becomes its Trapper. The server does the bounce when it
+	-- records the plant (the lock fires with {bounced = new id}), so there is no calculate.
 	{
 		key = "trap_arcane_lock",
 		idea = "Virtualized",
 		art = "shai1n",
 		code = "Virtualized",
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Arcane Lock")
 		end,
 	},
@@ -280,14 +272,10 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.open_booster and PVP.TRAP.add_illusion_slot(context.card) then
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Programmed Illusion")
 		end,
 	},
@@ -300,20 +288,18 @@ local TRAPS = {
 		calculate = function(self, card, context)
 			-- A Trap card taken from a Trap pack is a plant, not a use: a copy would be a dead card.
 			if context.using_consumeable and context.consumeable.config.center.set ~= "Trap" then
-				PVP.TRAP.reveal_and_consume(card)
 				-- `set` must travel with the key: unlike sepia_snake_sigil/glyph_of_warding
 				-- (always one fixed type), Web can copy ANY consumable set (Tarot/Planet/
 				-- Spectral), and SMODS.add_card never infers `set` from the target center.
-				return PVP.TRAP.notify_owner(card, { key = context.consumeable.config.center.key, set = context.consumeable.config.center.set })
+				PVP.TRAP.fire(card, { key = context.consumeable.config.center.key, set = context.consumeable.config.center.set })
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
+		reward = function(data)
+			local center = G.P_CENTERS[data.key]
+			if not (center and center.set == data.set and is_consumable_set(data.set)) then
+				return false, "not a consumable of set " .. tostring(data.set) .. ": " .. tostring(data.key)
 			end
-			if context.data.key then
-				SMODS.add_card({ key = context.data.key, set = context.data.set, area = G.consumeables, edition = "e_negative" })
-			end
+			SMODS.add_card({ key = data.key, set = data.set, area = G.consumeables, edition = "e_negative" })
 			PVP.UI.show_trap_fired_animation("Web")
 		end,
 	},
@@ -329,10 +315,7 @@ local TRAPS = {
 				PVP.TRAP.disarm_forbiddance(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			PVP.UI.show_trap_fired_animation("Forbiddance")
 		end,
 	},
@@ -347,23 +330,19 @@ local TRAPS = {
 			if context.using_consumeable and context.consumeable.config.center.set == "Planet" then
 				local hand_type = context.consumeable.ability.consumeable and context.consumeable.ability.consumeable.hand_type
 				if hand_type then
-					PVP.TRAP.reveal_and_consume(card)
-					return PVP.TRAP.notify_owner(card, { hand_type = hand_type })
+					PVP.TRAP.fire(card, { hand_type = hand_type })
 				end
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
-			if context.data.hand_type then
-				level_up_hand(nil, context.data.hand_type, true, 3)
-			end
+		reward = function(data)
+			if not G.GAME.hands[data.hand_type] then return false, "no such hand: " .. tostring(data.hand_type) end
+			level_up_hand(nil, data.hand_type, true, 3)
 			PVP.UI.show_trap_fired_animation("Faithful Hound")
 		end,
 	},
 	-- Phase Door: when the Nemesis's held gold cards pay out at end of round, the Trapper gains $4
-	-- per gold card in their hand.
+	-- per gold card in their hand. The firing client sends the count of gold cards as `golds`; the dollars are
+	-- computed here, and a count that is not a whole number from 1 to MAX_PHASE_DOOR_GOLDS pays nothing.
 	{
 		key = "trap_phase_door",
 		idea = "Virtualized",
@@ -386,15 +365,15 @@ local TRAPS = {
 						gold_count = gold_count + 1
 					end
 				end
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, { dollars = gold_count * 4 })
+				PVP.TRAP.fire(card, { golds = gold_count })
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
+		reward = function(data)
+			local golds = data and data.golds
+			if type(golds) ~= "number" or golds ~= math.floor(golds) or golds < 1 or golds > MAX_PHASE_DOOR_GOLDS then
+				return false, "no gold count: " .. tostring(golds)
 			end
-			ease_dollars(context.data.dollars, true)
+			ease_dollars(golds * PHASE_DOOR_DOLLARS_PER_GOLD, true)
 			PVP.UI.show_trap_fired_animation("Phase Door")
 		end,
 	},
@@ -408,14 +387,10 @@ local TRAPS = {
 		code = "Virtualized",
 		calculate = function(self, card, context)
 			if context.ending_shop and PVP.TRAP.area_holds_wheel(G.shop_jokers) then
-				PVP.TRAP.reveal_and_consume(card)
-				return PVP.TRAP.notify_owner(card, {})
+				PVP.TRAP.fire(card)
 			end
 		end,
-		receive = function(self, context)
-			if context.data.owner ~= PVP.TRAP.self_id() then
-				return
-			end
+		reward = function(data)
 			for _ = 1, 2 do
 				-- Counts the buffer too, so cards still being made do not leave the area over its limit.
 				if #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
@@ -478,11 +453,12 @@ for index, def in ipairs(TRAPS) do
 			PVP.TRAP.plant(card)
 		end,
 		calculate = PVP.TRAP.fire_once(def.calculate),
-		receive = def.receive,
 		mp_credits = {
 			idea = { def.idea } or nil,
 			art = { def.art } or nil,
 			code = { def.code } or nil,
 		},
 	})
+	-- The owner's reward, by the card's full center key ("c_" and the mod prefix).
+	PVP.TRAP.REWARDS["c_mp_" .. def.key] = def.reward
 end

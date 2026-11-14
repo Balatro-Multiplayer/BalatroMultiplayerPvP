@@ -5,10 +5,6 @@
 
 PVP.lobby = PVP.lobby or { buttons = {} }
 PVP.lobby.ready = PVP.lobby.ready or MPAPI.ReadyTracker()
--- Unanimous seed-change vote tracker (pause menu -> pvp_seed_vote); see pvp_api/run_actions.lua.
-PVP.lobby.seed_votes = PVP.lobby.seed_votes or MPAPI.VoteTracker()
--- Unanimous draw vote tracker (pause menu -> pvp_draw_vote); see pvp_api/run_actions.lua.
-PVP.lobby.draw_votes = PVP.lobby.draw_votes or MPAPI.VoteTracker()
 
 function PVP.get_lobby_kind()
 	return PVP._pvp_kind
@@ -18,22 +14,18 @@ function PVP.is_matchmaking()
 	return PVP._pvp_kind == PVP.LobbyAccess.RANKED or PVP._pvp_kind == PVP.LobbyAccess.CASUAL
 end
 
--- A server-refereed lobby keeps ready on the server; its PLAYER_READY_CHANGED feeds
--- the same tally (pvp_api/lobby_bridge.lua).
+-- Ready lives on the server; its PLAYER_READY_CHANGED feeds the tally
+-- (pvp_api/lobby_bridge.lua).
 function PVP.signal_ready(ready)
 	local lobby = PVP.lobby.ref
 	if not lobby then
 		return
 	end
-	if MPAPI.has_server_referee(lobby) then
-		lobby:set_ready(ready, function(err)
-			if err then
-				sendWarnMessage("Ready failed: " .. tostring(err), "MULTIPLAYER")
-			end
-		end)
-		return
-	end
-	lobby:action(MPAPI.ActionTypes["pvp_player_ready"]):broadcast({ ready = ready and true or false })
+	lobby:set_ready(ready, function(err)
+		if err then
+			sendWarnMessage("Ready failed: " .. tostring(err), "MULTIPLAYER")
+		end
+	end)
 end
 
 function PVP.start_ready_resync()
@@ -77,10 +69,27 @@ function PVP.reset_ready_state()
 	end
 end
 
--- Host-only: record a player's ready state and react.
+-- Put the READY button in the state of the local player's ready.
+local function show_local_ready()
+	local L = PVP.lobby
+	if L.buttons.ready_args and L.buttons.ready then
+		L.buttons.ready_args.label = { L.local_ready and localize("b_unready_cap") or localize("b_ready_cap") }
+		L.buttons.ready_args.colour = L.local_ready and G.C.ORANGE or G.C.GREEN
+		L.buttons.ready:update()
+	end
+end
+
+-- Every client takes its own ready from the server; the host also tallies the others.
 function PVP.set_player_ready(player_id, ready)
 	local lobby = PVP.lobby.ref
-	if not lobby or not lobby.is_host then
+	if not lobby then
+		return
+	end
+	if player_id == lobby.player_id then
+		PVP.lobby.local_ready = ready
+		show_local_ready()
+	end
+	if not lobby.is_host then
 		return
 	end
 	PVP.lobby.ready:set(player_id, ready)
@@ -112,10 +121,6 @@ end
 G.FUNCS.mp_pvp_toggle_ready = function()
 	local L = PVP.lobby
 	L.local_ready = not L.local_ready
-	if L.buttons.ready_args and L.buttons.ready then
-		L.buttons.ready_args.label = { L.local_ready and localize("b_unready_cap") or localize("b_ready_cap") }
-		L.buttons.ready_args.colour = L.local_ready and G.C.ORANGE or G.C.GREEN
-		L.buttons.ready:update()
-	end
+	show_local_ready()
 	PVP.signal_ready(L.local_ready)
 end

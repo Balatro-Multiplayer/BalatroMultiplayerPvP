@@ -60,7 +60,8 @@ function PVP.UTILS.get_nemesis_key(own) -- calling this function assumes the use
 	end
 	local num = ((not own) ~= (not PVP.LOBBY.is_host) and PVP.LOBBY.guest.blind_col or PVP.LOBBY.host.blind_col) or 1 -- cryptic xor fuckery
 	local ret = PVP.UTILS.blind_col_numtokey(num)
-	if tonumber(PVP.GAME.enemy.lives) <= 1 and tonumber(PVP.GAME.lives) <= 1 then
+	local enemy_lives, own_lives = tonumber(PVP.GAME.enemy.lives), tonumber(PVP.GAME.lives)
+	if enemy_lives and own_lives and enemy_lives <= 1 and own_lives <= 1 then
 		if G.STATE ~= G.STATES.ROUND_EVAL then -- very messy fix that mostly works. breaks in a different way... but far harder to notice
 			-- random ass showdown blind mapping because i can. surely one day this data will be organised better
 			ret = ({

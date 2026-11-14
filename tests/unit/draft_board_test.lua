@@ -185,12 +185,6 @@ end
 for _, name in ipairs({ "balanced", "expanded", "smallworld" }) do
 	dofile("rulesets/" .. name .. ".lua")
 end
-local noop = function() end
-PVP._pvp_action_helpers = setmetatable({}, {
-	__index = function()
-		return noop
-	end,
-})
 dofile("pvp_api/actions/run_lifecycle.lua")
 
 local function pool_stakes_and_decks(ruleset, pool_size)

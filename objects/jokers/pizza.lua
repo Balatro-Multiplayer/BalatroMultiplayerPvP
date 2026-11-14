@@ -22,14 +22,7 @@ MPAPI.Joker({
 		PVP.UTILS.add_nemesis_info(info_queue)
 		return { vars = { card.ability.extra.discards, card.ability.extra.discards_nemesis } }
 	end,
-	-- Opponent receives the discard count directly: gains discards this round (was action_eat_pizza).
-	receive = function(self, context)
-		local discards = context.data
-		PVP.RLOG.record(MPAPI.OPCODE.NET_PIZZA, discards, "action:netPizza,discards:" .. tostring(discards))
-		PVP.GAME.pizza_discards = PVP.GAME.pizza_discards + discards
-		G.GAME.round_resets.discards = G.GAME.round_resets.discards + discards
-		ease_discard(discards)
-	end,
+	-- The Nemesis' discard is the server's (pvp.effect pizza, applied by pvp_api/effects_net.lua).
 	calculate = function(self, card, context)
 		if context.mp_end_of_pvp and not context.blueprint and not PVP.is_phantom(card) then
 			PVP.GAME.pizza_discards = PVP.GAME.pizza_discards + card.ability.extra.discards
@@ -37,8 +30,8 @@ MPAPI.Joker({
 			ease_discard(card.ability.extra.discards)
 			card:remove_from_deck()
 			card:start_dissolve({ G.C.RED }, nil, 1.6)
+			PVP.EffectsNet.send_effect("pizza")
 			return {
-				send = card.ability.extra.discards_nemesis,
 				message = localize("k_eaten_ex"),
 				colour = G.C.RED,
 			}

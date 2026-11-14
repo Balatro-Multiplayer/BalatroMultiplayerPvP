@@ -4,8 +4,9 @@
 local ease_ante_ref = ease_ante
 function ease_ante(mod)
 	if PVP.is_mp_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud then
-		-- Prevents easing multiple times at once
-		if PVP.GAME.antes_keyed[PVP.GAME.ante_key] then return end
+		-- Prevents easing multiple times at once. Only an ante going up is guarded: a Manhunt
+		-- voucher lowers it in the shop of the same blind, after the Boss already raised it.
+		if mod > 0 and PVP.GAME.antes_keyed[PVP.GAME.ante_key] then return end
 
 		-- pizza: remove discards
 		if PVP.GAME.pizza_discards > 0 then
@@ -14,7 +15,7 @@ function ease_ante(mod)
 			PVP.GAME.pizza_discards = 0
 		end
 
-		PVP.GAME.antes_keyed[PVP.GAME.ante_key] = true
+		if mod > 0 then PVP.GAME.antes_keyed[PVP.GAME.ante_key] = true end
 		PVP.ACTIONS.set_ante(G.GAME.round_resets.ante + mod)
 		G.E_MANAGER:add_event(Event({
 			trigger = "immediate",

@@ -1,0 +1,213 @@
+{
+	"rev": 12,
+	"full": true,
+	"changed": {
+		"pvp.rules": {
+			"runId": "r1",
+			"mode": "teams",
+			"startedCount": 4,
+			"startingLives": 4,
+			"hunterLives": 7,
+			"pvpStartAnte": 2,
+			"deathOnRoundLoss": true,
+			"clocks": {
+				"ante": "none",
+				"pvp": null,
+				"personal": null
+			}
+		},
+		"pvp.round": {
+			"runId": "r1",
+			"roundId": 1,
+			"phase": "playing",
+			"players": {
+				"a1": {
+					"score": null,
+					"handsLeft": 4,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": null
+				},
+				"a2": {
+					"score": null,
+					"handsLeft": 4,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": null
+				},
+				"b1": {
+					"score": null,
+					"handsLeft": 3,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": null
+				},
+				"b2": {
+					"score": null,
+					"handsLeft": 4,
+					"highestScore": null,
+					"ante": null,
+					"furthestBlind": null,
+					"timerLosses": 0,
+					"handsSpent": false,
+					"pvpLeftMs": null
+				}
+			},
+			"lastResult": null,
+			"deadline": null
+		},
+		"pvp.lives": {
+			"runId": "r1",
+			"players": {
+				"a1": {
+					"lives": 4,
+					"eliminated": false,
+					"forfeited": false,
+					"left": false,
+					"events": []
+				},
+				"a2": {
+					"lives": 4,
+					"eliminated": false,
+					"forfeited": false,
+					"left": false,
+					"events": []
+				},
+				"b1": {
+					"lives": 4,
+					"eliminated": false,
+					"forfeited": false,
+					"left": false,
+					"events": []
+				},
+				"b2": {
+					"lives": 4,
+					"eliminated": false,
+					"forfeited": false,
+					"left": false,
+					"events": []
+				}
+			},
+			"teamLives": {
+				"A": 4,
+				"B": 4
+			},
+			"pending": []
+		},
+		"pvp.targets": {
+			"runId": "r1",
+			"opponents": {},
+			"cardTargets": {
+				"a1": "b2",
+				"a2": "b1",
+				"b1": "a2",
+				"b2": "a2"
+			},
+			"teamScores": null,
+			"safe": {},
+			"pairingAnte": null
+		},
+		"pvp.teams": {
+			"runId": "r1",
+			"teams": {
+				"a1": "A",
+				"a2": "A",
+				"b1": "B",
+				"b2": "B"
+			}
+		},
+		"pvp.votes": {
+			"runId": "r1",
+			"draw": [],
+			"seed": []
+		},
+		"pvp.result": {
+			"runId": null,
+			"kind": null,
+			"winnerId": null,
+			"winnerTeam": null,
+			"places": []
+		},
+		"pvp.skips": {
+			"runId": "r1",
+			"players": {
+				"a1": {
+					"skips": 0,
+					"anteBankMs": 150000
+				},
+				"a2": {
+					"skips": 0,
+					"anteBankMs": 150000
+				},
+				"b1": {
+					"skips": 0,
+					"anteBankMs": 150000
+				},
+				"b2": {
+					"skips": 0,
+					"anteBankMs": 150000
+				}
+			}
+		},
+		"pvp.opponent": {
+			"runId": "r1",
+			"players": {
+				"a1": {
+					"sells": {},
+					"slots": [],
+					"closed": false
+				},
+				"a2": {
+					"sells": {},
+					"slots": [],
+					"closed": false
+				},
+				"b1": {
+					"sells": {},
+					"slots": [],
+					"closed": false
+				},
+				"b2": {
+					"sells": {},
+					"slots": [],
+					"closed": false
+				}
+			}
+		},
+		"pvp.traps": {
+			"runId": "r1",
+			"trapSeq": 0,
+			"traps": []
+		},
+		"pvp.nemesis": {
+			"runId": "r1",
+			"byAnte": {}
+		},
+		"pvp.effects": {
+			"runId": "r1",
+			"me": {
+				"incoming": []
+			}
+		},
+		"pvp.ready": {
+			"runId": "r1",
+			"round": 1,
+			"ready": {},
+			"firstReady": null,
+			"lastStart": {
+				"roundId": 1,
+				"firstPlayer": "a1",
+				"players": ["a1", "a2", "b1", "b2"]
+			}
+		}
+	}
+}

@@ -5,8 +5,8 @@ PVP.Gamemode({
 			-- PVP.current_target_id() is always non-nil for 1v1 (sole opponent). For
 			-- Nemesis (rotating pairing), nil means byed this ante -- fall through to a
 			-- normal boss instead of the nemesis one, the entire bye mechanism. Royale
-			-- has no bye/sit-out concept (referee.lua's rank-and-cut ranks every alive
-			-- player every PvP round), and PVP.GAME.royale_target_id only ever latches as
+			-- has no bye/sit-out concept (the server ranks and cuts every alive
+			-- player every PvP round), and the Royale target (now pvp.targets) once only latched as
 			-- a side effect of a multiplayer joker/consumable interaction (Asteroid/
 			-- Taxes/Penny Pincher) -- which can't happen before the first PvP blind ever
 			-- runs. Treating an unresolved Royale target as a bye would mean a match with

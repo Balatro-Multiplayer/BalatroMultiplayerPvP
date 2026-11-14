@@ -30,7 +30,7 @@ MPAPI.register_lobby_reconnect(PVP.id, function(lobby)
 	local started = lobby._game and lobby._game.started
 	local setup = lobby._game and lobby._game.setup
 	local in_setup = setup and (setup.open or next(setup.results or {}))
-	if MPAPI.has_server_referee(lobby) and started and not started.restarted and in_setup then
-		PVP.on_game_start({ seed = started.seed, stake = tostring(started.stake or 1) })
+	if started and not started.restarted and in_setup then
+		PVP.on_game_start(lobby, { seed = started.seed, stake = tostring(started.stake or 1) })
 	end
 end)
