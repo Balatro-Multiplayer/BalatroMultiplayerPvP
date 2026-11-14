@@ -11,7 +11,7 @@ local RULESET_KEYS = {
 	PVP.RulesetKey.EXPANDED,
 	PVP.RulesetKey.SMALLWORLD,
 }
-local DEFAULT_RULESET_KEY = PVP.RulesetKey.BALANCED -- what every gamemode key creates a lobby on.
+local DEFAULT_RULESET_KEY = PVP.RulesetKey.EXPANDED -- what a private lobby opens on (PVP.private_lobby_default_ruleset).
 
 local function ruleset_labels()
 	local labels = {}

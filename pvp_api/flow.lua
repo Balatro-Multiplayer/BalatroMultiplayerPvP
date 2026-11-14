@@ -26,6 +26,17 @@ function PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 	PVP.LOBBY.config.gamemode = def.gamemode
 end
 
+-- The ruleset a new private lobby opens on: Expanded where the gamemode would
+-- play Balanced. A gamemode with a ruleset of its own (Small World, Experimental)
+-- keeps it. Matchmaking still plays each gamemode's own default.
+function PVP.private_lobby_default_ruleset(gamemode_key)
+	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	if def.ruleset == PVP.RulesetKey.BALANCED then
+		return PVP.RulesetKey.EXPANDED
+	end
+	return def.ruleset
+end
+
 -- Host-authored shared lobby metadata. `gamemode`/`ruleset` are MPAPI's own content
 -- keys (e.g. "gamemode_mp_attrition" / "ruleset_mp_balanced") so MPAPI.ApplyBans/
 -- MPAPI.get_active_gamemode() resolve directly to the banned_*-bearing object, no
@@ -108,6 +119,7 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = gamemode_key
 	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
+	PVP.LOBBY.config.ruleset = PVP.private_lobby_default_ruleset(gamemode_key)
 	PVP.setup_lobby_mirror(lobby)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then
