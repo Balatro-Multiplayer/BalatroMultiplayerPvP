@@ -1665,6 +1665,7 @@ return {
 			k_pvp_contest_by = "#1# contested the match with another player.",
 			k_pvp_placement_progress = "Placement: #1#",
 			k_pvp_starting_in = "Starting in #1#",
+			k_pvp_reveal_players = "#1# players",
 			k_pvp_queue_in_queue = "#1# in queue",
 			k_pvp_queue_widening = "Widening search #1#/#2#",
 			k_end_player_jokers = "#1#'s Jokers",

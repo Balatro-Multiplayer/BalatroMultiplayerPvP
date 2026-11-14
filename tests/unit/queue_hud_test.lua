@@ -560,6 +560,79 @@ do
 	for _, object in ipairs(owned) do
 		eq(object.removals, 1, "the outro removes every card and area exactly once")
 	end
+	-- A casual lobby of up to sixteen has no one opponent: its reveal is a roster, with no VS.
+	local function run_events()
+		local pending = events
+		events = {}
+		for _, event in ipairs(pending) do
+			if event.trigger == "after" then event.func() end
+		end
+	end
+	MPAPI.GameModes = { pvp_royale = { max_players = { public = 16 } }, pvp_nemesis = { max_players = { public = 2 } } }
+	Q.start({ kind = "casual", key = "pvp_nemesis" })
+	Q.match_found()
+	eq(Reveal.view.duel, true, "a two-player casual queue still gets the duel")
+	Q.dismiss_reveal()
+	run_events()
+	Q.start({ kind = "casual", key = "pvp_royale" })
+	Q.match_found()
+	run_events()
+	run_events()
+	view = Reveal.view
+	eq(view.duel, false, "a sixteen-player queue gets the roster")
+	assert(view.roster and not view.left and not view.right and not view.vs, "one roster panel, no cards or VS")
+	local roster = view.roster
+	local function seated()
+		local n = 0
+		local function walk(node)
+			if node.config.object and node.config.object.center then n = n + 1 end
+			for _, child in ipairs(node.children) do
+				walk(child)
+			end
+		end
+		walk(roster.UIRoot)
+		return n
+	end
+	eq(seated(), 1, "the roster starts with us")
+	local seats = { { id = "me" }, { id = "a", displayName = "A" } }
+	Q.lobby_ready({
+		player_id = "me",
+		get_players = function()
+			return seats
+		end,
+	})
+	Game.update({}, 0)
+	eq(seated(), 2, "and seats each player who joins")
+	eq(view.footer_text, "k_pvp_starting_in:4", "the countdown starts with the second player")
+	clock = clock + 2
+	Game.update({}, 0)
+	eq(view.footer_text, "k_pvp_starting_in:2", "and runs")
+	seats[3] = { id = "b", displayName = "B", preferredJoker = "j_turtle_bean" }
+	Game.update({}, 0)
+	eq(seated(), 3, "a third player is seated")
+	eq(view.footer_text, "k_pvp_starting_in:4", "and restarts the countdown, as the host's hold restarts")
+	table.remove(seats, 2)
+	Game.update({}, 0)
+	assert(Reveal.view == view, "one of several leaving doesn't end the reveal")
+	eq(seated(), 2, "they leave the roster")
+	clock = clock + 1
+	Game.update({}, 0)
+	eq(view.footer_text, "k_pvp_starting_in:3", "and the countdown carries on")
+	Q.finish_reveal()
+	assert(roster.alignment.offset.y > 5 and not roster.removed, "the roster slides off when the game starts")
+	run_events()
+	eq(roster.removed, true, "and is removed")
+	eq(Reveal.roster_scale(2) > Reveal.roster_scale(8), true, "avatars shrink as the roster fills")
+	eq(Reveal.roster_scale(8) > Reveal.roster_scale(16), true, "down to sixteen")
+
+	-- A group queue searches from its own lobby, with no HUD: its match names the queue.
+	Q.match_found({ kind = "casual", key = "pvp_royale" })
+	eq(Reveal.view and Reveal.view.duel, false, "a group's match opens the roster for its mode")
+	Q.dismiss_reveal()
+	run_events()
+	for _, object in ipairs(owned) do
+		eq(object.removals, 1, "the roster removes every card and area exactly once")
+	end
 	-- Responses from a cancelled search must not overwrite a restart on the same board.
 	G.E_MANAGER.add_event = function(_, event)
 		if event.trigger == "after" then event.func() end
@@ -675,5 +748,27 @@ do
 	handlers.error("lobby join failed: timeout")
 	eq(Reveal.view, nil, "an error after match_found ends the reveal")
 	eq(Q.active, false, "and the search")
+	-- The group queue's handles drive the same reveal (pvp_api/group_queue.lua).
+	MPAPI.GameModes = { pvp_royale = { max_players = { public = 16 } } }
+	MPAPI.matchmaking.group = nil
+	PVP.reset_ruleset_to_gamemode_default = noop
+	PVP.setup_lobby_mirror, PVP.signal_ready, PVP.start_ready_resync = noop, noop, noop
+	PVP.pvp_lobby_metadata = noop
+	dofile("pvp_api/group_queue.lua")
+	handlers = {}
+	PVP._wire_group_handle({
+		on = function(_, event, fn)
+			handlers[event] = fn
+		end,
+	}, "pvp_royale")
+	handlers.match_found({ matchId = "m1" })
+	assert(Reveal.view and not Reveal.view.duel, "a group's match_found opens the roster reveal")
+	local group_lobby = { player_id = "me", get_players = function()
+		return { { id = "me" } }
+	end }
+	handlers.lobby_ready(group_lobby)
+	eq(Reveal.lobby, group_lobby, "its lobby_ready hands the reveal the lobby")
+	handlers.error("lobby join failed: timeout")
+	eq(Reveal.view, nil, "an error after a group's match_found ends the reveal")
 	print("queue_hud_test smoke: ok")
 end

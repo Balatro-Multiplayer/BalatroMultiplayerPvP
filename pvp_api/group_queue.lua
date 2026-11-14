@@ -55,6 +55,8 @@ function PVP._wire_group_handle(handle, gamemode_key)
 
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] group queue error: " .. tostring(err), "MULTIPLAYER")
+		-- An error after match_found is a failed lobby join: the reveal has nothing left to show.
+		PVP.QUEUE_HUD.dismiss_reveal()
 		if PVP._match_handle == handle then
 			PVP._match_handle = nil
 		end
@@ -68,6 +70,9 @@ function PVP._wire_group_handle(handle, gamemode_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] group match_found " .. tostring(data and data.matchId))
+		-- The same reveal a solo search gets: the host of the public lobby holds its start
+		-- for the reveal's countdown whoever is in it (ui/lobby/_ready.lua).
+		PVP.QUEUE_HUD.match_found({ kind = PVP.LobbyAccess.CASUAL, key = gamemode_key })
 		-- Out of the home lobby (MPAPI parked our seat there) and into a
 		-- matchmade one: the lobby view belongs to the public lobby now.
 		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
@@ -83,6 +88,7 @@ function PVP._wire_group_handle(handle, gamemode_key)
 	end)
 
 	handle:on("lobby_ready", function(lobby)
+		PVP.QUEUE_HUD.lobby_ready(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
 		PVP._match_handle = handle
 		PVP.setup_lobby_mirror(lobby)
@@ -101,6 +107,7 @@ function PVP._wire_group_handle(handle, gamemode_key)
 	end)
 
 	handle:on("left", function()
+		PVP.QUEUE_HUD.dismiss_reveal()
 		if PVP._match_handle == handle then
 			PVP._match_handle = nil
 		end
