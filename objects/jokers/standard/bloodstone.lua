@@ -13,11 +13,13 @@ SMODS.Joker({
 	no_collection = true,
 	config = { extra = { odds = 2, Xmult = 1.5 }, mp_balanced = true },
 	loc_vars = function(self, info_queue, card)
+		-- Through SMODS so an opponent's Bloodstone shows its odds without this player's Oops! All 6s.
+		local numerator, denominator = SMODS.get_probability_vars(card, 1, card.ability.extra.odds, "j_bloodstone")
 		return {
 			key = "j_bloodstone",
 			vars = {
-				"" .. (G.GAME and G.GAME.probabilities.normal or 1),
-				card.ability.extra.odds,
+				numerator,
+				denominator,
 				card.ability.extra.Xmult,
 			},
 		}
