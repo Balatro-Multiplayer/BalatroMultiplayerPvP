@@ -6,6 +6,9 @@ PVP.LobbyAccess = {
 	PRACTICE = "practice",
 	RANKED = "ranked",
 	CASUAL = "casual",
+	-- A tournament match's lobby, made by the server (pvp_api/tournament/play.lua):
+	-- played like a matchmade game, with the tournament's round settings.
+	TOURNAMENT = "tournament",
 	-- A Party lobby's metadata kind (pvp_api/party_lobby.lua). Its client kind stays PRIVATE.
 	PARTY = MPAPI.Party.KIND,
 	RANKED_PREFIX = "ranked:",
@@ -59,7 +62,7 @@ end
 -- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
 -- lobby can change the ruleset, so The Order goes back on before the ruleset
 -- forces its options.
-local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
+local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true, [PVP.LobbyAccess.TOURNAMENT] = true }
 
 function PVP.force_lobby_options(kind, ruleset_key)
 	if not FORCES_LOBBY_OPTIONS[kind] then
@@ -155,8 +158,18 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message("Waiting for an opponent...")
 		return
 	end
+	-- A start that doesn't happen lets the autostart try again (once the
+	-- versions agree, pvp_api/lobby_bridge.lua), instead of leaving a
+	-- matchmade or tournament lobby waiting for good.
+	local function not_started()
+		if PVP.lobby then
+			PVP.lobby.start_broadcasted = false
+		end
+		PVP._start_held = true
+	end
 	local mismatches = PVP.UTILS.version_mismatches()
 	if #mismatches > 0 then
+		not_started()
 		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
 		return
 	end
@@ -178,6 +191,9 @@ function PVP.pvp_start_match()
 			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
 			options = { queue_mode = queue_mode },
 		}, function(err)
+			if err then
+				not_started()
+			end
 			if err and PVP.VersionGate.is_server_refusal(err) then
 				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
 			elseif err then
