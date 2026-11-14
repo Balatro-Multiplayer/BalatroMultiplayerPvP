@@ -42,6 +42,13 @@ function PVP.ruleset_display_name(ruleset_key)
 	return localize(RULESET_NAME_KEY[ruleset_key])
 end
 
+-- The ruleset's long description (its name key + "_description"), or nil when it has none.
+function PVP.ruleset_description(ruleset_key)
+	local name_key = RULESET_NAME_KEY[ruleset_key]
+	local dictionary = G.localization and G.localization.misc and G.localization.misc.dictionary or {}
+	return name_key and dictionary[name_key .. "_description"] or nil
+end
+
 function PVP.Ruleset(init)
 	init.key = "ruleset_mp_" .. init.key
 	init.prefix_config = init.prefix_config or { key = false }

@@ -12,6 +12,9 @@ local GAMEMODES = {
 	pvp_manhunt = { name_key = "k_pvp_gamemode_manhunt", style = "manhunt" },
 	pvp_teams = { name_key = "k_pvp_gamemode_teams", style = "teams" },
 }
+for _, gamemode in pairs(GAMEMODES) do
+	gamemode.desc_key = gamemode.name_key .. "_desc"
+end
 
 -- ruleset key -> its MODE_COLOUR / MODE_CHIP_ROW key (nil: no art, a plain plate).
 local RULESET_STYLES = {
@@ -23,18 +26,37 @@ local RULESET_STYLES = {
 }
 
 -- What the banner shows, as plain data: one part per thing to name, in order.
--- A part is { caption_key, name_key | ruleset_key, style }. An unknown gamemode
--- (nil before the host's metadata arrives) is left out rather than guessed.
+-- A part is { caption_key, name_key + desc_key | ruleset_key, style }. An unknown
+-- gamemode (nil before the host's metadata arrives) is left out rather than guessed.
 function PVP.lobby_mode_parts(queue_mode, ruleset_key)
 	local parts = {}
 	local gamemode = queue_mode and GAMEMODES[queue_mode]
 	if gamemode then
-		parts[#parts + 1] = { caption_key = "k_pvp_lobby_gamemode_caption", name_key = gamemode.name_key, style = gamemode.style }
+		parts[#parts + 1] = { caption_key = "k_pvp_lobby_gamemode_caption", name_key = gamemode.name_key, desc_key = gamemode.desc_key, style = gamemode.style }
 	end
 	if ruleset_key then
 		parts[#parts + 1] = { caption_key = "k_pvp_lobby_ruleset_caption", ruleset_key = ruleset_key, style = RULESET_STYLES[ruleset_key] }
 	end
 	return parts
+end
+
+-- A description as tooltip lines: one per line of text, a blank line kept as a
+-- spacer, and nil when there is nothing to say.
+function PVP.lobby_mode_tooltip_lines(text)
+	if type(text) ~= "string" or text:match("^%s*$") then
+		return nil
+	end
+	local lines = {}
+	for line in (text:gsub("%s+$", "") .. "\n"):gmatch("(.-)\n") do
+		lines[#lines + 1] = line == "" and " " or line
+	end
+	return lines
+end
+
+local function part_tooltip(part)
+	local text = part.desc_key and localize(part.desc_key) or PVP.ruleset_description(part.ruleset_key)
+	local lines = PVP.lobby_mode_tooltip_lines(text)
+	return lines and { text = lines } or nil
 end
 
 local function part_node(part)
@@ -57,7 +79,17 @@ local function part_node(part)
 	} }
 	return {
 		n = G.UIT.C,
-		config = { align = "cm", padding = 0.08, r = 0.1, minw = 3, colour = mix_colours(colour, G.C.BLACK, 0.3), outline = 1.2, outline_colour = colour },
+		config = {
+			align = "cm",
+			padding = 0.08,
+			r = 0.1,
+			minw = 3,
+			colour = mix_colours(colour, G.C.BLACK, 0.3),
+			outline = 1.2,
+			outline_colour = colour,
+			on_demand_tooltip = part_tooltip(part),
+			id = part.name_key and "pvp_lobby_mode_gamemode" or "pvp_lobby_mode_ruleset",
+		},
 		nodes = nodes,
 	}
 end

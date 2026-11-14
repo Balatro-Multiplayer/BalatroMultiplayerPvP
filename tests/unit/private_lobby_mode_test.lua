@@ -64,11 +64,25 @@ check(#PVP.lobby_mode_parts(nil, nil) == 0, "nothing known, nothing shown")
 parts = PVP.lobby_mode_parts("pvp_nemesis", R.EXPERIMENTAL)
 check(parts[2].style == nil, "a ruleset without art gets a plain plate")
 
--- Every name the banner localizes exists in en-us.
+-- Hover text: the gamemode part carries its description key; the ruleset part is
+-- described by the ruleset's own "_description" entry at render time.
+parts = PVP.lobby_mode_parts("pvp_manhunt", R.EXPANDED)
+check(parts[1].desc_key == "k_pvp_gamemode_manhunt_desc", "the gamemode part names its description")
+check(parts[2].desc_key == nil, "the ruleset part has no gamemode description")
+
+local lines = PVP.lobby_mode_tooltip_lines("Near-vanilla.\n\nJustice is banned.\n")
+check(#lines == 3 and lines[1] == "Near-vanilla." and lines[2] == " " and lines[3] == "Justice is banned.", "a description splits into lines, a blank line kept as a spacer")
+check(#PVP.lobby_mode_tooltip_lines("One line.") == 1, "a one-line description is one line")
+check(PVP.lobby_mode_tooltip_lines(nil) == nil and PVP.lobby_mode_tooltip_lines("  ") == nil, "no description, no tooltip")
+
+-- Every name and description the banner localizes exists in en-us.
 local dictionary = dofile("localization/en-us.lua").misc.dictionary
 for _, key in ipairs({
 	"k_pvp_lobby_gamemode_caption", "k_pvp_lobby_ruleset_caption",
 	"k_pvp_gamemode_nemesis", "k_pvp_gamemode_royale", "k_pvp_gamemode_manhunt", "k_pvp_gamemode_teams",
+	"k_pvp_gamemode_nemesis_desc", "k_pvp_gamemode_royale_desc", "k_pvp_gamemode_manhunt_desc", "k_pvp_gamemode_teams_desc",
+	"k_vanilla_description", "k_mp_ruleset_balanced_description", "k_mp_ruleset_expanded_description",
+	"k_smallworld_description", "k_experimental_description", "k_majorleague_description",
 }) do
 	check(type(dictionary[key]) == "string", key .. " is in en-us")
 end

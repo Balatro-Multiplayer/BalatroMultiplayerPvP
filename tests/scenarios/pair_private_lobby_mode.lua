@@ -2,6 +2,47 @@
 -- ruleset change reaches the guest's banner.
 local P = assert(SMODS.load_file("tests/scenarios/lib/pair.lua", "MultiplayerPvP"))()
 
+-- The banner plate with this id, from whichever UIBox holds the lobby view.
+local function plate(id)
+	for _, box in ipairs(G.I.UIBOX or {}) do
+		local element = box.get_UIE_by_ID and box:get_UIE_by_ID(id)
+		if element then
+			return element
+		end
+	end
+end
+
+-- Hovers a plate, screenshots its tooltip next frame, then lets go.
+local function hover_shot(id, name)
+	return {
+		{
+			run = function(S)
+				local element = plate(id)
+				S.check(element ~= nil and element.config.on_demand_tooltip ~= nil, P.role .. " " .. id .. " has a tooltip")
+				if element then
+					element:hover()
+				end
+			end,
+			wait = 0.5,
+		},
+		{
+			run = function()
+				P.screenshot(name)
+			end,
+			wait = 0.5,
+		},
+		{
+			run = function()
+				local element = plate(id)
+				if element then
+					element:stop_hover()
+				end
+			end,
+			wait = 0.3,
+		},
+	}
+end
+
 local function parts()
 	local lobby = MPAPI.get_current_lobby()
 	local queue_mode = lobby and (lobby:get_metadata() or {}).queue_mode
@@ -28,6 +69,8 @@ return P.steps(
 		end,
 	},
 	{ wait = 0.5 },
+	hover_shot("pvp_lobby_mode_gamemode", "hover_gamemode"),
+	hover_shot("pvp_lobby_mode_ruleset", "hover_ruleset"),
 	P.sync("shot1"),
 	P.only("host", {
 		run = function()
