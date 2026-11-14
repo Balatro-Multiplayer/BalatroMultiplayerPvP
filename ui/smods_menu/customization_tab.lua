@@ -5,7 +5,7 @@ function PVP.UI.create_customization_tab()
 		1.4,
 		1.4,
 		G.ANIMATION_ATLAS["mp_player_blind_col"],
-		G.P_BLINDS[PVP.UTILS.blind_col_numtokey(PVP.LOBBY.blind_col)].pos
+		G.P_BLINDS[PVP.UTILS.blind_col_numtokey(PVP.CLIENT.blind_col)].pos
 	)
 	blind_anim:define_draw_steps({
 		{ shader = "dissolve", shadow_height = 0.05 },
@@ -122,12 +122,12 @@ function PVP.UI.create_customization_tab()
 						w = 4,
 						max_length = 25,
 						prompt_text = localize("k_enter_username"),
-						ref_table = PVP.LOBBY,
+						ref_table = PVP.CLIENT,
 						ref_value = "username",
 						extended_corpus = true,
 						keyboard_offset = -3,
 						callback = function(val)
-							PVP.UTILS.save_username(PVP.LOBBY.username)
+							PVP.UTILS.save_username(PVP.CLIENT.username)
 						end,
 					}),
 					{
@@ -163,7 +163,7 @@ function PVP.UI.create_customization_tab()
 								id = "blind_col_changer_option",
 								label = localize({
 									type = "name_text",
-									key = PVP.UTILS.blind_col_numtokey(PVP.LOBBY.blind_col),
+									key = PVP.UTILS.blind_col_numtokey(PVP.CLIENT.blind_col),
 									set = "Blind",
 								}),
 								scale = 0.8,
@@ -195,7 +195,7 @@ function PVP.UI.create_customization_tab()
 									25,
 								}, -- blind_cols are being saved as numbers because of this option cycle. if this is changed then we should probably change to keys
 								opt_callback = "change_blind_col",
-								current_option = PVP.LOBBY.blind_col,
+								current_option = PVP.CLIENT.blind_col,
 							}),
 						},
 					},

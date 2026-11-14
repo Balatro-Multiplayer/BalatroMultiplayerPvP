@@ -4,6 +4,7 @@
 -- Run from the repo root: luajit tests/unit/version_overlay_test.lua
 local noop = function() end
 PVP = {
+	CLIENT = {},
 	LOBBY = { config = {}, deck = {} },
 	GAME = {},
 	UTILS = {},

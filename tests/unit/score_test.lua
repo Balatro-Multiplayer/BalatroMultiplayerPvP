@@ -3,7 +3,7 @@
 -- Needs the MPAPI repo next to this one (BalatroMultiplayerAPI/lib/big_score.lua).
 MPAPI = {}
 PVP = {}
-dofile("../BalatroMultiplayerAPI/lib/big_score.lua")
+dofile((os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/") .. "lib/big_score.lua")
 dofile("lib/score.lua")
 dofile("pvp_api/referee.lua")
 local S = PVP.Score
