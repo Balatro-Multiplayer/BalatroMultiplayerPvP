@@ -14,8 +14,10 @@ function PVP.get_lobby_kind()
 	return PVP._pvp_kind
 end
 
+-- Tournament lobbies play like matchmade ones: everyone readies on joining,
+-- the host starts, the Draft runs.
 function PVP.is_matchmaking()
-	return PVP._pvp_kind == PVP.LobbyAccess.RANKED or PVP._pvp_kind == PVP.LobbyAccess.CASUAL
+	return PVP._pvp_kind == PVP.LobbyAccess.RANKED or PVP._pvp_kind == PVP.LobbyAccess.CASUAL or PVP._pvp_kind == PVP.LobbyAccess.TOURNAMENT
 end
 
 -- A server-refereed lobby keeps ready on the server; its PLAYER_READY_CHANGED feeds

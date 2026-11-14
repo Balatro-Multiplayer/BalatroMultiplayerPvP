@@ -204,8 +204,13 @@ end
 -- PVP.LOBBY on every metadata change, so a stale queued stake there would undo the
 -- Draft (and a Reseed would then start on it). The server keeps the drafted stake
 -- in the started game itself for a server-run restart.
-function PVP.publish_drafted_loadout(lobby, back, stake)
+-- recipe: the drafted Cocktail's mix (a tournament pool Cocktail), so every
+-- client's metadata mirror keeps it.
+function PVP.publish_drafted_loadout(lobby, back, stake, recipe)
 	local patch = {}
+	if recipe then
+		patch.cocktail_recipe = recipe
+	end
 	if back then
 		patch.deck = back
 	end
@@ -237,6 +242,11 @@ function PVP.on_game_start(params)
 	-- picked is a { key, stake } item (deck+stake Draft), a plain deck key/name, or nil.
 	local function proceed(picked)
 		local deck_ref, stake
+		-- A tournament pool's Cocktail tile: its own mix.
+		local recipe = nil
+		if type(picked) == "table" and picked.cocktail and PVP.tournament_pick_cocktail then
+			recipe = PVP.tournament_pick_cocktail(picked, meta)
+		end
 		if type(picked) == "table" then
 			deck_ref, stake = picked.key, picked.stake
 		else
@@ -256,7 +266,7 @@ function PVP.on_game_start(params)
 			PVP.LOBBY.deck.stake = stake
 		end
 		if lobby and lobby.is_host then
-			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
+			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake, recipe)
 		end
 		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
@@ -279,6 +289,10 @@ function PVP.on_game_start(params)
 			gm_def and gm_def.ban_pick
 		)
 	end
+	-- A tournament round with a locked deck and stake skips the Draft.
+	if PVP._pvp_kind == PVP.LobbyAccess.TOURNAMENT and PVP.tournament_setup_plan then
+		plan = PVP.tournament_setup_plan(plan, meta)
+	end
 	if not (plan.votes or plan.draft) then
 		proceed(meta.deck)
 		return
@@ -286,7 +300,12 @@ function PVP.on_game_start(params)
 	PVP.SETUP.begin(lobby, plan, function(on_picked)
 		-- The Draft's pool follows the ruleset the votes rolled (applied by the
 		-- metadata mirror), else the queued one.
-		MPAPI.BanPick.start(lobby, PVP._ban_pick_config_for(gm_def, PVP.LOBBY.config.ruleset), function(survivors)
+		local config = gm_def and gm_def.ban_pick and PVP._ban_pick_config_for(gm_def, PVP.LOBBY.config.ruleset) or nil
+		-- A tournament's ban-and-pick round drafts from its own pool.
+		if PVP._pvp_kind == PVP.LobbyAccess.TOURNAMENT and PVP.tournament_ban_pick then
+			config = PVP.tournament_ban_pick(config, meta) or config
+		end
+		MPAPI.BanPick.start(lobby, config, function(survivors)
 			on_picked(survivors[1])
 		end)
 	end, function(picked)

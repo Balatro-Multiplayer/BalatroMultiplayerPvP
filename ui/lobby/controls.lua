@@ -108,6 +108,10 @@ local function build_mm_status()
 	if MPAPI.BanPick.is_active() then
 		return { nodes = MPAPI.BanPick.build_contents() }
 	end
+	-- Between a tournament match's games: the series and its ready-up.
+	if PVP._pvp_kind == PVP.LobbyAccess.TOURNAMENT and PVP.build_tournament_lobby_status then
+		return { nodes = PVP.build_tournament_lobby_status() }
+	end
 	return { nodes = {
 		{ n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = {
 			{ n = G.UIT.T, config = { id = "mp_pvp_mm_status", text = localize("k_waiting_for_players"), scale = 0.5, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
