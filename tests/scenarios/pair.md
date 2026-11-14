@@ -66,7 +66,5 @@ identical hands every blind was a tie, which proves nothing about lives.
   this yet.
 - rule effects aren't asserted, only which rules got settled. Manacle's hand
   size is the obvious first check.
-- matching rule picks (decision 9: one rule plus a random second) aren't
-  forced. each side locks the first of its own offer and they just happened
-  to differ.
+- matching rule picks aren't forced. each side locks the first of its own offer and they just happened to differ.
 - macOS only, one pair at a time, and the reused DB collects throwaway accounts.
