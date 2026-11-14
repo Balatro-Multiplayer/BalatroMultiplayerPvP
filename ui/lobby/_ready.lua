@@ -107,7 +107,7 @@ local function can_autostart(L)
 end
 
 -- Host-only matchmaking auto-start: once all clients are ready, hold for the match reveal's
--- countdown (ui/queue_reveal.lua), then start exactly once. The hold is the host's, so every
+-- countdown (ui/queue/reveal.lua), then start exactly once. The hold is the host's, so every
 -- client's reveal ends on the same game start and the Draft's turn clock starts after it.
 function PVP.maybe_autostart()
 	local L = PVP.lobby

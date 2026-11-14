@@ -224,8 +224,8 @@ end
 function PVP.on_game_start(params)
 	-- The match reveal hides every menu, and the votes and the Draft open in the lobby's: it
 	-- gives them back at once and its player cards slide off over them.
-	if PVP.QUEUE_REVEAL then
-		PVP.QUEUE_REVEAL.finish()
+	if PVP.QUEUE_HUD then
+		PVP.QUEUE_HUD.finish_reveal()
 	end
 	if PVP.stop_ready_resync then
 		PVP.stop_ready_resync()

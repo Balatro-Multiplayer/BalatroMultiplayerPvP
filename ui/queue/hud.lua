@@ -1,4 +1,5 @@
--- Queue lifecycle, polling, and the searching HUD. Public entry points serve pvp_api/queue.lua.
+-- Queue lifecycle, polling, and the searching HUD. The only entry point pvp_api/ calls (queue.lua,
+-- group_queue.lua, actions/run_lifecycle.lua); the reveal is reached through it.
 local Hud =
 	{ active = false, started_at = 0, ranked = false, label = "", next_poll = 0, last_minute = 0, generation = 0 }
 PVP.QUEUE_HUD = Hud

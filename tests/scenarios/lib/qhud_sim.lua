@@ -1,4 +1,4 @@
--- Loaded with qhud_sim=true in .env (pvp_api/zz_qhud_dev.lua); the scenario runner may also
+-- Loaded with qhud_sim=true in .env (ui/queue/sim.lua); the scenario runner may also
 -- load this file directly. Alt+P restarts the preview; Alt+X cancels it and restores the API.
 -- The search runs through pvp_api/queue.lua's real handlers on a fake matchmaking handle;
 -- only the lobby is faked, so lobby_ready's lobby half (the mirror, ready signals) is skipped.

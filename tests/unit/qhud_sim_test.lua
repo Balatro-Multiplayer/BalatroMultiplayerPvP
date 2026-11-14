@@ -123,7 +123,7 @@ PVP.load_mp_file = function(path)
 	return dofile(path)
 end
 local function boot()
-	dofile("pvp_api/zz_qhud_dev.lua")
+	dofile("ui/queue/sim.lua")
 end
 boot()
 assert(loads == 0, "no simulator without the .env opt-in")

@@ -42,11 +42,11 @@ localize = function(args)
 	return args
 end
 dofile("ui/game/card_info_provider.lua")
-dofile("ui/_queue_widgets.lua")
-dofile("ui/queue_backdrop.lua")
-dofile("ui/queue_cards.lua")
-dofile("ui/queue_hud.lua")
-dofile("ui/queue_reveal.lua")
+dofile("ui/queue/_widgets.lua")
+dofile("ui/queue/backdrop.lua")
+dofile("ui/queue/cards.lua")
+dofile("ui/queue/hud.lua")
+dofile("ui/queue/reveal.lua")
 local Q = PVP.QUEUE_HUD
 local Cards, Reveal = PVP.QUEUE_CARDS, PVP.QUEUE_REVEAL
 
