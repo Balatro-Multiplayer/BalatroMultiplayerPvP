@@ -59,3 +59,8 @@ FNSJ.simulate_mp_bloodstone = function(joker_obj, context)
 		end
 	end
 end
+
+-- The engine already rolls on every retrigger, which is how the mp version plays.
+FNSJ.simulate_mp_reserved_parking = function(joker_obj, context)
+	return FNSJ.simulate_reserved_parking(joker_obj, context)
+end
