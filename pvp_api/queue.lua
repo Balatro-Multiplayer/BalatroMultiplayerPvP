@@ -106,6 +106,8 @@ function PVP._join_queue(kind, gamemode_key)
 	handle:on("lobby_ready", function(lobby)
 		PVP._pvp_kind = kind
 		PVP.setup_lobby_mirror(lobby)
+		-- After the match: back to the Find Game tab it was queued from.
+		PVP.set_lobby_exit_page(lobby, "pvp_find_game", { category = kind == PVP.LobbyAccess.RANKED and "ranked" or "casual" })
 		if lobby.is_host then
 			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, kind))
 		end
@@ -253,6 +255,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	handle:on("lobby_ready", function(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.RANKED
 		PVP.setup_lobby_mirror(lobby)
+		PVP.set_lobby_exit_page(lobby, "pvp_find_game", { category = "ranked" })
 		if lobby.is_host then
 			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED))
 		end

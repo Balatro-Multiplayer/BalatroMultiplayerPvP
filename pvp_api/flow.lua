@@ -109,6 +109,7 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	PVP._pvp_gamemode = gamemode_key
 	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 	PVP.setup_lobby_mirror(lobby)
+	PVP.set_lobby_exit_page(lobby, "pvp_main_menu")
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then
 			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE))
@@ -142,6 +143,16 @@ function PVP.pvp_join_lobby(code)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP.setup_lobby_mirror(lobby)
+	PVP.set_lobby_exit_page(lobby, "pvp_main_menu")
+end
+
+-- Where the player lands when `lobby` closes, also after a run it closed during
+-- (MPAPI.set_lobby_exit_page): instead of the PvP main menu, or Balatro's own
+-- menu after a run. With an MPAPI that has no exit pages, nothing changes.
+function PVP.set_lobby_exit_page(lobby, page, params)
+	if lobby and MPAPI.set_lobby_exit_page then
+		MPAPI.set_lobby_exit_page(lobby, page, params)
+	end
 end
 
 -- Host-only: attach a per-run gamemode instance (for forfeit handling + the API's

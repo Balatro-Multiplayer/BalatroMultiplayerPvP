@@ -220,6 +220,8 @@ function G.FUNCS:continue_in_singleplayer(e)
 	PVP.LOBBY.code = nil
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
+		-- The solo run isn't PvP's any more: it ends on Balatro's own menu.
+		PVP.set_lobby_exit_page(lobby, nil)
 		lobby:leave()
 	end
 	PVP.UI.update_connection_status()
