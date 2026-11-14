@@ -19,15 +19,15 @@ PVP._searching = false
 -- from inside _show_searching) always sees the correct value at the moment it re-renders.
 PVP._active_queue_id = nil
 
--- Audible cue for long queues so players don't have to keep checking the game. Reuses the
--- run-win sound for now; on by default (queue_match_sound in config.lua).
-function PVP._play_match_found_sound()
-	if PVP.config.queue_match_sound == false then return end
-	play_sound("win")
-end
-
 function PVP._show_searching(on)
 	PVP._searching = on and true or false
+	if PVP.QUEUE_HUD then
+		if on then
+			PVP.QUEUE_HUD.start(PVP._active_queue_id, PVP._match_handle)
+		else
+			PVP.QUEUE_HUD.stop()
+		end
+	end
 	if PVP._show_searching_state then
 		PVP._show_searching_state(on)
 	end
@@ -88,6 +88,8 @@ function PVP._join_queue(kind, gamemode_key)
 
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] matchmaking error: " .. tostring(err), "MULTIPLAYER")
+		-- An error after match_found is a failed lobby join
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
@@ -100,10 +102,11 @@ function PVP._join_queue(kind, gamemode_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
-		PVP._play_match_found_sound()
+		PVP.QUEUE_HUD.match_found()
 	end)
 
 	handle:on("lobby_ready", function(lobby)
+		PVP.QUEUE_HUD.lobby_ready(lobby)
 		PVP._pvp_kind = kind
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
@@ -123,6 +126,7 @@ function PVP._join_queue(kind, gamemode_key)
 	end)
 
 	handle:on("left", function()
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._pvp_kind = nil
 		PVP._active_queue_id = nil
@@ -235,6 +239,8 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] matchmaking error: " .. tostring(err), "MULTIPLAYER")
+		-- An error after match_found is a failed lobby join
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
@@ -247,10 +253,11 @@ function PVP._join_ranked_ruleset(ruleset_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] match_found " .. tostring(data and data.lobbyCode))
-		PVP._play_match_found_sound()
+		PVP.QUEUE_HUD.match_found()
 	end)
 
 	handle:on("lobby_ready", function(lobby)
+		PVP.QUEUE_HUD.lobby_ready(lobby)
 		PVP._pvp_kind = PVP.LobbyAccess.RANKED
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
@@ -267,6 +274,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	end)
 
 	handle:on("left", function()
+		PVP.QUEUE_HUD.dismiss_reveal()
 		PVP._match_handle = nil
 		PVP._pvp_kind = nil
 		PVP._active_queue_id = nil

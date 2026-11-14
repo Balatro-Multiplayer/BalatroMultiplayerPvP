@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Run one two-client scenario and exit 0 only if host and guest both passed and
-# every STATE checkpoint matched (macOS).
+# Run one multi-client scenario and exit 0 only if every role passed and every
+# STATE checkpoint matched the first role's (macOS).
 #
 #   bash scripts/run_pair.sh pair_pvp_blind
+#
+# Roles are host and guest, unless the scenario has a `-- roles: a b c` line.
 #
 # Installed Mods must link this checkout and MPAPI. The Dev mod (server dev/client/)
 # is linked for the run if it isn't installed, and unlinked afterwards.
@@ -20,7 +22,6 @@ GAME_DIR="${BALATRO_DIR:-$HOME/Library/Application Support/Steam/steamapps/commo
 SERVER_DIR="${BMP_SERVER_DIR:-$REPO/.context/BalatroMultiplayerServer}"
 HEALTH="http://127.0.0.1:7350/healthcheck"
 TIMEOUT="${SCENARIO_TIMEOUT:-300}"
-ROLES=(host guest)
 pids=()
 dev_link=
 
@@ -31,6 +32,9 @@ die() {
 
 [[ "$NAME" =~ ^[A-Za-z0-9_-]+$ ]] || die "expected a scenario name"
 [[ -f "$REPO/tests/scenarios/$NAME.lua" ]] || die "no tests/scenarios/$NAME.lua"
+read -r -a ROLES <<<"$(sed -n 's/^-- roles: *//p' "$REPO/tests/scenarios/$NAME.lua" | head -1)"
+[[ ${#ROLES[@]} -gt 0 ]] || ROLES=(host guest)
+for role in "${ROLES[@]}"; do [[ "$role" =~ ^[A-Za-z0-9_]+$ ]] || die "bad role $role"; done
 [[ -f "$GAME_DIR/run_lovely_macos.sh" ]] || die "missing $GAME_DIR/run_lovely_macos.sh"
 [[ "$(cd "$MODS/MultiplayerPvP" 2>/dev/null && pwd -P)" == "$REPO" ]] ||
   die "Mods/MultiplayerPvP must link $REPO"
@@ -89,7 +93,7 @@ dev_mod
 # account has a seat left over from a killed run (the Reconnect prompt).
 for role in "${ROLES[@]}"; do
   BMP_SCENARIO="$SELECTOR" BMP_SCENARIO_QUIT=1 BMP_SCENARIO_RUN_ID="$RUN_ID-$role" \
-    BMP_IMPERSONATE_NAME="pair-$role-${RUN_ID##*.}" BMP_ROLE="$role" BMP_PAIR_DIR="$RUN_DIR" \
+    BMP_IMPERSONATE_NAME="pair-$role-${RUN_ID##*.}" BMP_ROLE="$role" BMP_ROLES="${ROLES[*]}" BMP_PAIR_DIR="$RUN_DIR" \
     bash "$GAME_DIR/run_lovely_macos.sh" >"$RUN_DIR/$role.launch.log" 2>&1 &
   pids+=($!)
   sleep 2 # Lovely names logs by the second; same-second launches share one file.
@@ -132,7 +136,10 @@ for role in "${ROLES[@]}"; do
   fi
 done
 
-[[ -s "$RUN_DIR/host.state" ]] || die "no STATE checkpoints; run dir $RUN_DIR"
-diff -u "$RUN_DIR/host.state" "$RUN_DIR/guest.state" || die "clients disagree; run dir $RUN_DIR"
+first="${ROLES[0]}"
+[[ -s "$RUN_DIR/$first.state" ]] || die "no STATE checkpoints; run dir $RUN_DIR"
+for role in "${ROLES[@]:1}"; do
+  diff -u "$RUN_DIR/$first.state" "$RUN_DIR/$role.state" || die "$first and $role disagree; run dir $RUN_DIR"
+done
 [[ "$failed" -eq 0 ]] || die "scenario failed; run dir $RUN_DIR"
 printf 'pair: passed, run dir %s\n' "$RUN_DIR"

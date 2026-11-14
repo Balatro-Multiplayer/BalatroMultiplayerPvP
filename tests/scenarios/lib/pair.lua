@@ -1,11 +1,20 @@
--- Two-client scenario helpers. scripts/run_pair.sh launches a host and a guest on the
--- same scenario file; these build ordinary runner steps, so the MPAPI runner is unchanged.
+-- Multi-client scenario helpers. scripts/run_pair.sh launches one client per role (host and
+-- guest unless the scenario names its own) on the same scenario file; these build ordinary
+-- runner steps, so the MPAPI runner is unchanged.
 local role = os.getenv("BMP_ROLE")
 local dir = os.getenv("BMP_PAIR_DIR")
-local other = ({ host = "guest", guest = "host" })[role]
-assert(other and dir, "pair scenarios run under scripts/run_pair.sh")
+-- Every role in this run (the scenario's `-- roles:` line, else host and guest).
+local roles = {}
+for name in (os.getenv("BMP_ROLES") or "host guest"):gmatch("%S+") do
+	roles[#roles + 1] = name
+end
+local listed = false
+for _, name in ipairs(roles) do
+	listed = listed or name == role
+end
+assert(listed and dir, "pair scenarios run under scripts/run_pair.sh")
 
-local P = { role = role }
+local P = { role = role, roles = roles }
 
 local function path(name)
 	return dir .. "/" .. name
@@ -34,9 +43,14 @@ function P.get(key)
 	return read("value." .. key)
 end
 
--- A step only one side performs; the other passes straight through.
+-- A step only one role (or a list of roles) performs; the rest pass straight through.
 local function only(who, step)
 	if who == role then return step end
+	if type(who) == "table" then
+		for _, name in ipairs(who) do
+			if name == role then return step end
+		end
+	end
 	return { wait = 0 }
 end
 P.only = only
@@ -56,7 +70,7 @@ function P.steps(...)
 	return out
 end
 
--- Both sides wait here until the other arrives.
+-- Every role waits here until all the others arrive.
 function P.sync(label, timeout)
 	local arrived = false
 	return {
@@ -67,7 +81,10 @@ function P.sync(label, timeout)
 				write("sync." .. label .. "." .. role)
 				arrived = true
 			end
-			return read("sync." .. label .. "." .. other) ~= nil
+			for _, name in ipairs(roles) do
+				if read("sync." .. label .. "." .. name) == nil then return false end
+			end
+			return true
 		end,
 	}
 end

@@ -23,6 +23,10 @@ bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
   (the lobby code, who picked what), `P.sync` for barriers.
 - `P.snapshot` logs a `STATE` line per side. the script diffs host against guest;
   any difference fails the run even if every check passed.
+- more than two clients: put `-- roles: a_host a_guest b_host b_guest` at the top
+  of the scenario. one client per role, `P.sync` waits for all of them, `P.only`
+  takes a list, and every role's STATE is diffed against the first's.
+  `party_roster_reveal` runs four, through the votes and Draft to the first blind (~40s).
 
 ## what's real and what's a fixture
 
