@@ -90,17 +90,21 @@ check("joiner sees the overlay once the snapshot arrives", #overlays, 1)
 fire("PLAYER_INFO", "host")
 check("a second check of the same mismatch stays quiet", #overlays, 1)
 
--- The other player leaves: the flag re-arms, and a new mismatch shows again.
+-- A disconnect identifies the player and tells the opponent it is waiting.
+fire("PLAYER_DISCONNECTED", "host")
+check("disconnect identifies the player", overlays[#overlays], "host disconnected.\nWaiting for reconnection...")
+
+-- A later leave is the expired reconnect grace period, and re-arms the mismatch overlay.
 players = { { id = "me", mods = { "MultiplayerPvP-1.0.3" } } }
 fire("PLAYER_LEFT", "host")
-check("leaving shows nothing", #overlays, 1)
+check("expired reconnect identifies the player", overlays[#overlays], "host did not reconnect.")
 check("leaving re-arms the overlay", PVP._version_mismatch_shown, false)
 players = {
 	{ id = "me", mods = { "MultiplayerPvP-1.0.3" } },
 	{ id = "other", mods = { "MultiplayerPvP-1.0.5" } },
 }
 fire("PLAYER_JOINED", "other")
-check("a later mismatch shows again", #overlays, 2)
+check("a later mismatch shows again", #overlays, 4)
 
 -- Leaving the lobby re-arms too.
 fire("DISCONNECTED")
