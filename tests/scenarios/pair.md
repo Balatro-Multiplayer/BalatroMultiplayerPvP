@@ -5,6 +5,7 @@ it's the cheapest way we have to see a multiplayer change happen on two screens
 without two humans clicking through a lobby.
 
 ```sh
+bash scripts/run_pair.sh pair_almanac     # ~2 min
 bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
 ```
 
@@ -30,10 +31,11 @@ bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
 
 ## what's real and what's a fixture
 
-real: login, lobby, ready/start, the server's stake Draft, cash out and shop,
-the referee, and every played hand. fake: `P.jump_to_pvp` sets the ante and
-skips Small/Big so we land on the PvP boss. it tells the referee the ante via
-`PVP.ACTIONS.set_ante`, as `ease_ante` would.
+real: login, lobby, ready/start, the server's stake Draft, Almanac deck drafts,
+the ante-3 cash out and shop, shared-rule offers and locks, the referee, and every
+played hand. fake: `P.jump_to_pvp` sets the ante and skips Small/Big so we land
+on the PvP boss. it tells the referee the ante via `PVP.ACTIONS.set_ante`, which
+the rules gate depends on.
 
 the host plays five leftmost cards, the guest plays one. with a shared seed and
 identical hands every blind was a tie, which proves nothing about lives.
@@ -59,4 +61,9 @@ identical hands every blind was a tie, which proves nothing about lives.
 
 - both clients share one Balatro profile dir. don't build save/reload checks on
   this yet.
+- rule effects aren't asserted, only which rules got settled. Manacle's hand
+  size is the obvious first check.
+- matching rule picks (decision 9: one rule plus a random second) aren't
+  forced. each side locks the first of its own offer and they just happened
+  to differ.
 - macOS only, one pair at a time, and the reused DB collects throwaway accounts.
