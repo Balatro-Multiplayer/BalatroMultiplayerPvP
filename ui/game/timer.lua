@@ -189,7 +189,7 @@ SMODS.Gradient({
 		G.C.IMPORTANT,
 	},
 	update = function(self, dt)
-		if #self.colours < 2 or not PVP.LOBBY.config.ruleset then return end
+		if #self.colours < 2 or not PVP.get_active_ruleset() then return end
 		local speedup = PVP.GAME.timer_started and 1 or PVP.current_ruleset().timer_speedup_multiplier or 1
 
 		-- When you "timering" opponent, timer stops and you cannot see is button pressed

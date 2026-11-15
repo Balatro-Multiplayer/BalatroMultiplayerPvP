@@ -320,7 +320,7 @@ return P.steps(
 			S.check(G.GAME.round_resets.ante == 1, P.role .. " in ante 1 blind select")
 			sendInfoMessage(
 				("BMP_SCENARIO STATE run ruleset=%s deck=%s stake=%s seed=%s"):format(
-					tostring(PVP.LOBBY.config.ruleset),
+					tostring(PVP.get_active_ruleset()),
 					tostring(G.GAME.selected_back and G.GAME.selected_back.name),
 					tostring(G.GAME.stake),
 					tostring(G.GAME.pseudorandom and G.GAME.pseudorandom.seed)

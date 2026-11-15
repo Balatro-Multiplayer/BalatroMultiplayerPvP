@@ -46,7 +46,7 @@ end
 local function parts()
 	local lobby = MPAPI.get_current_lobby()
 	local queue_mode = lobby and (lobby:get_metadata() or {}).queue_mode
-	return PVP.lobby_mode_parts(queue_mode, PVP.LOBBY.config.ruleset)
+	return PVP.lobby_mode_parts(queue_mode, PVP.lobby_metadata().ruleset)
 end
 
 return P.steps(
@@ -62,7 +62,7 @@ return P.steps(
 	{
 		wait = 1.5,
 		run = function(S)
-			S.check(PVP.LOBBY.config.ruleset == PVP.RulesetKey.EXPANDED, P.role .. " lobby is on Expanded, got " .. tostring(PVP.LOBBY.config.ruleset))
+			S.check(PVP.get_active_ruleset() == PVP.RulesetKey.EXPANDED, P.role .. " lobby is on Expanded, got " .. tostring(PVP.get_active_ruleset()))
 			local p = parts()
 			S.check(#p == 2 and p[1].name_key == "k_pvp_gamemode_nemesis", P.role .. " banner names Nemesis")
 			P.screenshot("expanded")
@@ -79,7 +79,7 @@ return P.steps(
 	}),
 	{
 		until_ = function()
-			return PVP.LOBBY.config.ruleset == PVP.RulesetKey.VANILLA
+			return PVP.get_active_ruleset() == PVP.RulesetKey.VANILLA
 		end,
 		timeout = 15,
 		wait = 1.5,

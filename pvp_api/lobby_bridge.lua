@@ -183,8 +183,9 @@ local function mirror_metadata(lobby)
 	-- still needs.
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
-		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
+		-- The referee's own checkpoint (referee.lua) isn't lobby config, and the
+		-- ruleset and gamemode are read from the metadata itself (PVP.lobby_metadata).
+		if k ~= "deck" and k ~= "kind" and k ~= "ruleset" and k ~= "gamemode" and k ~= PVP.REF_CHECKPOINT_KEY then
 			PVP.LOBBY.config[k] = v
 		end
 	end
@@ -204,8 +205,8 @@ local function mirror_metadata(lobby)
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
 	-- without a metadata field of their own. The only other modifier is Trap
 	-- cards: the private lobby host's switch here, the Casual vote below.
-	if PVP.LOBBY.config.ruleset then
-		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
+	if meta.ruleset then
+		MPAPI.apply_default_modifiers(meta.ruleset)
 		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
 			MPAPI.add_modifier("traps")
 		end
@@ -220,7 +221,7 @@ local function mirror_metadata(lobby)
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
 	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
 	-- arrives, so the queued kind stands in for it.
-	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
+	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, meta.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)

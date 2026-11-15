@@ -31,7 +31,6 @@ PVP = {
 	LOBBY = { config = {} },
 	GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" },
 	PVP_GAMEMODES = {},
-	reset_ruleset_to_gamemode_default = noop,
 	QUEUE_HUD = hud,
 	QUEUE_CARDS = { EGGS = {} },
 	LobbyAccess = { RANKED = "ranked", CASUAL = "casual", RANKED_PREFIX = "ranked:" },

@@ -50,7 +50,5 @@ function PVP.apply_replay_loadout(lobby_state, manifest)
 	config.stake = manifest.stake
 	config.sleeve = manifest.sleeve
 	config.challenge = manifest.challenge
-	config.ruleset = manifest.ruleset
-	config.gamemode = manifest.gamemode
 	config.the_order = manifest.the_order_enabled ~= false
 end

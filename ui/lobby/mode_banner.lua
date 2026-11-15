@@ -99,7 +99,7 @@ end
 -- never shown; the host's own key covers the moment before its first write lands.
 function PVP.lobby.build_mode_banner(lobby)
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or (lobby.is_host and PVP._pvp_gamemode) or nil
-	local parts = PVP.lobby_mode_parts(queue_mode, PVP.LOBBY.config.ruleset)
+	local parts = PVP.lobby_mode_parts(queue_mode, (lobby:get_metadata() or {}).ruleset)
 	if #parts == 0 then
 		return nil
 	end

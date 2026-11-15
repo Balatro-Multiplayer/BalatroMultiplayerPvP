@@ -21,33 +21,11 @@ function PVP.default_ruleset(gamemode_key, kind)
 	return def.ruleset
 end
 
--- Call when adopting a new gamemode key, before the first pvp_lobby_metadata().
--- That function keeps whatever's already in config (so a Lobby Options pick
--- survives re-broadcasts), which means a stale ruleset from the last lobby
--- sticks unless it's reset here.
-function PVP.reset_ruleset_to_gamemode_default(gamemode_key, kind)
-	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	PVP.LOBBY.config.ruleset = PVP.default_ruleset(gamemode_key, kind)
-	PVP.LOBBY.config.gamemode = def.gamemode
-end
-
--- Host-authored shared lobby metadata. `gamemode`/`ruleset` are MPAPI's own content
--- keys (e.g. "gamemode_mp_attrition" / "ruleset_mp_balanced") so MPAPI.ApplyBans/
--- MPAPI.get_active_gamemode() resolve directly to the banned_*-bearing object, no
--- translation needed. `queue_mode` carries the separate API/queue/bridge key (e.g.
--- "pvp_nemesis") that the matchmaking taxonomy, ban_pick draft, and per-lobby
--- MPAPI.GameModes[...] instance (forfeit handling) still need.
---
--- ruleset/gamemode prefer the ALREADY-current PVP.LOBBY.config value over the
--- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
-function PVP.pvp_lobby_metadata(gamemode_key, kind)
-	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+-- The lobby options every client mirrors into PVP.LOBBY.config. The host sends
+-- these alone when an option changes: set_metadata merges, so the lobby's
+-- ruleset and gamemode stay as they are.
+function PVP.lobby_option_metadata()
 	return {
-		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
-		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
-		ruleset = PVP.LOBBY.config.ruleset or PVP.default_ruleset(gamemode_key, kind),
-		queue_mode = gamemode_key,
-		kind = kind or PVP.LobbyAccess.PRIVATE,
 		deck = PVP.LOBBY.config.back or "Red Deck",
 		stake = tostring(PVP.LOBBY.config.stake or 1),
 		starting_lives = PVP.LOBBY.config.starting_lives or 4,
@@ -55,6 +33,38 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
+end
+
+-- A new lobby's full metadata, written once by its host. `gamemode`/`ruleset` are
+-- MPAPI's own content keys (e.g. "gamemode_mp_attrition" / "ruleset_mp_balanced")
+-- so MPAPI.ApplyBans/MPAPI.get_active_gamemode() resolve directly to the
+-- banned_*-bearing object. `queue_mode` carries the separate API/queue/bridge key
+-- (e.g. "pvp_nemesis") that the matchmaking taxonomy, ban_pick draft, and per-lobby
+-- MPAPI.GameModes[...] instance (forfeit handling) still need.
+--
+-- The ruleset is `ruleset_key` when the entry point picked one (Ranked, Practice,
+-- a replay), else the gamemode's default for this kind. Nothing is read back from
+-- an earlier lobby. Later changes go through PVP.set_lobby_ruleset.
+function PVP.pvp_lobby_metadata(gamemode_key, kind, ruleset_key, gamemode)
+	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	local meta = PVP.lobby_option_metadata()
+	meta.cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind)
+	meta.gamemode = gamemode or def.gamemode
+	meta.ruleset = ruleset_key or PVP.default_ruleset(gamemode_key, kind)
+	meta.queue_mode = gamemode_key
+	meta.kind = kind or PVP.LobbyAccess.PRIVATE
+	return meta
+end
+
+-- The one way a lobby changes ruleset after it opens: the host rewrites the
+-- metadata, and every client's mirror follows.
+function PVP.set_lobby_ruleset(lobby, ruleset_key)
+	if not (lobby and lobby.is_host and ruleset_key) then
+		return
+	end
+	if (lobby:get_metadata() or {}).ruleset ~= ruleset_key then
+		lobby:set_metadata({ ruleset = ruleset_key })
+	end
 end
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
@@ -80,7 +90,7 @@ end
 function PVP.pvp_create_private_lobby(gamemode_key)
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	-- Reject an unregistered gamemode key up front instead of silently
-	-- degrading: PVP.reset_ruleset_to_gamemode_default/pvp_lobby_metadata
+	-- degrading: PVP.default_ruleset/pvp_lobby_metadata
 	-- both quietly fall back to the nemesis ruleset's config for an
 	-- unknown key, but PVP._pvp_gamemode itself keeps the bogus literal
 	-- string -- so round.lua's reset_blinds (PVP.Gamemodes[gamemode_key])
@@ -112,7 +122,6 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = gamemode_key
-	PVP.reset_ruleset_to_gamemode_default(gamemode_key, PVP.LobbyAccess.PRIVATE)
 	PVP.setup_lobby_mirror(lobby)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then

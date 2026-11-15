@@ -77,7 +77,7 @@ function PVP._start_playback(manifest, on_ready)
 
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		PVP.LOBBY.guest = { username = "???", id = "practice" }
-		lobby:set_metadata(PVP.pvp_lobby_metadata(manifest.gamemode, PVP.LobbyAccess.PRACTICE))
+		lobby:set_metadata(PVP.pvp_lobby_metadata(manifest.gamemode, PVP.LobbyAccess.PRACTICE, manifest.ruleset, manifest.gamemode))
 		-- MPAPI fires CONNECTED from inside a queued Event. G.FUNCS.start_run clears the event
 		-- queue, and doing that while EventManager:update iterates it makes the manager remove the
 		-- wrong event after this one returns: the queued delete_run (the new run then builds a

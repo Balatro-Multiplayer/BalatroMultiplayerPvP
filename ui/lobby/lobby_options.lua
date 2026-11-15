@@ -29,7 +29,7 @@ local function ruleset_option(ruleset_key)
 end
 
 local function current_ruleset_option()
-	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(PVP.default_ruleset(PVP._pvp_gamemode, PVP.LobbyAccess.PRIVATE)) or 1
+	return ruleset_option(PVP.lobby_metadata().ruleset) or ruleset_option(PVP.default_ruleset(PVP._pvp_gamemode, PVP.LobbyAccess.PRIVATE)) or 1
 end
 
 local function can_edit_private_lobby(lobby)
@@ -71,7 +71,7 @@ function PVP.build_lobby_options()
 					callback = function()
 						local current = MPAPI.get_current_lobby()
 						if current and current.is_host then
-							current:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+							current:set_metadata(PVP.lobby_option_metadata())
 						end
 					end,
 					enabled = function()
@@ -143,8 +143,7 @@ end
 G.FUNCS.mp_pvp_change_ruleset = function(e)
 	local lobby = MPAPI.get_current_lobby()
 	if not can_edit_private_lobby(lobby) then return end
-	PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
-	lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+	PVP.set_lobby_ruleset(lobby, RULESET_KEYS[e.to_key])
 end
 
 G.FUNCS.mp_pvp_change_manhunt_role = function(e)
@@ -158,5 +157,5 @@ end
 G.FUNCS.mp_pvp_change_manhunt_hunter_lives = function(e)
 	PVP.LOBBY.config.manhunt_hunter_lives = e.to_key + 6
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind)) end
+	if lobby and lobby.is_host then lobby:set_metadata(PVP.lobby_option_metadata()) end
 end

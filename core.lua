@@ -117,7 +117,7 @@ function PVP.should_use_the_order()
 end
 
 function PVP.is_major_league_ruleset()
-	return PVP.LOBBY and PVP.LOBBY.config and PVP.LOBBY.config.ruleset == "ruleset_mp_majorleague" and PVP.LOBBY.code
+	return PVP.LOBBY.code and PVP.get_active_ruleset() == PVP.RulesetKey.MAJORLEAGUE
 end
 
 -- §20: register our own predicates through the API's generic extension points
@@ -205,7 +205,7 @@ end
 PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
-function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
+function PVP.reset_lobby_config()
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
 		gold_on_life_loss = true,
@@ -223,8 +223,6 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,
 		pvp_countdown_seconds = 3,
-		ruleset = persist_ruleset_and_gamemode and PVP.LOBBY.config.ruleset or "ruleset_mp_expanded",
-		gamemode = persist_ruleset_and_gamemode and PVP.LOBBY.config.gamemode or "gamemode_mp_attrition",
 		weekly = nil,
 		custom_seed = "random",
 		different_decks = false,
