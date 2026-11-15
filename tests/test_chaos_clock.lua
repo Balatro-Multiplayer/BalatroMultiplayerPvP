@@ -33,7 +33,7 @@ local adapter = {
 }
 local state = C.new_state("TEST")
 local runtime = C.runtime(state, adapter)
-check(#runtime:candidates() == 11, "Eleven implemented recipes")
+check(#runtime:candidates() == 12, "Twelve implemented recipes")
 local first = assert(runtime:activate("second_wind"))
 check(not runtime:activate("second_wind"), "Duplicate activation rejected")
 check(not runtime:activate("all_in"), "Resource claims exclude overlapping owners")
@@ -243,13 +243,13 @@ dofile("ui/pvp_run_options.lua")
 dofile("ui/chaos_debug.lua")
 G.FUNCS.options()
 check(
-	G.OVERLAY_MENU.contents[2].nodes[1].config.button == "pvp_chaos_debug",
+	G.OVERLAY_MENU.contents[3].nodes[1].config.button == "pvp_chaos_debug",
 	"Actual Options entry point exposes lab without active-menu dispatch"
 )
 check(G.SETTINGS.paused, "Solo Options pauses the game")
 G.STATE = G.STATES.SELECTING_HAND
 G.FUNCS.options()
-check(G.OVERLAY_MENU.contents[2].nodes[1].config.button == "pvp_chaos_debug", "Lab entry remains visible during a hand")
+check(G.OVERLAY_MENU.contents[3].nodes[1].config.button == "pvp_chaos_debug", "Lab entry remains visible during a hand")
 G.FUNCS.pvp_chaos_debug()
 check(#G.OVERLAY_MENU.contents <= 3, "Mid-hand lab is read-only")
 solo = false

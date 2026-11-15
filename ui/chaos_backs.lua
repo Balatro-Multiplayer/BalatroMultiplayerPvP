@@ -225,7 +225,7 @@ function create_tabs(args)
 				copied.tabs[#copied.tabs + 1] = entry
 			end
 			copied.tabs[#copied.tabs + 1] = {
-				label = "Chaos decks",
+				label = localize("k_almanac_decks"),
 				chosen = V.choose_collection or false,
 				tab_definition_function = V.collection,
 			}

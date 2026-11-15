@@ -29,6 +29,7 @@ UIBox_button = function(args)
 	return args
 end
 localize = function(args)
+	if type(args) == "string" then return args end
 	return args.key
 end
 create_tabs = function(args)
@@ -108,6 +109,7 @@ check(
 	#extended.tabs == 2 and extended.tabs[2].tab_definition_function == V.collection,
 	"native viewer gains collection tab"
 )
+check(extended.tabs[2].label == "k_almanac_decks", "collection tab uses the localized Almanac name")
 check(#args.tabs == 1 and args.tabs[1].chosen, "caller-owned tabs untouched")
 check(#create_tabs(extended).tabs == 2, "no duplicate tab")
 local other = { tabs = { { label = "Settings" } } }

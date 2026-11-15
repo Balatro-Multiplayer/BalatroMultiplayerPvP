@@ -69,6 +69,16 @@ C.define({
 	},
 })
 
+C.define({
+	key = "one_of_each",
+	label = "One of Each",
+	description = "Only the leftmost played card of each rank can score this blind. Rankless cards are exempt.",
+	at = "blind_select",
+	duration = blind,
+	claims = { "one_of_each" },
+	payload = { rule = "one_of_each" },
+})
+
 for _, entry in ipairs({
 	{ "shop_subsidy", "Shop Subsidy", "Gain $5 now. Expiry does not reclaim it.", 5, "shop" },
 	{ "pocket_change", "Pocket Change", "Gain $3 now. Expiry does not reclaim it.", 3, "blind_select" },
@@ -94,7 +104,7 @@ for _, entry in ipairs({
 	},
 	{
 		"clearance_sale",
-		"Clearance Sale",
+		"Short Shelf Life",
 		"Jokers offered here are free and Perishable; stickers persist.",
 		"Pending: sticker compatibility, pre-generation reveal and resale protection",
 		"shop",

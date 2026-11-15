@@ -51,6 +51,13 @@ PVP.create_run_options = function()
 						UIBox_button({ button = "settings", label = { localize("b_settings") }, minw = 5 }),
 					},
 				},
+				{
+					n = G.UIT.R,
+					config = { align = "cm" },
+					nodes = {
+						UIBox_button({ button = "pvp_chaos_status", label = { "Run effects" }, minw = 5 }),
+					},
+				},
 				{ n = G.UIT.R, config = { align = "cm" }, nodes = { PVP.CHAOS.debug_button() } },
 				{
 					n = G.UIT.R,

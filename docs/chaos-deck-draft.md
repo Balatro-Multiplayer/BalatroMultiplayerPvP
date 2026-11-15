@@ -1,8 +1,10 @@
-# Chaos deck draft prototype
+# Almanac deck draft prototype
 
-Select **Chaos (deck draft)** in Custom Solo's deck selector, or **Chaos** in
+Select **Almanac** in Custom Solo's deck selector, or **Almanac** in
 normal deck selection. This is a neutral carrier Back, not an initial acquisition.
-The public Chaos queue remains Coming Soon.
+The public Almanac queue remains Coming Soon. Almanac names both the deck and
+the intended format; internal `chaos` IDs remain unchanged for save/replay compatibility.
+Queue exclusivity and mandatory-deck enforcement are not implemented by this rename.
 
 The neutral back uses its own blank pixel-art atlas, not Cocktail's artwork.
 Regenerate both resolutions with `python3 scripts/generate_chaos_back.py`;

@@ -52,9 +52,7 @@ local broadcast_royale_targets, broadcast_live_targets
 
 local function broadcast(key, params)
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and MPAPI.ActionTypes[key] then
-		lobby:action(MPAPI.ActionTypes[key]):broadcast(params or {})
-	end
+	if lobby and MPAPI.ActionTypes[key] then lobby:action(MPAPI.ActionTypes[key]):broadcast(params or {}) end
 end
 
 local function ref_player(id)
@@ -82,9 +80,7 @@ end
 -- The two participant ids (host is the local player when we are host).
 local function both_players()
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return {}
-	end
+	if not lobby then return {} end
 	local ids = {}
 	for _, p in ipairs(lobby:get_players()) do
 		ids[#ids + 1] = p.id
@@ -94,9 +90,7 @@ end
 
 local function opponent_of(id)
 	for _, oid in ipairs(both_players()) do
-		if oid ~= id then
-			return oid
-		end
+		if oid ~= id then return oid end
 	end
 	return nil
 end
@@ -106,9 +100,7 @@ end
 local function alive_ids()
 	local ids = {}
 	for _, id in ipairs(both_players()) do
-		if ref_player(id).lives > 0 then
-			ids[#ids + 1] = id
-		end
+		if ref_player(id).lives > 0 then ids[#ids + 1] = id end
 	end
 	return ids
 end
@@ -160,9 +152,7 @@ local function check_team_win()
 				broadcast("pvp_win", { winner_id = "", winner_team_id = "HUNTER" })
 				return true
 			end
-			if pl.team_id == "HUNTER" and pl.lives > 0 then
-				any_hunter_alive = true
-			end
+			if pl.team_id == "HUNTER" and pl.lives > 0 then any_hunter_alive = true end
 		end
 		if not any_hunter_alive then
 			broadcast("pvp_win", { winner_id = "", winner_team_id = "RUNNER" })
@@ -187,9 +177,7 @@ end
 
 -- Dispatches to whichever win-check applies to the active mode.
 local function check_any_win()
-	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
-		return check_team_win()
-	end
+	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then return check_team_win() end
 	return check_alive_win()
 end
 
@@ -224,9 +212,7 @@ end
 -- repeating whoever byed last time.
 local function compute_nemesis_pairing(alive)
 	PVP.REF.nemesis_of = {}
-	if #alive < 2 then
-		return
-	end
+	if #alive < 2 then return end
 
 	local ids = {}
 	for _, id in ipairs(alive) do
@@ -301,17 +287,13 @@ local function compute_team_card_targets(alive)
 	local by_team = { A = {}, B = {} }
 	for _, id in ipairs(alive) do
 		local team_id = ref_player(id).team_id
-		if by_team[team_id] then
-			table.insert(by_team[team_id], id)
-		end
+		if by_team[team_id] then table.insert(by_team[team_id], id) end
 	end
 	for _, id in ipairs(alive) do
 		local my_team = ref_player(id).team_id
 		local enemy_team = (my_team == "A") and "B" or "A"
 		local candidates = by_team[enemy_team]
-		if candidates and #candidates > 0 then
-			PVP.REF.team_card_target[id] = candidates[math.random(#candidates)]
-		end
+		if candidates and #candidates > 0 then PVP.REF.team_card_target[id] = candidates[math.random(#candidates)] end
 	end
 end
 
@@ -329,22 +311,16 @@ end
 -- for the matchmaking `metric` (season-best score column). Host-only.
 function PVP.pvp_score_metric(player_id)
 	local pl = PVP.REF and PVP.REF.players and PVP.REF.players[player_id]
-	if not pl or not pl.score then
-		return 0
-	end
+	if not pl or not pl.score then return 0 end
 	-- Numeric, not via INSANE_INT.to_string: that is a display string with
 	-- thousands separators ("2,832"), which tonumber rejects, so every score of
 	-- 1,000+ was reported as 0. Capped at the server's score bound (1e15,
 	-- nakama/src/rating/metrics.ts), above which it drops the value entirely.
 	local s = pl.highest_score or pl.score
 	local cap = 1e15
-	if (tonumber(s.e_count) or 0) > 0 then
-		return cap
-	end
+	if (tonumber(s.e_count) or 0) > 0 then return cap end
 	local v = (tonumber(s.coeffiocient) or 0) * 10 ^ (tonumber(s.exponent) or 0)
-	if v ~= v or v < 0 then
-		return 0
-	end
+	if v ~= v or v < 0 then return 0 end
 	return math.min(math.floor(v), cap)
 end
 
@@ -359,17 +335,11 @@ end
 -- and the readiness the referee still holds for it is dropped: left set, the
 -- opponent's ready would start the PvP blind under a player still in its shop.
 function PVP.referee_on_player_reconnected(player_id)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = PVP.REF.players[player_id]
-	if not (pl and pl.lives) then
-		return
-	end
+	if not (pl and pl.lives) then return end
 	pl.is_ready = false
-	if PVP.REF.ready_tracker then
-		PVP.REF.ready_tracker:set(player_id, false)
-	end
+	if PVP.REF.ready_tracker then PVP.REF.ready_tracker:set(player_id, false) end
 	for id, other in pairs(PVP.REF.players) do
 		broadcast("pvp_player_lives", { player_id = id, lives = other.lives })
 	end
@@ -385,9 +355,7 @@ end
 -- no plan. Pure.
 function PVP.roster_from_team_plan(plan)
 	local roster = {}
-	if type(plan) ~= "table" then
-		return roster
-	end
+	if type(plan) ~= "table" then return roster end
 	for i, team in ipairs({ "A", "B" }) do
 		for _, id in ipairs(type(plan[i]) == "table" and plan[i] or {}) do
 			roster[id] = team
@@ -397,14 +365,10 @@ function PVP.roster_from_team_plan(plan)
 end
 
 function PVP.referee_reset(starting_lives)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	PVP.REF.players = {}
 	PVP.REF.first_ready_at = nil
-	if PVP.REF.ready_tracker then
-		PVP.REF.ready_tracker:reset()
-	end
+	if PVP.REF.ready_tracker then PVP.REF.ready_tracker:reset() end
 	PVP.REF.nemesis_of = {}
 	PVP.REF.used_pairs = {}
 	PVP.REF.nemesis_ante_computed_for = 0
@@ -435,9 +399,7 @@ function PVP.referee_reset(starting_lives)
 		-- picker). Any extra Runner claims (a UI race) are demoted to Hunter.
 		local runner_id = nil
 		for _, id in ipairs(total) do
-			if ref_player(id).team_id == "RUNNER" and not runner_id then
-				runner_id = id
-			end
+			if ref_player(id).team_id == "RUNNER" and not runner_id then runner_id = id end
 		end
 		runner_id = runner_id or total[1]
 		for _, id in ipairs(total) do
@@ -451,9 +413,7 @@ function PVP.referee_reset(starting_lives)
 		-- plan (each group kept whole on one team): it overrides any pick.
 		local planned = PVP.roster_from_team_plan(PVP.CURRENT_LOBBY and PVP.CURRENT_LOBBY.team_plan)
 		for _, id in ipairs(total) do
-			if planned[id] then
-				ref_player(id).team_id = planned[id]
-			end
+			if planned[id] then ref_player(id).team_id = planned[id] end
 		end
 		-- Anyone who never opened the picker (pl.team_id nil) needs a default --
 		-- unlike Manhunt's single-Runner fallback, "or 'A'" here left EVERY unpicked
@@ -464,9 +424,7 @@ function PVP.referee_reset(starting_lives)
 		local counts = { A = 0, B = 0 }
 		for _, id in ipairs(total) do
 			local team = ref_player(id).team_id
-			if team then
-				counts[team] = (counts[team] or 0) + 1
-			end
+			if team then counts[team] = (counts[team] or 0) + 1 end
 		end
 		for _, id in ipairs(total) do
 			local pl = ref_player(id)
@@ -517,9 +475,7 @@ end
 -- real loss (as opposed to the setup/restore/takeover broadcasts of a count),
 -- so the loser's client can log life_lost for the achievements.
 local function lose_life(pl)
-	if pl.lives_blocker or pl.lives <= 0 then
-		return
-	end
+	if pl.lives_blocker or pl.lives <= 0 then return end
 	pl.lives = pl.lives - 1
 	pl.lives_blocker = true
 	broadcast("pvp_player_lives", { player_id = pl.id, lives = pl.lives, lost = 1 })
@@ -536,9 +492,7 @@ local function team_lose_life(pl)
 		lose_life(pl)
 		return
 	end
-	if pl.lives_blocker then
-		return
-	end
+	if pl.lives_blocker then return end
 	pl.lives_blocker = true
 	local team = pl.team_id
 	PVP.REF.team_lives[team] = (PVP.REF.team_lives[team] or 1) - 1
@@ -559,9 +513,7 @@ end
 -- primitives (checked against alive_ids() ourselves rather than its own all_ready(),
 -- which loops the full lobby roster and would stall on eliminated spectators).
 function PVP.referee_on_ready_blind(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 
 	if #both_players() > 2 then
 		PVP.REF.ready_tracker = PVP.REF.ready_tracker or MPAPI.ReadyTracker()
@@ -611,14 +563,18 @@ function PVP.referee_on_ready_blind(from)
 
 		-- firstPlayer is the id of whichever player readied first.
 		local first_id = me.first_ready and from or (enemy.first_ready and opp or nil)
-		broadcast("pvp_start_blind", { first_player = first_id or "" })
+		local lobby = MPAPI.get_current_lobby()
+		local ante = me.ante or 1
+		if PVP.SHARED_RULES.enabled(lobby) and ante >= 3 then
+			broadcast("pvp_rules_open", { first_player = first_id or from, ante = ante })
+		else
+			broadcast("pvp_start_blind", { first_player = first_id or "" })
+		end
 	end
 end
 
 function PVP.referee_on_unready_blind(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	ref_player(from).is_ready = false
 end
 
@@ -639,9 +595,7 @@ function PVP.referee_resolve_2p_round(a, b)
 	local trigger = (a.hands_left < 1 and a_lt_b)
 		or (b.hands_left < 1 and b_lt_a)
 		or (a.hands_left < 1 and b.hands_left < 1)
-	if not trigger then
-		return nil
-	end
+	if not trigger then return nil end
 
 	local winner = a_lt_b and b or a
 	local loser = (winner.id == a.id) and b or a
@@ -675,9 +629,7 @@ function PVP.referee_resolve_manhunt_round(runner, hunters)
 		local hunter_behind = PVP.INSANE_INT.greater_than(runner.score, h.score)
 		local tied = PVP.INSANE_INT.equal(h.score, runner.score)
 		local runner_scored = not PVP.INSANE_INT.equal(runner.score, PVP.INSANE_INT.empty())
-		if hunter_behind or (tied and runner_scored) then
-			hunter_losers[#hunter_losers + 1] = h
-		end
+		if hunter_behind or (tied and runner_scored) then hunter_losers[#hunter_losers + 1] = h end
 	end
 
 	return {
@@ -706,9 +658,7 @@ end
 -- or equal=true on an exact tie (mirrors the 1v1/Royale "nobody loses on a tie" rule).
 function PVP.referee_resolve_teams_round(team_a, team_b)
 	local sum_a, sum_b = sum_team_scores(team_a), sum_team_scores(team_b)
-	if PVP.INSANE_INT.equal(sum_a, sum_b) then
-		return { equal = true }
-	end
+	if PVP.INSANE_INT.equal(sum_a, sum_b) then return { equal = true } end
 	return { equal = false, loser_team = PVP.INSANE_INT.greater_than(sum_b, sum_a) and "A" or "B" }
 end
 
@@ -778,13 +728,9 @@ local function resolve_manhunt_round(alive)
 	for _, h in ipairs(outcome.hunter_losers) do
 		lose_life(h)
 	end
-	if outcome.runner_caught then
-		lose_life(runner)
-	end
+	if outcome.runner_caught then lose_life(runner) end
 
-	if not check_team_win() then
-		broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false })
-	end
+	if not check_team_win() then broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false }) end
 end
 
 -- Effects wrapper for the Teams branch of try_resolve_round: sums each team's
@@ -796,9 +742,7 @@ local function resolve_teams_round(alive)
 	for _, id in ipairs(alive) do
 		local pl = ref_player(id)
 		pl.first_ready = false
-		if by_team[pl.team_id] then
-			table.insert(by_team[pl.team_id], pl)
-		end
+		if by_team[pl.team_id] then table.insert(by_team[pl.team_id], pl) end
 	end
 	local outcome = PVP.referee_resolve_teams_round(by_team.A, by_team.B)
 	if not outcome.equal then
@@ -813,9 +757,7 @@ local function resolve_teams_round(alive)
 			end
 		end
 	end
-	if not check_team_win() then
-		broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false })
-	end
+	if not check_team_win() then broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false }) end
 end
 
 -- Broadcasts each alive Royale player's personalized live target: a SAFE player
@@ -845,13 +787,9 @@ end
 -- the per-ante partner, unrelated to live score), and Manhunt Hunters (their
 -- target -- the Runner -- never changes mid-match, resolved locally instead).
 function broadcast_live_targets()
-	if #both_players() <= 2 or PVP.LOBBY.config.nemesis_pairing then
-		return
-	end
+	if #both_players() <= 2 or PVP.LOBBY.config.nemesis_pairing then return end
 	local alive = alive_ids()
-	if #alive < 2 then
-		return
-	end
+	if #alive < 2 then return end
 
 	if PVP.LOBBY.config.manhunt then
 		local runner, hunters = nil, {}
@@ -871,9 +809,7 @@ function broadcast_live_targets()
 		local by_team = { A = {}, B = {} }
 		for _, id in ipairs(alive) do
 			local pl = ref_player(id)
-			if by_team[pl.team_id] then
-				table.insert(by_team[pl.team_id], pl)
-			end
+			if by_team[pl.team_id] then table.insert(by_team[pl.team_id], pl) end
 		end
 		broadcast("pvp_team_score_board", {
 			team_scores = {
@@ -901,22 +837,16 @@ end
 -- the pair loses a life", so the ending plays out identically to a 1v1 anyway.
 local function try_resolve_round()
 	local total = both_players()
-	if #total < 2 then
-		return
-	end
+	if #total < 2 then return end
 
 	-- Manhunt/Teams are gated BEFORE the #total==2 check below: both can have
 	-- exactly 2 total players (1 Runner+1 Hunter, or a degenerate 1v1 Teams match)
 	-- where the generic symmetric pairwise rule would otherwise wrongly apply.
 	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
 		local alive = alive_ids()
-		if #alive < 2 then
-			return
-		end
+		if #alive < 2 then return end
 		for _, id in ipairs(alive) do
-			if ref_player(id).hands_left >= 1 then
-				return
-			end
+			if ref_player(id).hands_left >= 1 then return end
 		end
 		if PVP.LOBBY.config.manhunt then
 			resolve_manhunt_round(alive)
@@ -929,9 +859,7 @@ local function try_resolve_round()
 	if #total == 2 then
 		local a, b = ref_player(total[1]), ref_player(total[2])
 		local outcome = PVP.referee_resolve_2p_round(a, b)
-		if not outcome then
-			return
-		end
+		if not outcome then return end
 		local winner, loser, equal = outcome.winner, outcome.loser, outcome.equal
 
 		if not equal then
@@ -957,13 +885,9 @@ local function try_resolve_round()
 	-- broadcast per round, never one per pair: pvp_end_pvp forces every client into
 	-- NEW_ROUND, so a per-pair broadcast would corrupt other pairs' still-open rounds.
 	local alive = alive_ids()
-	if #alive < 2 then
-		return
-	end
+	if #alive < 2 then return end
 	for _, id in ipairs(alive) do
-		if ref_player(id).hands_left >= 1 then
-			return
-		end
+		if ref_player(id).hands_left >= 1 then return end
 	end
 
 	if PVP.LOBBY.config.nemesis_pairing then
@@ -1009,51 +933,35 @@ local function try_resolve_round()
 		end
 	end
 
-	if not check_alive_win() then
-		broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false })
-	end
+	if not check_alive_win() then broadcast("pvp_end_pvp", { loser_id = "", pvp_timer_lost = false }) end
 end
 
 -- playHand: store sender score/hands, then attempt resolution.
 function PVP.referee_on_play_hand(from, params)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local known = PVP.REF.players[from] ~= nil
 	local pl = ref_player(from)
 	pl.score = PVP.INSANE_INT.from_string(tostring(params.score or "0"))
 	pl.hands_left = math.floor(tonumber(params.handsLeft) or pl.hands_left)
-	if params.skips then
-		pl.skips = tonumber(params.skips) or pl.skips
-	end
+	if params.skips then pl.skips = tonumber(params.skips) or pl.skips end
 	-- Lives are the referee's own record (referee_reset, lose_life), never the
 	-- sender's: a reported value used to overwrite it, so a client could restore
 	-- its own lives, and a rejoined client reporting its reset 0 lost them all.
 	-- A report is only taken for a player the referee has no record of yet.
-	if params.lives and not known then
-		pl.lives = tonumber(params.lives) or pl.lives
-	end
-	if PVP.INSANE_INT.greater_than(pl.score, PVP.INSANE_INT.empty()) then
-		pl.played_this_blind = true
-	end
-	if PVP.INSANE_INT.greater_than(pl.score, pl.highest_score) then
-		pl.highest_score = pl.score
-	end
+	if params.lives and not known then pl.lives = tonumber(params.lives) or pl.lives end
+	if PVP.INSANE_INT.greater_than(pl.score, PVP.INSANE_INT.empty()) then pl.played_this_blind = true end
+	if PVP.INSANE_INT.greater_than(pl.score, pl.highest_score) then pl.highest_score = pl.score end
 	broadcast_live_targets()
 	try_resolve_round()
 end
 
 function PVP.referee_on_skip(from, params)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	ref_player(from).skips = tonumber(params.skips) or 0
 end
 
 function PVP.referee_on_set_ante(from, params)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = ref_player(from)
 	pl.ante = tonumber(params.ante) or pl.ante
 
@@ -1097,12 +1005,8 @@ end
 -- every Hunter gains +1 life as compensation. A no-op if `from` isn't the Runner
 -- (defensive; the vouchers themselves only ever call this for the Runner).
 function PVP.referee_on_redeem_ante_voucher(from)
-	if not is_host() then
-		return
-	end
-	if ref_player(from).team_id ~= "RUNNER" then
-		return
-	end
+	if not is_host() then return end
+	if ref_player(from).team_id ~= "RUNNER" then return end
 	for _, id in ipairs(both_players()) do
 		local pl = ref_player(id)
 		if pl.team_id == "HUNTER" then
@@ -1113,18 +1017,14 @@ function PVP.referee_on_redeem_ante_voucher(from)
 end
 
 function PVP.referee_on_set_furthest_blind(from, params)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = ref_player(from)
 	pl.furthest_blind = tonumber(params.furthestBlind) or pl.furthest_blind
 end
 
 -- newRound: re-arm loseLife for the next round (resetBlocker).
 function PVP.referee_on_new_round(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	ref_player(from).lives_blocker = false
 end
 
@@ -1141,17 +1041,11 @@ end
 -- excluded eliminated one, whose elimination might be exactly what the gate was
 -- waiting on) would leave the rest of the lobby stuck.
 function PVP.referee_on_fail_round(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = ref_player(from)
-	if PVP.LOBBY.config.death_on_round_loss then
-		team_lose_life(pl)
-	end
+	if PVP.LOBBY.config.death_on_round_loss then team_lose_life(pl) end
 	if pl.lives == 0 then
-		if check_any_win() then
-			return
-		end
+		if check_any_win() then return end
 	end
 	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based or #both_players() > 2 then
 		pl.hands_left = 0
@@ -1163,14 +1057,10 @@ end
 -- failTimer (non-PvP ante timer): sender loses a life; match ends only when exactly
 -- one player remains alive. Same N>2 progress-nudge as referee_on_fail_round.
 function PVP.referee_on_fail_timer(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = ref_player(from)
 	team_lose_life(pl)
-	if pl.lives == 0 and check_any_win() then
-		return
-	end
+	if pl.lives == 0 and check_any_win() then return end
 	if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based or #both_players() > 2 then
 		pl.hands_left = 0
 		broadcast_live_targets()
@@ -1198,9 +1088,7 @@ end
 -- bonus) back to the specific player who timed out, since score itself is
 -- untouched by a timeout and doesn't need re-reporting.
 function PVP.referee_on_fail_pvp_timer(from)
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local pl = ref_player(from)
 	pl.hands_left = math.max(0, (pl.hands_left or 0) - 1)
 	broadcast("pvp_timer_hand_lost", { player_id = from })
@@ -1217,25 +1105,19 @@ end
 -- forfeit (host, more than two players at the start), so the caller skips
 -- the two-player check_single_survivor path.
 function PVP.referee_n_player_forfeit(player_id)
-	if not is_host() then
-		return false
-	end
+	if not is_host() then return false end
 	local started = 0
 	for _ in pairs(PVP.REF.players) do
 		started = started + 1
 	end
-	if started <= 2 or not PVP.REF.players[player_id] then
-		return false
-	end
+	if started <= 2 or not PVP.REF.players[player_id] then return false end
 	local pl = ref_player(player_id)
 	if pl.lives > 0 then
 		pl.lives = 0
 		broadcast("pvp_player_lives", { player_id = player_id, lives = 0 })
 	end
 	pl.hands_left = 0
-	if check_alive_win() then
-		return true
-	end
+	if check_alive_win() then return true end
 	broadcast_live_targets()
 	try_resolve_round()
 	return true
@@ -1251,25 +1133,19 @@ end
 -- (announce_eliminations) and the round resolves without its hands. Returns
 -- the winning team_id if this call ended the match, else nil.
 function PVP.referee_manhunt_on_forfeit(player_id)
-	if not is_host() then
-		return nil
-	end
+	if not is_host() then return nil end
 	local pl = ref_player(player_id)
 	if pl.team_id == "RUNNER" then
 		broadcast("pvp_win", { winner_id = "", winner_team_id = "HUNTER" })
 		return "HUNTER"
 	end
-	if pl.team_id ~= "HUNTER" then
-		return nil
-	end
+	if pl.team_id ~= "HUNTER" then return nil end
 	if pl.lives > 0 then
 		pl.lives = 0
 		broadcast("pvp_player_lives", { player_id = player_id, lives = 0 })
 	end
 	pl.hands_left = 0
-	if check_team_win() then
-		return "RUNNER"
-	end
+	if check_team_win() then return "RUNNER" end
 	broadcast_live_targets()
 	try_resolve_round()
 	return nil
@@ -1279,14 +1155,10 @@ end
 -- other team wins immediately. Returns the winning team_id if this call ended
 -- the match, else nil.
 function PVP.referee_teams_on_forfeit(player_id)
-	if not is_host() then
-		return nil
-	end
+	if not is_host() then return nil end
 	local pl = ref_player(player_id)
 	local team = pl.team_id
-	if not team then
-		return nil
-	end
+	if not team then return nil end
 	-- A pause-menu forfeit leaves the forfeiter in the lobby: without this a
 	-- team whose players all forfeited one after another never lost (each
 	-- forfeit still found the earlier forfeiter as "a teammate remains").
@@ -1325,9 +1197,7 @@ PVP.REF_CHECKPOINT_KEY = CHECKPOINT_KEY
 local function run_tag()
 	local lobby = MPAPI.get_current_lobby()
 	local started = lobby and lobby._game and lobby._game.started
-	if started and started.run_id then
-		return tostring(started.run_id)
-	end
+	if started and started.run_id then return tostring(started.run_id) end
 	local seed = G.GAME and G.GAME.pseudorandom and G.GAME.pseudorandom.seed
 	return seed and ("seed:" .. tostring(seed)) or nil
 end
@@ -1338,9 +1208,7 @@ local function int_out(v)
 end
 
 local function int_in(v)
-	if type(v) ~= "table" then
-		return PVP.INSANE_INT.empty()
-	end
+	if type(v) ~= "table" then return PVP.INSANE_INT.empty() end
 	return PVP.INSANE_INT.create(v[1], v[2], v[3])
 end
 
@@ -1402,9 +1270,7 @@ local function restore(snap)
 			lives_blocker = s.blocker == 1,
 			team_id = s.team,
 		}
-		if s.tracked_ready == 1 then
-			PVP.REF.ready_tracker:set(id, true)
-		end
+		if s.tracked_ready == 1 then PVP.REF.ready_tracker:set(id, true) end
 	end
 	PVP.REF.first_ready_at = nil
 	PVP.REF.nemesis_of = snap.nemesis_of or {}
@@ -1438,9 +1304,7 @@ local function rebuild_from_local(lobby)
 		elseif p.id == target and PVP.GAME.enemy then
 			lives = PVP.GAME.enemy.lives
 		end
-		if tonumber(lives) and tonumber(lives) > 0 then
-			pl.lives = tonumber(lives)
-		end
+		if tonumber(lives) and tonumber(lives) > 0 then pl.lives = tonumber(lives) end
 		pl.ante = (G.GAME and G.GAME.round_resets and G.GAME.round_resets.ante) or pl.ante
 	end
 	if PVP.LOBBY.config.team_based and PVP.GAME.team_lives then
@@ -1455,22 +1319,16 @@ local last_written
 -- Writes the referee into the lobby metadata when it changed since the last
 -- write. Host-only.
 function PVP.referee_checkpoint()
-	if not is_host() then
-		return
-	end
+	if not is_host() then return end
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby or not next(PVP.REF.players or {}) then
-		return
-	end
+	if not lobby or not next(PVP.REF.players or {}) then return end
 	local snap = snapshot()
 	local ok, encoded = pcall(MPAPI.json_encode, snap)
 	if not ok then
 		sendWarnMessage("[pvp] referee checkpoint not encodable: " .. tostring(encoded), "MULTIPLAYER")
 		return
 	end
-	if encoded == last_written then
-		return
-	end
+	if encoded == last_written then return end
 	last_written = encoded
 	lobby:set_metadata({ [CHECKPOINT_KEY] = snap })
 end
@@ -1478,17 +1336,11 @@ end
 -- Run on the player the server has just made host, mid-run. Returns how the
 -- referee was rebuilt ("checkpoint" or "local"), or nil when nothing was done.
 function PVP.referee_take_over()
-	if not is_host() or G.STAGE ~= G.STAGES.RUN then
-		return nil
-	end
+	if not is_host() or G.STAGE ~= G.STAGES.RUN then return nil end
 	-- The match is already decided (the old host left from the end screen).
-	if PVP.GAME.won or PVP.GAME.eliminated or G.STATE == G.STATES.GAME_OVER then
-		return nil
-	end
+	if PVP.GAME.won or PVP.GAME.eliminated or G.STATE == G.STATES.GAME_OVER then return nil end
 	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
+	if not lobby then return nil end
 	local snap = (lobby:get_metadata() or {})[CHECKPOINT_KEY]
 	local source
 	if type(snap) == "table" and snap.v == 1 and snap.tag ~= nil and snap.tag == run_tag() then
@@ -1520,17 +1372,11 @@ end
 -- forfeit did nothing. Made here from the lobby's queue_mode when missing.
 function PVP.ensure_gamemode_instance(lobby)
 	lobby = lobby or MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
-	if lobby._gamemode_instance then
-		return lobby._gamemode_instance
-	end
+	if not lobby then return nil end
+	if lobby._gamemode_instance then return lobby._gamemode_instance end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode
 	local gm_def = queue_mode and MPAPI.GameModes[queue_mode]
-	if gm_def and gm_def.new_instance then
-		lobby._gamemode_instance = gm_def:new_instance()
-	end
+	if gm_def and gm_def.new_instance then lobby._gamemode_instance = gm_def:new_instance() end
 	return lobby._gamemode_instance
 end
 

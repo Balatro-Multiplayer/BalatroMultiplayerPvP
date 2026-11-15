@@ -302,6 +302,7 @@ PVP.GAME = {}
 PVP.PVP_GAMEMODES = { pvp_nemesis = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition" } }
 PVP.LOBBY.deck = {}
 PVP.REF_CHECKPOINT_KEY = "_ref"
+dofile("lib/shared_pvp_rules.lua")
 dofile("pvp_api/flow.lua")
 dofile("pvp_api/lobby_bridge.lua")
 dofile("ui/lobby/lobby_options.lua")
@@ -337,8 +338,19 @@ MPAPI.get_current_lobby = function()
 	return lobby
 end
 PVP.setup_lobby_mirror(lobby)
-local picker = PVP.build_lobby_options().contents[2].nodes[1]
+local picker
+for _, row in ipairs(PVP.build_lobby_options().contents) do
+	if row.nodes[1].id == "mp_pvp_content_pick" then picker = row.nodes[1] end
+end
+assert(picker, "content selector present")
 check(#picker.options == 3 and picker.current_option == 1, "private lobby exposes Default/On/Off")
+G.FUNCS.mp_pvp_change_shared_rules({ to_key = 2 })
+check(meta.shared_pvp_rules ~= true, "older server cannot enable shared-rule protocol")
+lobby.server_features = { shared_pvp_rules = 1 }
+G.FUNCS.mp_pvp_change_shared_rules({ to_key = 2 })
+check(meta.shared_pvp_rules == true, "capable server allows host to opt in")
+G.FUNCS.mp_pvp_change_shared_rules({ to_key = 1 })
+check(meta.shared_pvp_rules == false, "host can turn prototype off")
 G.FUNCS.mp_pvp_change_content({ to_key = 2 })
 check(meta.modifier_layers == layer_key and PVP.multiplayer_content_enabled(), "host On updates shared native layers")
 handlers.METADATA_CHANGED({ _ref = {} })
