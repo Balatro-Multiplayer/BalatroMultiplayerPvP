@@ -62,7 +62,7 @@ PVP = {
 
 dofile("layers/_layers.lua")
 dofile("rulesets/_rulesets.lua")
-for _, name in ipairs({ "multiplayer_content", "standard", "classic", "badlatro", "sandbox", "experimental", "majorleague" }) do
+for _, name in ipairs({ "multiplayer_content", "balanced", "expanded", "expanded_draft", "classic", "badlatro", "sandbox", "experimental", "majorleague" }) do
 	dofile("layers/" .. name .. ".lua")
 end
 for _, name in ipairs({ "ranked", "pvp_timer", "smallworld", "speedlatro_timer", "wsob" }) do

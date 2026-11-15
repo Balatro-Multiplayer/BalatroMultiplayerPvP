@@ -111,7 +111,6 @@ end)
 -- stylua: ignore start
 local RULESETS = {
 	--  ruleset                uses them  banned
-	{ "balanced",              true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
 	{ "expanded",              true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
 	{ "smallworld",            true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
 	{ "speedlatro",            true,      { "SPEEDRUN", "Conjoined Joker", "Defensive Joker" } },
@@ -121,6 +120,7 @@ local RULESETS = {
 	{ "badlatro",              true,      { "Defensive Joker" } },
 	{ "experimental",          true,      { "SPEEDRUN" } },
 	{ "experimental_legacy",   true,      { "Asteroid" } },
+	{ "balanced",              false },
 	{ "vanilla",               false },
 	{ "legacy_ranked",         false },
 	{ "majorleague",           false },

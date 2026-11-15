@@ -9,7 +9,7 @@ dofile(api .. "api/layers/registry.lua")
 dofile(api .. "api/layers/fields.lua")
 MPAPI.MODIFIERS = {}
 
-PVP = { LayerKey = { SANDBOX = "sandbox" } }
+PVP = { LayerKey = { SANDBOX = "sandbox", MULTIPLAYER_CONTENT = "multiplayer_content" } }
 local resolved = {}
 function PVP.Ruleset(init)
 	resolved[init.key] = MPAPI.resolve_layers(init)
@@ -21,7 +21,7 @@ function PVP.ReworkCenter(key, opts)
 end
 
 -- Layers with game code stay out of this test; only their names matter to the rulesets.
-for _, name in ipairs({ "sandbox", "smallworld", "speedlatro_timer", "classic", "wsob" }) do
+for _, name in ipairs({ "sandbox", "multiplayer_content", "smallworld", "speedlatro_timer", "classic", "wsob" }) do
 	MPAPI.Layer(name, {})
 end
 for _, name in ipairs({ "pvp_timer", "balanced", "expanded", "expanded_draft" }) do
@@ -74,7 +74,11 @@ for _, name in ipairs(ruleset_names) do
 	for field, expected in pairs(want) do
 		check(name .. " " .. field, sorted_list(resolved[name][field] or {}), expected)
 	end
-	check(name .. " PvP-only cards", resolved[name].multiplayer_content, name ~= "balanced")
+	local has_cards = false
+	for _, layer in ipairs(resolved[name]._layer_order) do
+		if layer == "multiplayer_content" then has_cards = true end
+	end
+	check(name .. " PvP-only cards", has_cards, name ~= "balanced")
 end
 check("balanced timer", resolved.balanced.pvp_timer_base_seconds, 60)
 check("expanded timer", resolved.expanded.pvp_timer_base_seconds, 60)
@@ -97,22 +101,6 @@ for _, name in ipairs(ruleset_names) do
 end
 
 check("old shared layer is gone", MPAPI.Layers.standard, nil)
-
--- The later layer wins a scalar, so the layer after the one that turns PvP-only cards off turns them on.
-check("balanced layer alone turns PvP-only cards off", MPAPI.Layers.balanced.multiplayer_content, false)
-check("expanded layer turns PvP-only cards on", MPAPI.Layers.expanded.multiplayer_content, true)
-MPAPI.Layer("test_off", { multiplayer_content = false })
-MPAPI.Layer("test_on", { multiplayer_content = true })
-check(
-	"later layer on beats earlier layer off",
-	MPAPI.resolve_layers({ key = "a", layers = { "test_off", "test_on" } }).multiplayer_content,
-	true
-)
-check(
-	"later layer off beats earlier layer on",
-	MPAPI.resolve_layers({ key = "b", layers = { "test_on", "test_off" } }).multiplayer_content,
-	false
-)
 
 if failures > 0 then
 	os.exit(1)
