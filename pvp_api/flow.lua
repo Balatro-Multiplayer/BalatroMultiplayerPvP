@@ -11,18 +11,23 @@ PVP.LobbyAccess = {
 	RANKED_PREFIX = "ranked:",
 }
 
--- Stamps PVP.LOBBY.config.ruleset/gamemode to this gamemode key's defaults.
--- Every entry point that adopts a NEW gamemode key (a fresh private lobby, a
--- fresh matchmaking queue join, a fresh practice run) must call this before its
--- first pvp_lobby_metadata() -- that function prefers whatever's ALREADY in
--- PVP.LOBBY.config (so a private lobby's later Lobby Options ruleset override
--- survives re-broadcasts instead of reverting to this gamemode's default every
--- time), so the slate has to be genuinely reset here first, not left holding
--- module-load's own hardcoded default or a leftover from an unrelated lobby
--- browsed earlier this session.
-function PVP.reset_ruleset_to_gamemode_default(gamemode_key)
+-- Private lobbies open on `private_ruleset` if the entry has one; everything
+-- else plays `ruleset`. Only place that decides a default ruleset.
+function PVP.default_ruleset(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	PVP.LOBBY.config.ruleset = def.ruleset
+	if kind == PVP.LobbyAccess.PRIVATE and def.private_ruleset then
+		return def.private_ruleset
+	end
+	return def.ruleset
+end
+
+-- Call when adopting a new gamemode key, before the first pvp_lobby_metadata().
+-- That function keeps whatever's already in config (so a Lobby Options pick
+-- survives re-broadcasts), which means a stale ruleset from the last lobby
+-- sticks unless it's reset here.
+function PVP.reset_ruleset_to_gamemode_default(gamemode_key, kind)
+	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	PVP.LOBBY.config.ruleset = PVP.default_ruleset(gamemode_key, kind)
 	PVP.LOBBY.config.gamemode = def.gamemode
 end
 
@@ -40,7 +45,7 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	return {
 		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
-		ruleset = PVP.LOBBY.config.ruleset or def.ruleset,
+		ruleset = PVP.LOBBY.config.ruleset or PVP.default_ruleset(gamemode_key, kind),
 		queue_mode = gamemode_key,
 		kind = kind or PVP.LobbyAccess.PRIVATE,
 		deck = PVP.LOBBY.config.back or "Red Deck",
@@ -107,7 +112,7 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = gamemode_key
-	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
+	PVP.reset_ruleset_to_gamemode_default(gamemode_key, PVP.LobbyAccess.PRIVATE)
 	PVP.setup_lobby_mirror(lobby)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then
