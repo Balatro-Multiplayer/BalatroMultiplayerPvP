@@ -11,7 +11,6 @@ local RULESET_KEYS = {
 	PVP.RulesetKey.EXPANDED,
 	PVP.RulesetKey.SMALLWORLD,
 }
-local DEFAULT_RULESET_KEY = PVP.RulesetKey.EXPANDED -- what a private lobby opens on (PVP.private_lobby_default_ruleset).
 
 local function ruleset_labels()
 	local labels = {}
@@ -30,7 +29,7 @@ local function ruleset_option(ruleset_key)
 end
 
 local function current_ruleset_option()
-	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(DEFAULT_RULESET_KEY)
+	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(PVP.default_ruleset(PVP._pvp_gamemode, PVP.LobbyAccess.PRIVATE)) or 1
 end
 
 function PVP.build_lobby_options()

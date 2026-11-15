@@ -21,11 +21,11 @@ PVP = {
 	RulesetKey = R,
 	-- The rulesets the real table (pvp_api/gamemodes.lua) gives each gamemode key.
 	PVP_GAMEMODES = {
-		pvp_nemesis = { ruleset = R.BALANCED },
+		pvp_nemesis = { ruleset = R.BALANCED, private_ruleset = R.EXPANDED },
 		pvp_smallworld = { ruleset = R.SMALLWORLD },
-		pvp_royale = { ruleset = R.BALANCED },
-		pvp_manhunt = { ruleset = R.BALANCED },
-		pvp_teams = { ruleset = R.BALANCED },
+		pvp_royale = { ruleset = R.BALANCED, private_ruleset = R.EXPANDED },
+		pvp_manhunt = { ruleset = R.BALANCED, private_ruleset = R.EXPANDED },
+		pvp_teams = { ruleset = R.BALANCED, private_ruleset = R.EXPANDED },
 		pvp_experimental = { ruleset = R.EXPERIMENTAL },
 	},
 }
@@ -33,17 +33,25 @@ MPAPI = { Party = { KIND = "party" } }
 dofile("pvp_api/flow.lua")
 dofile("ui/lobby/mode_banner.lua")
 
--- Default ruleset of a new private lobby.
+-- Default ruleset of a new private lobby, through the one resolver.
+local PRIVATE = PVP.LobbyAccess.PRIVATE
 for _, key in ipairs({ "pvp_nemesis", "pvp_royale", "pvp_manhunt", "pvp_teams" }) do
-	local got = PVP.private_lobby_default_ruleset(key)
+	local got = PVP.default_ruleset(key, PRIVATE)
 	check(got == R.EXPANDED, key .. " opens on Expanded, got " .. tostring(got))
+	check(PVP.default_ruleset(key, PVP.LobbyAccess.CASUAL) == R.BALANCED, key .. " queues on Balanced")
 end
-check(PVP.private_lobby_default_ruleset("pvp_smallworld") == R.SMALLWORLD, "Small World keeps its own ruleset")
-check(PVP.private_lobby_default_ruleset("pvp_experimental") == R.EXPERIMENTAL, "Experimental keeps its own ruleset")
-check(PVP.private_lobby_default_ruleset(nil) == R.EXPANDED, "no key falls back to Nemesis, on Expanded")
--- Matchmaking's defaults are untouched.
+check(PVP.default_ruleset("pvp_smallworld", PRIVATE) == R.SMALLWORLD, "Small World keeps its own ruleset")
+check(PVP.default_ruleset("pvp_experimental", PRIVATE) == R.EXPERIMENTAL, "Experimental keeps its own ruleset")
+check(PVP.default_ruleset(nil, PRIVATE) == R.EXPANDED, "no key falls back to Nemesis, on Expanded")
+-- The reset stamps the same answer per kind.
+PVP.reset_ruleset_to_gamemode_default("pvp_nemesis", PRIVATE)
+check(PVP.LOBBY.config.ruleset == R.EXPANDED, "a private Nemesis lobby resets to Expanded")
 PVP.reset_ruleset_to_gamemode_default("pvp_nemesis")
 check(PVP.LOBBY.config.ruleset == R.BALANCED, "matchmade Nemesis still resets to Balanced")
+-- Metadata's fallback agrees when config holds nothing yet.
+PVP.MatchmakingPolicy = { cocktail_recipe = function() end }
+PVP.LOBBY.config.ruleset = nil
+check(PVP.pvp_lobby_metadata("pvp_teams", PRIVATE).ruleset == R.EXPANDED, "private metadata falls back to Expanded")
 
 -- Banner contents.
 local parts = PVP.lobby_mode_parts("pvp_nemesis", R.EXPANDED)
