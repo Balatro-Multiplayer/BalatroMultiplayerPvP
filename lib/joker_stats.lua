@@ -22,8 +22,8 @@ function PVP.STATS.record_match(won)
 	local entry = {
 		won = won,
 		joker_keys = joker_keys,
-		gamemode = PVP.LOBBY.config.gamemode,
-		ruleset = PVP.LOBBY.config.ruleset,
+		gamemode = PVP.lobby_metadata().gamemode,
+		ruleset = PVP.lobby_metadata().ruleset,
 		timestamp = os.time(),
 		ante_reached = G.GAME.round_resets and G.GAME.round_resets.ante or 1,
 	}

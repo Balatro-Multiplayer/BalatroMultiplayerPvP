@@ -68,14 +68,21 @@ local function setup_results(lobby)
 	return setup and setup.results or {}
 end
 
+-- The ruleset the votes rolled, else the lobby's metadata ruleset.
+function S.ruleset(lobby)
+	return S.rolled(setup_results(lobby)) or (lobby and (lobby:get_metadata() or {}).ruleset) or nil
+end
+
 -- Lays the votes' results over the mirrored lobby config (lobby_bridge.lua's
--- mirror_metadata, which first resets the modifiers to the ruleset's own).
+-- mirror_metadata, which first resets the modifiers to the ruleset's own). The
+-- host writes the rolled ruleset into the metadata as soon as it's known; until
+-- that lands, the run waits (metadata_ready below).
 function S.apply_results(lobby)
 	local ruleset, traps = S.rolled(setup_results(lobby))
 	if not ruleset then
 		return
 	end
-	PVP.LOBBY.config.ruleset = ruleset
+	PVP.set_lobby_ruleset(lobby, ruleset)
 	MPAPI.apply_default_modifiers(ruleset)
 	if traps then
 		MPAPI.add_modifier("traps")
@@ -90,10 +97,7 @@ end
 -- MPAPI's bans and layers read the ruleset from the lobby metadata, so the
 -- host writes the rolled one there.
 local function publish_ruleset(lobby)
-	local ruleset = S.rolled(setup_results(lobby))
-	if ruleset and lobby.is_host and (lobby:get_metadata() or {}).ruleset ~= ruleset then
-		lobby:set_metadata({ ruleset = ruleset })
-	end
+	PVP.set_lobby_ruleset(lobby, (S.rolled(setup_results(lobby))))
 end
 
 local function metadata_ready(lobby)

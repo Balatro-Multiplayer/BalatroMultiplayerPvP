@@ -385,7 +385,7 @@ local function action_start_game(p)
 		if PVP.LOBBY.guest and PVP.LOBBY.guest.id then
 			players[#players + 1] = { id = PVP.LOBBY.guest.id, is_host = false }
 		end
-		MPAPI.RLOGCodes.lobby_info:write(PVP.LOBBY.config.gamemode, PVP.LOBBY.config.ruleset, players, {
+		MPAPI.RLOGCodes.lobby_info:write(PVP.lobby_metadata().gamemode, PVP.lobby_metadata().ruleset, players, {
 			PVP.LOBBY.config.back,
 		}, {
 			sleeve = PVP.LOBBY.config.sleeve,
@@ -575,11 +575,10 @@ local function action_lobby_options(options)
 				)
 				return
 			end
-			PVP.LOBBY.config.ruleset = v
+			-- Valid: the ruleset itself is read from the lobby metadata.
 			goto continue
 		end
 		if k == "gamemode" then
-			PVP.LOBBY.config.gamemode = v
 			goto continue
 		end
 		if k == "modifier_layers" then

@@ -74,7 +74,6 @@ function PVP._wire_group_handle(handle, gamemode_key)
 		-- Out of the home lobby (MPAPI parked our seat there) and into a
 		-- matchmade one: the lobby view belongs to the public lobby now.
 		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
-		PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 		if PVP.lobby then
 			PVP.lobby.ref = nil
 			PVP.lobby.ui_ref = nil

@@ -43,15 +43,31 @@ end
 check(PVP.default_ruleset("pvp_smallworld", PRIVATE) == R.SMALLWORLD, "Small World keeps its own ruleset")
 check(PVP.default_ruleset("pvp_experimental", PRIVATE) == R.EXPERIMENTAL, "Experimental keeps its own ruleset")
 check(PVP.default_ruleset(nil, PRIVATE) == R.EXPANDED, "no key falls back to Nemesis, on Expanded")
--- The reset stamps the same answer per kind.
-PVP.reset_ruleset_to_gamemode_default("pvp_nemesis", PRIVATE)
-check(PVP.LOBBY.config.ruleset == R.EXPANDED, "a private Nemesis lobby resets to Expanded")
-PVP.reset_ruleset_to_gamemode_default("pvp_nemesis")
-check(PVP.LOBBY.config.ruleset == R.BALANCED, "matchmade Nemesis still resets to Balanced")
--- Metadata's fallback agrees when config holds nothing yet.
+-- A new lobby's metadata takes the default, never a leftover in config.
 PVP.MatchmakingPolicy = { cocktail_recipe = function() end }
-PVP.LOBBY.config.ruleset = nil
-check(PVP.pvp_lobby_metadata("pvp_teams", PRIVATE).ruleset == R.EXPANDED, "private metadata falls back to Expanded")
+PVP.LOBBY.config.ruleset = R.VANILLA
+check(PVP.pvp_lobby_metadata("pvp_teams", PRIVATE).ruleset == R.EXPANDED, "a private Teams lobby opens on Expanded")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.CASUAL).ruleset == R.BALANCED, "matchmade Nemesis opens on Balanced")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.RANKED, R.SMALLWORLD).ruleset == R.SMALLWORLD, "an explicit ruleset wins")
+check(PVP.lobby_option_metadata().ruleset == nil, "an option change leaves the ruleset alone")
+
+-- A ruleset change is one host-only metadata write.
+local function fake_lobby(is_host, meta)
+	local sent = {}
+	return {
+		is_host = is_host,
+		get_metadata = function() return meta end,
+		set_metadata = function(_, patch) sent[#sent + 1] = patch end,
+	}, sent
+end
+local host, sent = fake_lobby(true, { ruleset = R.EXPANDED })
+PVP.set_lobby_ruleset(host, R.VANILLA)
+check(#sent == 1 and sent[1].ruleset == R.VANILLA and sent[1].deck == nil, "host writes only the ruleset")
+PVP.set_lobby_ruleset(host, R.EXPANDED)
+check(#sent == 1, "no write when the ruleset is unchanged")
+local guest, guest_sent = fake_lobby(false, {})
+PVP.set_lobby_ruleset(guest, R.VANILLA)
+check(#guest_sent == 0, "a guest never writes the ruleset")
 
 -- Banner contents.
 local parts = PVP.lobby_mode_parts("pvp_nemesis", R.EXPANDED)

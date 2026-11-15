@@ -110,11 +110,8 @@ for _, key in ipairs({ "pvp_nemesis", "pvp_smallworld" }) do
 		ban_pick = BAN_PICK,
 		min_players = 2,
 		max_players = { public = def.public_max_players, private = 16, ranked = 2 },
-		-- PVP.LOBBY.config.ruleset/gamemode are already correctly populated by the
-		-- metadata mirror (lobby_bridge.lua's mirror_metadata) by the time start_run
-		-- runs -- setting them here from `def` would stomp a ruleset the host chose
-		-- via the in-lobby picker (Lobby Options), reverting it back to this
-		-- gamemode key's default every time the match actually starts.
+		-- The ruleset and gamemode are the lobby metadata's (PVP.lobby_metadata);
+		-- start_run leaves them alone so a Lobby Options pick survives the start.
 		start_run = function(self, deck_name, seed)
 			if deck_name then
 				PVP.LOBBY.deck.back = deck_name

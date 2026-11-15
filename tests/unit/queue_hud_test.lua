@@ -751,7 +751,6 @@ do
 	-- The group queue's handles drive the same reveal (pvp_api/group_queue.lua).
 	MPAPI.GameModes = { pvp_royale = { max_players = { public = 16 } } }
 	MPAPI.matchmaking.group = nil
-	PVP.reset_ruleset_to_gamemode_default = noop
 	PVP.setup_lobby_mirror, PVP.signal_ready, PVP.start_ready_resync = noop, noop, noop
 	PVP.pvp_lobby_metadata = noop
 	dofile("pvp_api/group_queue.lua")

@@ -54,7 +54,6 @@ end
 function PVP._join_queue(kind, gamemode_key)
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	PVP._pvp_kind = kind
-	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
 
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max_key = (kind == PVP.LobbyAccess.RANKED) and "ranked" or "public"
@@ -204,9 +203,8 @@ end
 -- Ranked-only entry point: ranked queues by RULESET directly now, not by a
 -- per-ruleset gamemode key (see pvp_api/gamemodes.lua's PVP.PVP_GAMEMODES
 -- header comment) -- ranked always plays Nemesis pairing regardless of which
--- ruleset is picked, so this bypasses
--- PVP.reset_ruleset_to_gamemode_default (which resolves off a gamemode key)
--- and stamps the ruleset straight onto PVP.LOBBY.config. The ticket string
+-- ruleset is picked, so the host writes the picked ruleset into the new
+-- lobby's metadata instead of the gamemode key's default. The ticket string
 -- passed as `game_mode` is ruleset-scoped (e.g. "ranked:pvp_ranked_balanced";
 -- the server only treats a "ranked:"-prefixed game mode as ranked) so the
 -- server's ELO ladder is per-ruleset, matching the separate leaderboard tabs
@@ -214,8 +212,6 @@ end
 function PVP._join_ranked_ruleset(ruleset_key)
 	local gamemode_key = PVP.GamemodeKey.PVP_NEMESIS
 	PVP._pvp_kind = PVP.LobbyAccess.RANKED
-	PVP.LOBBY.config.ruleset = ruleset_key
-	PVP.LOBBY.config.gamemode = "gamemode_mp_attrition"
 
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max = (gm and gm.max_players and gm.max_players.ranked) or 2
@@ -261,7 +257,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 		PVP._pvp_kind = PVP.LobbyAccess.RANKED
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED))
+			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED, ruleset_key))
 		end
 		PVP.signal_ready(true)
 		PVP.start_ready_resync()

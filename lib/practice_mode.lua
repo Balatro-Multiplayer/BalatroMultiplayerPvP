@@ -1,4 +1,4 @@
--- Singleplayer ruleset state (parallels PVP.LOBBY.config.ruleset for multiplayer).
+-- Singleplayer ruleset state (stands in for the lobby metadata's ruleset until the local lobby has one).
 -- Live rulesets / game-state / networking read PVP.SP + PVP.is_practice_mode() to know
 -- they are NOT in practice, so this state core must always exist.
 PVP.SP = { ruleset = nil, practice = false, playback_gamemode = nil, unlimited_slots = false, edition_cycling = false }
@@ -57,12 +57,6 @@ function PVP._start_practice(ruleset_key, loadout)
 	-- Clean slate: don't inherit deck/stake/ruleset leftovers from whatever the player
 	-- was doing before entering practice (e.g. a private lobby with different_decks set).
 	PVP.reset_lobby_config()
-	-- reset_lobby_config() above stamps its own hardcoded default (expanded), not
-	-- this practice run's -- set the actual requested ruleset directly (bypassing
-	-- PVP.reset_ruleset_to_gamemode_default, which resolves off a gamemode key, not
-	-- a bare ruleset key).
-	PVP.LOBBY.config.ruleset = ruleset_key
-	PVP.LOBBY.config.gamemode = "gamemode_mp_attrition"
 	if loadout then
 		PVP.LOBBY.config.back = loadout.back
 		PVP.LOBBY.config.stake = loadout.stake
@@ -93,7 +87,7 @@ function PVP._start_practice(ruleset_key, loadout)
 		-- first) has already mirrored the (empty, no real opponent) player roster --
 		-- otherwise its mirror_players() call overwrites this right back to {}.
 		PVP.LOBBY.guest = { username = "???", id = "practice" }
-		lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRACTICE))
+		lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRACTICE, ruleset_key))
 		G.FUNCS.lobby_start_run(nil, { seed = loadout and loadout.seed })
 	end)
 end

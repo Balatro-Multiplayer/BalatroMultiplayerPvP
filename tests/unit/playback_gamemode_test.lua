@@ -37,11 +37,14 @@ check("practice without a forced gamemode has none", PVP.get_active_gamemode(), 
 PVP.SP.playback_gamemode = PVP.playback_gamemode_of("pvp_nemesis")
 check("playback gamemode of a Nemesis match", PVP.SP.playback_gamemode, "gamemode_mp_attrition")
 check("a playback runs the match's gamemode", PVP.get_active_gamemode(), "gamemode_mp_attrition")
-check("a live lobby still reads its own config", (function()
+check("a live lobby reads its own metadata", (function()
 	PVP.LOBBY.code = "ABC"
-	PVP.LOBBY.config.gamemode = "gamemode_mp_other"
+	MPAPI.get_current_lobby = function()
+		return { get_metadata = function() return { gamemode = "gamemode_mp_other" } end }
+	end
 	local got = PVP.get_active_gamemode()
 	PVP.LOBBY.code = nil
+	MPAPI.get_current_lobby = nil
 	return got
 end)(), "gamemode_mp_other")
 
