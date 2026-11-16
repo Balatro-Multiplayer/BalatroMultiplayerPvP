@@ -37,40 +37,50 @@ function G.FUNCS.calculate_money_button()
 	FN.PRE.start_new_coroutine()
 end
 
-local function calculate_button(id, text, colour)
+-- Alone, a button looks like the original Calculate Score button.
+-- Side by side, both are sized like the chips/mult boxes above.
+local function calculate_button(id, text, colour, alone)
 	return {
 		n = G.UIT.C,
 		config = {
 			id = id,
 			button = id,
 			align = "cm",
-			minh = 0.5,
-			minw = 2,
-			maxw = 2,
+			minh = alone and 0.42 or 0.5,
 			padding = 0.05,
-			r = 0.1,
+			minw = alone and 3 or 2,
+			maxw = alone and 4.5 or 2,
+			r = alone and 0.02 or 0.1,
 			colour = colour,
 			hover = true,
+			shadow = alone,
 		},
 		nodes = {
 			{
-				n = G.UIT.T,
-				config = { text = text, colour = G.C.UI.TEXT_LIGHT, shadow = true, scale = 0.36 },
+				n = G.UIT.R,
+				config = { align = "cm" },
+				nodes = {
+					{
+						n = G.UIT.T,
+						config = { text = text, colour = G.C.UI.TEXT_LIGHT, shadow = true, scale = 0.36 },
+					},
+				},
 			},
 		},
 	}
 end
 
--- Buttons sized like the chips/mult boxes above. Each has its own setting;
--- the calculator runs when either is on (see FN.PRE.in_play).
+-- Each button has its own setting; the calculator runs when either is on (see FN.PRE.in_play).
 function FN.PRE.get_calculate_score_button()
-	local buttons = {}
-	if PVP.INTEGRATIONS.Preview then
-		table.insert(buttons, calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED))
+	local score, money = PVP.INTEGRATIONS.Preview, PVP.INTEGRATIONS.PreviewMoney
+	if not (score and money) then
+		if money then return calculate_button("calculate_money_button", "Calculate Money", G.C.MONEY, true) end
+		return calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED, true)
 	end
-	if PVP.INTEGRATIONS.PreviewMoney then
-		table.insert(buttons, calculate_button("calculate_money_button", "Calc Money", G.C.MONEY))
-	end
+
+	-- The default label is too wide for half the space
+	local score_label = PVP.UTILS.get_preview_cfg("button")
+	if score_label == "Calculate Score" then score_label = "Calc Score" end
 	return {
 		n = G.UIT.C,
 		config = { align = "cm" },
@@ -78,7 +88,10 @@ function FN.PRE.get_calculate_score_button()
 			{
 				n = G.UIT.R,
 				config = { align = "cm", padding = 0.1 },
-				nodes = buttons,
+				nodes = {
+					calculate_button("calculate_score_button", score_label, G.C.RED),
+					calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
+				},
 			},
 		},
 	}

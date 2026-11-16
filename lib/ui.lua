@@ -108,7 +108,7 @@ function PVP.UTILS.get_preview_cfg(index)
 		if index == "text" then
 			ret = "CALCULATING"
 		else
-			ret = "Calc Score"
+			ret = "Calculate Score"
 		end
 	end
 	return ret

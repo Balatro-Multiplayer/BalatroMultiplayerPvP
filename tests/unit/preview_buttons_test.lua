@@ -14,7 +14,7 @@ PVP = {
 	end,
 	UTILS = {
 		get_preview_cfg = function()
-			return "Calc Score"
+			return "Calculate Score"
 		end,
 	},
 }
@@ -31,19 +31,24 @@ local function check(name, got, want)
 	end
 end
 
+-- Describes what the HUD gets: each button's label, and "original" if it uses the original look
 local function preview(score, money)
 	PVP.INTEGRATIONS.Preview = score
 	PVP.INTEGRATIONS.PreviewMoney = money
-	local ids = {}
-	for _, button in ipairs(FN.PRE.get_calculate_score_button().nodes[1].nodes) do
-		table.insert(ids, button.config.id)
+	if not FN.PRE.in_play() then return "off" end
+	local node = FN.PRE.get_calculate_score_button()
+	local buttons = node.config.id and { node } or node.nodes[1].nodes
+	local described = {}
+	for _, button in ipairs(buttons) do
+		local label = button.nodes[1].nodes[1].config.text
+		table.insert(described, label .. (button.config.shadow and " (original)" or ""))
 	end
-	return (FN.PRE.in_play() and "on" or "off") .. ": " .. table.concat(ids, ", ")
+	return table.concat(described, ", ")
 end
 
-check("score only", preview(true, false), "on: calculate_score_button")
-check("money only", preview(false, true), "on: calculate_money_button")
-check("both", preview(true, true), "on: calculate_score_button, calculate_money_button")
-check("neither", preview(false, false), "off: ")
+check("score only", preview(true, false), "Calculate Score (original)")
+check("money only", preview(false, true), "Calculate Money (original)")
+check("both", preview(true, true), "Calc Score, Calc Money")
+check("neither", preview(false, false), "off")
 
 if failures > 0 then os.exit(1) end
