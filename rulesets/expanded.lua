@@ -1,4 +1,4 @@
 PVP.Ruleset({
 	key = "expanded",
-	layers = { "balanced", "expanded", "expanded_draft", "pvp_timer" },
+	layers = { "balanced", "expanded", PVP.LayerKey.MULTIPLAYER_CONTENT, "expanded_draft", "pvp_timer" },
 }):inject()
