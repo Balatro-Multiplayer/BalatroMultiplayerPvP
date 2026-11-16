@@ -80,8 +80,8 @@ function PVP.UI.create_config_tab()
 					create_toggle({
 						id = "preview_money_toggle",
 						label = localize("b_preview_money"),
-						ref_table = PVP.config,
-						ref_value = "preview_money",
+						ref_table = PVP.config.integrations,
+						ref_value = "PreviewMoney",
 					}),
 				},
 			},
@@ -96,6 +96,22 @@ function PVP.UI.create_config_tab()
 						n = G.UIT.T,
 						config = {
 							text = localize("k_preview_money_credit"),
+							shadow = true,
+							scale = 0.375,
+							colour = G.C.UI.TEXT_INACTIVE,
+						},
+					},
+					{
+						n = G.UIT.B,
+						config = {
+							w = 0.1,
+							h = 0.1,
+						},
+					},
+					{
+						n = G.UIT.T,
+						config = {
+							text = localize("k_requires_restart"),
 							shadow = true,
 							scale = 0.375,
 							colour = G.C.UI.TEXT_INACTIVE,

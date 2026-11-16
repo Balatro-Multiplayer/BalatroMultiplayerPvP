@@ -61,10 +61,14 @@ local function calculate_button(id, text, colour)
 	}
 end
 
--- Buttons sized like the chips/mult boxes above
+-- Buttons sized like the chips/mult boxes above. Each has its own setting;
+-- the calculator runs when either is on (see FN.PRE.in_play).
 function FN.PRE.get_calculate_score_button()
-	local buttons = { calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED) }
-	if PVP.config.preview_money then
+	local buttons = {}
+	if PVP.INTEGRATIONS.Preview then
+		table.insert(buttons, calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED))
+	end
+	if PVP.INTEGRATIONS.PreviewMoney then
 		table.insert(buttons, calculate_button("calculate_money_button", "Calc Money", G.C.MONEY))
 	end
 	return {

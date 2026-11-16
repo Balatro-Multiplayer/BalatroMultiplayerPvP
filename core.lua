@@ -62,6 +62,7 @@ end
 
 PVP.INTEGRATIONS = {
 	Preview = PVP.config.integrations.Preview,
+	PreviewMoney = PVP.config.integrations.PreviewMoney,
 }
 
 PVP.PREVIEW = {
