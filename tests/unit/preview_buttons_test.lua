@@ -36,13 +36,17 @@ local function preview(score, money)
 	PVP.INTEGRATIONS.Preview = score
 	PVP.INTEGRATIONS.PreviewMoney = money
 	if not FN.PRE.in_play() then return "off" end
-	local node = FN.PRE.get_calculate_score_button()
-	local buttons = node.config.id and { node } or node.nodes[1].nodes
 	local described = {}
-	for _, button in ipairs(buttons) do
-		local label = button.nodes[1].nodes[1].config.text
-		table.insert(described, label .. (button.config.shadow and " (original)" or ""))
+	local function find_buttons(node)
+		if node.config and node.config.button then
+			local label = node.nodes[1].nodes[1].config.text
+			table.insert(described, label .. (node.config.minw == 3 and " (original)" or ""))
+		end
+		for _, child in ipairs(node.nodes or {}) do
+			find_buttons(child)
+		end
 	end
+	find_buttons(FN.PRE.get_calculate_score_button())
 	return table.concat(described, ", ")
 end
 

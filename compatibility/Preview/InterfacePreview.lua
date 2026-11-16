@@ -53,7 +53,7 @@ local function calculate_button(id, text, colour, alone)
 			r = alone and 0.02 or 0.1,
 			colour = colour,
 			hover = true,
-			shadow = alone,
+			shadow = true,
 		},
 		nodes = {
 			{
@@ -81,18 +81,17 @@ function FN.PRE.get_calculate_score_button()
 	-- The default label is too wide for half the space
 	local score_label = PVP.UTILS.get_preview_cfg("button")
 	if score_label == "Calculate Score" then score_label = "Calc Score" end
+	-- One flat row: a row nested in a row starts a new line, and row padding also adds height
 	return {
-		n = G.UIT.C,
+		n = G.UIT.R,
 		config = { align = "cm" },
 		nodes = {
-			{
-				n = G.UIT.R,
-				config = { align = "cm", padding = 0.1 },
-				nodes = {
-					calculate_button("calculate_score_button", score_label, G.C.RED),
-					calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
-				},
-			},
+			-- A shadow nudges a button's face toward the screen edge (0.4 * shadow_parrallax.x,
+			-- about 0.025 here), so shift the pair back to sit centered under chips/mult
+			{ n = G.UIT.B, config = { w = 0.05, h = 0.1 } },
+			calculate_button("calculate_score_button", score_label, G.C.RED),
+			{ n = G.UIT.B, config = { w = 0.3, h = 0.1 } },
+			calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
 		},
 	}
 end
