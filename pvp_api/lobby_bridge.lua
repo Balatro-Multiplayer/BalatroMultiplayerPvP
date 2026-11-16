@@ -202,11 +202,7 @@ local function mirror_metadata(lobby)
 	-- without a metadata field of their own. The only other modifier is Trap
 	-- cards: the private lobby host's switch here, the Casual vote below.
 	if meta.ruleset then
-		MPAPI.apply_default_modifiers(meta.ruleset)
-		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
-			MPAPI.add_modifier("traps")
-		end
-		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+		PVP.apply_lobby_layers(meta.ruleset, PVP.lobby_custom(lobby).layers)
 	end
 	if meta.deck then
 		PVP.LOBBY.deck.back = meta.deck

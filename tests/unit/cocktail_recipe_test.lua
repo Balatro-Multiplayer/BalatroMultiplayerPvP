@@ -45,7 +45,7 @@ function localize(args)
 	end
 end
 
-MPAPI = { Party = { KIND = "party" }, apply_default_modifiers = noop, modifiers_serialize = noop }
+MPAPI = { Party = { KIND = "party" }, Rulesets = {}, apply_default_modifiers = noop, add_modifier = noop, modifiers_serialize = noop }
 PVP = {
 	id = "MultiplayerPvP",
 	-- The player's own Cocktail: only Red in the pool, nothing forced, shown.

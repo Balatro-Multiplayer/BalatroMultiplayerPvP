@@ -38,30 +38,24 @@ PVP.LOBBY = {
 	config = {}, -- PVP.reset_lobby_config
 }
 
--- The lobby settings the host shares through the lobby metadata
--- (PVP.lobby_option_metadata), and their types. These are the only metadata keys
--- that set PVP.LOBBY.config; every other config value comes from the defaults
--- below, the ruleset, or the gamemode. The ruleset and gamemode themselves are
--- not config: they're read from the metadata (PVP.lobby_metadata).
+-- The metadata keys copied into PVP.LOBBY.config, and their types: only the
+-- host's stake (PVP.lobby_loadout_metadata). The ruleset, gamemode and the
+-- host's changes to the ruleset (custom) are read from the metadata itself;
+-- see PVP.setting.
 PVP.SHARED_LOBBY_SETTINGS = {
-	starting_lives = "number",
-	pvp_start_round = "number",
-	manhunt_hunter_lives = "number",
-	trap_cards = "boolean",
 	stake = "number",
 }
 
 function PVP.reset_lobby_config()
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
-		-- Shared by the host (PVP.SHARED_LOBBY_SETTINGS).
+		-- Options the host may change (metadata.custom.options) unless the
+		-- ruleset sets them.
 		starting_lives = 4,
 		pvp_start_round = 2,
 		-- Manhunt only: each Hunter's individual life count (Runner is always
 		-- fixed at 1, not configurable -- see PVP.referee_reset).
 		manhunt_hunter_lives = 7,
-		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
-		trap_cards = false,
 
 		-- The host's deck. Everyone plays it unless different_decks is on.
 		back = "Red Deck",
@@ -107,11 +101,12 @@ function PVP.reset_lobby_config()
 	}
 end
 
--- Read a lobby option. The active ruleset's `lobby_options` win: they are the
--- ruleset's rules, the same on every client, and nothing copies them into
--- PVP.LOBBY.config, so switching rulesets leaves nothing behind. Practice and
--- playback runs keep their own config. Everything else comes from
--- PVP.LOBBY.config: the defaults above and the host's shared settings.
+-- Read a lobby option, from three places and in this order:
+--   1. the active ruleset's `lobby_options`: its rules, never overridden
+--   2. the host's changes, metadata.custom.options
+--   3. PVP.LOBBY.config: the defaults above
+-- Nothing copies 1 or 2 into config, so a ruleset change or a new lobby leaves
+-- nothing behind. Practice and playback runs skip 1 and keep their own config.
 local NO_OPTIONS = {}
 
 function PVP.ruleset_lobby_options()
@@ -126,6 +121,9 @@ end
 function PVP.setting(key)
 	local forced = PVP.ruleset_lobby_options()[key]
 	if forced ~= nil then return forced end
+	local custom = PVP.lobby_metadata and PVP.lobby_metadata().custom
+	local options = type(custom) == "table" and type(custom.options) == "table" and custom.options or NO_OPTIONS
+	if options[key] ~= nil then return options[key] end
 	return PVP.LOBBY.config[key]
 end
 
@@ -135,11 +133,12 @@ local function coerce(value, kind)
 	return value
 end
 
--- Lobby metadata keys that aren't settings: ruleset and gamemode are read from
--- the metadata itself (PVP.lobby_metadata), pvp_api/lobby_bridge.lua reads deck,
+-- Lobby metadata keys that aren't settings: ruleset, gamemode and custom are
+-- read from the metadata itself (PVP.lobby_metadata, PVP.setting), pvp_api/lobby_bridge.lua reads deck,
 -- kind, queue_mode and cocktail_recipe itself, and keys starting with "_" belong
 -- to MPAPI or the referee.
 local NOT_SETTINGS = {
+	custom = true,
 	ruleset = true,
 	gamemode = true,
 	deck = true,

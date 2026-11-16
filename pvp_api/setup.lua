@@ -1,6 +1,6 @@
 -- PvP's Setup (ADR 0003): what a started game runs before its run. Casual
 -- Nemesis, Royale, Manhunt and Teams vote on the ruleset first, then on Trap
--- cards when the ruleset is in TRAP_RULESETS. Matchmade games then run the
+-- cards when the ruleset lists them in optional_layers. Matchmade games then run the
 -- Draft. The server holds every step (MPAPI.Setup); the current host opens
 -- the next step, and every client follows the results.
 
@@ -12,7 +12,6 @@ S.Step = { RULESET = "ruleset", TRAPS = "traps", DRAFT = "draft" }
 -- Ruleset vote options, in panel order: option key -> ruleset key.
 S.RULESET_OPTIONS = { "vanilla", "majorleague", "balanced", "expanded" }
 S.TRAP_OPTIONS = { "on", "off" }
-local TRAP_RULESETS = { balanced = true, expanded = true }
 local VOTE_FORMATS = { pvp_nemesis = true, pvp_royale = true, pvp_manhunt = true, pvp_teams = true }
 
 -- How long a vote result stays in the panel before the next step.
@@ -42,7 +41,7 @@ function S.next_step(plan, results)
 		if not ruleset then
 			return { kind = "vote", id = S.Step.RULESET, options = S.RULESET_OPTIONS }
 		end
-		if TRAP_RULESETS[ruleset.option] and not results[S.Step.TRAPS] then
+		if PVP.is_optional_layer(S.ruleset_key(ruleset.option), "traps") and not results[S.Step.TRAPS] then
 			return { kind = "vote", id = S.Step.TRAPS, options = S.TRAP_OPTIONS }
 		end
 	end
@@ -82,18 +81,17 @@ function S.apply_results(lobby)
 	if not ruleset then
 		return
 	end
-	PVP.set_lobby_ruleset(lobby, ruleset)
-	MPAPI.apply_default_modifiers(ruleset)
-	if traps then
-		MPAPI.add_modifier("traps")
-	end
-	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+	local layers = traps and { "traps" } or {}
+	PVP.set_lobby_ruleset(lobby, ruleset, { options = {}, layers = layers })
+	-- Until the host's metadata lands, every client plays the rolled layers.
+	PVP.apply_lobby_layers(ruleset, layers)
 end
 
 -- MPAPI's bans and layers read the ruleset from the lobby metadata, so the
 -- host writes the rolled one there.
 local function publish_ruleset(lobby)
-	PVP.set_lobby_ruleset(lobby, (S.rolled(setup_results(lobby))))
+	local ruleset, traps = S.rolled(setup_results(lobby))
+	PVP.set_lobby_ruleset(lobby, ruleset, { options = {}, layers = traps and { "traps" } or {} })
 end
 
 local function metadata_ready(lobby)

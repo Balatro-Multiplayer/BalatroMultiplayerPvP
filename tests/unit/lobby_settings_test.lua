@@ -29,16 +29,10 @@ config.starting_lives = 2
 PVP.reset_lobby_config()
 check("a reset restores lives", PVP.LOBBY.config.starting_lives, 4)
 
-PVP.apply_lobby_setting("starting_lives", "6")
-check("a number setting arrives as a number", PVP.LOBBY.config.starting_lives, 6)
 PVP.apply_lobby_setting("stake", "3")
 check("the host's stake arrives as a number", PVP.LOBBY.config.stake, 3)
-PVP.apply_lobby_setting("trap_cards", "true")
-check("a boolean setting sent as text arrives as a boolean", PVP.LOBBY.config.trap_cards, true)
-PVP.apply_lobby_setting("trap_cards", false)
-check("a boolean setting arrives as it is", PVP.LOBBY.config.trap_cards, false)
 
-for _, key in ipairs({ "ruleset", "gamemode", "deck", "kind", "queue_mode", "cocktail_recipe", "_pvp_ref", "_mp_pending_seed" }) do
+for _, key in ipairs({ "custom", "ruleset", "gamemode", "deck", "kind", "queue_mode", "cocktail_recipe", "_pvp_ref", "_mp_pending_seed" }) do
 	PVP.apply_lobby_setting(key, "x")
 	check("metadata key " .. key .. " stays out of config", PVP.LOBBY.config[key], nil)
 end
@@ -67,6 +61,12 @@ meta.ruleset = "ruleset_mp_expanded"
 check("back on Expanded, the timer is the default", PVP.setting("timer_base_seconds"), 150)
 check("back on Expanded, preview is on", PVP.setting("preview_disabled"), false)
 check("back on Expanded, The Order is on", PVP.setting("the_order"), true)
+meta.custom = { options = { timer_base_seconds = 240, starting_lives = 6 } }
+check("the host's change applies", PVP.setting("starting_lives"), 6)
+check("config still holds the default", PVP.LOBBY.config.starting_lives, 4)
+meta.ruleset = "ruleset_mp_majorleague"
+check("the ruleset's own value beats the host's", PVP.setting("timer_base_seconds"), 180)
+meta.custom = nil
 meta.kind, meta.ruleset = "practice", "ruleset_mp_majorleague"
 check("practice keeps its own config", PVP.setting("timer_base_seconds"), 150)
 

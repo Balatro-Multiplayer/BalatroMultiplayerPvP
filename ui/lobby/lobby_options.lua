@@ -36,6 +36,35 @@ local function can_edit_private_lobby(lobby)
 	return lobby and lobby.is_host and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and not lobby:is_game_started()
 end
 
+-- A switch for one of the ruleset's optional_layers. A layer the ruleset
+-- doesn't offer shows as off, with the ruleset named.
+local function layer_toggle(lobby, name, label)
+	local ruleset = PVP.lobby_metadata().ruleset
+	local offered = PVP.is_optional_layer(ruleset, name)
+	local state = { on = offered and PVP.lobby_has_layer(name) }
+	if not offered then
+		label = label .. " (off in " .. PVP.ruleset_display_name(ruleset) .. ")"
+	end
+	return {
+		n = G.UIT.R,
+		config = { align = "cm", padding = 0.1 },
+		nodes = {
+			MPAPI.disableable_toggle({
+				label = label,
+				ref_table = state,
+				ref_value = "on",
+				callback = function(on)
+					local current = MPAPI.get_current_lobby()
+					if can_edit_private_lobby(current) then PVP.set_lobby_layer(current, name, on) end
+				end,
+				enabled = function()
+					return offered and can_edit_private_lobby(lobby)
+				end,
+			}).node,
+		},
+	}
+end
+
 function PVP.build_lobby_options()
 	local rows = {}
 	local lobby = MPAPI.get_current_lobby()
@@ -60,26 +89,7 @@ function PVP.build_lobby_options()
 				}).node,
 			},
 		}
-		rows[#rows + 1] = {
-			n = G.UIT.R,
-			config = { align = "cm", padding = 0.1 },
-			nodes = {
-				MPAPI.disableable_toggle({
-					label = localize("k_pvp_lobby_trap_cards"),
-					ref_table = PVP.LOBBY.config,
-					ref_value = "trap_cards",
-					callback = function()
-						local current = MPAPI.get_current_lobby()
-						if current and current.is_host then
-							current:set_metadata(PVP.lobby_option_metadata())
-						end
-					end,
-					enabled = function()
-						return lobby and lobby.is_host
-					end,
-				}).node,
-			},
-		}
+		rows[#rows + 1] = layer_toggle(lobby, "traps", localize("k_pvp_lobby_trap_cards"))
 	end
 
 	if PVP.LOBBY.config.manhunt then
@@ -155,7 +165,5 @@ G.FUNCS.mp_pvp_change_team = function(e)
 end
 
 G.FUNCS.mp_pvp_change_manhunt_hunter_lives = function(e)
-	PVP.LOBBY.config.manhunt_hunter_lives = e.to_key + 6
-	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then lobby:set_metadata(PVP.lobby_option_metadata()) end
+	PVP.set_lobby_option(MPAPI.get_current_lobby(), "manhunt_hunter_lives", e.to_key + 6)
 end
