@@ -1,5 +1,5 @@
 -- The lobby's options screen (previously a no-op placeholder, see ui/lobby/code.lua):
--- a host-only ruleset picker and Trap cards switch (private lobbies only -- ranked/casual matchmaking
+-- a host-only ruleset picker, deck mode, layer switches and lobby options (private lobbies only -- ranked/casual matchmaking
 -- already commits to a specific ruleset by which queue option was picked, see
 -- pvp_api/queue.lua), plus Manhunt's Hunter/Runner or Teams' A/B role picker when
 -- applicable (any lobby kind -- a casual matchmaking-formed Manhunt/Teams match
@@ -65,89 +65,256 @@ local function layer_toggle(lobby, name, label)
 	}
 end
 
-function PVP.build_lobby_options()
+local function is_host()
+	return can_edit_private_lobby(MPAPI.get_current_lobby())
+end
+
+-- A ruleset's own lobby_options are its rules: the host can't change them, and
+-- the screen shows the ruleset's value.
+local function forced(key)
+	return PVP.ruleset_lobby_options()[key] ~= nil
+end
+
+local function option_row(node)
+	return { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { node } }
+end
+
+local function set_option(key, value)
+	PVP.set_lobby_option(MPAPI.get_current_lobby(), key, value)
+end
+
+local function toggle_row(id, label_key, key, enabled)
+	local state = { on = PVP.setting(key) and true or false }
+	return option_row(MPAPI.disableable_toggle({
+		id = id,
+		label = localize(label_key),
+		ref_table = state,
+		ref_value = "on",
+		callback = function(on)
+			if is_host() then
+				set_option(key, on)
+			end
+		end,
+		enabled = function()
+			return is_host() and not forced(key) and (not enabled or enabled())
+		end,
+	}).node)
+end
+
+-- Number-valued options: key -> { values = { ... }, suffix }. Each gets a G.FUNCS callback.
+local NUMBER_OPTIONS = {
+	starting_lives = { values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 } },
+	pvp_start_round = { values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } },
+	timer_base_seconds = { values = { 30, 60, 90, 120, 150, 180, 210, 240 }, suffix = "s" },
+	timer_increment_seconds = { values = { 0, 30, 60, 90, 120, 150, 180 }, suffix = "s" },
+	pvp_countdown_seconds = { values = { 0, 3, 5, 10 }, suffix = "s" },
+}
+
+for key, def in pairs(NUMBER_OPTIONS) do
+	G.FUNCS["mp_pvp_change_" .. key] = function(e)
+		if is_host() then
+			set_option(key, def.values[e.to_key])
+		end
+	end
+end
+
+local function number_row(key, label_key)
+	local def = NUMBER_OPTIONS[key]
+	local labels, current = {}, 1
+	for i, v in ipairs(def.values) do
+		labels[i] = tostring(v) .. (def.suffix or "")
+		if v == PVP.setting(key) then
+			current = i
+		end
+	end
+	return option_row(MPAPI.disableable_option_cycle({
+		id = "mp_pvp_opt_" .. key,
+		label = localize(label_key),
+		options = labels,
+		current_option = current,
+		opt_callback = "mp_pvp_change_" .. key,
+		w = 4,
+		scale = 0.6,
+		enabled = function()
+			return is_host() and not forced(key)
+		end,
+	}).node)
+end
+
+local function deck_mode_row()
+	return option_row(MPAPI.disableable_option_cycle({
+		id = "mp_pvp_deck_mode",
+		label = "Deck Mode",
+		options = { "Select", "Draft" },
+		current_option = (PVP.setting("deck_mode") == PVP.DeckMode.DRAFT) and 2 or 1,
+		opt_callback = "mp_pvp_change_deck_mode",
+		w = 4,
+		scale = 0.6,
+		-- The Draft runs on the server, so it needs a server-refereed lobby.
+		enabled = function()
+			return is_host() and MPAPI.has_server_referee(MPAPI.get_current_lobby())
+		end,
+	}).node)
+end
+
+-- The Multiplayer Cards layer: shown on in the rulesets that include it, a
+-- switch in the ones that offer it.
+local function multiplayer_cards_row(lobby)
+	local ruleset = PVP.lobby_metadata().ruleset
+	local def = ruleset and MPAPI.Rulesets[ruleset]
+	local name = PVP.LayerKey.MULTIPLAYER_CONTENT
+	for _, n in ipairs(def and def.layers or {}) do
+		if n == name then
+			return option_row(MPAPI.disableable_toggle({
+				label = localize("b_opts_multiplayer_jokers"),
+				ref_table = { on = true },
+				ref_value = "on",
+				enabled = function()
+					return false
+				end,
+			}).node)
+		end
+	end
+	return layer_toggle(lobby, name, localize("b_opts_multiplayer_jokers"))
+end
+
+local function tab_root(rows)
+	return {
+		n = G.UIT.ROOT,
+		config = { emboss = 0.05, minh = 6, r = 0.1, minw = 8, align = "tm", padding = 0.2, colour = G.C.BLACK },
+		nodes = rows,
+	}
+end
+
+local function ruleset_row()
+	return option_row(MPAPI.disableable_option_cycle({
+		id = "mp_pvp_ruleset_pick",
+		label = "Ruleset",
+		options = ruleset_labels(),
+		current_option = current_ruleset_option(),
+		opt_callback = "mp_pvp_change_ruleset",
+		w = 4,
+		scale = 0.6,
+		enabled = is_host,
+	}).node)
+end
+
+local function lobby_tab(lobby)
+	local rows = {}
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		rows[#rows + 1] = ruleset_row()
+		rows[#rows + 1] = deck_mode_row()
+		rows[#rows + 1] = layer_toggle(lobby, "traps", localize("k_pvp_lobby_trap_cards"))
+		rows[#rows + 1] = number_row("starting_lives", "b_opts_lives")
+		rows[#rows + 1] = multiplayer_cards_row(lobby)
+		rows[#rows + 1] = toggle_row("mp_pvp_normal_bosses", "b_opts_normal_bosses", "normal_bosses")
+	end
+	return rows
+end
+
+local function gameplay_tab()
+	return {
+		toggle_row("mp_pvp_gold_on_life_loss", "b_opts_cb_money", "gold_on_life_loss"),
+		toggle_row("mp_pvp_no_gold_on_round_loss", "b_opts_no_gold_on_loss", "no_gold_on_round_loss"),
+		toggle_row("mp_pvp_death_on_round_loss", "b_opts_death_on_loss", "death_on_round_loss"),
+		toggle_row("mp_pvp_the_order", "b_opts_the_order", "the_order"),
+		toggle_row("mp_pvp_preview_disabled", "b_opts_disable_preview", "preview_disabled"),
+		-- Always listed so players know it exists; only Small World can use it.
+		toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld", function()
+			return PVP.lobby_metadata().ruleset == PVP.RulesetKey.SMALLWORLD
+		end),
+	}
+end
+
+local function timer_tab()
+	return {
+		toggle_row("mp_pvp_timer", "b_opts_timer", "timer"),
+		number_row("timer_base_seconds", "k_opts_pvp_timer"),
+		number_row("timer_increment_seconds", "k_opts_pvp_timer_increment"),
+		number_row("pvp_start_round", "k_opts_pvp_start_round"),
+		number_row("pvp_countdown_seconds", "k_opts_pvp_countdown_seconds"),
+	}
+end
+
+local function player_rows()
 	local rows = {}
 	local lobby = MPAPI.get_current_lobby()
-
-	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
-		local function editable()
-			return can_edit_private_lobby(lobby)
-		end
-		rows[#rows + 1] = {
-			n = G.UIT.R,
-			config = { align = "cm", padding = 0.1 },
-			nodes = {
-				MPAPI.disableable_option_cycle({
-					id = "mp_pvp_ruleset_pick",
-					label = "Ruleset",
-					options = ruleset_labels(),
-					current_option = current_ruleset_option(),
-					opt_callback = "mp_pvp_change_ruleset",
-					w = 4,
-					scale = 0.6,
-					enabled = editable,
-				}).node,
-			},
-		}
-		rows[#rows + 1] = layer_toggle(lobby, "traps", localize("k_pvp_lobby_trap_cards"))
-	end
-
 	if PVP.LOBBY.config.manhunt then
-		rows[#rows + 1] = {
-			n = G.UIT.R,
-			config = { align = "cm", padding = 0.1 },
-			nodes = {
-				MPAPI.disableable_option_cycle({
-					id = "mp_pvp_manhunt_role",
-					label = "Role",
-					options = { "Hunter", "Runner" },
-					current_option = (PVP.LOBBY.team_id == "RUNNER") and 2 or 1,
-					opt_callback = "mp_pvp_change_manhunt_role",
-					w = 4,
-					scale = 0.6,
-					enabled = function()
-						return PVP.LOBBY.team_id == "RUNNER" or not PVP.is_runner_taken()
-					end,
-				}).node,
-			},
-		}
-
+		rows[#rows + 1] = option_row(MPAPI.disableable_option_cycle({
+			id = "mp_pvp_manhunt_role",
+			label = "Role",
+			options = { "Hunter", "Runner" },
+			current_option = (PVP.LOBBY.team_id == "RUNNER") and 2 or 1,
+			opt_callback = "mp_pvp_change_manhunt_role",
+			w = 4,
+			scale = 0.6,
+			enabled = function()
+				return PVP.LOBBY.team_id == "RUNNER" or not PVP.is_runner_taken()
+			end,
+		}).node)
 		if lobby and lobby.is_host then
-			rows[#rows + 1] = {
-				n = G.UIT.R,
-				config = { align = "cm", padding = 0.1 },
-				nodes = {
-					create_option_cycle({
-						id = "mp_pvp_manhunt_hunter_lives",
-						label = "Hunter Lives",
-						options = { "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" },
-						current_option = (PVP.setting("manhunt_hunter_lives") or 7) - 6,
-						opt_callback = "mp_pvp_change_manhunt_hunter_lives",
-						w = 4,
-						scale = 0.6,
-					}),
-				},
-			}
+			rows[#rows + 1] = option_row(create_option_cycle({
+				id = "mp_pvp_manhunt_hunter_lives",
+				label = "Hunter Lives",
+				options = { "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" },
+				current_option = (PVP.setting("manhunt_hunter_lives") or 7) - 6,
+				opt_callback = "mp_pvp_change_manhunt_hunter_lives",
+				w = 4,
+				scale = 0.6,
+			}))
 		end
 	elseif PVP.LOBBY.config.team_based then
-		rows[#rows + 1] = {
-			n = G.UIT.R,
-			config = { align = "cm", padding = 0.1 },
-			nodes = {
-				create_option_cycle({
-					id = "mp_pvp_team_pick",
-					label = "My Team",
-					options = { "Team A", "Team B" },
-					current_option = (PVP.LOBBY.team_id == "B") and 2 or 1,
-					opt_callback = "mp_pvp_change_team",
-					w = 4,
-					scale = 0.6,
-				}),
-			},
+		rows[#rows + 1] = option_row(create_option_cycle({
+			id = "mp_pvp_team_pick",
+			label = "My Team",
+			options = { "Team A", "Team B" },
+			current_option = (PVP.LOBBY.team_id == "B") and 2 or 1,
+			opt_callback = "mp_pvp_change_team",
+			w = 4,
+			scale = 0.6,
+		}))
+	end
+	return rows
+end
+
+function PVP.build_lobby_options()
+	local lobby = MPAPI.get_current_lobby()
+	local tabs = {}
+	local function add_tab(label, rows_fn)
+		tabs[#tabs + 1] = {
+			label = label,
+			chosen = #tabs == 0,
+			tab_definition_function = function()
+				return tab_root(rows_fn())
+			end,
 		}
 	end
 
-	return create_UIBox_generic_options({ contents = rows })
+	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		add_tab("Lobby", function()
+			local rows = lobby_tab(lobby)
+			for _, r in ipairs(player_rows()) do
+				rows[#rows + 1] = r
+			end
+			return rows
+		end)
+		add_tab("Gameplay", gameplay_tab)
+		add_tab("Timers", timer_tab)
+	else
+		-- Matchmade lobbies: only each player's own role/team pick.
+		add_tab("Lobby", player_rows)
+	end
+
+	return create_UIBox_generic_options({
+		contents = { create_tabs({ tabs = tabs, snap_to_nav = true }) },
+	})
+end
+
+G.FUNCS.mp_pvp_change_deck_mode = function(e)
+	if is_host() then
+		set_option("deck_mode", (e.to_key == 2) and PVP.DeckMode.DRAFT or PVP.DeckMode.SELECT)
+		MPAPI.refresh_current_view()
+	end
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)

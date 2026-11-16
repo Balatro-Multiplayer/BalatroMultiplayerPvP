@@ -46,6 +46,8 @@ PVP.SHARED_LOBBY_SETTINGS = {
 	stake = "number",
 }
 
+PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
+
 function PVP.reset_lobby_config()
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
@@ -71,7 +73,9 @@ function PVP.reset_lobby_config()
 		death_on_round_loss = true,
 		the_order = true,
 		preview_disabled = false,
-		legacy_smallworld = false,
+		smallerworld = false,
+		-- How a private lobby picks its deck: the host chooses one, or the players run the Draft.
+		deck_mode = "select",
 		timer = true,
 		timer_base_seconds = 150,
 		timer_increment_seconds = 60,

@@ -713,7 +713,6 @@ return {
 			b_opts_timer = "타이머 활성화",
 			b_opts_disable_preview = "점수 미리보기 비활성화",
 			b_opts_the_order = "The Order 활성화",
-			b_opts_legacy_smallworld = "레거시 Small World 메커니즘",
 
 			b_reset = "초기화",
 			b_set_custom_seed = "커스텀 시드 설정",
