@@ -61,8 +61,12 @@ local function calculate_button(id, text, colour)
 	}
 end
 
--- Two buttons sized like the chips/mult boxes above
+-- Buttons sized like the chips/mult boxes above
 function FN.PRE.get_calculate_score_button()
+	local buttons = { calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED) }
+	if PVP.config.preview_money then
+		table.insert(buttons, calculate_button("calculate_money_button", "Calc Money", G.C.MONEY))
+	end
 	return {
 		n = G.UIT.C,
 		config = { align = "cm" },
@@ -70,10 +74,7 @@ function FN.PRE.get_calculate_score_button()
 			{
 				n = G.UIT.R,
 				config = { align = "cm", padding = 0.1 },
-				nodes = {
-					calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED),
-					calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
-				},
+				nodes = buttons,
 			},
 		},
 	}

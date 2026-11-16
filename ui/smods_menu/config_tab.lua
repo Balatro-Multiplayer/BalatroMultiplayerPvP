@@ -71,6 +71,45 @@ function PVP.UI.create_config_tab()
 					align = "cm",
 					on_demand_tooltip = {
 						text = {
+							localize("k_preview_money_desc"),
+							localize("k_preview_money_credit"),
+						},
+					},
+				},
+				nodes = {
+					create_toggle({
+						id = "preview_money_toggle",
+						label = localize("b_preview_money"),
+						ref_table = PVP.config,
+						ref_value = "preview_money",
+					}),
+				},
+			},
+			{
+				n = G.UIT.R,
+				config = {
+					padding = 0,
+					align = "cm",
+				},
+				nodes = {
+					{
+						n = G.UIT.T,
+						config = {
+							text = localize("k_preview_money_credit"),
+							shadow = true,
+							scale = 0.375,
+							colour = G.C.UI.TEXT_INACTIVE,
+						},
+					},
+				},
+			},
+			{
+				n = G.UIT.R,
+				config = {
+					padding = 0,
+					align = "cm",
+					on_demand_tooltip = {
+						text = {
 							localize("k_applies_singleplayer_vanilla_rulesets"),
 						},
 					},

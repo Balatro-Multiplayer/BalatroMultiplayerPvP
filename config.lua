@@ -13,6 +13,7 @@ return {
 	["nemesis_layout"] = "standard",
 	["unlocked"] = true,
 	["preview"] = {},
+	["preview_money"] = true,
 	["joker_stats"] = {},
 	["match_history"] = {},
 }
