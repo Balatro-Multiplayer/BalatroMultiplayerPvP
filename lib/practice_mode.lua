@@ -37,7 +37,7 @@ end
 -- A nil seed is a random one, as in vanilla.
 --
 -- The PvP boss ("nemesis") blind still spawns and plays out normally from ante
--- PVP.LOBBY.config.pvp_start_round onward (see the practice branches in ui/game/game_state.lua
+-- PVP.setting("pvp_start_round") onward (see the practice branches in ui/game/game_state.lua
 -- and ui/game/blind_hud.lua's opponent-score masking) -- it's neutered, not skipped: the
 -- opponent's score/hands always read "???", every hand is always usable, and no life is ever
 -- lost. Ante 8 ends the run naturally (see game_state.lua's update_new_round: the "prevent
@@ -80,7 +80,7 @@ function PVP._start_practice(ruleset_key, loadout)
 	-- defaults so nothing that reads them (PVP.UTILS.get_nemesis_key's own lives<=1 check)
 	-- hits a nil comparison. Never decremented in practice (see update_new_round's
 	-- practice branch), so this value just sits here for the whole run.
-	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
+	PVP.GAME.lives = PVP.setting("starting_lives")
 
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		-- After setup_lobby_mirror's own CONNECTED handler (registered first, so it runs

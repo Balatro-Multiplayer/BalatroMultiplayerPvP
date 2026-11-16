@@ -68,7 +68,7 @@ function PVP._start_playback(manifest, on_ready)
 	-- config back onto the deck, and a default config would reset it to Red Deck.
 	PVP.apply_replay_loadout(PVP.LOBBY, manifest)
 
-	PVP.GAME.lives = PVP.LOBBY.config.starting_lives
+	PVP.GAME.lives = PVP.setting("starting_lives")
 
 	-- A restart (a checkpoint seek, the second pass of a crash rejoin) starts this from inside a
 	-- run that is still on screen. on_ready waits for the new run's own blind-select screen: the

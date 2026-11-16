@@ -3,7 +3,7 @@
 
 local ease_ante_ref = ease_ante
 function ease_ante(mod)
-	if PVP.is_mp_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud then
+	if PVP.is_mp_or_practice() and not PVP.setting("disable_live_and_timer_hud") then
 		-- Prevents easing multiple times at once
 		if PVP.GAME.antes_keyed[PVP.GAME.ante_key] then return end
 
@@ -43,7 +43,7 @@ end
 
 local ease_round_ref = ease_round
 function ease_round(mod)
-	if PVP.is_mp_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud and PVP.LOBBY.config.timer then
+	if PVP.is_mp_or_practice() and not PVP.setting("disable_live_and_timer_hud") and PVP.setting("timer") then
         G.GAME.round = G.GAME.round + mod
         return
     end

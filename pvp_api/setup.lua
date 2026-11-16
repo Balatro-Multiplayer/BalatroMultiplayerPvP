@@ -88,10 +88,6 @@ function S.apply_results(lobby)
 		MPAPI.add_modifier("traps")
 	end
 	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
-	local def = MPAPI.Rulesets[ruleset]
-	if def and def.force_lobby_options then
-		def:force_lobby_options()
-	end
 end
 
 -- MPAPI's bans and layers read the ruleset from the lobby metadata, so the

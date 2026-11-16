@@ -371,7 +371,7 @@ function Game:start_run(args)
 end
 
 local function lobby_hud_shown()
-	return PVP.LOBBY.connected and PVP.LOBBY.code and not PVP.LOBBY.config.disable_live_and_timer_hud
+	return PVP.LOBBY.connected and PVP.LOBBY.code and not PVP.setting("disable_live_and_timer_hud")
 end
 
 -- The run HUD gets its Timer box (lovely/hud.toml) only when it is built
@@ -417,7 +417,7 @@ local hud_opponent_lives = setmetatable({}, {
 			self_id = PVP.self_player_id(),
 			own_lives = PVP.GAME and PVP.GAME.lives,
 			cache = PVP._player_lives_cache,
-			starting_lives = PVP.LOBBY.config.starting_lives,
+			starting_lives = PVP.setting("starting_lives"),
 			player_ids = player_ids,
 			nemesis_id = PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id or nil,
 		})

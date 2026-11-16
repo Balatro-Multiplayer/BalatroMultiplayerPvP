@@ -154,5 +154,5 @@ function Card:apply_to_run(center)
 end
 
 function PVP.legacy_smallworld()
-	return PVP.LOBBY.code and PVP.LOBBY.config and PVP.LOBBY.config.legacy_smallworld
+	return PVP.LOBBY.code and PVP.setting("legacy_smallworld")
 end

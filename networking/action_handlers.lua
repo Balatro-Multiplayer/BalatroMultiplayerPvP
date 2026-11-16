@@ -320,9 +320,9 @@ end
 
 ---@type fun(e: table | nil, args: { deck: string, stake: number | nil, seed: string | nil })
 function G.FUNCS.lobby_start_run(e, args)
-	if PVP.LOBBY.config.different_decks == false then G.FUNCS.copy_host_deck() end
+	if PVP.setting("different_decks") == false then G.FUNCS.copy_host_deck() end
 
-	if PVP.LOBBY.config.different_decks and PVP.LOBBY.config.random_loadout then
+	if PVP.setting("different_decks") and PVP.setting("random_loadout") then
 		PVP.LOBBY.deck.back = roll_random_back_name(args.seed, PVP.CLIENT.username)
 		PVP.LOBBY.deck.challenge = ""
 		PVP.LOBBY.deck.stake = roll_random_stake(args.seed, PVP.CLIENT.username)
@@ -365,8 +365,8 @@ local function action_start_game(p)
 	end
 	local stake = tonumber(p.stake)
 	PVP.ACTIONS.set_ante(0)
-	if not PVP.LOBBY.config.different_seeds and PVP.LOBBY.config.custom_seed ~= "random" then
-		seed = PVP.LOBBY.config.custom_seed
+	if not PVP.setting("different_seeds") and PVP.setting("custom_seed") ~= "random" then
+		seed = PVP.setting("custom_seed")
 	end
 
 	-- Opens this MATCH's single RLOG block (begin_run is now once-per-match,
@@ -392,7 +392,7 @@ local function action_start_game(p)
 			challenge = PVP.LOBBY.config.challenge,
 			modifier_layers = PVP.LOBBY.config.modifier_layers,
 			the_order_enabled = PVP.should_use_the_order(),
-			different_seeds = PVP.LOBBY.config.different_seeds,
+			different_seeds = PVP.setting("different_seeds"),
 			mod_version = PVP and PVP.version,
 			mod_hash = PVP.MOD_STRING,
 			smods_version = SMODS.version,
@@ -490,12 +490,12 @@ end
 local function action_player_info(p)
 	local lives = p.lives
 	if PVP.GAME.lives ~= lives then
-		if PVP.GAME.lives ~= 0 and PVP.LOBBY.config.gold_on_life_loss then
+		if PVP.GAME.lives ~= 0 and PVP.setting("gold_on_life_loss") then
 			PVP.GAME.comeback_bonus_given = false
 			PVP.GAME.comeback_bonus = PVP.GAME.comeback_bonus + 1
 		end
 		PVP.UI.ease_lives(lives - PVP.GAME.lives, true)
-		if PVP.LOBBY.config.no_gold_on_round_loss and (G.GAME.blind and G.GAME.blind.dollars) then
+		if PVP.setting("no_gold_on_round_loss") and (G.GAME.blind and G.GAME.blind.dollars) then
 			G.GAME.blind.dollars = 0
 		end
 	end
@@ -555,7 +555,7 @@ local function action_draw_game()
 end
 
 local function action_lobby_options(options)
-	local different_decks_before = PVP.LOBBY.config.different_decks
+	local different_decks_before = PVP.setting("different_decks")
 	for k, v in pairs(options) do
 		if k == "ruleset" then
 			if not PVP.Rulesets[v] then
@@ -609,7 +609,7 @@ local function action_lobby_options(options)
 		if PVP.UI.update_lobby_option_toggle then PVP.UI.update_lobby_option_toggle(k) end
 		::continue::
 	end
-	if different_decks_before ~= PVP.LOBBY.config.different_decks then
+	if different_decks_before ~= PVP.setting("different_decks") then
 		G.FUNCS.exit_overlay_menu() -- throw out guest from any menu.
 	end
 	PVP.ACTIONS.update_player_usernames() -- render new DECK button state
@@ -1007,7 +1007,7 @@ function PVP.ACTIONS.blind_result(beaten, blind)
 end
 
 function PVP.ACTIONS.fail_round(hands_used)
-	if PVP.LOBBY.config.no_gold_on_round_loss then G.GAME.blind.dollars = 0 end
+	if PVP.setting("no_gold_on_round_loss") then G.GAME.blind.dollars = 0 end
 	if hands_used == 0 then return end
 	PVP.ACTIONS.blind_result(false)
 	Client.send({

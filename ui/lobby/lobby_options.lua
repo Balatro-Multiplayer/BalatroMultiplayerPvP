@@ -111,7 +111,7 @@ function PVP.build_lobby_options()
 						id = "mp_pvp_manhunt_hunter_lives",
 						label = "Hunter Lives",
 						options = { "7", "8", "9", "10", "11", "12", "13", "14", "15", "16" },
-						current_option = (PVP.LOBBY.config.manhunt_hunter_lives or 7) - 6,
+						current_option = (PVP.setting("manhunt_hunter_lives") or 7) - 6,
 						opt_callback = "mp_pvp_change_manhunt_hunter_lives",
 						w = 4,
 						scale = 0.6,

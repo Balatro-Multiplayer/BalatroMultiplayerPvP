@@ -182,7 +182,7 @@ local function ref_player(id)
 			score = PVP.Score.ZERO,
 			highest_score = PVP.Score.ZERO,
 			hands_left = 4,
-			lives = PVP.LOBBY.config.starting_lives or 4,
+			lives = PVP.setting("starting_lives") or 4,
 			skips = 0,
 			ante = 1,
 			furthest_blind = 0,
@@ -890,7 +890,7 @@ function PVP.referee_reset(starting_lives)
 	PVP.REF.many_hold = nil
 	PVP.REF.team_pending = nil
 	PVP.REF.blind_results = {}
-	local lives = starting_lives or PVP.LOBBY.config.starting_lives or 4
+	local lives = starting_lives or PVP.setting("starting_lives") or 4
 	local total = both_players()
 	for _, id in ipairs(total) do
 		local pl = ref_player(id)
@@ -920,7 +920,7 @@ function PVP.referee_reset(starting_lives)
 		for _, id in ipairs(total) do
 			local pl = ref_player(id)
 			pl.team_id = (id == runner_id) and "RUNNER" or "HUNTER"
-			pl.lives = (pl.team_id == "RUNNER") and 1 or (PVP.LOBBY.config.manhunt_hunter_lives or 7)
+			pl.lives = (pl.team_id == "RUNNER") and 1 or (PVP.setting("manhunt_hunter_lives") or 7)
 			broadcast("pvp_player_lives", { player_id = id, lives = pl.lives })
 		end
 	elseif PVP.LOBBY.config.team_based then
@@ -1839,7 +1839,7 @@ function PVP.referee_on_fail_round(from)
 		return
 	end
 	local pl = ref_player(from)
-	if PVP.LOBBY.config.death_on_round_loss then
+	if PVP.setting("death_on_round_loss") then
 		team_lose_life(pl)
 	end
 	if PVP.REF.pending_death then
@@ -2184,7 +2184,7 @@ local function restore(snap)
 			score = score_in(s.score),
 			highest_score = score_in(s.highest),
 			hands_left = tonumber(s.hands) or 4,
-			lives = tonumber(s.lives) or (PVP.LOBBY.config.starting_lives or 4),
+			lives = tonumber(s.lives) or (PVP.setting("starting_lives") or 4),
 			skips = tonumber(s.skips) or 0,
 			ante = tonumber(s.ante) or 1,
 			furthest_blind = tonumber(s.furthest) or 0,

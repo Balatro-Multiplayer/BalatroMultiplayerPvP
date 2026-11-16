@@ -70,9 +70,8 @@ function PVP.reset_lobby_config()
 		challenge = "",
 		cocktail = "",
 
-		-- Rules. Every client starts from these; a ranked or private lobby's
-		-- ruleset forces some of them the same way on every client
-		-- (PVP.force_lobby_options).
+		-- Rules. Every client starts from these. A ruleset's lobby_options
+		-- replace them in a live lobby (PVP.setting), without writing here.
 		gold_on_life_loss = true,
 		no_gold_on_round_loss = false,
 		death_on_round_loss = true,
@@ -106,6 +105,28 @@ function PVP.reset_lobby_config()
 		timer_hand_played_increment_seconds = nil,
 		pvp_timer_hand_played_increment_seconds = nil,
 	}
+end
+
+-- Read a lobby option. The active ruleset's `lobby_options` win: they are the
+-- ruleset's rules, the same on every client, and nothing copies them into
+-- PVP.LOBBY.config, so switching rulesets leaves nothing behind. Practice and
+-- playback runs keep their own config. Everything else comes from
+-- PVP.LOBBY.config: the defaults above and the host's shared settings.
+local NO_OPTIONS = {}
+
+function PVP.ruleset_lobby_options()
+	if not PVP.get_active_ruleset then return NO_OPTIONS end
+	local kind = PVP.lobby_metadata().kind or PVP._pvp_kind
+	if kind == nil or kind == PVP.LobbyAccess.PRACTICE then return NO_OPTIONS end
+	local key = PVP.get_active_ruleset()
+	local def = key and MPAPI.Rulesets and MPAPI.Rulesets[key]
+	return def and def.lobby_options or NO_OPTIONS
+end
+
+function PVP.setting(key)
+	local forced = PVP.ruleset_lobby_options()[key]
+	if forced ~= nil then return forced end
+	return PVP.LOBBY.config[key]
 end
 
 local function coerce(value, kind)
@@ -245,7 +266,7 @@ function PVP.reset_game_states()
 
 		-- The opponent this player faces.
 		enemy = {
-			lives = PVP.LOBBY.config.starting_lives,
+			lives = PVP.setting("starting_lives"),
 			highest_score = PVP.Score.ZERO,
 			skips = 0,
 			skips_before_pvp = 0,

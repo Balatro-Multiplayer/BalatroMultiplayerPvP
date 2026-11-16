@@ -124,7 +124,7 @@ A_host("pvp_timer_hand_lost", function(_at, _from, params)
 	PVP.GAME.timer_consumed = false
 	PVP.GAME.timer_started = false
 	PVP.GAME.nemesis_timer_started = false
-	local increment = PVP.LOBBY.config.pvp_timer_hand_played_increment_seconds
+	local increment = PVP.setting("pvp_timer_hand_played_increment_seconds")
 		or PVP.current_ruleset().pvp_timer_hand_played_increment_seconds
 		or 0
 	PVP.UI.restore_timer(increment)

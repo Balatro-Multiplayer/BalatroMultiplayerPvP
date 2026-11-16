@@ -7,7 +7,7 @@ end
 -- so the lobby UI keeps showing the unmultiplied base.
 function PVP.UTILS.timer_base()
     local ruleset = PVP.current_ruleset()
-	local base = PVP.LOBBY.config.timer_base_seconds or ruleset.timer_base_seconds or 150
+	local base = PVP.setting("timer_base_seconds") or ruleset.timer_base_seconds or 150
 	local mult = ruleset.timer_base_multiplier or 1
 	return base * mult
 end
@@ -18,7 +18,7 @@ end
 function PVP.UTILS.pvp_timer_base()
     if not PVP.is_layer_active("pvp_timer") then return PVP.UTILS.timer_base() end
     local ruleset = PVP.current_ruleset()
-	local base = PVP.LOBBY.config.pvp_timer_base_seconds or ruleset.pvp_timer_base_seconds or 90
+	local base = PVP.setting("pvp_timer_base_seconds") or ruleset.pvp_timer_base_seconds or 90
 	local mult = ruleset.pvp_timer_base_multiplier or 1
 	return base * mult
 end

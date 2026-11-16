@@ -5,6 +5,7 @@
 -- Run from the repo root: luajit tests/unit/playback_gamemode_test.lua
 MPAPI = { Rulesets = {}, ReworkCenter = function() end, LoadReworks = function() end }
 PVP = {
+	setting = function(k) return PVP.LOBBY.config[k] end,
 	LOBBY = { config = { pvp_start_round = 2 } },
 	GAME = {},
 	SP = { practice = false },

@@ -2,8 +2,5 @@ PVP.Ruleset({
 	key = "vanilla",
 	-- Vanilla plays without The Order in every lobby kind: Ranked, a Casual
 	-- vote that rolls Vanilla, and a private lobby where the host picks it.
-	force_lobby_options = function(self)
-		PVP.LOBBY.config.the_order = false
-		return false
-	end,
+	lobby_options = { the_order = false },
 }):inject()

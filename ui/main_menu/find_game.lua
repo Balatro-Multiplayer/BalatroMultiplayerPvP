@@ -19,11 +19,9 @@
 local CHIP_ROW = PVP.MODE_CHIP_ROW
 local MODE_COLOUR = PVP.MODE_COLOUR
 
--- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
--- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
--- hand-picked guess: rulesets/majorleague.lua explicitly forces false; rulesets/vanilla.lua
--- forces false; balanced/expanded/smallworld have no override, so they inherit the
--- true default.
+-- uses_order mirrors what PVP.setting("the_order") resolves to: the reset_lobby_config
+-- default (true) unless the ruleset's lobby_options say otherwise. Major League and
+-- Vanilla set it false; balanced/expanded/smallworld inherit the true default.
 --
 -- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this.
 -- desc lines are hand-wrapped to roughly Nemesis's own second line ("Nemesis every ante", 19

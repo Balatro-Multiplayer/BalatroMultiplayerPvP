@@ -20,6 +20,7 @@ local chunk = src:sub(s, e)
 local function setup(cfg)
 	PVP = {
 		UI = {},
+		setting = function(k) return PVP.LOBBY.config[k] end,
 		LOBBY = { config = { timer = true, timer_increment_seconds = 60 } },
 		GAME = { timer = 150, enemy = {} },
 		UTILS = {

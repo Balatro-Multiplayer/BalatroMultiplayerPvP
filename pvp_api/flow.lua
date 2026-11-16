@@ -67,26 +67,6 @@ function PVP.set_lobby_ruleset(lobby, ruleset_key)
 	end
 end
 
--- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
--- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
--- options do not cross the wire, so every client applies them from the shared
--- ruleset. These lobbies have no Setup vote, so this is where they apply; the
--- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
--- lobby can change the ruleset, so The Order goes back on before the ruleset
--- forces its options.
-local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
-
-function PVP.force_lobby_options(kind, ruleset_key)
-	if not FORCES_LOBBY_OPTIONS[kind] then
-		return
-	end
-	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
-	if def and def.force_lobby_options then
-		PVP.LOBBY.config.the_order = true
-		def:force_lobby_options(kind)
-	end
-end
-
 function PVP.pvp_create_private_lobby(gamemode_key)
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	-- Reject an unregistered gamemode key up front instead of silently

@@ -14,7 +14,6 @@ PVP = {
 	LobbyAccess = {},
 	TRAP_ROW = { on_player_back = noop, forget = noop },
 	reset_game_states = noop,
-	force_lobby_options = noop,
 	version = "1.0.3",
 }
 G = { STAGE = 1, STAGES = { RUN = 2 } }

@@ -21,8 +21,5 @@ PVP.Ruleset({
 	reworked_jokers = {
 		"j_mp_hanging_chad",
 	},
-	force_lobby_options = function(self)
-		PVP.LOBBY.config.the_order = true
-		return false
-	end,
+	lobby_options = { the_order = true },
 }):inject()

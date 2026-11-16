@@ -95,7 +95,7 @@ function PVP.refresh_target_lives()
 	PVP.GAME.enemy.lives = PVP.lives_of(target, {
 		ref_players = PVP.REF and PVP.REF.players,
 		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
+		starting_lives = PVP.setting("starting_lives"),
 	})
 end
 
@@ -215,9 +215,6 @@ local function mirror_metadata(lobby)
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
-	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
-	-- arrives, so the queued kind stands in for it.
-	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, meta.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)

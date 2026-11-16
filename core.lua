@@ -104,8 +104,7 @@ end
 -- reading PVP.* globals directly. Playback uses the recorded The Order setting;
 -- practice and live lobbies use their own config.
 MPAPI.register_order_gate(function()
-	local config = PVP.LOBBY and PVP.LOBBY.config
-	if not (config and config.the_order) then
+	if not PVP.setting("the_order") then
 		return false
 	end
 	return (PVP.is_practice_mode() or PVP.LOBBY.code ~= nil) and true or false

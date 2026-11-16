@@ -20,6 +20,7 @@ local function setup(config, team_id)
 	}
 	PVP = {
 		GAME = { enemy = { lives = 4 } },
+		setting = function(k) return PVP.LOBBY.config[k] end,
 		LOBBY = { config = config, roster = { r = "RUNNER", h1 = "HUNTER", h2 = "HUNTER" }, team_id = team_id },
 		UI = {},
 		mirror_players = function() end,

@@ -49,6 +49,27 @@ PVP.apply_lobby_setting("mystery", "y")
 check("an unknown key is still copied", PVP.LOBBY.config.mystery, "y")
 check("an unknown key warns once", #warnings, 1)
 
+-- A ruleset's lobby_options win while it's active and leave nothing behind.
+local meta = {}
+PVP.LobbyAccess = { PRIVATE = "private", PRACTICE = "practice" }
+PVP.lobby_metadata = function() return meta end
+PVP.get_active_ruleset = function() return meta.ruleset end
+MPAPI = { Rulesets = {
+	ruleset_mp_majorleague = { lobby_options = { timer_base_seconds = 180, preview_disabled = true, the_order = false } },
+	ruleset_mp_expanded = {},
+} }
+PVP.reset_lobby_config()
+meta.kind, meta.ruleset = "private", "ruleset_mp_majorleague"
+check("Major League's timer", PVP.setting("timer_base_seconds"), 180)
+check("Major League turns The Order off", PVP.setting("the_order"), false)
+check("config keeps its own default", PVP.LOBBY.config.timer_base_seconds, 150)
+meta.ruleset = "ruleset_mp_expanded"
+check("back on Expanded, the timer is the default", PVP.setting("timer_base_seconds"), 150)
+check("back on Expanded, preview is on", PVP.setting("preview_disabled"), false)
+check("back on Expanded, The Order is on", PVP.setting("the_order"), true)
+meta.kind, meta.ruleset = "practice", "ruleset_mp_majorleague"
+check("practice keeps its own config", PVP.setting("timer_base_seconds"), 150)
+
 if failures > 0 then
 	print(failures .. " failed")
 	os.exit(1)

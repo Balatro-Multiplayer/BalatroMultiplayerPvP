@@ -79,7 +79,7 @@ local function lives_row(player_data)
 		self_id = PVP.self_player_id(),
 		own_lives = PVP.GAME and PVP.GAME.lives,
 		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
+		starting_lives = PVP.setting("starting_lives"),
 	})
 	return text_row(tostring(lives) .. " " .. localize("k_lives"))
 end

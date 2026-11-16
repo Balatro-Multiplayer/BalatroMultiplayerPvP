@@ -20,6 +20,7 @@ local function setup(lives, forgiveness)
 				return 150
 			end,
 		},
+		setting = function(k) return PVP.LOBBY.config[k] end,
 		LOBBY = { config = { timer_forgiveness = forgiveness or 0 } },
 		GAME = {
 			lives = lives,
