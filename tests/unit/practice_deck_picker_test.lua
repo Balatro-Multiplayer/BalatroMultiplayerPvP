@@ -59,7 +59,7 @@ PVP = {
 	LOBBY = {},
 	LobbyAccess = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" },
 	config = {},
-	current_ruleset = function() return { multiplayer_content = false } end,
+	multiplayer_content_enabled = function() return false end,
 }
 SMODS = { injectItems = noop }
 function create_option_cycle(args) return args end
