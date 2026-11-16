@@ -28,39 +28,51 @@ function create_UIBox_HUD()
 end
 
 function G.FUNCS.calculate_score_button()
+	FN.PRE.money_mode = false
 	FN.PRE.start_new_coroutine()
 end
 
-function FN.PRE.get_calculate_score_button()
+function G.FUNCS.calculate_money_button()
+	FN.PRE.money_mode = true
+	FN.PRE.start_new_coroutine()
+end
+
+local function calculate_button(id, text, colour)
 	return {
 		n = G.UIT.C,
 		config = {
-			id = "calculate_score_button",
-			button = "calculate_score_button",
+			id = id,
+			button = id,
 			align = "cm",
-			minh = 0.42,
+			minh = 0.5,
+			minw = 2,
+			maxw = 2,
 			padding = 0.05,
-			minw = 3,
-			r = 0.02,
-			colour = G.C.RED,
+			r = 0.1,
+			colour = colour,
 			hover = true,
-			shadow = true,
-            maxw = 4.5
 		},
 		nodes = {
 			{
+				n = G.UIT.T,
+				config = { text = text, colour = G.C.UI.TEXT_LIGHT, shadow = true, scale = 0.36 },
+			},
+		},
+	}
+end
+
+-- Two buttons sized like the chips/mult boxes above
+function FN.PRE.get_calculate_score_button()
+	return {
+		n = G.UIT.C,
+		config = { align = "cm" },
+		nodes = {
+			{
 				n = G.UIT.R,
-				config = { align = "cm" },
+				config = { align = "cm", padding = 0.1 },
 				nodes = {
-					{
-						n = G.UIT.T,
-						config = {
-							text = PVP.UTILS.get_preview_cfg("button"),
-							colour = G.C.UI.TEXT_LIGHT,
-							shadow = true,
-							scale = 0.36,
-						},
-					},
+					calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED),
+					calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
 				},
 			},
 		},

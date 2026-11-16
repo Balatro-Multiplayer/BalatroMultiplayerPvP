@@ -151,13 +151,21 @@ end
 function G.FUNCS.fn_pre_score_UI_set(e)
 	local new_preview_text = ""
 	local should_juice = false
+	local money_colour = nil
 	if FN.PRE.lock_updates then
 		if e.config.id == "fn_pre_m" then
 			new_preview_text = " " .. PVP.UTILS.get_preview_cfg("text") .. " "
 			should_juice = true
 		end
 	else
-		if FN.PRE.data then
+		if FN.PRE.data and FN.PRE.show_preview and FN.PRE.money_mode then
+			-- Calc Money: expected money from playing the selected cards
+			if e.config.id == "fn_pre_l" then
+				local dollars = FN.PRE.data.dollars.expected or FN.PRE.data.dollars.exact
+				new_preview_text = FN.PRE.format_dollars(dollars)
+				money_colour = FN.PRE.get_dollar_colour(dollars)
+			end
+		elseif FN.PRE.data then
 			if FN.PRE.show_preview and (FN.PRE.data.score.min ~= FN.PRE.data.score.max) then
 				-- Format as 'X - Y' :
 				if e.config.id == "fn_pre_m" then
@@ -226,7 +234,7 @@ function G.FUNCS.fn_pre_score_UI_set(e)
 				e.config.object.colours = { G.C.MONEY }
 			else
 				G.FUNCS.text_super_juice(e, 0)
-				e.config.object.colours = { G.C.UI.TEXT_LIGHT }
+				e.config.object.colours = { money_colour or G.C.UI.TEXT_LIGHT }
 			end
 		end
 	end

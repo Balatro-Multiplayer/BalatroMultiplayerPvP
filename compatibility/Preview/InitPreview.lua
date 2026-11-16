@@ -15,6 +15,7 @@ FN.PRE = {
 	joker_order = {},
 	hand_order = {},
 	show_preview = false,
+	money_mode = false,
 	lock_updates = false,
 	on_startup = true,
 	five_second_coroutine = nil,

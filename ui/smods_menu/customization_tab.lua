@@ -87,7 +87,7 @@ function PVP.UI.create_customization_tab()
 								id = "preview_button",
 								w = 4,
 								max_length = 25,
-								prompt_text = "Calculate Score",
+								prompt_text = "Calc Score",
 								colour = copy_table(G.C.RED),
 								hooked_colour = darken(copy_table(G.C.RED), 0.3),
 								ref_table = PVP.PREVIEW,

@@ -52,7 +52,11 @@ function FN.SIM.get_probabilistic_extremes(random_value, odds, reward, default)
 	-- Maximum is always reward (probability is always > 0); redundant variable is for readability
 	local max = reward
 
-	return exact, min, max
+	-- Expected is the probability-weighted average
+	local p = math.min(1, G.GAME.probabilities.normal / odds)
+	local expected = p * reward + (1 - p) * default
+
+	return exact, min, max, expected
 end
 
 function FN.SIM.adjust_field_with_range(adj_func, field, mod_func, exact_value, min_value, max_value)
@@ -86,7 +90,8 @@ function FN.SIM.x_mult(exact, min, max)
 	end, "mult", FN.SIM.mod_mult, exact, min, max)
 end
 
-function FN.SIM.add_dollars(exact, min, max)
+function FN.SIM.add_dollars(exact, min, max, expected)
+	FN.SIM.running.expected_dollars = FN.SIM.running.expected_dollars + (expected or exact)
 	-- NOTE: no mod_func for dollars, so have to declare an identity function
 	FN.SIM.adjust_field_with_range(
 		function(x, y)

@@ -16,6 +16,12 @@ function FN.PRE.format_number(num)
 	return number_format(num) -- Default Balatro function.
 end
 
+-- Formats as '+$5' or '+$1.33' (expected money can be fractional)
+function FN.PRE.format_dollars(n)
+	local digits = string.format("%.2f", math.abs(n)):gsub("%.?0+$", "")
+	return (n < 0 and "-$" or "+$") .. digits
+end
+
 function FN.PRE.get_dollar_colour(n)
 	if n == 0 then
 		return HEX("7e7667")
