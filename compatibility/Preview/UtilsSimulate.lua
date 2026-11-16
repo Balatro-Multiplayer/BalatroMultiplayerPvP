@@ -91,7 +91,6 @@ function FN.SIM.x_mult(exact, min, max)
 end
 
 function FN.SIM.add_dollars(exact, min, max, expected)
-	FN.SIM.running.expected_dollars = FN.SIM.running.expected_dollars + (expected or exact)
 	-- NOTE: no mod_func for dollars, so have to declare an identity function
 	FN.SIM.adjust_field_with_range(
 		function(x, y)
@@ -105,6 +104,8 @@ function FN.SIM.add_dollars(exact, min, max, expected)
 		min,
 		max
 	)
+	-- Expected has no min/max range, so it is tracked on its own; fixed amounts are their own expected value
+	FN.SIM.running.expected_dollars = FN.SIM.running.expected_dollars + (expected or exact)
 end
 
 function FN.SIM.add_reps(n)

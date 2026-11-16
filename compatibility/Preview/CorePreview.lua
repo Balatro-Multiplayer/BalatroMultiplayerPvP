@@ -3,7 +3,11 @@
 -- But, since it's Multiplayer-specific version, it shows score only after "Calculate" button press and reset after state change.
 
 function FN.PRE.cleanup()
-    return { score = { min = 0, exact = 0, max = 0 }, dollars = { min = 0, exact = 0, max = 0 }, empty = true }
+	return {
+		score = { min = 0, exact = 0, max = 0 },
+		dollars = { min = 0, exact = 0, max = 0, expected = 0 },
+		empty = true,
+	}
 end
 
 function FN.PRE.simulate()
@@ -161,7 +165,7 @@ function G.FUNCS.fn_pre_score_UI_set(e)
 		if FN.PRE.data and FN.PRE.show_preview and FN.PRE.money_mode then
 			-- Calc Money: expected money from playing the selected cards
 			if e.config.id == "fn_pre_l" then
-				local dollars = FN.PRE.data.dollars.expected or FN.PRE.data.dollars.exact
+				local dollars = FN.PRE.data.dollars.expected
 				new_preview_text = FN.PRE.format_dollars(dollars)
 				money_colour = FN.PRE.get_dollar_colour(dollars)
 			end

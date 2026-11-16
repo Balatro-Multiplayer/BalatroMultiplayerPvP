@@ -5,7 +5,7 @@ if not FN then FN = {} end
 FN.PRE = {
 	data = {
 		score = { min = 0, exact = 0, max = 0 },
-		dollars = { min = 0, exact = 0, max = 0 },
+		dollars = { min = 0, exact = 0, max = 0, expected = 0 },
         empty = true,
 	},
 	text = {

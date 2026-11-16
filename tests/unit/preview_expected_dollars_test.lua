@@ -37,6 +37,4 @@ check("zero", FN.PRE.format_dollars(0), "+$0")
 check("negative", FN.PRE.format_dollars(-3), "-$3")
 check("trailing zero trimmed", FN.PRE.format_dollars(1.5), "+$1.5")
 
-if failures > 0 then
-	os.exit(1)
-end
+if failures > 0 then os.exit(1) end
