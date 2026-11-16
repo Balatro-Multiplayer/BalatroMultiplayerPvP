@@ -23,7 +23,7 @@ payload = '''
 		PVP.GAME.comeback_bonus_given = true
 		local comeback_bonus
 
-		if PVP.LOBBY.config.ruleset == "ruleset_mp_sandbox" then
+		if PVP.is_ruleset_active("sandbox") then
 		    comeback_bonus = 3 * (G.GAME.round_resets.ante - 1)
 		else
 			if PVP.is_major_league_ruleset() then 
@@ -55,7 +55,7 @@ pattern = '''elseif config.name == 'hands' then'''
 position = 'before'
 payload = '''elseif config.name == "comeback" then
   local bonus
-  if PVP.LOBBY.config.ruleset == "ruleset_mp_sandbox" then
+  if PVP.is_ruleset_active("sandbox") then
 	bonus = G.GAME.round_resets.ante - 1
   else
 	bonus = PVP.GAME.comeback_bonus
@@ -71,7 +71,7 @@ payload = '''elseif config.name == "comeback" then
     },
   })
 
-  local comeback_money_key = PVP.LOBBY.config.ruleset == "ruleset_mp_sandbox" and "k_comeback_money_sandbox" or "k_total_lives_lost"
+  local comeback_money_key = PVP.is_ruleset_active("sandbox") and "k_comeback_money_sandbox" or "k_total_lives_lost"
   table.insert(left_text, {
     n = G.UIT.O,
     config = {
