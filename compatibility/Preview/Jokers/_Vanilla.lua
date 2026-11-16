@@ -460,7 +460,7 @@ FNSJ.simulate_reserved_parking = function(joker_obj, context)
 end
 FNSJ.simulate_mail = function(joker_obj, context)
 	if context.cardarea == G.hand and context.discard then
-		if context.other_card.id == G.GAME.current_round.mail_card.id and not context.other_card.debuff then
+		if context.other_card.rank == G.GAME.current_round.mail_card.id and not context.other_card.debuff then
 			FN.SIM.add_dollars(joker_obj.ability.extra)
 		end
 	end
