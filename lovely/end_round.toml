@@ -149,7 +149,7 @@ function ease_ante(mod)
 '''
 position = 'after'
 payload = '''
-if PVP.is_mp_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud then
+if PVP.is_mp_or_practice() and not PVP.setting("disable_live_and_timer_hud") then
 	PVP.suppress_next_event = true
 end
 '''

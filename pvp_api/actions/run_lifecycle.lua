@@ -263,7 +263,7 @@ function PVP.on_game_start(params)
 		if lobby and lobby.is_host then
 			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
 		end
-		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
+		PVP.referee_reset(PVP.setting("starting_lives"))
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
 	end
 
@@ -289,9 +289,8 @@ function PVP.on_game_start(params)
 		return
 	end
 	PVP.SETUP.begin(lobby, plan, function(on_picked)
-		-- The Draft's pool follows the ruleset the votes rolled (applied by the
-		-- metadata mirror), else the queued one.
-		MPAPI.BanPick.start(lobby, PVP._ban_pick_config_for(gm_def, PVP.LOBBY.config.ruleset), function(survivors)
+		-- The Draft's pool follows the ruleset the votes rolled, else the queued one.
+		MPAPI.BanPick.start(lobby, PVP._ban_pick_config_for(gm_def, PVP.SETUP.ruleset(lobby)), function(survivors)
 			on_picked(survivors[1])
 		end)
 	end, function(picked)

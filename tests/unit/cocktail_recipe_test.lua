@@ -45,7 +45,7 @@ function localize(args)
 	end
 end
 
-MPAPI = { Party = { KIND = "party" }, apply_default_modifiers = noop, modifiers_serialize = noop }
+MPAPI = { Party = { KIND = "party" }, Rulesets = {}, apply_default_modifiers = noop, add_modifier = noop, modifiers_serialize = noop }
 PVP = {
 	id = "MultiplayerPvP",
 	-- The player's own Cocktail: only Red in the pool, nothing forced, shown.
@@ -66,12 +66,12 @@ G = {
 	},
 }
 
+dofile("state.lua")
 dofile("lib/matchmaking_policy.lua")
 dofile("pvp_api/flow.lua")
 dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")
 dofile("pvp_api/lobby_bridge.lua")
-PVP.force_lobby_options = noop
 PVP.SETUP = { apply_results = noop }
 G.P_CENTERS.b_mp_cocktail = { set = "Back", order = 99, deck_blacklist = { b_mp_cocktail = true }, mod_whitelist = {} }
 

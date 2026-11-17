@@ -14,7 +14,7 @@ priority = 2147483600
 target = "functions/UI_definitions.lua"
 pattern = '''\{n=G\.UIT\.C, config=\{align = "cm", padding = 0\.05, minw = 1\.45, minh = 1,'''
 position = 'at'
-payload = '''PVP.LOBBY.code and (not PVP.LOBBY.config.disable_live_and_timer_hud) and PVP.UI.timer_hud() or {n=G.UIT.C, config={align = "cm", padding = 0.05, minw = 1.45, minh = 1,'''
+payload = '''PVP.LOBBY.code and (not PVP.setting("disable_live_and_timer_hud")) and PVP.UI.timer_hud() or {n=G.UIT.C, config={align = "cm", padding = 0.05, minw = 1.45, minh = 1,'''
 times = 1
 
 # Instant PvP blind change

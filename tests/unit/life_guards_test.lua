@@ -18,6 +18,7 @@ local function setup(mode, count, lives)
 		match_log = function() end,
 		id = "pvp",
 		GAME = {},
+		setting = function(k) return PVP.LOBBY.config[k] end,
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },
 		UTILS = {
 			string_split = function(s)

@@ -4,7 +4,7 @@ local function next_taxes_total_mult_gain(card)
 	return PVP.OPPONENT_RECORD.taxes_mult_gain(
 		PVP.GAME.enemy.sells_per_ante,
 		G.GAME.round_resets.ante,
-		PVP.LOBBY.config.pvp_start_round,
+		PVP.setting("pvp_start_round"),
 		card.ability.extra.mult_gain
 	)
 end

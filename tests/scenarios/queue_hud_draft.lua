@@ -88,7 +88,7 @@ local steps = {
 		S.check(MPAPI.get_current_view() == "lobby_menu", "the Draft shows in the lobby view")
 		S.check(MPAPI.BanPick.is_active(), "MPAPI.BanPick runs the Draft")
 		S.check(#setup().open.pool == 9, "nine deck and stake tiles")
-		S.check(PVP.LOBBY.config.ruleset ~= nil, "lobby config intact")
+		S.check(PVP.get_active_ruleset() ~= nil, "lobby ruleset intact")
 		shot("draft_open")
 	end },
 }

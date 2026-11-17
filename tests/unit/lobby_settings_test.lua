@@ -1,0 +1,77 @@
+-- Plain Lua test for state.lua's lobby settings: the defaults, the reset,
+-- and which lobby metadata keys reach PVP.LOBBY.config.
+-- Run from the repo root: luajit tests/unit/lobby_settings_test.lua
+local failures = 0
+local function check(name, got, want)
+	if got ~= want then
+		failures = failures + 1
+		print(("FAIL %s: got %s, want %s"):format(name, tostring(got), tostring(want)))
+	else
+		print("ok   " .. name)
+	end
+end
+
+local warnings = {}
+function sendWarnMessage(msg)
+	warnings[#warnings + 1] = msg
+end
+PVP = { match_log = function() end }
+dofile("state.lua")
+
+PVP.reset_lobby_config()
+local config = PVP.LOBBY.config
+check("no ruleset in config", config.ruleset, nil)
+check("no gamemode in config", config.gamemode, nil)
+check("default starting lives", config.starting_lives, 4)
+check("default the_order", config.the_order, true)
+
+config.starting_lives = 2
+PVP.reset_lobby_config()
+check("a reset restores lives", PVP.LOBBY.config.starting_lives, 4)
+
+PVP.apply_lobby_setting("stake", "3")
+check("the host's stake arrives as a number", PVP.LOBBY.config.stake, 3)
+
+for _, key in ipairs({ "custom", "ruleset", "gamemode", "deck", "kind", "queue_mode", "cocktail_recipe", "_pvp_ref", "_mp_pending_seed" }) do
+	PVP.apply_lobby_setting(key, "x")
+	check("metadata key " .. key .. " stays out of config", PVP.LOBBY.config[key], nil)
+end
+check("metadata keys that aren't settings don't warn", #warnings, 0)
+
+PVP.apply_lobby_setting("mystery", "x")
+PVP.apply_lobby_setting("mystery", "y")
+check("an unknown key is still copied", PVP.LOBBY.config.mystery, "y")
+check("an unknown key warns once", #warnings, 1)
+
+-- A ruleset's lobby_options win while it's active and leave nothing behind.
+local meta = {}
+PVP.LobbyAccess = { PRIVATE = "private", PRACTICE = "practice" }
+PVP.lobby_metadata = function() return meta end
+PVP.get_active_ruleset = function() return meta.ruleset end
+MPAPI = { Rulesets = {
+	ruleset_mp_majorleague = { lobby_options = { timer_base_seconds = 180, preview_disabled = true, the_order = false } },
+	ruleset_mp_expanded = {},
+} }
+PVP.reset_lobby_config()
+meta.kind, meta.ruleset = "private", "ruleset_mp_majorleague"
+check("Major League's timer", PVP.setting("timer_base_seconds"), 180)
+check("Major League turns The Order off", PVP.setting("the_order"), false)
+check("config keeps its own default", PVP.LOBBY.config.timer_base_seconds, 150)
+meta.ruleset = "ruleset_mp_expanded"
+check("back on Expanded, the timer is the default", PVP.setting("timer_base_seconds"), 150)
+check("back on Expanded, preview is on", PVP.setting("preview_disabled"), false)
+check("back on Expanded, The Order is on", PVP.setting("the_order"), true)
+meta.custom = { options = { timer_base_seconds = 240, starting_lives = 6 } }
+check("the host's change applies", PVP.setting("starting_lives"), 6)
+check("config still holds the default", PVP.LOBBY.config.starting_lives, 4)
+meta.ruleset = "ruleset_mp_majorleague"
+check("the ruleset's own value beats the host's", PVP.setting("timer_base_seconds"), 180)
+meta.custom = nil
+meta.kind, meta.ruleset = "practice", "ruleset_mp_majorleague"
+check("practice keeps its own config", PVP.setting("timer_base_seconds"), 150)
+
+if failures > 0 then
+	print(failures .. " failed")
+	os.exit(1)
+end
+print("all passed")

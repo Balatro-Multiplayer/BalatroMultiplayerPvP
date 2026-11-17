@@ -73,7 +73,7 @@ MPAPI.ActionType({
 -- Every client's restart on a new seed: off pvp_reseed, or off a restarted
 -- GAME_STARTED in a server-refereed lobby (see pvp_api/lobby_bridge.lua).
 function PVP.on_reseed(seed)
-	PVP.referee_reset(PVP.LOBBY.config.starting_lives)
+	PVP.referee_reset(PVP.setting("starting_lives"))
 	PVP.dispatch_action("startGame", { seed = seed, stake = PVP.LOBBY.deck.stake })
 end
 

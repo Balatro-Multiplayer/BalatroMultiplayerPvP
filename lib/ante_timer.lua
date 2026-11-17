@@ -7,7 +7,7 @@ PVP.AnteTimer = {}
 -- Runs on the timered side when its copy of the Ante timer reaches 0.
 function PVP.AnteTimer.on_run_out()
 	local lives_left = PVP.GAME.lives
-	if PVP.GAME.timers_forgiven < PVP.LOBBY.config.timer_forgiveness then
+	if PVP.GAME.timers_forgiven < PVP.setting("timer_forgiveness") then
 		PVP.GAME.timers_forgiven = PVP.GAME.timers_forgiven + 1
 	else
 		PVP.ACTIONS.fail_timer()

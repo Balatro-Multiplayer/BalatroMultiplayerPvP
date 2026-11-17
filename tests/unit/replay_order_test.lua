@@ -1,6 +1,9 @@
 -- Run from the repo root: luajit tests/unit/replay_order_test.lua
 local function noop() end
 SMODS = {
+	load_file = function(file)
+		return loadfile(file)
+	end,
 	current_mod = {
 		id = "MultiplayerPvP",
 		path = ".",

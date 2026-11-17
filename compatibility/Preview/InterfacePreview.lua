@@ -8,7 +8,7 @@ function create_UIBox_HUD()
 	if not FN.PRE.in_play() then return contents end
 
 	-- Check if preview is disabled in lobby options
-	if PVP.LOBBY.config and PVP.LOBBY.config.preview_disabled then return contents end
+	if PVP.setting("preview_disabled") then return contents end
 
 	local score_node_wrap =
 		{ n = G.UIT.R, config = { id = "fn_pre_score_wrap", align = "cm", padding = 0.1 }, nodes = {} }

@@ -1,7 +1,7 @@
 -- ease_round override moved to game/round.lua
 
 function PVP.UI.cam_timer_opponent()
-	if not PVP.LOBBY.config.timer then return false end
+	if not PVP.setting("timer") then return false end
     if PVP.GAME.pvp_countdown_in_progress then return false end
     if PVP.GAME.timer <= 0 then return false end
     if PVP.GAME.nemesis_timer_started then return false end
@@ -31,7 +31,7 @@ function G.FUNCS.mp_timer_button(e)
 end
 
 function PVP.UI.timer_hud()
-	if PVP.LOBBY.config.timer then
+	if PVP.setting("timer") then
 		return {
 			n = G.UIT.C,
 			config = {
@@ -107,8 +107,8 @@ end
 function PVP.UI.start_pvp_countdown(callback)
 	local seconds = countdown_seconds
 	local tick_delay = 1
-	if PVP.LOBBY and PVP.LOBBY.config and PVP.LOBBY.config.pvp_countdown_seconds then
-		seconds = PVP.LOBBY.config.pvp_countdown_seconds
+	if PVP.setting("pvp_countdown_seconds") then
+		seconds = PVP.setting("pvp_countdown_seconds")
 	end
     PVP.GAME.pvp_countdown_in_progress = true
 	PVP.GAME.pvp_countdown = seconds
@@ -189,7 +189,7 @@ SMODS.Gradient({
 		G.C.IMPORTANT,
 	},
 	update = function(self, dt)
-		if #self.colours < 2 or not PVP.LOBBY.config.ruleset then return end
+		if #self.colours < 2 or not PVP.get_active_ruleset() then return end
 		local speedup = PVP.GAME.timer_started and 1 or PVP.current_ruleset().timer_speedup_multiplier or 1
 
 		-- When you "timering" opponent, timer stops and you cannot see is button pressed
@@ -244,7 +244,7 @@ SMODS.Gradient({
 })
 
 function G.FUNCS.set_timer_box(e)
-	if PVP.LOBBY.config.timer then
+	if PVP.setting("timer") then
 		if PVP.GAME.timer_started or PVP.GAME.nemesis_timer_started then
 			e.config.colour = G.C.DYN_UI.BOSS_DARK
 			-- Pulse because why not
@@ -302,7 +302,7 @@ function Game:update(dt)
 	-- Bail fast: not an PVP PvP-timer context
 	if G.STATE == G.STATES.GAME_OVER then return end
 	if not PVP.LOBBY.code then return end
-	if not PVP.LOBBY.config.timer then return end
+	if not PVP.setting("timer") then return end
 	if PVP.GAME.timer_consumed then return end
 	if not PVP.GAME.timer or PVP.GAME.timer <= 0 then return end
 	if PVP.is_layer_active("speedlatro_timer") then return end
@@ -380,7 +380,7 @@ function Game:update(dt)
         elseif PVP.GAME.nemesis_timer_started then
             PVP.AnteTimer.on_run_out()
         elseif is_pressure_timer then
-            if PVP.GAME.timers_forgiven < PVP.LOBBY.config.timer_forgiveness then
+            if PVP.GAME.timers_forgiven < PVP.setting("timer_forgiveness") then
                 PVP.GAME.timers_forgiven = PVP.GAME.timers_forgiven + 1
             else
                 PVP.ACTIONS.fail_timer()
@@ -390,7 +390,7 @@ function Game:update(dt)
 end
 
 function PVP.UI.consume_timer(amount, silent, min_timer)
-	if amount > 0 and PVP.LOBBY.config.timer and PVP.GAME.timer and PVP.GAME.timer > (min_timer or 0) then
+	if amount > 0 and PVP.setting("timer") and PVP.GAME.timer and PVP.GAME.timer > (min_timer or 0) then
 		PVP.GAME.timer = math.max(0, PVP.GAME.timer - amount)
 		if not silent then
 			local timer_ui = G.HUD:get_UIE_by_ID("timer_UI_count")
@@ -400,7 +400,7 @@ function PVP.UI.consume_timer(amount, silent, min_timer)
 end
 
 function PVP.UI.restore_timer(amount, silent, max_timer)
-	if amount > 0 and PVP.LOBBY.config.timer and PVP.GAME.timer and (not max_timer or PVP.GAME.timer < max_timer) then
+	if amount > 0 and PVP.setting("timer") and PVP.GAME.timer and (not max_timer or PVP.GAME.timer < max_timer) then
 		PVP.GAME.timer = math.max(0, PVP.GAME.timer + amount)
 		if not silent then
 			local timer_ui = G.HUD:get_UIE_by_ID("timer_UI_count")
@@ -415,9 +415,9 @@ end
 -- so when both skip, both timers end where they started. A ruleset with a display
 -- threshold (MLBa) keeps adding time for each of the player's own skips.
 function PVP.UI.update_matching_skip_timer(from_opponent)
-	local increment = PVP.LOBBY.config.timer_increment_seconds or 0
+	local increment = PVP.setting("timer_increment_seconds") or 0
 	if
-		not PVP.LOBBY.config.timer
+		not PVP.setting("timer")
 		or increment <= 0
 		or PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" })
 	then
@@ -459,17 +459,17 @@ function G.FUNCS.play_cards_from_highlighted(...)
 	if G.play and G.play.cards[1] then
 		return
 	end
-	if PVP.LOBBY.code and PVP.LOBBY.config.timer and not PVP.GAME.timer_consumed then
+	if PVP.LOBBY.code and PVP.setting("timer") and not PVP.GAME.timer_consumed then
 		if PVP.is_pvp_boss() then
 			-- PvP timer: Increment timer when hand is played during pvp
 			if PVP.is_layer_active("pvp_timer") then
-				local increment = PVP.LOBBY.config.pvp_timer_hand_played_increment_seconds or PVP.current_ruleset().pvp_timer_hand_played_increment_seconds or 0
+				local increment = PVP.setting("pvp_timer_hand_played_increment_seconds") or PVP.current_ruleset().pvp_timer_hand_played_increment_seconds or 0
 				PVP.UI.restore_timer(increment)
 			end
 		else
 			-- No-animation, Pressure timers: Increment timer when hand is played during regular blinds
 			if PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" }) then
-				local increment = PVP.LOBBY.config.timer_hand_played_increment_seconds or PVP.current_ruleset().timer_hand_played_increment_seconds or 0
+				local increment = PVP.setting("timer_hand_played_increment_seconds") or PVP.current_ruleset().timer_hand_played_increment_seconds or 0
 				PVP.UI.restore_timer(increment)
 			end
 		end

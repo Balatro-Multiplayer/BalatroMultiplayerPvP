@@ -21,66 +21,160 @@ function PVP.default_ruleset(gamemode_key, kind)
 	return def.ruleset
 end
 
--- Call when adopting a new gamemode key, before the first pvp_lobby_metadata().
--- That function keeps whatever's already in config (so a Lobby Options pick
--- survives re-broadcasts), which means a stale ruleset from the last lobby
--- sticks unless it's reset here.
-function PVP.reset_ruleset_to_gamemode_default(gamemode_key, kind)
-	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	PVP.LOBBY.config.ruleset = PVP.default_ruleset(gamemode_key, kind)
-	PVP.LOBBY.config.gamemode = def.gamemode
-end
-
--- Host-authored shared lobby metadata. `gamemode`/`ruleset` are MPAPI's own content
--- keys (e.g. "gamemode_mp_attrition" / "ruleset_mp_balanced") so MPAPI.ApplyBans/
--- MPAPI.get_active_gamemode() resolve directly to the banned_*-bearing object, no
--- translation needed. `queue_mode` carries the separate API/queue/bridge key (e.g.
--- "pvp_nemesis") that the matchmaking taxonomy, ban_pick draft, and per-lobby
--- MPAPI.GameModes[...] instance (forfeit handling) still need.
---
--- ruleset/gamemode prefer the ALREADY-current PVP.LOBBY.config value over the
--- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
-function PVP.pvp_lobby_metadata(gamemode_key, kind)
-	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+-- The host's deck and stake. The host sends these alone when they change:
+-- set_metadata merges, so the rest of the metadata stays as it is.
+function PVP.lobby_loadout_metadata()
 	return {
-		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
-		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
-		ruleset = PVP.LOBBY.config.ruleset or PVP.default_ruleset(gamemode_key, kind),
-		queue_mode = gamemode_key,
-		kind = kind or PVP.LobbyAccess.PRIVATE,
 		deck = PVP.LOBBY.config.back or "Red Deck",
 		stake = tostring(PVP.LOBBY.config.stake or 1),
-		starting_lives = PVP.LOBBY.config.starting_lives or 4,
-		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
-		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
-		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
 end
 
--- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
--- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
--- options do not cross the wire, so every client applies them from the shared
--- ruleset. These lobbies have no Setup vote, so this is where they apply; the
--- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
--- lobby can change the ruleset, so The Order goes back on before the ruleset
--- forces its options.
-local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
+-----------------------------
+-- The host's changes to the ruleset: metadata.custom
+--   options = { manhunt_hunter_lives = 9 }  options the ruleset leaves open
+--   layers  = { "traps" }                   layers from the ruleset's optional_layers
+-- Every client reads it (PVP.setting, PVP.apply_lobby_layers); only the host
+-- writes it, always whole.
+-----------------------------
 
-function PVP.force_lobby_options(kind, ruleset_key)
-	if not FORCES_LOBBY_OPTIONS[kind] then
+local EMPTY_CUSTOM = { options = {}, layers = {} }
+
+-- `lobby` defaults to the current one.
+function PVP.lobby_custom(lobby)
+	local meta = lobby and lobby:get_metadata() or PVP.lobby_metadata()
+	local c = meta and meta.custom
+	if type(c) ~= "table" then return EMPTY_CUSTOM end
+	return { options = type(c.options) == "table" and c.options or {}, layers = type(c.layers) == "table" and c.layers or {} }
+end
+
+-- Whether `ruleset_key` lets the host turn layer `name` on.
+function PVP.is_optional_layer(ruleset_key, name)
+	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
+	for _, n in ipairs(def and def.optional_layers or {}) do
+		if n == name then return true end
+	end
+	return false
+end
+
+-- The entries of `custom` that `ruleset_key` still allows: options its
+-- lobby_options leave open, layers in its optional_layers. Pure.
+function PVP.filter_custom(custom, ruleset_key)
+	local def = ruleset_key and MPAPI.Rulesets[ruleset_key] or {}
+	local fixed = def.lobby_options or {}
+	local out = { options = {}, layers = {} }
+	for k, v in pairs(custom and custom.options or {}) do
+		if fixed[k] == nil then out.options[k] = v end
+	end
+	for _, n in ipairs(custom and custom.layers or {}) do
+		if PVP.is_optional_layer(ruleset_key, n) then out.layers[#out.layers + 1] = n end
+	end
+	return out
+end
+
+function PVP.lobby_has_layer(name)
+	for _, n in ipairs(PVP.lobby_custom().layers) do
+		if n == name then return true end
+	end
+	return false
+end
+
+-- The modifier layers for `ruleset_key` plus the host's: the ruleset's
+-- default_modifiers, then each allowed custom layer. Rebuilt whole on every
+-- metadata change, so nothing outlives the ruleset or the host's switch.
+function PVP.apply_lobby_layers(ruleset_key, layers)
+	MPAPI.apply_default_modifiers(ruleset_key)
+	for _, n in ipairs(layers or {}) do
+		if PVP.is_optional_layer(ruleset_key, n) then MPAPI.add_modifier(n) end
+	end
+	PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+end
+
+-- Called from every metadata mirror (the Casual vote), so a no-op change must
+-- not write again.
+local function same_custom(a, b)
+	for k, v in pairs(a.options) do
+		if b.options[k] ~= v then return false end
+	end
+	for k in pairs(b.options) do
+		if a.options[k] == nil then return false end
+	end
+	if #a.layers ~= #b.layers then return false end
+	local seen = {}
+	for _, n in ipairs(a.layers) do seen[n] = true end
+	for _, n in ipairs(b.layers) do
+		if not seen[n] then return false end
+	end
+	return true
+end
+
+local function host_of(lobby)
+	return lobby and lobby.is_host and lobby or nil
+end
+
+function PVP.set_lobby_option(lobby, key, value)
+	if not host_of(lobby) then return end
+	local custom = PVP.lobby_custom(lobby)
+	local options = {}
+	for k, v in pairs(custom.options) do options[k] = v end
+	options[key] = value
+	lobby:set_metadata({ custom = PVP.filter_custom({ options = options, layers = custom.layers }, (lobby:get_metadata() or {}).ruleset) })
+end
+
+function PVP.set_lobby_layer(lobby, name, on)
+	if not host_of(lobby) then return end
+	local custom = PVP.lobby_custom(lobby)
+	local layers = {}
+	for _, n in ipairs(custom.layers) do
+		if n ~= name then layers[#layers + 1] = n end
+	end
+	if on then layers[#layers + 1] = name end
+	lobby:set_metadata({ custom = PVP.filter_custom({ options = custom.options, layers = layers }, (lobby:get_metadata() or {}).ruleset) })
+end
+
+-- A new lobby's full metadata, written once by its host. `gamemode`/`ruleset` are
+-- MPAPI's own content keys (e.g. "gamemode_mp_attrition" / "ruleset_mp_balanced")
+-- so MPAPI.ApplyBans/MPAPI.get_active_gamemode() resolve directly to the
+-- banned_*-bearing object. `queue_mode` carries the separate API/queue/bridge key
+-- (e.g. "pvp_nemesis") that the matchmaking taxonomy, ban_pick draft, and per-lobby
+-- MPAPI.GameModes[...] instance (forfeit handling) still need.
+--
+-- The ruleset is `ruleset_key` when the entry point picked one (Ranked, Practice,
+-- a replay), else the gamemode's default for this kind. Nothing is read back from
+-- an earlier lobby. Later changes go through PVP.set_lobby_ruleset.
+function PVP.pvp_lobby_metadata(gamemode_key, kind, ruleset_key, gamemode)
+	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	local meta = PVP.lobby_loadout_metadata()
+	meta.cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind)
+	meta.gamemode = gamemode or def.gamemode
+	meta.ruleset = ruleset_key or PVP.default_ruleset(gamemode_key, kind)
+	meta.queue_mode = gamemode_key
+	meta.kind = kind or PVP.LobbyAccess.PRIVATE
+	meta.custom = { options = {}, layers = {} }
+	return meta
+end
+
+-- The one way a lobby changes ruleset after it opens: the host rewrites the
+-- metadata, and every client's mirror follows. The host's changes carry over
+-- where the new ruleset still allows them; the rest are dropped, not kept for
+-- a later switch back. `custom` replaces them instead (the Casual vote's Trap
+-- cards).
+function PVP.set_lobby_ruleset(lobby, ruleset_key, custom)
+	if not (host_of(lobby) and ruleset_key) then
 		return
 	end
-	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
-	if def and def.force_lobby_options then
-		PVP.LOBBY.config.the_order = true
-		def:force_lobby_options(kind)
+	local next_custom = PVP.filter_custom(custom or PVP.lobby_custom(lobby), ruleset_key)
+	local meta = lobby:get_metadata() or {}
+	if meta.ruleset == ruleset_key and same_custom(PVP.lobby_custom(lobby), next_custom) then
+		return
 	end
+	lobby:set_metadata({ ruleset = ruleset_key, custom = next_custom })
 end
 
 function PVP.pvp_create_private_lobby(gamemode_key)
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS
 	-- Reject an unregistered gamemode key up front instead of silently
-	-- degrading: PVP.reset_ruleset_to_gamemode_default/pvp_lobby_metadata
+	-- degrading: PVP.default_ruleset/pvp_lobby_metadata
 	-- both quietly fall back to the nemesis ruleset's config for an
 	-- unknown key, but PVP._pvp_gamemode itself keeps the bogus literal
 	-- string -- so round.lua's reset_blinds (PVP.Gamemodes[gamemode_key])
@@ -112,7 +206,6 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = gamemode_key
-	PVP.reset_ruleset_to_gamemode_default(gamemode_key, PVP.LobbyAccess.PRIVATE)
 	PVP.setup_lobby_mirror(lobby)
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then

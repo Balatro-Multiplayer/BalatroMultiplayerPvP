@@ -95,7 +95,7 @@ function PVP.refresh_target_lives()
 	PVP.GAME.enemy.lives = PVP.lives_of(target, {
 		ref_players = PVP.REF and PVP.REF.players,
 		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
+		starting_lives = PVP.setting("starting_lives"),
 	})
 end
 
@@ -183,10 +183,7 @@ local function mirror_metadata(lobby)
 	-- still needs.
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
-		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
-			PVP.LOBBY.config[k] = v
-		end
+		PVP.apply_lobby_setting(k, v)
 	end
 	-- nemesis_pairing isn't part of the shared metadata schema, so it can't ride the
 	-- generic loop above -- but every client (not just the host, who's the only one
@@ -204,12 +201,8 @@ local function mirror_metadata(lobby)
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
 	-- without a metadata field of their own. The only other modifier is Trap
 	-- cards: the private lobby host's switch here, the Casual vote below.
-	if PVP.LOBBY.config.ruleset then
-		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
-		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
-			MPAPI.add_modifier("traps")
-		end
-		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
+	if meta.ruleset then
+		PVP.apply_lobby_layers(meta.ruleset, PVP.lobby_custom(lobby).layers)
 	end
 	if meta.deck then
 		PVP.LOBBY.deck.back = meta.deck
@@ -218,9 +211,6 @@ local function mirror_metadata(lobby)
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
-	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
-	-- arrives, so the queued kind stands in for it.
-	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)
@@ -246,7 +236,7 @@ PVP.mirror_lobby_metadata = mirror_metadata
 -- "Team A"/"Team B" mirrors the exact enemy_team derivation team_manhunt.lua's
 -- own pvp_team_score_board receive handler already uses for the same purpose.
 local function mirror_players(lobby)
-	local self_name = player_name(lobby, lobby.player_id) or PVP.LOBBY.username or "Guest"
+	local self_name = player_name(lobby, lobby.player_id) or PVP.CLIENT.username or "Guest"
 	local opp_id = PVP.current_target_id()
 	local opp_name
 	if PVP.LOBBY.config.team_based and PVP.LOBBY.team_id then

@@ -19,11 +19,9 @@
 local CHIP_ROW = PVP.MODE_CHIP_ROW
 local MODE_COLOUR = PVP.MODE_COLOUR
 
--- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
--- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
--- hand-picked guess: rulesets/majorleague.lua explicitly forces false; rulesets/vanilla.lua
--- forces false; balanced/expanded/smallworld have no override, so they inherit the
--- true default.
+-- uses_order mirrors what PVP.setting("the_order") resolves to: the reset_lobby_config
+-- default (true) unless the ruleset's lobby_options say otherwise. Major League and
+-- Vanilla set it false; balanced/expanded/smallworld inherit the true default.
 --
 -- Ranked: always exactly 2 players -- see pvp_api/queue.lua's own comment on this.
 -- desc lines are hand-wrapped to roughly Nemesis's own second line ("Nemesis every ante", 19
@@ -31,7 +29,7 @@ local MODE_COLOUR = PVP.MODE_COLOUR
 -- (Battle Royale, Teams) were 25+ chars per line before this and visibly overran their card
 -- (2026-09-08 user feedback). No code-level truncation/wrapping added; this is just each string
 -- rewritten by hand to fit.
--- ruleset_key is the exact string PVP._join_ranked_ruleset stamps onto PVP.LOBBY.config.ruleset
+-- ruleset_key is the exact string PVP._join_ranked_ruleset writes into the ranked lobby's metadata
 -- and PVP._active_queue_id.key (pvp_api/queue.lua) -- build_select below compares against it to
 -- decide whether this exact pillar's queue is the one currently active.
 local RANKED_MODES = {
@@ -53,7 +51,7 @@ local RANKED_MODES = {
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
--- (PVP.reset_ruleset_to_gamemode_default, pvp_api/queue.lua). Manhunt has an existing
+-- (PVP.default_ruleset, pvp_api/flow.lua). Manhunt has an existing
 -- casual queue handler (mp_pvp_queue_casual_manhunt) but wasn't in the requested pillar
 -- set, so it's left reachable only via Create Lobby for now, not duplicated here. None
 -- has a the_order override, so all four inherit the default and use The Order here.

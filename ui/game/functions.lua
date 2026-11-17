@@ -421,7 +421,7 @@ function PVP.UI.ease_lives(mod, instant)
 		func = function()
 			if not G.hand_text_area then return end
 
-			if PVP.LOBBY.config.disable_live_and_timer_hud then
+			if PVP.setting("disable_live_and_timer_hud") then
 				return true -- Returning nothing hangs the game because it's a part of an event
 			end
 

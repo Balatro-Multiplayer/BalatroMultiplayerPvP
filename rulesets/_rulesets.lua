@@ -2,7 +2,7 @@
 -- Thin delegating wrapper around MPAPI.Ruleset: registers PvP rulesets into the
 -- shared MPAPI.Rulesets registry (dupe-key checking, required_params validation,
 -- `inject`'s G.P_CENTER_POOLS.Ruleset registration, and the default no-op
--- is_disabled/force_lobby_options methods all come from MPAPI's own RulesetBase
+-- is_disabled method all come from MPAPI's own RulesetBase
 -- for free) while keeping PvP's own active-ruleset/gamemode
 -- resolution (lobby / practice-mode -- MPAPI only knows about the lobby case,
 -- so this stays PvP-owned).
@@ -55,35 +55,32 @@ function PVP.Ruleset(init)
 	return MPAPI.Ruleset(init)
 end
 
-function PVP.is_ruleset_active(ruleset_name)
-	local key = "ruleset_mp_" .. ruleset_name
-	if PVP.LOBBY.code then
-		return PVP.LOBBY.config.ruleset == key
-	elseif PVP.is_practice_mode() then
-		return PVP.SP.ruleset == key
-	end
-	return false
+-- The current lobby's shared metadata, or {} with no lobby. A lobby's ruleset
+-- and gamemode live only here: the host writes them (pvp_api/flow.lua) and
+-- every client, MPAPI included, reads them back from the same table.
+function PVP.lobby_metadata()
+	local lobby = MPAPI.get_current_lobby and MPAPI.get_current_lobby()
+	return lobby and lobby:get_metadata() or {}
 end
 
--- "Active" meaning both a live lobby and the configuration-in-progress phase.
--- PVP.LOBBY.config.ruleset always holds a value (reset_lobby_config's default
--- included), so outside a PvP session it says nothing: no ruleset is active,
--- and none of PvP's layers may run in a vanilla run or another mod's game.
+function PVP.is_ruleset_active(ruleset_name)
+	local active = PVP.get_active_ruleset()
+	return active ~= nil and active == "ruleset_mp_" .. ruleset_name
+end
+
+-- The PvP session's ruleset, or nil outside one, so none of PvP's layers run
+-- in a vanilla run or another mod's game. Practice and playback runs know
+-- theirs (PVP.SP.ruleset) before their local lobby's metadata is written.
 function PVP.get_active_ruleset()
 	if not PVP.in_session() then
 		return nil
 	end
-	if PVP.LOBBY.config.ruleset then
-		return PVP.LOBBY.config.ruleset
-	elseif PVP.is_practice_mode() then
-		return PVP.SP.ruleset
-	end
-	return nil
+	return PVP.lobby_metadata().ruleset or (PVP.is_practice_mode() and PVP.SP.ruleset) or nil
 end
 
 function PVP.get_active_gamemode()
 	if PVP.LOBBY.code then
-		return PVP.LOBBY.config.gamemode
+		return PVP.lobby_metadata().gamemode
 	elseif PVP.is_practice_mode() then
 		return PVP.current_ruleset().forced_gamemode or PVP.SP.playback_gamemode
 	end

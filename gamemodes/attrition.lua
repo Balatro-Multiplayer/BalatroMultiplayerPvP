@@ -1,7 +1,7 @@
 PVP.Gamemode({
 	key = "attrition",
 	get_blinds_by_ante = function(self, ante)
-		if ante >= PVP.LOBBY.config.pvp_start_round then
+		if ante >= PVP.setting("pvp_start_round") then
 			-- PVP.current_target_id() is always non-nil for 1v1 (sole opponent). For
 			-- Nemesis (rotating pairing), nil means byed this ante -- fall through to a
 			-- normal boss instead of the nemesis one, the entire bye mechanism. Royale
@@ -14,7 +14,7 @@ PVP.Gamemode({
 			-- Nemesis-pairing's real bye gates on it.
 			-- A playback has no opponent, which reads as a bye. The recorded run had a partner.
 			local byed = PVP.is_byed() and not PVP.SP.playback_gamemode
-			if not PVP.LOBBY.config.normal_bosses and not byed then
+			if not PVP.setting("normal_bosses") and not byed then
 				return nil, nil, "bl_mp_nemesis"
 			else
 				G.GAME.round_resets.pvp_blind_choices.Boss = true

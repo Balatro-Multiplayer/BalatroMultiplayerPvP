@@ -29,7 +29,14 @@ PVP = {
 		pvp_experimental = { ruleset = R.EXPERIMENTAL },
 	},
 }
-MPAPI = { Party = { KIND = "party" } }
+MPAPI = {
+	Party = { KIND = "party" },
+	Rulesets = {
+		[R.EXPANDED] = { optional_layers = { "traps" } },
+		[R.VANILLA] = { lobby_options = { the_order = false } },
+		[R.MAJORLEAGUE] = { lobby_options = { timer_base_seconds = 180, starting_lives = 4 } },
+	},
+}
 dofile("pvp_api/flow.lua")
 dofile("ui/lobby/mode_banner.lua")
 
@@ -43,15 +50,54 @@ end
 check(PVP.default_ruleset("pvp_smallworld", PRIVATE) == R.SMALLWORLD, "Small World keeps its own ruleset")
 check(PVP.default_ruleset("pvp_experimental", PRIVATE) == R.EXPERIMENTAL, "Experimental keeps its own ruleset")
 check(PVP.default_ruleset(nil, PRIVATE) == R.EXPANDED, "no key falls back to Nemesis, on Expanded")
--- The reset stamps the same answer per kind.
-PVP.reset_ruleset_to_gamemode_default("pvp_nemesis", PRIVATE)
-check(PVP.LOBBY.config.ruleset == R.EXPANDED, "a private Nemesis lobby resets to Expanded")
-PVP.reset_ruleset_to_gamemode_default("pvp_nemesis")
-check(PVP.LOBBY.config.ruleset == R.BALANCED, "matchmade Nemesis still resets to Balanced")
--- Metadata's fallback agrees when config holds nothing yet.
+-- A new lobby's metadata takes the default, never a leftover in config.
 PVP.MatchmakingPolicy = { cocktail_recipe = function() end }
-PVP.LOBBY.config.ruleset = nil
-check(PVP.pvp_lobby_metadata("pvp_teams", PRIVATE).ruleset == R.EXPANDED, "private metadata falls back to Expanded")
+PVP.LOBBY.config.ruleset = R.VANILLA
+check(PVP.pvp_lobby_metadata("pvp_teams", PRIVATE).ruleset == R.EXPANDED, "a private Teams lobby opens on Expanded")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.CASUAL).ruleset == R.BALANCED, "matchmade Nemesis opens on Balanced")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.RANKED, R.SMALLWORLD).ruleset == R.SMALLWORLD, "an explicit ruleset wins")
+check(PVP.lobby_loadout_metadata().ruleset == nil, "a deck change leaves the ruleset alone")
+check(next(PVP.pvp_lobby_metadata("pvp_nemesis", PRIVATE).custom.options) == nil, "a new lobby starts with no host changes")
+
+-- A ruleset change is one host-only metadata write.
+local function fake_lobby(is_host, meta)
+	local sent = {}
+	return {
+		is_host = is_host,
+		get_metadata = function() return meta end,
+		set_metadata = function(_, patch) sent[#sent + 1] = patch end,
+	}, sent
+end
+local host, sent = fake_lobby(true, { ruleset = R.EXPANDED })
+PVP.set_lobby_ruleset(host, R.VANILLA)
+check(#sent == 1 and sent[1].ruleset == R.VANILLA and sent[1].deck == nil, "host writes the ruleset and its changes only")
+PVP.set_lobby_ruleset(host, R.EXPANDED)
+check(#sent == 1, "no write when the ruleset is unchanged")
+
+-- The host's changes survive a ruleset switch only where the new ruleset allows them.
+local custom = { options = { manhunt_hunter_lives = 9, starting_lives = 6 }, layers = { "traps" } }
+local switched = PVP.filter_custom(custom, R.MAJORLEAGUE)
+check(switched.options.manhunt_hunter_lives == 9, "an option Major League leaves open survives")
+check(switched.options.starting_lives == nil, "an option Major League sets is dropped")
+check(#switched.layers == 0, "Trap cards are dropped: Major League doesn't offer them")
+check(#PVP.filter_custom(switched, R.EXPANDED).layers == 0, "a dropped layer stays off after switching back")
+check(#PVP.filter_custom(custom, R.EXPANDED).layers == 1, "Expanded keeps Trap cards")
+
+local h2, sent2 = fake_lobby(true, { ruleset = R.EXPANDED, custom = { options = {}, layers = {} } })
+PVP.set_lobby_layer(h2, "traps", true)
+check(sent2[1].custom.layers[1] == "traps", "the host turns Trap cards on")
+PVP.set_lobby_option(h2, "manhunt_hunter_lives", 9)
+check(sent2[2].custom.options.manhunt_hunter_lives == 9, "the host changes an option")
+local h3, sent3 = fake_lobby(true, { ruleset = R.VANILLA, custom = { options = {}, layers = {} } })
+PVP.set_lobby_layer(h3, "traps", true)
+check(#sent3[1].custom.layers == 0, "Vanilla doesn't offer Trap cards")
+-- The Casual vote's mirror call repeats on every metadata change; it must settle.
+local h4, sent4 = fake_lobby(true, { ruleset = R.EXPANDED, custom = { options = {}, layers = { "traps" } } })
+PVP.set_lobby_ruleset(h4, R.EXPANDED, { options = {}, layers = { "traps" } })
+check(#sent4 == 0, "the same ruleset and changes write nothing")
+local guest, guest_sent = fake_lobby(false, {})
+PVP.set_lobby_ruleset(guest, R.VANILLA)
+check(#guest_sent == 0, "a guest never writes the ruleset")
 
 -- Banner contents.
 local parts = PVP.lobby_mode_parts("pvp_nemesis", R.EXPANDED)
