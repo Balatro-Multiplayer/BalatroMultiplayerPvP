@@ -1,13 +1,28 @@
 -- Card-info provider for MPAPI's Lobby Info overlay (see
 -- BalatroMultiplayerAPI/api/card_info_providers.lua): every lobby shows the
--- player's lives, ranked lobbies also show Elo, and during a run the
--- player's skips and best PvP score where known (see run_rows).
+-- player's lives, ranked lobbies also show Elo (or placement progress for a
+-- player still in their placement games, whose rating isn't shown yet), and
+-- during a run the player's skips and best PvP score where known (see run_rows).
 --
--- Cached per (gamemode, player) since MPAPI.matchmaking.get_rating is an
+-- Cached per (ranked board, player) since MPAPI.matchmaking.get_rating is an
 -- async network call and hover callbacks must return synchronously: the
 -- first hover with no cache entry fires the lookup in the background and
 -- shows a placeholder immediately, a later hover shows the resolved value.
+-- The cache belongs to one lobby, so the next match reads ratings afresh.
 PVP._rating_cache = PVP._rating_cache or {}
+
+-- Matches the server's PLACEMENT_GAMES, for a server that doesn't send it.
+local DEFAULT_PLACEMENT_GAMES = 5
+
+-- "2/5" while a rating_get record is still in its placement games, else nil. Shared with the
+-- Find Game page's Ranked pillars (ui/main_menu/find_game.lua).
+function PVP.placement_progress(record)
+	if not record.isPlacement and record.rating then
+		return nil
+	end
+	local total = tonumber(record.placementGames) or DEFAULT_PLACEMENT_GAMES
+	return math.min(tonumber(record.gamesPlayed) or 0, total) .. "/" .. total
+end
 
 local function text_row(text)
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = {
@@ -16,10 +31,18 @@ local function text_row(text)
 end
 
 local function elo_row(lobby, player_data)
+	-- Ratings are kept per ranked ruleset (the queue's ticket, e.g.
+	-- "pvp_ranked_balanced"), not per gamemode: every ranked lobby is
+	-- gamemode_mp_attrition, whose board never has games on it.
 	local meta = lobby:get_metadata() or {}
-	local gamemode = meta.gamemode
-	if not gamemode then
+	if not meta.ruleset then
 		return text_row("Elo: N/A")
+	end
+	local gamemode = PVP.ranked_ticket(meta.ruleset)
+
+	if PVP._rating_cache_lobby ~= lobby.code then
+		PVP._rating_cache = {}
+		PVP._rating_cache_lobby = lobby.code
 	end
 
 	local cache_key = gamemode .. ":" .. player_data.id
@@ -41,7 +64,13 @@ local function elo_row(lobby, player_data)
 		return text_row("Elo: ...")
 	end
 
-	return text_row("Elo: " .. tostring(cached.rating or "Placement"))
+	local placement = PVP.placement_progress(cached)
+	if placement then
+		return text_row(localize({ type = "variable", key = "k_pvp_placement_progress", vars = { placement } }))
+	end
+
+	local elo = "Elo: " .. tostring(math.floor(cached.rating + 0.5))
+	return text_row(tonumber(cached.rank) and (elo .. " (#" .. cached.rank .. ")") or elo)
 end
 
 local function lives_row(player_data)
