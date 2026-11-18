@@ -65,7 +65,7 @@ jobs:
             echo "::error::manifest.json version $VERSION does not match the tag $TAG"
             exit 1
           fi
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")
+          STATUS=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")
           if [ "$STATUS" = 200 ]; then
             echo "::error::$NAMESPACE-$NAME $VERSION is already on Thunderstore"
             exit 1
@@ -158,7 +158,7 @@ jobs:
           [ -n "$BMP_API_URL" ] || fail "The BMP_API_URL variable is not set"
           DEADLINE=$((SECONDS + 900))
           # Wait for the new version to show on Thunderstore.
-          until [ "$(curl -s -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")" = 200 ]; do
+          until [ "$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")" = 200 ]; do
             [ "$SECONDS" -lt "$DEADLINE" ] || fail "$NAMESPACE-$NAME $VERSION did not appear on Thunderstore within 15 minutes"
             sleep 30
           done
@@ -166,11 +166,19 @@ jobs:
             '{package: $package, version: $version, reason: "Thunderstore publish \($version)"}')
           # The server syncs Thunderstore itself, but may still answer 400
           # "not on Thunderstore yet"; retry that until the deadline.
+          # A connection error or timeout (status 000) is retried a few times.
+          NET_TRIES=0
           while true; do
             STATUS=$(printf 'Authorization: Bearer %s' "$BMP_DEPLOY_TOKEN" |
-              curl -s -o "$RUNNER_TEMP/pin.json" -w '%{http_code}' -X PUT -H @- \
+              curl -s --max-time 60 -o "$RUNNER_TEMP/pin.json" -w '%{http_code}' -X PUT -H @- \
                 -H 'Content-Type: application/json' -d "$BODY" "${BMP_API_URL%/}/api/deploy/pins")
             [ "$STATUS" = 200 ] && break
+            if [ "$STATUS" = 000 ] && [ "$NET_TRIES" -lt 4 ]; then
+              NET_TRIES=$((NET_TRIES + 1))
+              echo "No answer from the server (try $NET_TRIES of 4); retrying."
+              sleep $((NET_TRIES * 5))
+              continue
+            fi
             if [ "$STATUS" = 400 ] && grep -q 'not on Thunderstore yet' "$RUNNER_TEMP/pin.json" && [ "$SECONDS" -lt "$DEADLINE" ]; then
               sleep 30
               continue
