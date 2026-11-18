@@ -24,11 +24,14 @@ function create_UIBox_HUD()
 
 	table.insert(contents.nodes[1].nodes[1].nodes[4].nodes[1].nodes, score_wrap) -- you can only do one so we have to wrap both of them. do not ask. i have no idea why
 
-	-- Expected money goes next to the dollar counter, found by id rather than a fixed path
+	-- Expected money goes next to the dollar counter, inside its box (found by id rather than a fixed path).
+	-- The counter keeps the same parents: ease_dollars covers dollar_text_UI.parent with the +$/-$ popup,
+	-- and end of round animates dollar_text_UI.parent.parent.parent.
 	local function add_dollars_node(node)
 		for i, child in ipairs(node.nodes or {}) do
 			if child.config and child.config.id == "dollar_text_UI" then
-				node.nodes[i] = { n = G.UIT.R, config = { align = "cm" }, nodes = { child, FN.PRE.get_dollars_node() } }
+				node.n = G.UIT.R -- lay the box out side by side; it is its parent's only child
+				table.insert(node.nodes, i + 1, FN.PRE.get_dollars_node())
 				return true
 			end
 			if add_dollars_node(child) then return true end
