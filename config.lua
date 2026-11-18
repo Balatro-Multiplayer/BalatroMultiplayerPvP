@@ -9,7 +9,6 @@ return {
 	["integrations"] = {
 		["TheOrder"] = true,
 		["Preview"] = false,
-		["PreviewMoney"] = false,
 	},
 	["nemesis_layout"] = "standard",
 	["unlocked"] = true,

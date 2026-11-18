@@ -24,36 +24,40 @@ function create_UIBox_HUD()
 
 	table.insert(contents.nodes[1].nodes[1].nodes[4].nodes[1].nodes, score_wrap) -- you can only do one so we have to wrap both of them. do not ask. i have no idea why
 
+	-- Expected money goes next to the dollar counter, found by id rather than a fixed path
+	local function add_dollars_node(node)
+		for i, child in ipairs(node.nodes or {}) do
+			if child.config and child.config.id == "dollar_text_UI" then
+				node.nodes[i] = { n = G.UIT.R, config = { align = "cm" }, nodes = { child, FN.PRE.get_dollars_node() } }
+				return true
+			end
+			if add_dollars_node(child) then return true end
+		end
+	end
+	add_dollars_node(contents)
+
 	return contents
 end
 
 function G.FUNCS.calculate_score_button()
-	FN.PRE.money_mode = false
 	FN.PRE.start_new_coroutine()
 end
 
-function G.FUNCS.calculate_money_button()
-	FN.PRE.money_mode = true
-	FN.PRE.start_new_coroutine()
-end
-
--- Alone, a button looks like the original Calculate Score button.
--- Side by side, both are sized like the chips/mult boxes above.
-local function calculate_button(id, text, colour, alone)
+function FN.PRE.get_calculate_score_button()
 	return {
 		n = G.UIT.C,
 		config = {
-			id = id,
-			button = id,
+			id = "calculate_score_button",
+			button = "calculate_score_button",
 			align = "cm",
-			minh = alone and 0.42 or 0.5,
+			minh = 0.42,
 			padding = 0.05,
-			minw = alone and 3 or 2,
-			maxw = alone and 4.5 or 2,
-			r = alone and 0.02 or 0.1,
-			colour = colour,
+			minw = 3,
+			r = 0.02,
+			colour = G.C.RED,
 			hover = true,
 			shadow = true,
+            maxw = 4.5
 		},
 		nodes = {
 			{
@@ -62,7 +66,12 @@ local function calculate_button(id, text, colour, alone)
 				nodes = {
 					{
 						n = G.UIT.T,
-						config = { text = text, colour = G.C.UI.TEXT_LIGHT, shadow = true, scale = 0.36 },
+						config = {
+							text = PVP.UTILS.get_preview_cfg("button"),
+							colour = G.C.UI.TEXT_LIGHT,
+							shadow = true,
+							scale = 0.36,
+						},
 					},
 				},
 			},
@@ -70,28 +79,20 @@ local function calculate_button(id, text, colour, alone)
 	}
 end
 
--- Each button has its own setting; the calculator runs when either is on (see FN.PRE.in_play).
-function FN.PRE.get_calculate_score_button()
-	local score, money = PVP.INTEGRATIONS.Preview, PVP.INTEGRATIONS.PreviewMoney
-	if not (score and money) then
-		if money then return calculate_button("calculate_money_button", "Calculate Money", G.C.MONEY, true) end
-		return calculate_button("calculate_score_button", PVP.UTILS.get_preview_cfg("button"), G.C.RED, true)
-	end
-
-	-- The default label is too wide for half the space
-	local score_label = PVP.UTILS.get_preview_cfg("button")
-	if score_label == "Calculate Score" then score_label = "Calc Score" end
-	-- One flat row: a row nested in a row starts a new line, and row padding also adds height
+function FN.PRE.get_dollars_node()
 	return {
-		n = G.UIT.R,
-		config = { align = "cm" },
-		nodes = {
-			-- A shadow nudges a button's face toward the screen edge (0.4 * shadow_parrallax.x,
-			-- about 0.025 here), so shift the pair back to sit centered under chips/mult
-			{ n = G.UIT.B, config = { w = 0.05, h = 0.1 } },
-			calculate_button("calculate_score_button", score_label, G.C.RED),
-			{ n = G.UIT.B, config = { w = 0.3, h = 0.1 } },
-			calculate_button("calculate_money_button", "Calc Money", G.C.MONEY),
+		n = G.UIT.O,
+		config = {
+			id = "fn_pre_dollars",
+			func = "fn_pre_dollars_UI_set",
+			object = DynaText({
+				string = { { ref_table = FN.PRE.text, ref_value = "dollars" } },
+				colours = { FN.PRE.get_dollar_colour(0) },
+				shadow = true,
+				float = true,
+				scale = 0.5,
+				maxw = 1.2,
+			}),
 		},
 	}
 end

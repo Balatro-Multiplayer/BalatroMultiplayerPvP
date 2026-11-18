@@ -2,11 +2,7 @@
 
 if not FN.SIM.run then
 	function FN.SIM.run()
-		local null_ret = {
-			score = { min = 0, exact = 0, max = 0 },
-			dollars = { min = 0, exact = 0, max = 0, expected = 0 },
-			empty = true,
-		}
+		local null_ret = { score = { min = 0, exact = 0, max = 0 }, dollars = { min = 0, exact = 0, max = 0 }, empty = true }
 		if #G.hand.highlighted < 1 then return null_ret end
 
 		FN.SIM.init()

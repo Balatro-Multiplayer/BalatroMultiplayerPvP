@@ -5,17 +5,16 @@ if not FN then FN = {} end
 FN.PRE = {
 	data = {
 		score = { min = 0, exact = 0, max = 0 },
-		dollars = { min = 0, exact = 0, max = 0, expected = 0 },
+		dollars = { min = 0, exact = 0, max = 0 },
         empty = true,
 	},
 	text = {
 		score = { l = "", r = "", m = "" },
-		dollars = { top = "", bot = "" },
+		dollars = "",
 	},
 	joker_order = {},
 	hand_order = {},
 	show_preview = false,
-	money_mode = false,
 	lock_updates = false,
 	on_startup = true,
 	five_second_coroutine = nil,
@@ -69,11 +68,11 @@ function FN.PRE.start_new_coroutine()
     end
 end
 
--- Preview is a PvP feature: switched on (score, money or both), it still only
--- runs inside a PvP session, never in a vanilla run or another mod's game (an
--- SPDRN race, where racers without it would be at a disadvantage).
+-- Preview is a PvP feature: switched on, it still only runs inside a PvP
+-- session, never in a vanilla run or another mod's game (an SPDRN race,
+-- where racers without it would be at a disadvantage).
 function FN.PRE.in_play()
-    return (PVP.INTEGRATIONS.Preview or PVP.INTEGRATIONS.PreviewMoney) and PVP.in_session()
+    return PVP.INTEGRATIONS.Preview and PVP.in_session()
 end
 
 function FN.PRE.stop_current_coroutine(no_interrupt)
@@ -126,7 +125,7 @@ FN.PRE._start_up = Game.start_up
 function Game:start_up()
 	FN.PRE._start_up(self)
 
-	if not (PVP.INTEGRATIONS.Preview or PVP.INTEGRATIONS.PreviewMoney) then return end
+	if not PVP.INTEGRATIONS.Preview then return end
 
 	if not G.SETTINGS.FN then G.SETTINGS.FN = {} end
 	if not G.SETTINGS.FN.PRE then

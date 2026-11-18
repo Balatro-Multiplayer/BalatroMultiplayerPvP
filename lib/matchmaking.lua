@@ -30,7 +30,6 @@ function PVP:generate_hash()
 	PVP.config.unlocked = PVP.UTILS.unlock_check()
 	table.insert(mod_data, 1, "unlocked=" .. tostring(PVP.config.unlocked))
 	table.insert(mod_data, 1, "preview=" .. tostring(PVP.config.integrations.Preview))
-	table.insert(mod_data, 1, "preview_money=" .. tostring(PVP.config.integrations.PreviewMoney))
 	local mod_string = table.concat(mod_data, ";")
 	PVP.MOD_STRING = mod_string
 	PVP.MOD_HASH = hash(mod_string) or "0000"

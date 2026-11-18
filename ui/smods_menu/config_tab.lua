@@ -75,65 +75,6 @@ function PVP.UI.create_config_tab()
 					align = "cm",
 					on_demand_tooltip = {
 						text = {
-							localize("k_preview_money_desc"),
-							localize("k_preview_money_credit"),
-						},
-					},
-				},
-				nodes = {
-					create_toggle({
-						id = "preview_money_toggle",
-						label = localize("b_preview_money"),
-						ref_table = PVP.config.integrations,
-						ref_value = "PreviewMoney",
-						-- Read at startup, so save now; otherwise it only saves when leaving the Mods menu
-						callback = function()
-							SMODS.save_mod_config(PVP)
-						end,
-					}),
-				},
-			},
-			{
-				n = G.UIT.R,
-				config = {
-					padding = 0,
-					align = "cm",
-				},
-				nodes = {
-					{
-						n = G.UIT.T,
-						config = {
-							text = localize("k_preview_money_credit"),
-							shadow = true,
-							scale = 0.375,
-							colour = G.C.UI.TEXT_INACTIVE,
-						},
-					},
-					{
-						n = G.UIT.B,
-						config = {
-							w = 0.1,
-							h = 0.1,
-						},
-					},
-					{
-						n = G.UIT.T,
-						config = {
-							text = localize("k_requires_restart"),
-							shadow = true,
-							scale = 0.375,
-							colour = G.C.UI.TEXT_INACTIVE,
-						},
-					},
-				},
-			},
-			{
-				n = G.UIT.R,
-				config = {
-					padding = 0,
-					align = "cm",
-					on_demand_tooltip = {
-						text = {
 							localize("k_applies_singleplayer_vanilla_rulesets"),
 						},
 					},
