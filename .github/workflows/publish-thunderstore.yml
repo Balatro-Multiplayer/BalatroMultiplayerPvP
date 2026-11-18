@@ -140,3 +140,41 @@ jobs:
           dotnet tool install --global tcli --version "$TCLI_VERSION"
           tcli publish --config-path "$RUNNER_TEMP/thunderstore.toml" --file "$FILE"
           echo "Published $NAMESPACE-$NAME $VERSION: https://thunderstore.io/c/$COMMUNITY/p/$NAMESPACE/$NAME/" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pin for Ranked
+        if: ${{ !inputs.dry_run }}
+        env:
+          BMP_DEPLOY_TOKEN: ${{ secrets.BMP_DEPLOY_TOKEN }}
+          BMP_API_URL: ${{ vars.BMP_API_URL }}
+          NAME: ${{ steps.manifest.outputs.name }}
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          fail() {
+            echo "::error::$1"
+            echo "The pin was not set: $1" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+          [ -n "$BMP_DEPLOY_TOKEN" ] || fail "The BMP_DEPLOY_TOKEN secret is not set"
+          [ -n "$BMP_API_URL" ] || fail "The BMP_API_URL variable is not set"
+          DEADLINE=$((SECONDS + 900))
+          # Wait for the new version to show on Thunderstore.
+          until [ "$(curl -s -o /dev/null -w '%{http_code}' "https://thunderstore.io/api/experimental/package/$NAMESPACE/$NAME/$VERSION/")" = 200 ]; do
+            [ "$SECONDS" -lt "$DEADLINE" ] || fail "$NAMESPACE-$NAME $VERSION did not appear on Thunderstore within 15 minutes"
+            sleep 30
+          done
+          BODY=$(jq -n --arg package "$NAMESPACE-$NAME" --arg version "$VERSION" \
+            '{package: $package, version: $version, reason: "Thunderstore publish \($version)"}')
+          # The server syncs Thunderstore itself, but may still answer 400
+          # "not on Thunderstore yet"; retry that until the deadline.
+          while true; do
+            STATUS=$(printf 'Authorization: Bearer %s' "$BMP_DEPLOY_TOKEN" |
+              curl -s -o "$RUNNER_TEMP/pin.json" -w '%{http_code}' -X PUT -H @- \
+                -H 'Content-Type: application/json' -d "$BODY" "${BMP_API_URL%/}/api/deploy/pins")
+            [ "$STATUS" = 200 ] && break
+            if [ "$STATUS" = 400 ] && grep -q 'not on Thunderstore yet' "$RUNNER_TEMP/pin.json" && [ "$SECONDS" -lt "$DEADLINE" ]; then
+              sleep 30
+              continue
+            fi
+            fail "The server refused the pin ($STATUS): $(head -c 300 "$RUNNER_TEMP/pin.json")"
+          done
+          echo "Pinned $NAMESPACE-$NAME $VERSION for Ranked." >> "$GITHUB_STEP_SUMMARY"
