@@ -1,6 +1,5 @@
 PVP.Ruleset({
 	key = "minorleague",
-	multiplayer_content = false,
 	forced_gamemode = "gamemode_mp_attrition",
 	forced_lobby_options = true,
 	force_lobby_options = function(self)

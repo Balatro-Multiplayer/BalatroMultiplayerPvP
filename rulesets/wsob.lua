@@ -7,5 +7,4 @@
 PVP.Ruleset({
 	key = "wsob",
 	layers = { "ranked", "wsob" }, -- let's gate on version though
-	multiplayer_content = false,
 }):inject()

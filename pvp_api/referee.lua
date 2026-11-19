@@ -65,6 +65,11 @@ end
 -- stale ones from the round that just ended.
 local broadcast_royale_targets, broadcast_live_targets
 
+-- True while `round` is running and has a seat for `player_id`.
+local function round_is_open_for(round, player_id)
+	return round ~= nil and round.enabled and not round.outcome and round.revisions[player_id] ~= nil
+end
+
 local function round_state(round)
 	return {
 		round_id = round.id,
@@ -797,6 +802,12 @@ function PVP.referee_on_player_reconnected(player_id)
 	pl.is_ready = false
 	if PVP.REF.ready_tracker then
 		PVP.REF.ready_tracker:set(player_id, false)
+	end
+	-- A relaunched client missed the start of the blind, so it has no round id to put on its
+	-- hand reports, and the referee drops reports without one. Hand it the open round.
+	local round = PVP.REF.round
+	if round_is_open_for(round, player_id) then
+		MPAPI.get_current_lobby():action(MPAPI.ActionTypes.pvp_round_state):send(player_id, round_state(round))
 	end
 	-- The returning client rebuilt its game state (PVP.pvp_join_lobby resets it), which
 	-- dropped who its opponent is: the pairing is only sent when an ante starts, so

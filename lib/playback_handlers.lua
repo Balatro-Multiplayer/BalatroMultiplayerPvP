@@ -163,7 +163,7 @@ local function blind_action(ctx, act, applied)
 			return true
 		end
 		if love.timer.getTime() >= deadline then
-			MPAPI.sendWarnMessage('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
+			MPAPI.playback.record_gave_up_wait('[replay] blind-select screen never appeared after ' .. BLIND_WAIT_TIMEOUT_SECONDS .. 's, skipping this action')
 			return true
 		end
 		return false
@@ -234,38 +234,42 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PLAY, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	local indices = args and args[1]
-	if not indices then
-		return
-	end
-	highlight_hand_indices(indices)
-	local highlighted = G.hand and G.hand.highlighted
-	if not highlighted or #highlighted == 0 then
-		if G.hand then
-			MPAPI.sendWarnMessage('[replay] play: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this play entirely')
+	MPAPI.playback.with_hand_ready(ctx, function()
+		local indices = args and args[1]
+		if not indices then
+			return
 		end
-		return
-	end
-	G.FUNCS.play_cards_from_highlighted()
+		highlight_hand_indices(indices)
+		local highlighted = G.hand and G.hand.highlighted
+		if not highlighted or #highlighted == 0 then
+			if G.hand then
+				MPAPI.sendWarnMessage('[replay] play: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this play entirely')
+			end
+			return
+		end
+		G.FUNCS.play_cards_from_highlighted()
+	end, PVP._playback_wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.DISCARD, function(args, ctx)
 	if not ctx.is_pov then
 		return
 	end
-	local indices = args and args[1]
-	if not indices then
-		return
-	end
-	highlight_hand_indices(indices)
-	local highlighted = G.hand and G.hand.highlighted
-	if not highlighted or #highlighted == 0 then
-		if G.hand then
-			MPAPI.sendWarnMessage('[replay] discard: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this discard entirely')
+	MPAPI.playback.with_hand_ready(ctx, function()
+		local indices = args and args[1]
+		if not indices then
+			return
 		end
-		return
-	end
-	G.FUNCS.discard_cards_from_highlighted(nil, false)
+		highlight_hand_indices(indices)
+		local highlighted = G.hand and G.hand.highlighted
+		if not highlighted or #highlighted == 0 then
+			if G.hand then
+				MPAPI.sendWarnMessage('[replay] discard: no cards resolved out of ' .. #indices .. ' -- replay has desynced from the recording, skipping this discard entirely')
+			end
+			return
+		end
+		G.FUNCS.discard_cards_from_highlighted(nil, false)
+	end, PVP._playback_wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
@@ -409,12 +413,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.HAND_RESULT, function(args, 
 	if ctx.is_pov then
 		local score_str = args and args[1]
 		if score_str then
-			if not PVP.Score.equal(score_str, PVP.GAME.score) then
-				MPAPI.sendWarnMessage(
-					'playback hand_result mismatch: recorded=' .. score_str
-					.. ' real=' .. PVP.Score.or_zero(PVP.GAME.score)
-				)
-			end
+			PVP.check_hand_result_when_scored(score_str, PVP._playback_wait_for)
 		end
 	else
 		project_enemy_hand_result(args)
@@ -435,12 +434,15 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx
 		-- Pay what the live player was paid: playback runs as practice, with no
 		-- referee life loss, so its own round eval misses the comeback bonus
 		-- (and pays a blind no_gold_on_round_loss withheld). Recordings from
-		-- before round_dollars existed keep the replay's own total.
-		if recorded_round_dollars and G.GAME.current_round then
-			G.GAME.current_round.dollars = recorded_round_dollars
-		end
+		-- before round_dollars existed keep the replay's own total. Set at the click,
+		-- once the round evaluation has run: it writes the same field.
+		local recorded = recorded_round_dollars
 		recorded_round_dollars = nil
-		G.FUNCS.cash_out({ config = {} })
+		MPAPI.playback.cash_out_when_ready(ctx, PVP._playback_wait_for, function()
+			if recorded and G.GAME.current_round then
+				G.GAME.current_round.dollars = recorded
+			end
+		end)
 	end
 end)
 

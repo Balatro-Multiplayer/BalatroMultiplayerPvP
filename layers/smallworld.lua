@@ -63,14 +63,22 @@ local tag_init_ref = Tag.init
 function Tag:init(_tag, for_collection, _blind_type)
 	local orbital = false
 	local old = G.orbital_hand -- i think this is always nil here but just to be safe
-	if PVP.is_layer_active("smallworld") and not PVP.legacy_smallworld() then
-		if G.GAME.banned_keys[_tag] and not G.OVERLAY_MENU then
+	if PVP.is_layer_active("smallworld") and not PVP.legacy_smallworld() and not for_collection then
+		local blind_tags = _blind_type and G.GAME.round_resets.blind_tags
+		local is_blind_tag = blind_tags and blind_tags[_blind_type] == _tag
+		if G.GAME.banned_keys[_tag] and (not G.OVERLAY_MENU or is_blind_tag) then
 			local a = G.GAME.round_resets.ante
 
 			if PVP.should_use_the_order() then G.GAME.round_resets.ante = 10 end
 
 			_tag = get_next_tag_key("replace")
-			if _tag == "tag_orbital" then orbital = true end
+			if is_blind_tag then
+				-- Share the replacement between blind select and the Blinds tab;
+				-- rebuilding either UI must not reroll the reward.
+				blind_tags[_blind_type] = _tag
+			end
+			-- Blind rewards already have a stable hand in orbital_choices.
+			if _tag == "tag_orbital" and not _blind_type then orbital = true end
 
 			G.GAME.round_resets.ante = a
 		end

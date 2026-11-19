@@ -42,6 +42,13 @@ function PVP.ruleset_display_name(ruleset_key)
 	return localize(RULESET_NAME_KEY[ruleset_key])
 end
 
+-- The ruleset's long description (its name key + "_description"), or nil when it has none.
+function PVP.ruleset_description(ruleset_key)
+	local name_key = RULESET_NAME_KEY[ruleset_key]
+	local dictionary = G.localization and G.localization.misc and G.localization.misc.dictionary or {}
+	return name_key and dictionary[name_key .. "_description"] or nil
+end
+
 function PVP.Ruleset(init)
 	init.key = "ruleset_mp_" .. init.key
 	init.prefix_config = init.prefix_config or { key = false }
@@ -78,9 +85,15 @@ function PVP.get_active_gamemode()
 	if PVP.LOBBY.code then
 		return PVP.LOBBY.config.gamemode
 	elseif PVP.is_practice_mode() then
-		return PVP.current_ruleset().forced_gamemode
+		return PVP.current_ruleset().forced_gamemode or PVP.SP.playback_gamemode
 	end
 	return nil
+end
+
+-- The gamemode a live match of this match format plays. A replay playback has no lobby code and a
+-- ruleset such as Balanced forces no gamemode, so the playback needs it from the recorded format.
+function PVP.playback_gamemode_of(queue_key)
+	return (PVP.PVP_GAMEMODES[queue_key] or PVP.PVP_GAMEMODES.pvp_nemesis).gamemode
 end
 
 -- ----------------------------------------------------------------------------
@@ -103,52 +116,5 @@ function PVP.current_ruleset()
 	return _resolver
 end
 
--- Returns a single deduped, ordered list of active layer names. Body looks
--- scarier than it is. Order: target ruleset's _layer_order, then its
--- self-name, then modifiers (when target is the active ruleset). Dedup
--- matters because not every hook is idempotent — smallworld's 75% cull
--- would re-cull the survivors.
---
--- NOT delegated to MPAPI.active_layer_chain despite the walk being otherwise
--- identical: MPAPI adds the ruleset's own KEY as its self-entry, which for
--- MPAPI/Speed content is fine (their ruleset keys are already fully-qualified,
--- doubling as their own layer name when one exists). PvP's ruleset keys carry
--- the extra "ruleset_mp_" prefix (see PVP.Ruleset above) while a same-named
--- layer, when one exists, is registered under the unprefixed SHORT name --
--- so PvP must add target_short here, not the prefixed key MPAPI would add.
-function PVP.active_layer_chain(target_short)
-	local active_key = PVP.get_active_ruleset()
-	local active_short = active_key and active_key:gsub("^ruleset_mp_", "") or nil
-	target_short = target_short or active_short
-
-	local result, seen = {}, {}
-	local function add(name)
-		if name and not seen[name] then
-			seen[name] = true
-			result[#result + 1] = name
-		end
-	end
-
-	if target_short then
-		local ruleset = MPAPI.Rulesets["ruleset_mp_" .. target_short]
-		if ruleset and ruleset._layer_order then
-			for _, name in ipairs(ruleset._layer_order) do
-				add(name)
-			end
-		end
-		add(target_short)
-	end
-	-- With no session neither is set, and no modifier applies either.
-	if active_short and target_short == active_short then
-		for _, name in ipairs(MPAPI.MODIFIERS) do
-			add(name)
-		end
-	end
-	return result
-end
-
--- Delegate straight to MPAPI: both take (key, opts) / (ruleset_key, key) and
--- MPAPI.LoadReworks resolves via MPAPI.active_layer_chain, which agrees with the
--- resolution above since PVP.Ruleset/PVP.Layer register into MPAPI's own tables.
 PVP.ReworkCenter = MPAPI.ReworkCenter
 PVP.LoadReworks = MPAPI.LoadReworks
