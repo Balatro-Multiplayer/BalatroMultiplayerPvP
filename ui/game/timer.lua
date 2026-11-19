@@ -243,23 +243,33 @@ SMODS.Gradient({
 	end,
 })
 
+PVP.UI.TimerTip = {
+	IDLE = "idle",
+	CAN_START = "can_start",
+	CAN_PAUSE = "can_pause",
+	RUNNING = "running",
+	NEMESIS_RUNNING = "nemesis_running",
+	EXPIRED = "expired",
+}
+
 -- Which hint the timer box's hover tooltip should show. Mirrors mp_timer_button:
 -- the box is also the start/pause button, which colour alone doesn't tell you.
 function PVP.UI.timer_tooltip_state()
-	if (PVP.GAME.timer or 0) <= 0 then return "expired" end
-	if PVP.GAME.nemesis_timer_started then return "nemesis_running" end
-	if PVP.UI.cam_timer_opponent() then return PVP.GAME.timer_started and "can_pause" or "can_start" end
-	if PVP.GAME.timer_started then return "running" end
-	return "idle"
+	local tip = PVP.UI.TimerTip
+	if (PVP.GAME.timer or 0) <= 0 then return tip.EXPIRED end
+	if PVP.GAME.nemesis_timer_started then return tip.NEMESIS_RUNNING end
+	if PVP.UI.cam_timer_opponent() then return PVP.GAME.timer_started and tip.CAN_PAUSE or tip.CAN_START end
+	if PVP.GAME.timer_started then return tip.RUNNING end
+	return tip.IDLE
 end
 
 local timer_tooltip_keys = {
-	can_start = { "k_timer_tip_can_start_1", "k_timer_tip_can_start_2" },
-	can_pause = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" },
-	running = { "k_timer_tip_running" },
-	nemesis_running = { "k_timer_tip_nemesis_running_1", "k_timer_tip_nemesis_running_2" },
-	expired = { "k_timer_tip_expired" },
-	idle = { "k_timer_tip_idle_1", "k_timer_tip_idle_2" },
+	[PVP.UI.TimerTip.CAN_START] = { "k_timer_tip_can_start_1", "k_timer_tip_can_start_2" },
+	[PVP.UI.TimerTip.CAN_PAUSE] = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" },
+	[PVP.UI.TimerTip.RUNNING] = { "k_timer_tip_running" },
+	[PVP.UI.TimerTip.NEMESIS_RUNNING] = { "k_timer_tip_nemesis_running_1", "k_timer_tip_nemesis_running_2" },
+	[PVP.UI.TimerTip.EXPIRED] = { "k_timer_tip_expired" },
+	[PVP.UI.TimerTip.IDLE] = { "k_timer_tip_idle_1", "k_timer_tip_idle_2" },
 }
 
 -- Swap the tooltip only when the state changes; if it's open, rebuild it in place.
