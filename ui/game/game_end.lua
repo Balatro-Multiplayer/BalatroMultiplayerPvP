@@ -101,11 +101,21 @@ G.FUNCS.pvp_end_screen_select_player = function(e)
 	pvp_rebuild_end_game_jokers(p.id, PVP._end_screen_selected_player_name)
 end
 
+-- A result that arrives while the end screen is up redraws the shown player's jokers.
+-- The player who lost usually sees the screen before the winner's result comes in.
+-- Called by pvp_api/actions/player_result.lua.
+function PVP.UI.refresh_end_screen_player(player_id)
+	if player_id == nil or player_id ~= PVP._end_screen_selected_player_id then return end
+	if not PVP.end_game_jokers or PVP.end_game_jokers.REMOVED then return end
+	pvp_rebuild_end_game_jokers(player_id, PVP._end_screen_selected_player_name)
+end
+
 -- The jokers + player-selector panel embedded in end_game_body, built via
 -- the shared MPAPI.end_screen_player_panel that SPDRN's own
 -- SPDRN.build_end_game_extras (BalatroMultiplayerSpeed/ui/end_game_panel.lua)
 -- also calls -- replaces the old binary you/nemesis toggle_players_jokers
--- ("Enemy Jokers"/"Your Jokers"). "View Deck" opens a tab per player, starting
+-- ("Enemy Jokers"/"Your Jokers"). It opens on your nemesis, not on you
+-- (PVP.UI.end_screen_start_index). "View Deck" opens a tab per player, starting
 -- on the selected player's (PVP.UI.deck_tabs below).
 function PVP.UI.build_end_game_extras()
 	PVP.end_game_jokers = CardArea(
@@ -118,6 +128,13 @@ function PVP.UI.build_end_game_extras()
 
 	local lobby = MPAPI.get_current_lobby()
 	local players, options, current_option = MPAPI.end_screen_default_selection(lobby, end_screen_players(lobby))
+	current_option = PVP.UI.end_screen_start_index(
+		players,
+		lobby and lobby.player_id,
+		PVP._end_screen_selected_player_id,
+		PVP.current_target_id and PVP.current_target_id(),
+		current_option
+	)
 
 	local selected = players[current_option]
 	PVP._end_screen_selected_player_id = selected and selected.id
@@ -239,6 +256,24 @@ function PVP.UI.deck_to_show(player_id, self_id, results)
 	return nil
 end
 
+-- Pure: the index in `players` of the player the end screen opens on. The player picked
+-- before, while still listed (closing View Deck rebuilds the screen); else your nemesis
+-- (`target_id`); else, with two players, the one who is not you; else `fallback`.
+function PVP.UI.end_screen_start_index(players, self_id, kept_id, target_id, fallback)
+	local function index_of(id)
+		if id == nil then return nil end
+		for i, p in ipairs(players) do
+			if p.id == id then return i end
+		end
+		return nil
+	end
+	local index = index_of(kept_id) or index_of(target_id)
+	if index then return index end
+	local self_index = index_of(self_id)
+	if #players == 2 and self_index then return 3 - self_index end
+	return fallback
+end
+
 -- Pure: View Deck's tabs, one per player in end-screen order, each { id, name, own,
 -- chosen }. The tab of the player picked in the switcher is open first; with no pick
 -- (or a pick not in the list), your own tab is.
@@ -270,6 +305,9 @@ end
 local delete_run_ref = Game.delete_run
 function Game:delete_run()
 	PVP.UI.clear_shown_deck_area()
+	-- The next match's end screen opens on its own opponent.
+	PVP._end_screen_selected_player_id = nil
+	PVP._end_screen_selected_player_name = nil
 	return delete_run_ref(self)
 end
 

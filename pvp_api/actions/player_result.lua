@@ -132,6 +132,9 @@ MPAPI.ActionType({
 		if PVP.UI.refresh_roster then
 			PVP.UI.refresh_roster()
 		end
+		if PVP.UI.refresh_end_screen_player then
+			PVP.UI.refresh_end_screen_player(from_player_id)
+		end
 		local lobby = MPAPI.get_current_lobby()
 		if PVP._roster_delivered and lobby and from_player_id == lobby.player_id then
 			PVP._roster_delivered()
