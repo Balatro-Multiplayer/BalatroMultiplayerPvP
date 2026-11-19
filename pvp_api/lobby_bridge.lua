@@ -458,6 +458,9 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
 		if mirror_metadata(lobby) == false then return end
+		-- Passive: whatever changed the settings (or created the lobby), the host re-checks the
+		-- verdict against the mirrored config and republishes only if it moved.
+		PVP.refresh_verified_lobby(lobby)
 		-- Setup may wait for the host's write of the rolled ruleset.
 		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
