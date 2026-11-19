@@ -11,18 +11,23 @@ PVP.LobbyAccess = {
 	RANKED_PREFIX = "ranked:",
 }
 
--- Stamps PVP.LOBBY.config.ruleset/gamemode to this gamemode key's defaults.
--- Every entry point that adopts a NEW gamemode key (a fresh private lobby, a
--- fresh matchmaking queue join, a fresh practice run) must call this before its
--- first pvp_lobby_metadata() -- that function prefers whatever's ALREADY in
--- PVP.LOBBY.config (so a private lobby's later Lobby Options ruleset override
--- survives re-broadcasts instead of reverting to this gamemode's default every
--- time), so the slate has to be genuinely reset here first, not left holding
--- module-load's own hardcoded default or a leftover from an unrelated lobby
--- browsed earlier this session.
-function PVP.reset_ruleset_to_gamemode_default(gamemode_key)
+-- Private lobbies open on `private_ruleset` if the entry has one; everything
+-- else plays `ruleset`. Only place that decides a default ruleset.
+function PVP.default_ruleset(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	PVP.LOBBY.config.ruleset = def.ruleset
+	if kind == PVP.LobbyAccess.PRIVATE and def.private_ruleset then
+		return def.private_ruleset
+	end
+	return def.ruleset
+end
+
+-- Call when adopting a new gamemode key, before the first pvp_lobby_metadata().
+-- That function keeps whatever's already in config (so a Lobby Options pick
+-- survives re-broadcasts), which means a stale ruleset from the last lobby
+-- sticks unless it's reset here.
+function PVP.reset_ruleset_to_gamemode_default(gamemode_key, kind)
+	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	PVP.LOBBY.config.ruleset = PVP.default_ruleset(gamemode_key, kind)
 	PVP.LOBBY.config.gamemode = def.gamemode
 end
 
@@ -37,10 +42,10 @@ end
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
-	return {
+	local meta = {
 		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
-		ruleset = PVP.LOBBY.config.ruleset or def.ruleset,
+		ruleset = PVP.LOBBY.config.ruleset or PVP.default_ruleset(gamemode_key, kind),
 		queue_mode = gamemode_key,
 		kind = kind or PVP.LobbyAccess.PRIVATE,
 		deck = PVP.LOBBY.config.back or "Red Deck",
@@ -50,7 +55,39 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
+	-- A private lobby's host sets these in Lobby Options (ui/lobby/lobby_options.lua).
+	-- Matchmade and practice lobbies keep the config's own defaults and the rulesets' forced options.
+	if (kind or PVP.LobbyAccess.PRIVATE) == PVP.LobbyAccess.PRIVATE then
+		for _, key in ipairs(PVP.PRIVATE_OPTION_KEYS) do
+			meta[key] = PVP.LOBBY.config[key]
+		end
+		meta.deck_mode = PVP.LOBBY.config.deck_mode or PVP.DeckMode.SELECT
+		meta.verified_lobby = PVP.compute_verified_lobby()
+	end
+	return meta
 end
+
+-- How a private lobby picks its deck: the host chooses one, or the players run the Draft.
+PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
+
+-- Lobby config fields a private lobby's host can set, carried in the lobby metadata.
+PVP.PRIVATE_OPTION_KEYS = {
+	"gold_on_life_loss",
+	"no_gold_on_round_loss",
+	"death_on_round_loss",
+	"normal_bosses",
+	"timer",
+	"timer_base_seconds",
+	"timer_increment_seconds",
+	"pvp_countdown_seconds",
+	"preview_disabled",
+	"the_order",
+	"smallerworld",
+	"different_seeds",
+	"different_decks",
+	"random_loadout",
+	"custom_seed",
+}
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
 -- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
@@ -107,8 +144,9 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP._pvp_gamemode = gamemode_key
-	PVP.reset_ruleset_to_gamemode_default(gamemode_key)
+	PVP.reset_ruleset_to_gamemode_default(gamemode_key, PVP.LobbyAccess.PRIVATE)
 	PVP.setup_lobby_mirror(lobby)
+	PVP.set_lobby_exit_page(lobby, "pvp_main_menu")
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then
 			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE))
@@ -142,6 +180,16 @@ function PVP.pvp_join_lobby(code)
 	end
 	PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
 	PVP.setup_lobby_mirror(lobby)
+	PVP.set_lobby_exit_page(lobby, "pvp_main_menu")
+end
+
+-- Where the player lands when `lobby` closes, also after a run it closed during
+-- (MPAPI.set_lobby_exit_page): instead of the PvP main menu, or Balatro's own
+-- menu after a run. With an MPAPI that has no exit pages, nothing changes.
+function PVP.set_lobby_exit_page(lobby, page, params)
+	if lobby and MPAPI.set_lobby_exit_page then
+		MPAPI.set_lobby_exit_page(lobby, page, params)
+	end
 end
 
 -- Host-only: attach a per-run gamemode instance (for forfeit handling + the API's

@@ -29,9 +29,7 @@ end)
 -- The default/fallback queue mode key, referenced as a raw string across several
 -- consumer files (flow.lua, queue.lua, pvp_leaderboard.lua) -- kept as one named
 -- constant here, next to its definition in PVP.PVP_GAMEMODES below, so those call
--- sites can't drift from this table's actual key. Also the default ruleset every
--- shape (Nemesis/Royale/Manhunt/Teams) creates a private lobby on, overridable
--- afterward via the in-lobby ruleset picker (ui/lobby/lobby_options.lua).
+-- sites can't drift from this table's actual key.
 PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 
 -- There is no separate "plain 1v1" shape: Nemesis's rotating pairing degenerates
@@ -46,18 +44,17 @@ PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 -- MPAPI.GameMode registrations. pvp_nemesis (the renamed former ranked format)
 -- is the private-lobby/practice-mode fallback and casual Nemesis's queue key;
 -- ranked queues by ruleset directly (PVP._join_ranked_ruleset,
--- pvp_api/queue.lua) rather than through this gamemode key. Every casual
--- queue plays its gamemode key's own default ruleset.
+-- pvp_api/queue.lua) rather than through this gamemode key. Queues play
+-- `ruleset`; private lobbies open on `private_ruleset` if set (see
+-- PVP.default_ruleset), and the host can change it in Lobby Options.
 PVP.PVP_GAMEMODES = {
-	pvp_nemesis = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Nemesis", has_ranked = true, custom_bridge = true, nemesis_pairing = true, public_max_players = 2 },
+	pvp_nemesis = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Nemesis", has_ranked = true, custom_bridge = true, nemesis_pairing = true, public_max_players = 2 },
 	-- Plays the Royale shape (no pairing): a 2-player game, ranked included, is a plain 1v1.
 	pvp_smallworld = { ruleset = "ruleset_mp_smallworld", gamemode = "gamemode_mp_attrition", display = "Small World", has_ranked = true, custom_bridge = true, public_max_players = 16 },
-	-- Royale/Manhunt/Teams (2-16 players): never ranked (no per-ruleset ELO ladder
-	-- for these), default to the Balanced ruleset like everything else (swappable
-	-- in Lobby Options for private lobbies), casual-queueable at up to 16 players.
-	pvp_royale = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Royale", has_ranked = false, custom_bridge = true },
-	pvp_manhunt = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Manhunt", has_ranked = false, custom_bridge = true, manhunt = true },
-	pvp_teams = { ruleset = "ruleset_mp_balanced", gamemode = "gamemode_mp_attrition", display = "Teams", has_ranked = false, custom_bridge = true, team_based = true },
+	-- Royale/Manhunt/Teams: 2-16 players, casual only (no ELO ladder for these).
+	pvp_royale = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Royale", has_ranked = false, custom_bridge = true },
+	pvp_manhunt = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Manhunt", has_ranked = false, custom_bridge = true, manhunt = true },
+	pvp_teams = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Teams", has_ranked = false, custom_bridge = true, team_based = true },
 	-- §17.6/§17.3: Experimental is a real, working ruleset (rulesets/experimental/
 	-- experimental.lua) that was never wired into any player-facing picker at all --
 	-- not a matchmaking gap, an everywhere gap. Deliberately NOT added to the

@@ -11,37 +11,34 @@ SMODS.Atlas({
 })
 
 PVP.MODE_CHIP_ROW = {
-	expanded = 0,
-	balanced = 1,
-	vanilla = 2,
-	mlba = 3,
-	smallworld = 4,
-	nemesis = 5,
-	royale = 6,
-	teams = 7,
-	manhunt = 8,
-	speedlatro = 9,
+	nemesis = 0,
+	royale = 1,
+	teams = 2,
+	smallworld = 3,
+	vanilla = 4,
+	balanced = 5,
+	expanded = 6,
+	mlba = 7,
+	smallworld_ranked = 8,
+	manhunt = 9,
 	party = 10,
 }
 
+-- A gamemode's colour is its chip's background. The ruleset colours tell the Ranked rulesets
+-- apart, as their chips all share the gold-on-grey look.
 PVP.MODE_COLOUR = {
-	expanded = "B95C96",
-	balanced = "B95B08",
+	nemesis = "8D2A23",
+	royale = "4E3381",
+	teams = "F28A3C",
+	smallworld = "334461",
 	vanilla = "439A4F",
+	balanced = "B95B08",
+	expanded = "B95C96",
 	mlba = "4B71E4",
-	smallworld = "45967F",
-	nemesis = "B52D2D",
-	royale = "DFCA81",
-	teams = "A84024",
+	smallworld_ranked = "45967F",
 	manhunt = "B52D2D",
-	speedlatro = "575757",
 	party = "EFC03C",
 }
-
--- Teams has no art yet, so it borrows the Nemesis chip and colour.
--- Remove these 2 lines once it has its own.
-PVP.MODE_CHIP_ROW.teams = PVP.MODE_CHIP_ROW.nemesis
-PVP.MODE_COLOUR.teams = PVP.MODE_COLOUR.nemesis
 
 -- Plain Sprite, not AnimatedSprite: AnimatedSprite free-runs its column animation, and this
 -- icon is meant to sit static.
@@ -59,7 +56,7 @@ function PVP.ruleset_chip_sprite(ruleset_key, size)
 		[R.BALANCED] = PVP.MODE_CHIP_ROW.balanced,
 		[R.EXPANDED] = PVP.MODE_CHIP_ROW.expanded,
 		[R.MAJORLEAGUE] = PVP.MODE_CHIP_ROW.mlba,
-		[R.SMALLWORLD] = PVP.MODE_CHIP_ROW.smallworld,
+		[R.SMALLWORLD] = PVP.MODE_CHIP_ROW.smallworld_ranked,
 	}
 	return PVP.mode_chip_sprite(rows[ruleset_key] or PVP.MODE_CHIP_ROW.nemesis, size)
 end

@@ -49,7 +49,7 @@ local RANKED_MODES = {
 		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
 	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld_ranked), chip_row = CHIP_ROW.smallworld_ranked },
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
@@ -223,6 +223,24 @@ local function count_key(mode)
 	return mode.gamemode_key
 end
 
+-- The account's own rating per Ranked pillar 
+local _own_ratings = {}
+local _rating_els = {}
+
+local function fetch_own_ratings()
+	_own_ratings = {}
+	for _, mode in ipairs(RANKED_MODES) do
+		local key = mode.key
+		_own_ratings[key] = false
+		MPAPI.matchmaking.get_rating(PVP.id, PVP.ranked_ticket(mode.ruleset_key), nil, nil, function(err, data)
+			_own_ratings[key] = (not err and data) or nil
+			if _rating_els[key] then
+				_rating_els[key]:update()
+			end
+		end)
+	end
+end
+
 local function stop_poller_only()
 	if _poller then
 		_poller.stop()
@@ -234,6 +252,9 @@ end
 function PVP.start_find_game_polling()
 	stop_poller_only()
 	_latest_counts = nil
+	if next(_rating_els) then
+		fetch_own_ratings()
+	end
 	_poller = MPAPI.matchmaking.create_queue_counts_poller(PVP.id, FIND_GAME_POLL_INTERVAL_SECONDS, function(err, game_modes)
 		_latest_counts = game_modes or {}
 		for _, el in pairs(_stat_els) do
@@ -246,9 +267,11 @@ end
 function PVP.stop_find_game_polling()
 	stop_poller_only()
 	_stat_els = {}
+	_rating_els = {}
 end
 
--- One half (In Queue or In Game): a label above a darker inset value, like the HUD's Ante box.
+-- One half (In Queue, In Game, Rank, Placement or Position): a label above a darker inset value,
+-- like the HUD's Ante box.
 local function build_count_half(label, value)
 	return { n = G.UIT.C, config = { align = "cm", padding = 0.02, minw = 1.0, minh = 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
@@ -260,17 +283,47 @@ local function build_count_half(label, value)
 	} }
 end
 
+-- The In Queue / In Game halves, with no box around them: build_items puts them in one box,
+-- under the Ranked standing halves when the pillar has them.
 local function build_stat_box(mode)
 	local key = count_key(mode)
 	local el = MPAPI.ui_element(function()
 		local counts = key and _latest_counts and _latest_counts[key]
-		return { nodes = { MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
+		return { nodes = {
 			build_count_half("In Queue", counts and counts.queued or 0),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
 			build_count_half("In Game", counts and counts.inMatch or 0),
-		} }) } }
+		} }
 	end)
 	_stat_els[mode.key] = el
+	return el.node
+end
+
+-- A Ranked pillar's own standing, two halves above the queue counts: Rank (the Elo rating), then placement
+-- progress while the account is still in its placement games, or its leaderboard position once
+-- they are done.
+local function build_rating_box(mode)
+	local el = MPAPI.ui_element(function()
+		local r = _own_ratings[mode.key]
+		local elo, right_label, right = "-", "Position", "-"
+		if r == false then
+			elo, right = "...", "..."
+		elseif r then
+			elo = tonumber(r.rating) and tostring(math.floor(r.rating + 0.5)) or "-"
+			local placement = PVP.placement_progress(r)
+			if placement then
+				right_label, right = "Placement", placement
+			else
+				right = tonumber(r.rank) and ("#" .. r.rank) or "-"
+			end
+		end
+		return { nodes = {
+			build_count_half("Rank", elo),
+			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
+			build_count_half(right_label, right),
+		} }
+	end)
+	_rating_els[mode.key] = el
 	return el.node
 end
 
@@ -308,6 +361,7 @@ end
 local function build_items(modes, group)
 	_select_els = {}
 	_stat_els = {}
+	_rating_els = {}
 	local items = {}
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
@@ -325,7 +379,12 @@ local function build_items(modes, group)
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
-			stat_box = build_stat_box(mode),
+			stat_box = MPAPI.ui_embossed_box({ minw = 2.4, nodes = (mode.ruleset_key and not group)
+				and { { n = G.UIT.C, config = { align = "cm" }, nodes = {
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_rating_box(mode) } },
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_stat_box(mode) } },
+				} } }
+				or { build_stat_box(mode) } }),
 			extra = mode.uses_order and build_order_card() or nil,
 		}
 	end
@@ -390,11 +449,16 @@ end
 -- owns the returned pillar_row controller for this page's lifetime: call :dispose() from the
 -- page's own dispose() hook so the tracked chip icons get :remove()'d -- see
 -- api/ui_pillar_row.lua's header comment for why that's required.
+-- The pillar row's default height (7.4) plus the Ranked standing row (Rank and Placement or
+-- Position). The row is anchored by its bottom, so the extra height raises every pillar: the
+-- Ranked boxes end where the Casual ones do, and both tabs share one layout.
+local PILLAR_MINH = 8.35
+
 function PVP.build_find_game_ui(category, group)
 	category = group and "casual" or category or "ranked"
 	local modes = category == "casual" and CASUAL_MODES or RANKED_MODES
 
-	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(modes, group) })
+	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(modes, group), pillar_minh = PILLAR_MINH })
 	local definition = {
 		n = G.UIT.ROOT,
 		config = { align = "tm", colour = G.C.CLEAR },

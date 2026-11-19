@@ -16,6 +16,14 @@ function FN.PRE.format_number(num)
 	return number_format(num) -- Default Balatro function.
 end
 
+-- Formats as '+$5', or '~$1.33' when luck is involved (expected money can be fractional)
+function FN.PRE.format_dollars(n, lucky)
+	local digits = string.format("%.2f", math.abs(n)):gsub("%.?0+$", "")
+	local sign = n < 0 and "-" or "+"
+	if lucky then sign = n < 0 and "~-" or "~" end
+	return sign .. "$" .. digits
+end
+
 function FN.PRE.get_dollar_colour(n)
 	if n == 0 then
 		return HEX("7e7667")
@@ -23,14 +31,6 @@ function FN.PRE.get_dollar_colour(n)
 		return G.C.MONEY
 	elseif n < 0 then
 		return G.C.RED
-	end
-end
-
-function FN.PRE.get_sign_str(n)
-	if n >= 0 then
-		return "+"
-	else
-		return "" -- Negative numbers already have a sign
 	end
 end
 

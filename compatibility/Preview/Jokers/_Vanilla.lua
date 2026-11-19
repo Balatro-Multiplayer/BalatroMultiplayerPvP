@@ -198,9 +198,9 @@ end
 FNSJ.simulate_business = function(joker_obj, context)
 	if context.cardarea == G.play and context.individual then
 		if FN.SIM.is_face(context.other_card) and not context.other_card.debuff then
-			local exact_dollars, min_dollars, max_dollars =
+			local exact_dollars, min_dollars, max_dollars, expected_dollars =
 				FN.SIM.get_probabilistic_extremes(pseudorandom("false"), joker_obj.ability.extra, 2, 0)
-			FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars)
+			FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars, expected_dollars)
 		end
 	end
 end
@@ -448,19 +448,19 @@ end
 FNSJ.simulate_reserved_parking = function(joker_obj, context)
 	if context.cardarea == G.hand and context.individual then
 		if FN.SIM.is_face(context.other_card) and not context.other_card.debuff then
-			local exact_dollars, min_dollars, max_dollars = FN.SIM.get_probabilistic_extremes(
+			local exact_dollars, min_dollars, max_dollars, expected_dollars = FN.SIM.get_probabilistic_extremes(
 				pseudorandom("notthistime"),
 				joker_obj.ability.extra.odds,
 				joker_obj.ability.extra.dollars,
 				0
 			)
-			FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars)
+			FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars, expected_dollars)
 		end
 	end
 end
 FNSJ.simulate_mail = function(joker_obj, context)
 	if context.cardarea == G.hand and context.discard then
-		if context.other_card.id == G.GAME.current_round.mail_card.id and not context.other_card.debuff then
+		if context.other_card.rank == G.GAME.current_round.mail_card.id and not context.other_card.debuff then
 			FN.SIM.add_dollars(joker_obj.ability.extra)
 		end
 	end

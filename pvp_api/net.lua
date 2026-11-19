@@ -79,10 +79,14 @@ local ROUTES = {
 		broadcast("pvp_stop_game", {})
 	end,
 	readyBlind = function(msg)
-		broadcast("pvp_ready_blind", { starting_hands = msg.startingHands, round_protocol = 1 })
+		broadcast("pvp_ready_blind", {
+			starting_hands = msg.startingHands,
+			round_protocol = 1,
+			entry = PVP.set_blind_readiness(true, msg.startingHands),
+		})
 	end,
 	unreadyBlind = function(_msg)
-		broadcast("pvp_unready_blind", {})
+		broadcast("pvp_unready_blind", { entry = PVP.set_blind_readiness(false) })
 	end,
 	failRound = function(_msg)
 		broadcast("pvp_fail_round", {})
@@ -149,12 +153,6 @@ local ROUTES = {
 	end,
 	receiveEndGameJokers = function(msg)
 		broadcast("pvp_receive_end_game_jokers", msg)
-	end,
-	getNemesisDeck = function(_msg)
-		broadcast("pvp_get_nemesis_deck", {})
-	end,
-	receiveNemesisDeck = function(msg)
-		broadcast("pvp_receive_nemesis_deck", msg)
 	end,
 	sendGameStats = function(_msg) end, -- local-only (handled by action_send_game_stats)
 	endGameStatsRequested = function(_msg)

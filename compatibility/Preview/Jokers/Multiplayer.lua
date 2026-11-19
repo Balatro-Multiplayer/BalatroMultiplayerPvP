@@ -34,10 +34,10 @@ FNSJ.simulate_mp_lets_go_gambling = function(joker_obj, context)
 		local rand = pseudorandom("gambling") -- Must reuse same pseudorandom value:
 		local exact_xmult, min_xmult, max_xmult =
 			FN.SIM.get_probabilistic_extremes(rand, joker_obj.ability.extra.odds, joker_obj.ability.extra.xmult, 1)
-		local exact_money, min_money, max_money =
+		local exact_money, min_money, max_money, expected_money =
 			FN.SIM.get_probabilistic_extremes(rand, joker_obj.ability.extra.odds, joker_obj.ability.extra.dollars, 0)
 
-		FN.SIM.add_dollars(exact_money, min_money, max_money)
+		FN.SIM.add_dollars(exact_money, min_money, max_money, expected_money)
 		FN.SIM.x_mult(exact_xmult, min_xmult, max_xmult)
 	end
 end
@@ -58,4 +58,9 @@ FNSJ.simulate_mp_bloodstone = function(joker_obj, context)
 			FN.SIM.x_mult(exact_xmult, min_xmult, max_xmult)
 		end
 	end
+end
+
+-- The engine already rolls on every retrigger, which is how the mp version plays.
+FNSJ.simulate_mp_reserved_parking = function(joker_obj, context)
+	return FNSJ.simulate_reserved_parking(joker_obj, context)
 end

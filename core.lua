@@ -234,12 +234,11 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		stake = 1,
 		challenge = "",
 		cocktail = "",
-		multiplayer_jokers = true,
 		timer = true,
 		timer_forgiveness = 0,
 		forced_config = false,
 		preview_disabled = false,
-		legacy_smallworld = false,
+		smallerworld = false,
 	}
 end
 PVP.reset_lobby_config()
@@ -478,8 +477,9 @@ MPAPI.on_loaded(function()
 			-- second lower-right of the first -- not one word per sprite the way -1 (clearing
 			-- just the first word) was tuned for elsewhere. -1 fully cleared the first PLAYER
 			-- but left the second still sitting on the tab row; -2.5 (coincidentally the same
-			-- value SPDRN's own main-menu cleanup uses for unrelated reasons) clears both.
-			MPAPI.set_logo_offset(-2.5, true)
+			-- value SPDRN's own main-menu cleanup uses for unrelated reasons) clears both. -3.2
+			-- since the pillars grew to fit the Ranked standing row, which raised the tab row too.
+			MPAPI.set_logo_offset(-3.2, true)
 			PVP.start_find_game_polling()
 		end,
 		dispose = function(self)

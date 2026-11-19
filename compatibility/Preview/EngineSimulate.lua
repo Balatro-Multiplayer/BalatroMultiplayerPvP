@@ -35,6 +35,7 @@ if not FN.SIM.run then
 			exact = { chips = 0, mult = 0, dollars = 0 },
 			max = { chips = 0, mult = 0, dollars = 0 },
 			reps = 0,
+			expected_dollars = 0,
 		}
 
 		-- Fetch metadata about simulated play:
@@ -139,7 +140,12 @@ if not FN.SIM.run then
 
 		return {
 			score = { min = min_score, exact = exact_score, max = max_score },
-			dollars = { min = FNSR.min.dollars, exact = FNSR.exact.dollars, max = FNSR.max.dollars },
+			dollars = {
+				min = FNSR.min.dollars,
+				exact = FNSR.exact.dollars,
+				max = FNSR.max.dollars,
+				expected = FNSR.expected_dollars,
+			},
 		}
 	end
 
@@ -321,6 +327,7 @@ if not FN.SIM.run then
 
 			local min_score, max_score = math.huge, -math.huge
 			local min_dollars, max_dollars = math.huge, -math.huge
+			local expected_dollars_sum = 0
 
 			for _, discard_idxs in ipairs(combinations) do
 				-- Deep copy held cards
@@ -347,6 +354,7 @@ if not FN.SIM.run then
 				FN.SIM.running.min = { chips = 0, mult = 0, dollars = 0 }
 				FN.SIM.running.exact = { chips = 0, mult = 0, dollars = 0 }
 				FN.SIM.running.max = { chips = 0, mult = 0, dollars = 0 }
+				FN.SIM.running.expected_dollars = 0
 
 				for i = 1, #discarded do
 					FN.SIM.simulate_joker_discard_effects(discarded, discarded[i])
@@ -368,6 +376,7 @@ if not FN.SIM.run then
 				max_score = math.max(max_score, res.score.max)
 				min_dollars = math.min(min_dollars, res.dollars.min)
 				max_dollars = math.max(max_dollars, res.dollars.max)
+				expected_dollars_sum = expected_dollars_sum + res.dollars.expected
 
 				-- Restore original held cards and jokers
 				FN.SIM.env.held_cards = backup_held
@@ -377,6 +386,8 @@ if not FN.SIM.run then
 			-- Overwrite final min/max range based on permutations
 			FN.SIM.running.min = { chips = min_score, mult = 1, dollars = min_dollars }
 			FN.SIM.running.max = { chips = max_score, mult = 1, dollars = max_dollars }
+			-- The Hook picks each pair with equal chance, so expected money is the average
+			FN.SIM.running.expected_dollars = expected_dollars_sum / #combinations
 
 			-- NOTE: FN.SIM.running.exact remains unset here; it's not relevant in this projection context
 			return true -- Prevent default simulation since we’ve replaced it entirely
@@ -470,13 +481,13 @@ if not FN.SIM.run then
 			if card_data.seal == "Gold" then FN.SIM.add_dollars(3) end
 			if card_data.ability.p_dollars > 0 then
 				if card_data.ability.effect == "Lucky Card" then
-					local exact_dollars, min_dollars, max_dollars = FN.SIM.get_probabilistic_extremes(
+					local exact_dollars, min_dollars, max_dollars, expected_dollars = FN.SIM.get_probabilistic_extremes(
 						pseudorandom("notthistime"),
 						15,
 						card_data.ability.p_dollars,
 						0
 					)
-					FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars)
+					FN.SIM.add_dollars(exact_dollars, min_dollars, max_dollars, expected_dollars)
 					-- Careful not to overwrite `card_data.lucky_trigger` outright:
 					if exact_dollars > 0 then card_data.lucky_trigger.exact = true end
 					if min_dollars > 0 then card_data.lucky_trigger.min = true end

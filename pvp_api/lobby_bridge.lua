@@ -84,6 +84,21 @@ function PVP.current_target_id()
 	return PVP.GAME.royale_target_id
 end
 
+-- The enemy lives follow the target: pvp_player_lives only updates the lives of the
+-- target at the time it arrives, so a target named later (a new Manhunt leader, a
+-- rejoin that hears the lives before the target) reads them from the cache.
+function PVP.refresh_target_lives()
+	local target = PVP.current_target_id()
+	if not (target and PVP.GAME and PVP.GAME.enemy) then
+		return
+	end
+	PVP.GAME.enemy.lives = PVP.lives_of(target, {
+		ref_players = PVP.REF and PVP.REF.players,
+		cache = PVP._player_lives_cache,
+		starting_lives = PVP.LOBBY.config.starting_lives,
+	})
+end
+
 -- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
 -- set while the server says the target is replaying its run after a crash.
 function PVP.refresh_catching_up_badge()
@@ -209,10 +224,12 @@ local function mirror_metadata(lobby)
 		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
 	end
-	if meta.deck then
+	-- With Different Decks a guest keeps their own pick; the host's deck is only the host's.
+	local own_deck = PVP.LOBBY.config.different_decks == true and not lobby.is_host
+	if meta.deck and not own_deck then
 		PVP.LOBBY.deck.back = meta.deck
 	end
-	if meta.stake then
+	if meta.stake and not own_deck then
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
@@ -369,6 +386,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
 		PVP.TRAP_ROW.on_player_back(player_id)
+		PVP.refresh_verified_lobby(lobby)
 		refresh()
 		check_version_mismatch()
 	end)
@@ -377,6 +395,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- it once their client reports its mods), so the join alone cannot judge
 	-- their version.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_INFO, function()
+		PVP.refresh_verified_lobby(lobby)
 		check_version_mismatch()
 	end)
 
@@ -389,6 +408,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.UI.UTILS.overlay_message(message)
 		end
 		disconnected_players[player_id] = nil
+		PVP.refresh_verified_lobby(lobby)
 		if PVP.lobby and PVP.lobby.ready then
 			PVP.lobby.ready:remove(player_id)
 		end
@@ -413,6 +433,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		then
 			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
 		end
+		if G.STAGE == G.STAGES.RUN then PVP.referee_resume_entry() end
 		refresh()
 	end)
 
@@ -468,6 +489,9 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
 		if mirror_metadata(lobby) == false then return end
+		-- Passive: whatever changed the settings (or created the lobby), the host re-checks the
+		-- verdict against the mirrored config and republishes only if it moved.
+		PVP.refresh_verified_lobby(lobby)
 		-- Setup may wait for the host's write of the rolled ruleset.
 		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
@@ -480,6 +504,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- a game is on: a rejoin's playback starts from the main menu, and a
 	-- rebuild under it replays its first actions twice.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_STANDING_CHANGED, function(_, standing, before)
+		PVP.refresh_verified_lobby(lobby)
 		if MPAPI.matchmaking.group.changes_refusal(before, standing) and not lobby:is_game_started() then
 			refresh()
 		end

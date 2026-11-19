@@ -22,9 +22,6 @@ MPAPI.Joker({
 		PVP.UTILS.add_nemesis_info(info_queue)
 		return { vars = { card.ability.extra.x_mult_gain, card.ability.extra.max_x_mult, card.ability.extra.x_mult } }
 	end,
-	mp_include = function(self)
-		return MPAPI.mod_isolation_active(PVP.id) and not PVP.is_layer_active(PVP.LayerKey.SANDBOX)
-	end,
 	update = function(self, card, dt)
 		if PVP.LOBBY.code then
 			if G.STAGE == G.STAGES.RUN then

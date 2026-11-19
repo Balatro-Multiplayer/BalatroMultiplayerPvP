@@ -232,43 +232,32 @@ function G.FUNCS.fn_pre_score_UI_set(e)
 	end
 end
 
+-- Expected money from playing the selected cards, next to the dollar counter:
+-- '+$5' when it's guaranteed, '~$1.33' when it depends on luck.
 function G.FUNCS.fn_pre_dollars_UI_set(e)
 	local new_preview_text = ""
-	local new_colour = nil
-	if FN.PRE.data then
-		if true and (FN.PRE.data.dollars.min ~= FN.PRE.data.dollars.max) then
-			if e.config.id == "fn_pre_dollars_top" then
-				new_preview_text = " " .. FN.PRE.get_sign_str(FN.PRE.data.dollars.max) .. FN.PRE.data.dollars.max
-				new_colour = FN.PRE.get_dollar_colour(FN.PRE.data.dollars.max)
-			elseif e.config.id == "fn_pre_dollars_bot" then
-				new_preview_text = " " .. FN.PRE.get_sign_str(FN.PRE.data.dollars.min) .. FN.PRE.data.dollars.min
-				new_colour = FN.PRE.get_dollar_colour(FN.PRE.data.dollars.min)
-			end
-		else
-			if e.config.id == "fn_pre_dollars_top" then
-				local _data = G.SETTINGS.FN.show_min_max and FN.PRE.data.dollars.min or FN.PRE.data.dollars.exact
-
-				new_preview_text = " " .. FN.PRE.get_sign_str(_data) .. _data
-				new_colour = FN.PRE.get_dollar_colour(_data)
-			else
-				new_preview_text = ""
-				new_colour = FN.PRE.get_dollar_colour(0)
-			end
+	local new_colour = FN.PRE.get_dollar_colour(0)
+	if FN.PRE.show_preview and not FN.PRE.lock_updates then
+		if not FN.PRE.data then
+			new_preview_text = " $??"
+		elseif not FN.PRE.data.empty then
+			local dollars = FN.PRE.data.dollars
+			local expected = dollars.expected or dollars.exact
+			new_preview_text = " " .. FN.PRE.format_dollars(expected, dollars.min ~= dollars.max)
+			new_colour = FN.PRE.get_dollar_colour(expected)
 		end
-	else
-		new_preview_text = " +??"
-		new_colour = FN.PRE.get_dollar_colour(0)
 	end
 
-	if not FN.PRE.text.dollars[e.config.id:sub(-3)] or new_preview_text ~= FN.PRE.text.dollars[e.config.id:sub(-3)] then
-		FN.PRE.text.dollars[e.config.id:sub(-3)] = new_preview_text
+	if new_preview_text ~= FN.PRE.text.dollars then
+		FN.PRE.text.dollars = new_preview_text
 		e.config.object.colours = { new_colour }
-        e.config.object.scale = e.config.object.config.scale
+		e.config.object.scale = e.config.object.config.scale
 		e.config.object:update_text()
-        if e.config.object.config.maxw then
-            e.config.object.scale = e.config.object.config.scale * math.min(1, e.config.object.config.maxw/e.config.object.config.W)
-            e.config.object:update_text(true)
-        end
+		if e.config.object.config.maxw then
+			e.config.object.scale = e.config.object.config.scale
+				* math.min(1, e.config.object.config.maxw / e.config.object.config.W)
+			e.config.object:update_text(true)
+		end
 		if not G.TAROT_INTERRUPT_PULSE then e.config.object:pulse(0.25) end
 	end
 end

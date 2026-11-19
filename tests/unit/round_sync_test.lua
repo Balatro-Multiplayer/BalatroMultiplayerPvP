@@ -145,6 +145,7 @@ local function setup(mode, count, lives, legacy)
 	dofile("lib/pending_death.lua")
 	dofile("lib/ready_check.lua")
 	dofile("pvp_api/server_hold.lua")
+	dofile("pvp_api/entry_sync.lua")
 	dofile("pvp_api/referee.lua")
 	dofile("pvp_api/round_sync.lua")
 	PVP.referee_reset(lives)
@@ -369,6 +370,104 @@ test("a query before the first hand does not fabricate a zero-hand report", func
 	equal(last("pvp_round_state").revisions.a, 0)
 end)
 
+for _, mode in ipairs({ "pair", "team_based" }) do
+	for _, timer_first in ipairs({ true, false }) do
+		test(mode .. ": timer losses recur independently of the round guard, " .. (timer_first and "timer" or "round") .. " first", function()
+			setup(mode, mode == "pair" and 2 or 4, 6)
+			PVP.LOBBY.config.death_on_round_loss = true
+			local first = timer_first and PVP.referee_on_fail_timer or PVP.referee_on_fail_round
+			local second = timer_first and PVP.referee_on_fail_round or PVP.referee_on_fail_timer
+			local function lives(want)
+				equal(PVP.REF.players.a.lives, want)
+				if mode == "team_based" then
+					local team = PVP.REF.players.a.team_id
+					equal(PVP.REF.team_lives[team], want)
+					for _, pl in pairs(PVP.REF.players) do
+						equal(pl.lives, pl.team_id == team and want or 6)
+					end
+				end
+			end
+			first("a")
+			lives(5)
+			first("a")
+			lives(timer_first and 4 or 5)
+			second("a")
+			lives(timer_first and 3 or 4)
+			second("a")
+			lives(3)
+			PVP.referee_on_new_round("a")
+			first("a")
+			second("a")
+			lives(1)
+		end)
+	end
+
+	test(mode .. ": a different loss cause cannot take lives below zero", function()
+		setup(mode, mode == "pair" and 2 or 4, 1)
+		PVP.LOBBY.config.death_on_round_loss = true
+		PVP.referee_on_fail_timer("a")
+		PVP.referee_on_fail_round("a")
+		equal(PVP.REF.players.a.lives, 0)
+		if mode == "team_based" then
+			equal(PVP.REF.team_lives[PVP.REF.players.a.team_id], 0)
+		end
+	end)
+
+	for _, timer_first in ipairs({ true, false }) do
+		test(mode .. ": takeover preserves the round guard without blocking timer restarts, " .. (timer_first and "timer" or "round") .. " first", function()
+			setup(mode, mode == "pair" and 2 or 4, 8)
+			PVP.LOBBY.config.death_on_round_loss = true
+			local first = timer_first and PVP.referee_on_fail_timer or PVP.referee_on_fail_round
+			local second = timer_first and PVP.referee_on_fail_round or PVP.referee_on_fail_timer
+			first("a")
+			equal(PVP.REF.players.a.lives, 7)
+			equal(PVP.referee_take_over(), "checkpoint")
+			first("a")
+			equal(PVP.REF.players.a.lives, timer_first and 6 or 7)
+			second("a")
+			equal(PVP.REF.players.a.lives, timer_first and 5 or 6)
+			equal(PVP.referee_take_over(), "checkpoint")
+			first("a")
+			second("a")
+			equal(PVP.REF.players.a.lives, timer_first and 4 or 5)
+		end)
+	end
+end
+
+test("a PvP score loss is not blocked by an earlier timer loss", function()
+	setup("pair")
+	PVP.referee_on_fail_timer("a")
+	report("a", 1, 100, 0)
+	report("b", 1, 200, 0)
+	equal(PVP.REF.players.a.lives, 2)
+	equal(last("pvp_round_state").lives.a, 2)
+	report("b", 1, 200, 0)
+	equal(PVP.REF.players.a.lives, 2)
+end)
+
+test("disabled blind-loss penalties do not charge lives after a timer loss", function()
+	setup("pair")
+	PVP.referee_on_fail_timer("a")
+	PVP.referee_on_fail_round("a")
+	equal(PVP.REF.players.a.lives, 3)
+end)
+
+test("an old checkpoint's shared blocker guards the round but not timer restarts", function()
+	setup("pair", 2, 6)
+	PVP.LOBBY.config.death_on_round_loss = true
+	PVP.referee_on_fail_round("a")
+	local saved = lobby.metadata._pvp_ref.players.a
+	equal(saved.blocker, 1)
+	equal(PVP.referee_take_over(), "checkpoint")
+	PVP.referee_on_fail_timer("a")
+	PVP.referee_on_fail_round("a")
+	equal(PVP.REF.players.a.lives, 4)
+	PVP.referee_on_new_round("a")
+	PVP.referee_on_fail_timer("a")
+	PVP.referee_on_fail_round("a")
+	equal(PVP.REF.players.a.lives, 2)
+end)
+
 test("after a lost PvP, newRound lets the ante timer take a life", function()
 	setup("pair")
 	report("a", 1, 500, 0)
@@ -578,4 +677,32 @@ test("a ready that outlived its blind does not start the next one under a player
 	PVP.referee_on_ready_ack("a", check.nonce, true)
 	PVP.referee_on_ready_ack("b", check.nonce, true)
 	equal(starts(), 1)
+end)
+
+test("a client that rejoined with no round of its own learns it from the referee and its hand counts", function()
+	setup("pair")
+	-- The relaunched client missed the start of the blind, so it has no round record.
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	local state = last("pvp_round_state")
+	equal(state.round_id, PVP.REF.round.id)
+	PVP.receive_round_state("a", state)
+	assert(PVP.GAME.round_sync, "the round was not adopted")
+	equal(PVP.commit_round_report({ score = "100", handsLeft = 0 }), true)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	equal(PVP.Score.display(PVP.REF.players.a.score), PVP.Score.display("100"))
+	equal(PVP.REF.players.a.hands_left, 0)
+end)
+
+test("a resolved round is not adopted by a client that rejoined", function()
+	setup("pair")
+	report("a", 1, 100, 0)
+	report("b", 1, 200, 0)
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	for _, message in ipairs(sent) do
+		assert(message.key ~= "pvp_round_state", "a resolved round must not be pushed")
+	end
 end)

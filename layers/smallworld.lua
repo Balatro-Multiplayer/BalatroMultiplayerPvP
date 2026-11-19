@@ -3,43 +3,46 @@ MPAPI.Layer("smallworld", {
 		if not context.apply_bans then
 			return
 		end
-		local tables = {}
+		-- Smallerworld culls the survivors of the first pass a second time.
 		local requires = {}
-		for k, v in pairs(G.P_CENTERS) do
-			if
-				v.set
-				and not G.GAME.banned_keys[k]
-				and not (v.requires or v.hidden)
-				and k ~= "j_cavendish"
-				and not MPAPI.should_exclude_from_pool(v)
-			then
-				local index = v.set .. (v.rarity or "")
-				tables[index] = tables[index] or {}
-				local t = tables[index]
-				t[#t + 1] = k
+		for pass = 1, PVP.smallerworld() and 2 or 1 do
+			local tables = {}
+			for k, v in pairs(G.P_CENTERS) do
+				if
+					v.set
+					and not G.GAME.banned_keys[k]
+					and not (v.requires or v.hidden)
+					and k ~= "j_cavendish"
+					and not MPAPI.should_exclude_from_pool(v)
+				then
+					local index = v.set .. (v.rarity or "")
+					tables[index] = tables[index] or {}
+					local t = tables[index]
+					t[#t + 1] = k
+				end
+				if pass == 1 and v.set == "Voucher" and v.requires then requires[#requires + 1] = k end
 			end
-			if v.set == "Voucher" and v.requires then requires[#requires + 1] = k end
-		end
-		for k, v in pairs(G.P_TAGS) do -- tag exemption
-			if not G.GAME.banned_keys[k] and not MPAPI.should_exclude_from_pool(v) then
-				tables["Tag"] = tables["Tag"] or {}
-				local t = tables["Tag"]
-				t[#t + 1] = k
+			for k, v in pairs(G.P_TAGS) do -- tag exemption
+				if not G.GAME.banned_keys[k] and not MPAPI.should_exclude_from_pool(v) then
+					tables["Tag"] = tables["Tag"] or {}
+					local t = tables["Tag"]
+					t[#t + 1] = k
+				end
 			end
-		end
-		for k, v in pairs(tables) do
-			if k ~= "Back" and k ~= "Edition" and k ~= "Enhanced" and k ~= "Default" then
-				table.sort(v)
-				pseudoshuffle(v, pseudoseed(k .. "_mp_smallworld"))
-				local threshold = math.floor(0.5 + (#v * 0.75))
-				local ii = 1
-				if k == "Voucher" and not PVP.legacy_smallworld() then ii = ii + 1 end
-				for i, vv in ipairs(v) do
-					if ii <= threshold then
-						G.GAME.banned_keys[vv] = true
-						ii = ii + 1
-					else
-						break
+			for k, v in pairs(tables) do
+				if k ~= "Back" and k ~= "Edition" and k ~= "Enhanced" and k ~= "Default" then
+					table.sort(v)
+					pseudoshuffle(v, pseudoseed(k .. "_mp_smallworld" .. (pass > 1 and pass or "")))
+					local threshold = math.floor(0.5 + (#v * 0.75))
+					local ii = 1
+					if k == "Voucher" then ii = ii + 1 end
+					for i, vv in ipairs(v) do
+						if ii <= threshold then
+							G.GAME.banned_keys[vv] = true
+							ii = ii + 1
+						else
+							break
+						end
 					end
 				end
 			end
@@ -63,14 +66,22 @@ local tag_init_ref = Tag.init
 function Tag:init(_tag, for_collection, _blind_type)
 	local orbital = false
 	local old = G.orbital_hand -- i think this is always nil here but just to be safe
-	if PVP.is_layer_active("smallworld") and not PVP.legacy_smallworld() then
-		if G.GAME.banned_keys[_tag] and not G.OVERLAY_MENU then
+	if PVP.is_layer_active("smallworld") and not for_collection then
+		local blind_tags = _blind_type and G.GAME.round_resets.blind_tags
+		local is_blind_tag = blind_tags and blind_tags[_blind_type] == _tag
+		if G.GAME.banned_keys[_tag] and (not G.OVERLAY_MENU or is_blind_tag) then
 			local a = G.GAME.round_resets.ante
 
 			if PVP.should_use_the_order() then G.GAME.round_resets.ante = 10 end
 
 			_tag = get_next_tag_key("replace")
-			if _tag == "tag_orbital" then orbital = true end
+			if is_blind_tag then
+				-- Share the replacement between blind select and the Blinds tab;
+				-- rebuilding either UI must not reroll the reward.
+				blind_tags[_blind_type] = _tag
+			end
+			-- Blind rewards already have a stable hand in orbital_choices.
+			if _tag == "tag_orbital" and not _blind_type then orbital = true end
 
 			G.GAME.round_resets.ante = a
 		end
@@ -82,7 +93,7 @@ end
 
 local apply_to_run_ref = Back.apply_to_run
 function Back:apply_to_run()
-	if PVP.is_layer_active("smallworld") and not PVP.legacy_smallworld() then PVP.apply_fake_back_vouchers(self) end
+	if PVP.is_layer_active("smallworld") then PVP.apply_fake_back_vouchers(self) end
 	return apply_to_run_ref(self)
 end
 
@@ -153,6 +164,7 @@ function Card:apply_to_run(center)
 	return card_apply_to_run_ref(self, center)
 end
 
-function PVP.legacy_smallworld()
-	return PVP.LOBBY.code and PVP.LOBBY.config and PVP.LOBBY.config.legacy_smallworld
+-- The private lobby option that applies Small World's bans twice.
+function PVP.smallerworld()
+	return PVP.LOBBY.code and PVP.LOBBY.config and PVP.LOBBY.config.smallerworld
 end

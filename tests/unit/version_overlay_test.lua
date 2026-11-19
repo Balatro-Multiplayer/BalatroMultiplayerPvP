@@ -36,6 +36,7 @@ MPAPI = {
 }
 
 dofile("lib/version_gate.lua")
+PVP.refresh_verified_lobby = function() end -- lib/verified_lobby.lua has its own test
 dofile("pvp_api/lobby_bridge.lua")
 
 local overlays = {}

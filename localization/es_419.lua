@@ -674,7 +674,6 @@ return {
 			b_opts_timer = "Habilitar temporizador",
 			b_opts_disable_preview = "Deshabilitar previsualización de puntuación",
 			b_opts_the_order = "Habilitar El Orden",
-			b_opts_legacy_smallworld = "Mecánicas antiguas de Small World",
 			b_reset = "Reiniciar",
 			b_set_custom_seed = "Agregar semilla personalizada",
 			b_mp_kofi_button = "Donar en Ko-fi",
