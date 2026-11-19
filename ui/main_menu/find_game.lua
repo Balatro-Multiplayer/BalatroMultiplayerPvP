@@ -49,7 +49,7 @@ local RANKED_MODES = {
 		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
 	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld_ranked), chip_row = CHIP_ROW.smallworld_ranked },
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
