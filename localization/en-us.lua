@@ -1706,6 +1706,7 @@ return {
 			k_pvp_queue_in_queue = "#1# in queue",
 			k_pvp_queue_widening = "Widening search #1#/#2#",
 			k_end_player_jokers = "#1#'s Jokers",
+			k_end_player_deck = "#1#'s Deck",
 			k_end_player_left = "#1# -- left the match",
 			k_end_player_playing = "#1# -- still playing...",
 			a_mp_art = {
