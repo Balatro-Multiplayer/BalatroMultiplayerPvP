@@ -27,6 +27,10 @@ function PVP.UI.create_config_tab()
 						label = localize("b_preview_integration"),
 						ref_table = PVP.config.integrations,
 						ref_value = "Preview",
+						-- Read at startup, so save now; otherwise it only saves when leaving the Mods menu
+						callback = function()
+							SMODS.save_mod_config(PVP)
+						end,
 					}),
 				},
 			},

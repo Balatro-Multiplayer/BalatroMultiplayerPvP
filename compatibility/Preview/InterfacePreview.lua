@@ -24,6 +24,21 @@ function create_UIBox_HUD()
 
 	table.insert(contents.nodes[1].nodes[1].nodes[4].nodes[1].nodes, score_wrap) -- you can only do one so we have to wrap both of them. do not ask. i have no idea why
 
+	-- Expected money goes next to the dollar counter, inside its box (found by id rather than a fixed path).
+	-- The counter keeps the same parents: ease_dollars covers dollar_text_UI.parent with the +$/-$ popup,
+	-- and end of round animates dollar_text_UI.parent.parent.parent.
+	local function add_dollars_node(node)
+		for i, child in ipairs(node.nodes or {}) do
+			if child.config and child.config.id == "dollar_text_UI" then
+				node.n = G.UIT.R -- lay the box out side by side; it is its parent's only child
+				table.insert(node.nodes, i + 1, FN.PRE.get_dollars_node())
+				return true
+			end
+			if add_dollars_node(child) then return true end
+		end
+	end
+	add_dollars_node(contents)
+
 	return contents
 end
 
@@ -63,6 +78,24 @@ function FN.PRE.get_calculate_score_button()
 					},
 				},
 			},
+		},
+	}
+end
+
+function FN.PRE.get_dollars_node()
+	return {
+		n = G.UIT.O,
+		config = {
+			id = "fn_pre_dollars",
+			func = "fn_pre_dollars_UI_set",
+			object = DynaText({
+				string = { { ref_table = FN.PRE.text, ref_value = "dollars" } },
+				colours = { FN.PRE.get_dollar_colour(0) },
+				shadow = true,
+				float = true,
+				scale = 0.5,
+				maxw = 1.2,
+			}),
 		},
 	}
 end

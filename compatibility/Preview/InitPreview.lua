@@ -10,7 +10,7 @@ FN.PRE = {
 	},
 	text = {
 		score = { l = "", r = "", m = "" },
-		dollars = { top = "", bot = "" },
+		dollars = "",
 	},
 	joker_order = {},
 	hand_order = {},
