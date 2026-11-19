@@ -169,17 +169,31 @@ local function player_name(lobby, player_id)
 	return nil
 end
 
--- A departed player is often already absent from the live roster. The mirror
--- still has their last known name, so use it before falling back to their id.
+-- Names seen in each lobby, by player id. A player who leaves or whose
+-- disconnect grace runs out is already gone from the roster when that event
+-- fires, so the notice reads their name from here.
+local known_names = setmetatable({}, { __mode = "k" })
+
+local function remember_names(lobby)
+	local names = known_names[lobby] or {}
+	known_names[lobby] = names
+	for _, p in ipairs(lobby:get_players()) do
+		if p.id and p.displayName then
+			names[p.id] = p.displayName
+		end
+	end
+end
+
 local function departed_player_name(lobby, player_id)
-	local name = player_name(lobby, player_id)
-	if name then return name end
+	local names = known_names[lobby]
+	local name = (names and names[player_id]) or player_name(lobby, player_id)
+	if name and name ~= player_id then return name end
 	for _, player in ipairs({ PVP.LOBBY.host, PVP.LOBBY.guest }) do
 		if player and player.id == player_id and player.username then
 			return player.username
 		end
 	end
-	return tostring(player_id or "Opponent")
+	return "Opponent"
 end
 
 -- Copy the host-authored shared metadata into PVP.LOBBY.config / PVP.LOBBY.deck so
@@ -261,6 +275,7 @@ PVP.mirror_lobby_metadata = mirror_metadata
 -- "Team A"/"Team B" mirrors the exact enemy_team derivation team_manhunt.lua's
 -- own pvp_team_score_board receive handler already uses for the same purpose.
 local function mirror_players(lobby)
+	remember_names(lobby)
 	local self_name = player_name(lobby, lobby.player_id) or PVP.LOBBY.username or "Guest"
 	local opp_id = PVP.current_target_id()
 	local opp_name
