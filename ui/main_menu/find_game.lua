@@ -270,7 +270,7 @@ function PVP.stop_find_game_polling()
 	_rating_els = {}
 end
 
--- One half (In Queue, In Game, Elo, Placement or Position): a label above a darker inset value,
+-- One half (In Queue, In Game, Rank, Placement or Position): a label above a darker inset value,
 -- like the HUD's Ante box.
 local function build_count_half(label, value)
 	return { n = G.UIT.C, config = { align = "cm", padding = 0.02, minw = 1.0, minh = 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
@@ -299,7 +299,7 @@ local function build_stat_box(mode)
 	return el.node
 end
 
--- A Ranked pillar's own standing, two halves above the queue counts: Elo, then placement
+-- A Ranked pillar's own standing, two halves above the queue counts: Rank (the Elo rating), then placement
 -- progress while the account is still in its placement games, or its leaderboard position once
 -- they are done.
 local function build_rating_box(mode)
@@ -318,7 +318,7 @@ local function build_rating_box(mode)
 			end
 		end
 		return { nodes = {
-			build_count_half("Elo", elo),
+			build_count_half("Rank", elo),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
 			build_count_half(right_label, right),
 		} }
@@ -449,7 +449,7 @@ end
 -- owns the returned pillar_row controller for this page's lifetime: call :dispose() from the
 -- page's own dispose() hook so the tracked chip icons get :remove()'d -- see
 -- api/ui_pillar_row.lua's header comment for why that's required.
--- The pillar row's default height (7.4) plus the Ranked standing row (Elo and Placement or
+-- The pillar row's default height (7.4) plus the Ranked standing row (Rank and Placement or
 -- Position). The row is anchored by its bottom, so the extra height raises every pillar: the
 -- Ranked boxes end where the Casual ones do, and both tabs share one layout.
 local PILLAR_MINH = 8.35
