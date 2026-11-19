@@ -17,7 +17,6 @@ PVP.VERIFIED_DEFAULTS = {
 	no_gold_on_round_loss = false,
 	death_on_round_loss = true,
 	the_order = true,
-	multiplayer_jokers = true,
 	normal_bosses = false,
 	preview_disabled = false,
 	smallerworld = false,

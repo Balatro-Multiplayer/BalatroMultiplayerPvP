@@ -75,7 +75,6 @@ PVP.PRIVATE_OPTION_KEYS = {
 	"gold_on_life_loss",
 	"no_gold_on_round_loss",
 	"death_on_round_loss",
-	"multiplayer_jokers",
 	"normal_bosses",
 	"timer",
 	"timer_base_seconds",

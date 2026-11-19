@@ -286,7 +286,13 @@ function PVP.on_game_start(params)
 		)
 	end
 	if not (plan.votes or plan.draft) then
-		proceed(meta.deck)
+		-- With Different Decks every player keeps their own pick; pinning the host's deck here
+		-- would overwrite it.
+		if PVP.LOBBY.config.different_decks == true then
+			proceed(nil)
+		else
+			proceed(meta.deck)
+		end
 		return
 	end
 	if plan.draft and not PVP.is_matchmaking() then

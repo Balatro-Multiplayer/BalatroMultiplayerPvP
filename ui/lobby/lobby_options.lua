@@ -111,8 +111,8 @@ end
 local function deck_mode_row()
 	return option_row(MPAPI.disableable_option_cycle({
 		id = "mp_pvp_deck_mode",
-		label = "Deck Mode",
-		options = { "Select", "Draft", "Different" },
+		label = localize("k_pvp_deck_mode"),
+		options = { localize("k_pvp_option_select"), localize("k_pvp_option_draft"), localize("k_pvp_option_different") },
 		current_option = deck_mode_index(),
 		opt_callback = "mp_pvp_change_deck_mode",
 		w = 4,
@@ -137,7 +137,7 @@ local function seed_mode_row()
 	return option_row(MPAPI.disableable_option_cycle({
 		id = "mp_pvp_seed_mode",
 		label = localize("k_pvp_seed_mode"),
-		options = { localize("k_random"), "Set", "Different" },
+		options = { localize("k_random"), localize("k_pvp_option_set"), localize("k_pvp_option_different") },
 		current_option = seed_mode_index(),
 		opt_callback = "mp_pvp_change_seed_mode",
 		w = 4,
@@ -209,7 +209,6 @@ local function lobby_tab(lobby)
 		rows[#rows + 1] = deck_mode_row()
 		rows[#rows + 1] = toggle_row("mp_pvp_trap_cards", "k_pvp_lobby_trap_cards", "trap_cards")
 		rows[#rows + 1] = number_row("starting_lives", "b_opts_lives")
-		rows[#rows + 1] = toggle_row("mp_pvp_multiplayer_jokers", "b_opts_multiplayer_jokers", "multiplayer_jokers")
 		rows[#rows + 1] = toggle_row("mp_pvp_normal_bosses", "b_opts_normal_bosses", "normal_bosses")
 	end
 	return rows
@@ -305,19 +304,19 @@ function PVP.build_lobby_options()
 	end
 
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
-		add_tab("Lobby", function()
+		add_tab(localize("k_pvp_tab_lobby"), function()
 			local rows = lobby_tab(lobby)
 			for _, r in ipairs(player_rows()) do
 				rows[#rows + 1] = r
 			end
 			return rows
 		end)
-		add_tab("Gameplay", gameplay_tab)
-		add_tab("Timers", timer_tab)
-		add_tab("Advanced", advanced_tab)
+		add_tab(localize("k_lobby_gameplay"), gameplay_tab)
+		add_tab(localize("k_pvp_tab_timers"), timer_tab)
+		add_tab(localize("k_lobby_advanced"), advanced_tab)
 	else
 		-- Matchmade lobbies: only each player's own role/team pick.
-		add_tab("Lobby", player_rows)
+		add_tab(localize("k_pvp_tab_lobby"), player_rows)
 	end
 
 	return create_UIBox_generic_options({
@@ -349,7 +348,8 @@ G.FUNCS.mp_pvp_change_seed_mode = function(e)
 end
 
 G.FUNCS.mp_pvp_seed_overlay = function()
-	PVP.LOBBY.temp_seed = ""
+	local current = PVP.LOBBY.config.custom_seed
+	PVP.LOBBY.temp_seed = (current and current ~= "random") and current or ""
 	G.FUNCS.overlay_menu({
 		definition = create_UIBox_generic_options({
 			back_func = "mp_pvp_lobby_options",

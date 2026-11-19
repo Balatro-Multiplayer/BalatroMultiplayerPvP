@@ -29,7 +29,7 @@ local function deck_button()
 			colour = G.C.PURPLE,
 			minw = 2.65,
 			minh = 1.35,
-			label = { "Deck", "Draft" },
+			label = { localize("k_pvp_deck_word"), localize("k_pvp_option_draft") },
 			scale = 0.5,
 			col = true,
 			enabled = function()
