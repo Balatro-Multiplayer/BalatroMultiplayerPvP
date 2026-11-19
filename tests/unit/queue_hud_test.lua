@@ -1,5 +1,6 @@
--- Run from the repo root: lua5.4 tests/unit/queue_hud_test.lua
+-- Run from the repo root: luajit tests/unit/queue_hud_test.lua (or lua5.4)
 -- Queue formatting, card motion, and lifecycle checks against engine stubs.
+local unpack = table.unpack or unpack
 local function noop() end
 love = { timer = {
 	getTime = function()
@@ -371,7 +372,7 @@ do
 	eq(Q.fan.area.cards[1], top, "the riffled top card went to the bottom")
 
 	Cards.EGGS.keeper_nope, Cards.EGGS.keeper_joker = 0, 0
-	local fan_cards = { table.unpack(Q.fan.area.cards) }
+	local fan_cards = { unpack(Q.fan.area.cards) }
 	Q.match_found()
 	eq(Q.active, false, "HUD stops on a match")
 	local kept = 0
@@ -488,7 +489,7 @@ do
 	Cards.EGGS.jimbo_peek = 0
 	Q.start({ kind = "ranked", key = "balanced" })
 	local old_area = Q.fan.area
-	local transferred = { table.unpack(old_area.cards) }
+	local transferred = { unpack(old_area.cards) }
 	Q.match_found()
 	local scene = Reveal.view.scatter
 	eq(#old_area.cards, 0, "fan relinquishes cards before HUD removal")
