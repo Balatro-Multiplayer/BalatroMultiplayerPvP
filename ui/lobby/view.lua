@@ -24,7 +24,11 @@ PVP.build_in_lobby_ui = function()
 			} },
 		} }
 	end
-	rows[#rows + 1] = { n = G.UIT.R, config = { minh = 0.2 } }
+	-- A private lobby says what it plays (ui/lobby/mode_banner.lua); a Party has no
+	-- gamemode, and a matchmade lobby is already committed to the queue's.
+	local is_private = lobby and not PVP.is_matchmaking() and MPAPI.Party.kind_known(lobby) and not MPAPI.Party.is_party_lobby(lobby)
+	local banner = is_private and L.build_mode_banner(lobby)
+	rows[#rows + 1] = banner or { n = G.UIT.R, config = { minh = 0.2 } }
 	rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = { L.build_controls() } }
 
 	return {

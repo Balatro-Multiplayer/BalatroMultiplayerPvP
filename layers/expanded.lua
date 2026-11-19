@@ -1,5 +1,4 @@
 MPAPI.Layer("expanded", {
-	multiplayer_content = true,
 	banned_silent = {
 		"j_ticket",
 		"j_selzer",

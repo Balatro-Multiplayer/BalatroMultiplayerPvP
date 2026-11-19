@@ -1,5 +1,4 @@
 MPAPI.Layer("experimental", {
-	multiplayer_content = true,
 	standard = true,
 	banned_silent = {
 		"j_hanging_chad",

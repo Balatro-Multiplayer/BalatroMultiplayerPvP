@@ -102,8 +102,6 @@ end
 local delete_run_ref = Game.delete_run
 function Game:delete_run()
 	remove_nemesis_slots()
-	-- The end screen's Nemesis deck area dies with the run too, so a late deck reply finds nothing to load into.
-	PVP.nemesis_deck, PVP.nemesis_cards = nil, nil
 	return delete_run_ref(self)
 end
 
