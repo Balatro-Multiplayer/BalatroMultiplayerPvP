@@ -365,7 +365,10 @@ local function action_start_game(p)
 	end
 	local stake = tonumber(p.stake)
 	PVP.ACTIONS.set_ante(0)
-	if not PVP.LOBBY.config.different_seeds and PVP.LOBBY.config.custom_seed ~= "random" then
+	if PVP.LOBBY.config.different_seeds then
+		-- Every player rolls their own seed instead of sharing the server's.
+		seed = generate_starting_seed()
+	elseif PVP.LOBBY.config.custom_seed ~= "random" then
 		seed = PVP.LOBBY.config.custom_seed
 	end
 

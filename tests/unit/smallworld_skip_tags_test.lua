@@ -52,7 +52,7 @@ end
 local function reset()
 	active, legacy, ordered, replacement = true, false, false, "tag_allowed"
 	rolls, hand_rolls = {}, 0
-	PVP.LOBBY = { code = "TEST", config = { legacy_smallworld = legacy } }
+	PVP.LOBBY = { code = "TEST", config = {} }
 	G = {
 		GAME = {
 			banned_keys = { tag_banned = true },
@@ -125,9 +125,6 @@ active = false
 check("other rulesets retain their skip tags", preview("Small").key, "tag_banned")
 check("other rulesets do not consume replacement RNG", #rolls, 0)
 active = true
-PVP.LOBBY.config.legacy_smallworld = true
-check("legacy Small World retains its skip tags", preview("Small").key, "tag_banned")
-check("legacy mode does not consume replacement RNG", #rolls, 0)
 
 reset()
 replacement = "tag_orbital"

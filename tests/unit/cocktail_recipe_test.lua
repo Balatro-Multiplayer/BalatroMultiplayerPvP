@@ -67,6 +67,7 @@ G = {
 }
 
 dofile("lib/matchmaking_policy.lua")
+PVP.compute_verified_lobby = function() return false end -- lib/verified_lobby.lua has its own test
 dofile("pvp_api/flow.lua")
 dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")

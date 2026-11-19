@@ -16,6 +16,14 @@ PVP.build_in_lobby_ui = function()
 	local rows = {
 		{ n = G.UIT.R, config = { align = "cm", padding = 0.1, mid = true }, nodes = { L.ui_ref.node } },
 	}
+	-- Live: the host republishes the verdict on every lobby change, which refreshes this view.
+	if PVP.is_verified_lobby() then
+		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = {
+			{ n = G.UIT.C, config = { align = "cm", padding = 0.08, r = 0.1, colour = G.C.GREEN, emboss = 0.05 }, nodes = {
+				{ n = G.UIT.T, config = { text = localize("k_pvp_verified_lobby"), scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+			} },
+		} }
+	end
 	-- A private lobby says what it plays (ui/lobby/mode_banner.lua); a Party has no
 	-- gamemode, and a matchmade lobby is already committed to the queue's.
 	local is_private = lobby and not PVP.is_matchmaking() and MPAPI.Party.kind_known(lobby) and not MPAPI.Party.is_party_lobby(lobby)

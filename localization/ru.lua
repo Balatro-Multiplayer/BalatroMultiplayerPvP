@@ -1192,7 +1192,6 @@ return {
 			b_opts_timer = "Включить таймер",
 			b_opts_disable_preview = "Отключить предпросмотр счёта",
 			b_opts_the_order = "Включить The Order",
-			b_opts_legacy_smallworld = "Старая механика «Мир тесен»",
 			b_reset = "Сбросить",
 			b_set_custom_seed = "Установить свой сид",
 			b_opts_modifier_smallworld = "Мир тесен",

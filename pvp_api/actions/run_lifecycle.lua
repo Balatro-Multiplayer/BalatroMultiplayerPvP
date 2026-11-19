@@ -281,12 +281,23 @@ function PVP.on_game_start(params)
 			PVP._pvp_kind == PVP.LobbyAccess.CASUAL,
 			PVP.is_matchmaking and PVP.is_matchmaking(),
 			#((started and started.players) or lobby:get_players()),
-			gm_def and gm_def.ban_pick
+			gm_def and gm_def.ban_pick,
+			PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and meta.deck_mode == PVP.DeckMode.DRAFT
 		)
 	end
 	if not (plan.votes or plan.draft) then
-		proceed(meta.deck)
+		-- With Different Decks every player keeps their own pick; pinning the host's deck here
+		-- would overwrite it.
+		if PVP.LOBBY.config.different_decks == true then
+			proceed(nil)
+		else
+			proceed(meta.deck)
+		end
 		return
+	end
+	if plan.draft and not PVP.is_matchmaking() then
+		-- The private lobby's view swaps to the Draft panel (ui/lobby/controls.lua).
+		G.E_MANAGER:add_event(Event({ func = function() MPAPI.refresh_current_view() return true end }))
 	end
 	PVP.SETUP.begin(lobby, plan, function(on_picked)
 		-- The Draft's pool follows the ruleset the votes rolled (applied by the
