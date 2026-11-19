@@ -271,10 +271,9 @@ function PVP.stop_find_game_polling()
 end
 
 -- One half (In Queue, In Game, Elo, Placement or Position): a label above a darker inset value,
--- like the HUD's Ante box. A Ranked pillar stacks two rows of these, so it asks for a shorter
--- `minh` (and gets tighter padding) to stay as tall as a Casual pillar.
-local function build_count_half(label, value, minh)
-	return { n = G.UIT.C, config = { align = "cm", padding = minh and 0.01 or 0.02, minw = 1.0, minh = minh or 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
+-- like the HUD's Ante box.
+local function build_count_half(label, value)
+	return { n = G.UIT.C, config = { align = "cm", padding = 0.02, minw = 1.0, minh = 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.T, config = { text = label, scale = 0.24, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 		} },
@@ -284,18 +283,16 @@ local function build_count_half(label, value, minh)
 	} }
 end
 
-local RANKED_HALF_MINH = 0.6
-
 -- The In Queue / In Game halves, with no box around them: build_items puts them in one box,
 -- under the Ranked standing halves when the pillar has them.
-local function build_stat_box(mode, minh)
+local function build_stat_box(mode)
 	local key = count_key(mode)
 	local el = MPAPI.ui_element(function()
 		local counts = key and _latest_counts and _latest_counts[key]
 		return { nodes = {
-			build_count_half("In Queue", counts and counts.queued or 0, minh),
+			build_count_half("In Queue", counts and counts.queued or 0),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
-			build_count_half("In Game", counts and counts.inMatch or 0, minh),
+			build_count_half("In Game", counts and counts.inMatch or 0),
 		} }
 	end)
 	_stat_els[mode.key] = el
@@ -321,9 +318,9 @@ local function build_rating_box(mode)
 			end
 		end
 		return { nodes = {
-			build_count_half("Elo", elo, RANKED_HALF_MINH),
+			build_count_half("Elo", elo),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
-			build_count_half(right_label, right, RANKED_HALF_MINH),
+			build_count_half(right_label, right),
 		} }
 	end)
 	_rating_els[mode.key] = el
@@ -385,7 +382,7 @@ local function build_items(modes, group)
 			stat_box = MPAPI.ui_embossed_box({ minw = 2.4, nodes = (mode.ruleset_key and not group)
 				and { { n = G.UIT.C, config = { align = "cm" }, nodes = {
 					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_rating_box(mode) } },
-					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_stat_box(mode, RANKED_HALF_MINH) } },
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_stat_box(mode) } },
 				} } }
 				or { build_stat_box(mode) } }),
 			extra = mode.uses_order and build_order_card() or nil,
@@ -452,11 +449,16 @@ end
 -- owns the returned pillar_row controller for this page's lifetime: call :dispose() from the
 -- page's own dispose() hook so the tracked chip icons get :remove()'d -- see
 -- api/ui_pillar_row.lua's header comment for why that's required.
+-- The pillar row's default height (7.4) plus the Ranked standing row (Elo and Placement or
+-- Position). The row is anchored by its bottom, so the extra height raises every pillar: the
+-- Ranked boxes end where the Casual ones do, and both tabs share one layout.
+local PILLAR_MINH = 8.35
+
 function PVP.build_find_game_ui(category, group)
 	category = group and "casual" or category or "ranked"
 	local modes = category == "casual" and CASUAL_MODES or RANKED_MODES
 
-	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(modes, group) })
+	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(modes, group), pillar_minh = PILLAR_MINH })
 	local definition = {
 		n = G.UIT.ROOT,
 		config = { align = "tm", colour = G.C.CLEAR },
