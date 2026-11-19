@@ -12,6 +12,7 @@ SMODS.Back({
 	deck_blacklist = {
 		b_challenge = true,
 		b_mp_cocktail = true,
+		b_mp_almanac = true,
 		b_cry_antimatter = true,
 		b_akyrs_hardcore_challenges = true,
 	},
@@ -161,7 +162,7 @@ function PVP.receive_cocktail_recipe(recipe)
 		local seen = {}
 		for _, key in ipairs(recipe.decks) do
 			local center = G.P_CENTERS[key]
-			if not center or center.set ~= "Back" or key == "b_mp_cocktail" or seen[key] then
+			if not center or center.set ~= "Back" or G.P_CENTERS.b_mp_cocktail.deck_blacklist[key] or seen[key] then
 				err = "Unsupported Cocktail deck: " .. tostring(key)
 				break
 			end

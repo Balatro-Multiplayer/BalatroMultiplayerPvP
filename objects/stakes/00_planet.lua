@@ -14,9 +14,9 @@ SMODS.Stake({
 		G.GAME.modifiers.scaling = (G.GAME.modifiers.scaling or 1) + 1
 		G.GAME.modifiers.enable_eternals_in_shop = true
 		-- no blue
-		-- purple and orange
+		-- purple scaling and rentals
 		G.GAME.modifiers.scaling = (G.GAME.modifiers.scaling or 1) + 1
-		G.GAME.modifiers.enable_perishables_in_shop = true -- orange
+		G.GAME.modifiers.enable_rentals_in_shop = true -- gold
 	end,
 	colour = G.C.Planet,
 })

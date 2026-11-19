@@ -20,24 +20,38 @@ A_host("pvp_ready_check", function(_at, _from, params)
 	for _, id in ipairs(params.players or {}) do
 		asked = asked or (lobby and id == lobby.player_id)
 	end
-	if not asked then
-		return
-	end
+	if not asked then return end
 	local ready = PVP.GAME.ready_blind == true and not PVP.GAME.eliminated and G.STATE == G.STATES.BLIND_SELECT
-	lobby:action(MPAPI.ActionTypes["pvp_ready_ack"]):broadcast({ nonce = params.nonce, ready = ready and true or false })
+	lobby
+		:action(MPAPI.ActionTypes["pvp_ready_ack"])
+		:broadcast({ nonce = params.nonce, ready = ready and true or false })
 end)
 
 A("pvp_ready_ack", function(_at, from, params)
 	PVP.referee_on_ready_ack(from, params and params.nonce, params and params.ready)
 end)
 
-A_host("pvp_start_blind", function(_at, _from, params)
+A_host("pvp_start_blind", function(_at, from, params)
 	local lobby = MPAPI.get_current_lobby()
 	-- An eliminated player sits out the blinds the others still play.
-	if not lobby or PVP.GAME.eliminated then
-		return
+	if not lobby or PVP.GAME.eliminated then return end
+	local R = PVP.SHARED_RULES
+	local result = params.shared_rules
+	if result then
+		local admission = R.Round.admit(result)
+		if admission == "drop" then return end
+		if admission == "wait" then return R.Round.defer(from, params) end
 	end
-	if PVP.begin_round_sync(params.round_id, _from) == false then return end
+	if PVP.begin_round_sync(params.round_id, from) == false then return end
+	if result then
+		R.Round.start(result)
+		PVP.GAME.next_blind_context = PVP.GAME.next_blind_context or { UIBox = G.blind_select }
+		if G.OVERLAY_MENU then G.FUNCS.exit_overlay_menu() end
+		R.show_result(result)
+		if PVP.RLOG then
+			PVP.RLOG.record("shared_rules", { result.id, result.ante, result.rules[1], result.rules[2] })
+		end
+	end
 	-- action_start_blind compares firstPlayer to (is_host and "host" or "guest");
 	-- translate the authoritative first-player id into this client's frame.
 	local me = lobby.is_host and "host" or "guest"

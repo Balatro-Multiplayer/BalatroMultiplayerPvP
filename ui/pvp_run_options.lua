@@ -52,7 +52,21 @@ PVP.create_run_options = function()
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.08 }, nodes = { node } }
 	end
 
-	add_row(UIBox_button({ button = "settings", label = { localize("b_settings") }, minw = 5, focus_args = { snap_to = true } }))
+	local settings_button = UIBox_button({
+		button = "settings",
+		label = { localize("b_settings") },
+		minw = 5,
+		focus_args = { snap_to = true },
+	})
+	add_row(settings_button)
+
+	if G.GAME and G.GAME.almanac_draft then
+		add_row(UIBox_button({
+			button = "pvp_almanac_forecast",
+			label = { localize("k_almanac_forecast") },
+			minw = 5,
+		}))
+	end
 
 	-- Seed Change visibility/enabled state:
 	--   * hidden entirely when the gamemode sets seed_change_allowed = false
