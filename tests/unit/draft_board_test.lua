@@ -179,6 +179,8 @@ function PVP.Ruleset(init)
 	return { inject = function() end }
 end
 SMODS, Tag, Back, Card = {}, {}, {}, {}
+PVP.LayerKey = PVP.LayerKey or { MULTIPLAYER_CONTENT = "multiplayer_content" }
+MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {})
 for _, name in ipairs({ "balanced", "expanded", "expanded_draft", "pvp_timer", "smallworld" }) do
 	dofile("layers/" .. name .. ".lua")
 end

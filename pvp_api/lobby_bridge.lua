@@ -84,6 +84,21 @@ function PVP.current_target_id()
 	return PVP.GAME.royale_target_id
 end
 
+-- The enemy lives follow the target: pvp_player_lives only updates the lives of the
+-- target at the time it arrives, so a target named later (a new Manhunt leader, a
+-- rejoin that hears the lives before the target) reads them from the cache.
+function PVP.refresh_target_lives()
+	local target = PVP.current_target_id()
+	if not (target and PVP.GAME and PVP.GAME.enemy) then
+		return
+	end
+	PVP.GAME.enemy.lives = PVP.lives_of(target, {
+		ref_players = PVP.REF and PVP.REF.players,
+		cache = PVP._player_lives_cache,
+		starting_lives = PVP.LOBBY.config.starting_lives,
+	})
+end
+
 -- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
 -- set while the server says the target is replaying its run after a crash.
 function PVP.refresh_catching_up_badge()
@@ -409,6 +424,7 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.reconcile_round()
 		if player_id ~= lobby.player_id then
 			PVP.referee_on_player_reconnected(player_id)
+			PVP.AnteTimer.on_opponent_back()
 			return
 		end
 		-- The host may have changed while we were away.
@@ -547,7 +563,7 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.GAME_ENDED, function(ended)
 		PVP.SETUP.game = nil
-		sendDebugMessage("[pvp] game ended: " .. tostring(ended.status), "MULTIPLAYER")
+		PVP.match_log("debug", "[pvp] game ended: " .. tostring(ended.status))
 		PVP.last_game_ended = ended
 		-- Only a match of 2 ends on a contest; in a larger one the others already
 		-- have their own result and the contester their contested screen.

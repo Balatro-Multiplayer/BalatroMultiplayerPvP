@@ -57,6 +57,10 @@ check("server too old", C.error_key({ kind = "server_too_old" }), "k_pvp_contest
 check("string reason", C.error_key("not_in_game"), "k_pvp_contest_over")
 check("unknown", C.error_key({ message = "weird" }), "k_pvp_contest_failed")
 
+check("page path", C.page_path("run-1"), "/contests/run-1")
+check("page path, no run id", C.page_path(nil), nil)
+check("page path, empty run id", C.page_path(""), nil)
+
 if failures > 0 then
 	os.exit(1)
 end

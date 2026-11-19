@@ -28,6 +28,7 @@ local function attach(lobby, _ctx)
 	-- _start_playback ran the catch-up as a practice session; left set, the resumed run stays in
 	-- practice mode and its PvP blinds never reach the referee, so the round never resolves.
 	PVP.SP.practice = false
+	PVP.SP.playback_gamemode = nil
 	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
 	-- The same wiring PVP.pvp_join_lobby does (opponent mirror, HUD, lobby events). It runs before
 	-- MPAPI plays the held messages, so the host's lives and target resend lands on a reset state.
@@ -39,6 +40,9 @@ end
 
 MPAPI.playback.register_rejoin_hooks(PVP.id, {
 	playback_mod_id = "pvp",
+	-- PVP._start_playback starts its run through Game:start_run, so a staged Run save is what
+	-- the catch-up run starts from; the match state comes back through lib/run_save.lua.
+	supports_run_save = true,
 	read_lobby_info = read_lobby_info,
 	read_run_info = read_run_info,
 	start_run = function(bootstrap, on_ready)

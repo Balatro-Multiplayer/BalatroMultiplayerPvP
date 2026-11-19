@@ -138,6 +138,9 @@ local ROUTES = {
 	startAnteTimer = function(msg)
 		broadcast("pvp_ante_timer", { time = msg.time, isPvP = msg.isPvP })
 	end,
+	restartAnteTimer = function(msg)
+		broadcast("pvp_restart_ante_timer", { time = msg.time, rejoined = msg.rejoined })
+	end,
 	pauseAnteTimer = function(msg)
 		broadcast("pvp_pause_ante_timer", { time = msg.time })
 	end,

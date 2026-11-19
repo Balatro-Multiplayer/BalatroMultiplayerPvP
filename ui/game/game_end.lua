@@ -1,17 +1,4 @@
--- Leave to the main menu from the end screen (mirrors Speed's spdrn_leave_from_game).
--- The match is already over, so no confirm; lobby:leave() fires the DISCONNECTED handler
--- which tears down the PVP-side lobby state.
-function G.FUNCS.mp_pvp_leave_from_game()
-	G.FUNCS.exit_overlay_menu()
-	G.SETTINGS.paused = false
-	local lobby = MPAPI.get_current_lobby()
-	if lobby then
-		lobby:leave()
-	end
-	G.FUNCS.go_to_menu()
-end
-
--- Back to the private lobby's waiting room from the end screen. Unlike the leave above, the
+-- Back to the private lobby's waiting room from the end screen. Unlike the leave in leave.lua, the
 -- lobby stays joined: go_to_menu rebuilds the menu as the lobby view (the lobby is still
 -- the current one). Each player returns on their own, so one can keep reading the end
 -- screen while the others are already back; a server-refereed lobby's game has ended by

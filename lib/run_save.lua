@@ -1,0 +1,33 @@
+-- PvP's part of a Run save (MPAPI.run_save): the match state that lives outside vanilla's
+-- save table. PVP.GAME holds the lives, timers, scores and per-ante keys of the match. Only
+-- a PvP session has any; in other runs the hook gives nothing.
+--
+-- Two keys cannot be saved, and both are rebuilt without the save: next_blind_context is the
+-- blind select button (a UI node, with links back into the whole UI tree), which the next
+-- blind select fills in again; round_sync holds the live lobby object (its connection and
+-- functions), which the next round's begin_round_sync makes again.
+local UNSAVED = { next_blind_context = true, round_sync = true }
+
+MPAPI.run_save.register_state(PVP.id, {
+	save = function()
+		if not PVP.in_session() then return nil end
+		local state = {}
+		for key, value in pairs(PVP.GAME) do
+			if not UNSAVED[key] then state[key] = value end
+		end
+		return state
+	end,
+	-- Puts the saved match state over a fresh match, so no key of the live state (or of a player
+	-- watched before) survives. The blind button is always cleared. The match roster and the
+	-- collected results belong to the match, not to the run, so the load keeps them.
+	load = function(state)
+		local match_players, collected_results = PVP._match_players, PVP._collected_results
+		PVP.reset_game_states()
+		PVP._match_players, PVP._collected_results = match_players, collected_results
+		for key, value in pairs(state) do
+			PVP.GAME[key] = value
+		end
+		PVP.GAME.next_blind_context = nil
+		PVP.GAME.round_sync = nil
+	end,
+})

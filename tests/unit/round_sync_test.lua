@@ -23,6 +23,7 @@ end
 local function setup(mode, count, lives, legacy)
 	sent, notices, sequence = {}, {}, 0
 	PVP = {
+		match_log = function() end,
 		id = "pvp",
 		GAME = {},
 		LOBBY = { config = { starting_lives = lives or 4 }, roster = {} },
@@ -50,7 +51,6 @@ local function setup(mode, count, lives, legacy)
 	Event = function(spec)
 		return spec
 	end
-	sendDebugMessage = function() end
 	Game = { update = function() end }
 	love = { timer = {
 		getTime = function()
@@ -61,7 +61,6 @@ local function setup(mode, count, lives, legacy)
 	math.pow = math.pow or function(a, b)
 		return a ^ b
 	end
-	sendDebugMessage = function() end
 	sendWarnMessage = function() end
 	localize = function(key)
 		return key
@@ -106,6 +105,7 @@ local function setup(mode, count, lives, legacy)
 		}
 	end
 	MPAPI = {
+		match_log = function() end,
 		get_current_lobby = function()
 			return lobby
 		end,
@@ -499,6 +499,33 @@ test("the opponent leaving after the result does not end the match again", funct
 	equal(ends[1], "winGame")
 end)
 
+test("a late result after Leave from the Pending death screen does nothing", function()
+	setup("pair")
+	MPAPI.ActionType = function(def)
+		MPAPI.ActionTypes[def.key] = def
+	end
+	dofile("pvp_api/actions/_helpers.lua")
+	dofile("pvp_api/actions/outcomes.lua")
+	local dispatched, ended, released = {}, 0, 0
+	PVP.dispatch_action = function(action)
+		dispatched[#dispatched + 1] = action
+	end
+	PVP.RLOG = { end_run = function() ended = ended + 1 end }
+	PVP.end_pending_death = function() end
+	PVP.release_held_result = function() released = released + 1 end
+	MPAPI.has_server_referee = function()
+		return false
+	end
+	-- Leave went to the main menu: the stage is no longer a run.
+	G.STAGE = "main_menu"
+	PVP.GAME.pending_death_screen = true
+	MPAPI.ActionTypes.pvp_win:on_receive("a", { winner_id = "b" })
+	equal(#dispatched, 0)
+	equal(ended, 0)
+	equal(released, 0)
+	equal(PVP.GAME.result_handled, nil)
+end)
+
 test("a new run clears archived results and rejects a previous run's report", function()
 	setup("pair")
 	local old = PVP.REF.round.id
@@ -551,4 +578,32 @@ test("a ready that outlived its blind does not start the next one under a player
 	PVP.referee_on_ready_ack("a", check.nonce, true)
 	PVP.referee_on_ready_ack("b", check.nonce, true)
 	equal(starts(), 1)
+end)
+
+test("a client that rejoined with no round of its own learns it from the referee and its hand counts", function()
+	setup("pair")
+	-- The relaunched client missed the start of the blind, so it has no round record.
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	local state = last("pvp_round_state")
+	equal(state.round_id, PVP.REF.round.id)
+	PVP.receive_round_state("a", state)
+	assert(PVP.GAME.round_sync, "the round was not adopted")
+	equal(PVP.commit_round_report({ score = "100", handsLeft = 0 }), true)
+	PVP.referee_on_play_hand("a", last("pvp_play_hand"))
+	equal(PVP.Score.display(PVP.REF.players.a.score), PVP.Score.display("100"))
+	equal(PVP.REF.players.a.hands_left, 0)
+end)
+
+test("a resolved round is not adopted by a client that rejoined", function()
+	setup("pair")
+	report("a", 1, 100, 0)
+	report("b", 1, 200, 0)
+	PVP.GAME.round_sync = nil
+	sent = {}
+	PVP.referee_on_player_reconnected("a")
+	for _, message in ipairs(sent) do
+		assert(message.key ~= "pvp_round_state", "a resolved round must not be pushed")
+	end
 end)

@@ -1,5 +1,5 @@
 if SMODS.Mods["Cryptid"] and SMODS.Mods["Cryptid"].can_load then
-	sendDebugMessage("Cryptid compatibility detected", "MULTIPLAYER")
+	PVP.match_log("debug", "Cryptid compatibility detected")
 	PVP.DECK.ban_card("j_cry_fleshpanopticon")
 	PVP.DECK.ban_card("j_cry_candy_sticks")
 	PVP.DECK.ban_card("j_cry_redeo")

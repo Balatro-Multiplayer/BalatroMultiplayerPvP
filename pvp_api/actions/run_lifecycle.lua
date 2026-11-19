@@ -222,6 +222,11 @@ end
 -- (server-refereed lobbies, see pvp_api/lobby_bridge.lua) -- the same body.
 -- A rejoin into a game still in Setup calls it again (pvp_api/reconnect.lua).
 function PVP.on_game_start(params)
+	-- The match reveal hides every menu, and the votes and the Draft open in the lobby's: it
+	-- gives them back at once and its player cards slide off over them.
+	if PVP.QUEUE_HUD then
+		PVP.QUEUE_HUD.finish_reveal()
+	end
 	if PVP.stop_ready_resync then
 		PVP.stop_ready_resync()
 	end
@@ -257,8 +262,8 @@ function PVP.on_game_start(params)
 		end
 		if lobby and lobby.is_host then
 			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
-			PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		end
+		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
 		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
 	end
 

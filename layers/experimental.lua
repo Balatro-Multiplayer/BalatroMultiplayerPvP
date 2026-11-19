@@ -1,5 +1,4 @@
 MPAPI.Layer("experimental", {
-	multiplayer_content = true,
 	standard = true,
 	banned_silent = {
 		"j_hanging_chad",
@@ -54,7 +53,7 @@ MPAPI.Layer("experimental", {
             if on then G.GAME.modifiers["mp_enable_" .. mode .. "_jokers"] = true end
             rolled[#rolled+1] = string.format("%s=%.3f%s", mode, roll, on and " [ON]" or "")
         end
-        sendInfoMessage("Experimental sticker rolls: " .. table.concat(rolled, ", "), "MULTIPLAYER")
+		PVP.match_log("info", "Experimental sticker rolls: " .. table.concat(rolled, ", "))
 	end,
 })
 

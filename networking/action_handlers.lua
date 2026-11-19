@@ -29,7 +29,7 @@ Client = {}
 function Client.send(msg)
 	msg = json.encode(msg)
 	if msg ~= '{"action":"keepAliveAck"}' then
-		sendTraceMessage(string.format("Client sent message: %s", msg), "MULTIPLAYER")
+		PVP.match_log("trace", string.format("Client sent message: %s", msg))
 	end
 	love.thread.getChannel("uiToNetwork"):push(msg)
 end
@@ -345,9 +345,10 @@ end
 
 local function action_start_game(p)
 	local seed = p.seed
-	sendDebugMessage(string.format("Game starting — %s", os.date("%Y-%m-%dT%H:%M:%S%z")), "MULTIPLAYER")
+	PVP.match_log("debug", string.format("Game starting — %s", os.date("%Y-%m-%dT%H:%M:%S%z")))
 	-- Clear any stale practice state so it can't leak into real PVP
 	PVP.SP.practice = false
+	PVP.SP.playback_gamemode = nil
 
 	PVP.reset_game_states()
 	-- Snapshot who started this match: the end screen lists them even after they leave.
@@ -460,7 +461,6 @@ local function action_stop_game()
 		PVP.reset_game_states()
 	end
 	PVP.RLOG.end_run({ result = "stop" })
-	PVP.UTILS.emit_log_checksum()
 end
 
 local function action_end_pvp(p)
@@ -509,7 +509,6 @@ local function action_win_game()
 	PVP.STATS.record_match(true)
 	PVP.RLOG.end_run({ result = "win" })
 	PVP.UTILS.log_mem_debug_messages()
-	PVP.UTILS.emit_log_checksum()
 	PVP.report_roster_result()
 	-- pvp_win can fire while the winner is still mid-HAND_PLAYED (last hand
 	-- exhausted hands_left before the opponent's result arrived). Unlike
@@ -529,7 +528,6 @@ local function action_lose_game()
 	G.STATE = G.STATES.GAME_OVER
 	PVP.RLOG.end_run({ result = "loss" })
 	PVP.UTILS.log_mem_debug_messages()
-	PVP.UTILS.emit_log_checksum()
 	PVP.report_roster_result()
 end
 
@@ -547,7 +545,6 @@ local function action_draw_game()
 	G.STATE = G.STATES.GAME_OVER
 	PVP.RLOG.end_run({ result = "draw" })
 	PVP.UTILS.log_mem_debug_messages()
-	PVP.UTILS.emit_log_checksum()
 	PVP.report_roster_result()
 end
 
@@ -658,14 +655,14 @@ function G.FUNCS.load_end_game_jokers()
 
 	card_area_save, err = MPAPI.decode(PVP.end_game_jokers_payload)
 	if not card_area_save then
-		sendDebugMessage(string.format("Failed to unpack enemy jokers: %s", err), "MULTIPLAYER")
+		PVP.match_log("debug", string.format("Failed to unpack enemy jokers: %s", err))
 		return
 	end
 
 	-- Avoid crashing if the load function ends up indexing a nil value
 	success, err = pcall(PVP.end_game_jokers.load, PVP.end_game_jokers, card_area_save)
 	if not success then
-		sendDebugMessage(string.format("Failed to load enemy jokers: %s", err), "MULTIPLAYER")
+		PVP.match_log("debug", string.format("Failed to load enemy jokers: %s", err))
 		-- Reset the card area if loading fails to avoid inconsistent state
 		PVP.end_game_jokers:remove()
 		PVP.end_game_jokers:init(
@@ -685,7 +682,7 @@ function G.FUNCS.load_end_game_jokers()
 		for _, card in pairs(PVP.end_game_jokers.cards) do
 			jokers_str = jokers_str .. ";" .. PVP.UTILS.joker_to_string(card)
 		end
-		sendTraceMessage(string.format("Received end game jokers: %s", jokers_str), "MULTIPLAYER")
+		PVP.match_log("trace", string.format("Received end game jokers: %s", jokers_str))
 	end
 end
 
@@ -709,7 +706,7 @@ local function action_get_end_game_jokers()
 	for _, card in pairs(G.jokers.cards) do
 		jokers_str = jokers_str .. ";" .. PVP.UTILS.joker_to_string(card)
 	end
-	sendTraceMessage(string.format("Sending end game jokers: %s", jokers_str), "MULTIPLAYER")
+	PVP.match_log("trace", string.format("Sending end game jokers: %s", jokers_str))
 
 	local jokers_save = G.jokers:save()
 	local jokers_encoded = MPAPI.encode(jokers_save)
@@ -759,6 +756,11 @@ local function action_start_ante_timer(p)
 	local in_pvp = PVP.GAME.pvp_countdown_in_progress or (PVP.is_pvp_boss() and G.GAME.blind and G.GAME.blind.in_blind)
 	if not p.isPvP and p.fromNemesis ~= false and in_pvp then return end
 
+	-- One Ante timer per opponent: a second start while it runs would reset it.
+	if p.fromNemesis ~= false and PVP.GAME.nemesis_timer_started then return end
+	-- The same holds on the waiting side: its own timer already runs.
+	if p.fromNemesis == false and PVP.GAME.timer_started then return end
+
 	local time = p.time
 	local from_nemesis = p.fromNemesis
 	if from_nemesis == nil then from_nemesis = true end
@@ -793,6 +795,12 @@ local function action_start_ante_timer(p)
 	else
 		PVP.GAME.timer_started = true
 	end
+end
+
+local function action_restart_ante_timer(p)
+	local time = p.time
+	if type(time) == "string" then time = tonumber(time) end
+	if time then PVP.AnteTimer.receive_restart(time, p.rejoined) end
 end
 
 local function action_pause_ante_timer(p)
@@ -857,7 +865,6 @@ function PVP.ACTIONS.leave_lobby()
 	Client.send({
 		action = "leaveLobby",
 	})
-	PVP.UTILS.emit_log_checksum()
 end
 
 function PVP.ACTIONS.start_game()
@@ -1057,6 +1064,7 @@ end
 -- Above the ruleset's timer threshold the opponent is told only when the timer
 -- falls to it (ui/game/timer.lua's Game:update).
 function PVP.ACTIONS.start_ante_timer()
+	if PVP.GAME.timer_started then return end
 	PVP.GAME.timer_threshold_pending = PVP.UTILS.timer_start_held_back(PVP.GAME.timer)
 	if not PVP.GAME.timer_threshold_pending then
 		PVP.ACTIONS.announce_ante_timer(PVP.GAME.timer)
@@ -1071,6 +1079,15 @@ function PVP.ACTIONS.pause_ante_timer()
 		time = PVP.GAME.timer,
 	})
 	action_pause_ante_timer({ time = PVP.GAME.timer, fromNemesis = false })
+end
+
+-- The timered side restarts its Ante timer after a run-out; the waiting side copies it.
+function PVP.ACTIONS.announce_ante_timer_restart(time, rejoined)
+	Client.send({
+		action = "restartAnteTimer",
+		time = time,
+		rejoined = rejoined or nil,
+	})
 end
 
 function PVP.ACTIONS.fail_timer()
@@ -1174,6 +1191,7 @@ local HANDLERS = {
 	nemesisEndGameStats = noop, -- logged only, no handler
 	startAnteTimer = action_start_ante_timer,
 	pauseAnteTimer = action_pause_ante_timer,
+	restartAnteTimer = action_restart_ante_timer,
 	moddedAction = action_modded_action,
 	error = action_error,
 	keepAlive = action_keep_alive,
@@ -1260,7 +1278,7 @@ function Game:update(dt)
 				then
 					log = log .. string.format(" (seed: %s) ", last_game_seed)
 				end
-				sendTraceMessage(log, "MULTIPLAYER")
+				PVP.match_log("trace", log)
 			end
 
 			local handler = HANDLERS[parsedAction.action]

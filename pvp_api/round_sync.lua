@@ -89,8 +89,15 @@ local function apply(key, from, params)
 end
 
 function PVP.receive_round_state(from, state)
-	local round = PVP.GAME.round_sync
 	local lobby = MPAPI.get_current_lobby()
+	-- A relaunched client has no round record: it missed the start of the blind. Take the
+	-- open round from the referee so its next hand report carries the id.
+	if not PVP.GAME.round_sync and lobby and not state.outcome and G.STAGE == G.STAGES.RUN then
+		if PVP.begin_round_sync(state.round_id, from) then
+			PVP.GAME.round_sync.revision = state.revisions and state.revisions[lobby.player_id] or 0
+		end
+	end
+	local round = PVP.GAME.round_sync
 	if
 		not round
 		or round.lobby ~= lobby

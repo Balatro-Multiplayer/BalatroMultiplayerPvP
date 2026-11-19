@@ -1,5 +1,13 @@
 PVP = SMODS.current_mod
 
+-- PvP's one way to write a debug, info or trace line (level "debug", "info" or
+-- "trace"). All PvP lines carry match data, so they go through the MPAPI gate
+-- and appear only with the Dev mod. Warnings and errors call sendWarnMessage
+-- and sendErrorMessage directly.
+function PVP.match_log(level, msg)
+	MPAPI.match_log(level, msg, "MULTIPLAYER")
+end
+
 PVP.BANNED_MODS = {
 	["Incantation"] = true,
 	["Brainstorm"] = true,
@@ -92,7 +100,7 @@ if env_info then
 				end
 			end
 		end
-		sendDebugMessage("Loaded .env overrides", "MULTIPLAYER")
+		PVP.match_log("debug", "Loaded .env overrides")
 	end
 end
 
@@ -198,7 +206,7 @@ PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
-	sendDebugMessage("Resetting lobby options", "MULTIPLAYER")
+	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
 		gold_on_life_loss = true,
 		no_gold_on_round_loss = false,
@@ -226,20 +234,17 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		stake = 1,
 		challenge = "",
 		cocktail = "",
-		multiplayer_jokers = true,
 		timer = true,
 		timer_forgiveness = 0,
 		forced_config = false,
 		preview_disabled = false,
 		legacy_smallworld = false,
-		-- Baseline off; start_lobby sets it on for standard-layer rulesets.
-		hide_score_until_played = false,
 	}
 end
 PVP.reset_lobby_config()
 
 function PVP.reset_game_states()
-	sendDebugMessage("Resetting game states", "MULTIPLAYER")
+	PVP.match_log("debug", "Resetting game states")
 	-- §17.10: fresh per-match roster collection -- must not carry over from
 	-- whatever match (if any) this player was previously in.
 	PVP._collected_results = {}
@@ -261,8 +266,7 @@ function PVP.reset_game_states()
 			score_text = PVP.Score.ZERO,
 			hands = 4,
 			hands_text = "4",
-			-- Whether an enemyInfo message has arrived this blind. Used to mask
-			-- the opponent's hands as "?" until we hear from them.
+			-- Whether an enemyInfo message has arrived this blind.
 			info_received = false,
 			location = localize("loc_selecting"),
 			-- " (catching up)" while the target is replaying its run after a crash, else "".
@@ -511,10 +515,12 @@ MPAPI.on_loaded(function()
 			n = n + 1
 		end
 	end
-	sendDebugMessage(
-		"[pvp] boot: pvp ActionTypes registered=" .. n .. " pvp_player_ready="
-			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil),
-		"MULTIPLAYER"
+	PVP.match_log(
+		"debug",
+		"[pvp] boot: pvp ActionTypes registered="
+			.. n
+			.. " pvp_player_ready="
+			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil)
 	)
 
 	MPAPI.on_connection_state_change(function()
