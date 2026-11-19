@@ -66,15 +66,22 @@ local END_GAME_JOKERS_TEXT_KEY = {
 	[PVP.MATCH_PLAYERS.State.PLAYING] = "k_end_player_playing",
 }
 
-local function pvp_rebuild_end_game_jokers(player_id, player_name)
+-- A player's end-screen state and the line that says it ("X is still playing").
+local function end_game_player_state(player_id, player_name)
 	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
 	local lobby = MPAPI.get_current_lobby()
 	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
 	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
+	local text =
+		localize({ type = "variable", key = END_GAME_JOKERS_TEXT_KEY[state], vars = { player_name or "Player" } })
+	return state, result, text
+end
+
+local function pvp_rebuild_end_game_jokers(player_id, player_name)
+	local state, result, text = end_game_player_state(player_id, player_name)
 	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
 	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
-	local name = player_name or "Player"
-	PVP.end_game_jokers_text = localize({ type = "variable", key = END_GAME_JOKERS_TEXT_KEY[state], vars = { name } })
+	PVP.end_game_jokers_text = text
 end
 
 -- The players the end screen lists: everyone who started the match (a player
@@ -98,8 +105,8 @@ end
 -- the shared MPAPI.end_screen_player_panel that SPDRN's own
 -- SPDRN.build_end_game_extras (BalatroMultiplayerSpeed/ui/end_game_panel.lua)
 -- also calls -- replaces the old binary you/nemesis toggle_players_jokers
--- ("Enemy Jokers"/"Your Jokers"). "View Deck" shows the selected player's
--- deck the same way (PVP.UI.selected_player_deck below).
+-- ("Enemy Jokers"/"Your Jokers"). "View Deck" opens a tab per player, starting
+-- on the selected player's (PVP.UI.deck_tabs below).
 function PVP.UI.build_end_game_extras()
 	PVP.end_game_jokers = CardArea(
 		0,
@@ -220,16 +227,36 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 	})
 end
 
--- Pure: which deck View Deck shows for the player picked in the end screen's switcher.
--- { own = true } for yourself; { cards = <deck string> } for a player who is out (the
--- cards came in their result, pvp_api/actions/player_result.lua); nil while they are
--- still playing, since they have sent no result yet.
-function PVP.UI.deck_to_show(selected_id, self_id, results)
-	if selected_id == nil then return nil end
-	if selected_id == self_id then return { own = true } end
-	local result = results and results[selected_id]
+-- Pure: which deck View Deck shows for a player. { own = true } for yourself;
+-- { cards = <deck string> } for a player who is out (the cards came in their result,
+-- pvp_api/actions/player_result.lua); nil while they are still playing, since they
+-- have sent no result yet.
+function PVP.UI.deck_to_show(player_id, self_id, results)
+	if player_id == nil then return nil end
+	if player_id == self_id then return { own = true } end
+	local result = results and results[player_id]
 	if result and result.cards and result.cards ~= "" then return { cards = result.cards } end
 	return nil
+end
+
+-- Pure: View Deck's tabs, one per player in end-screen order, each { id, name, own,
+-- chosen }. The tab of the player picked in the switcher is open first; with no pick
+-- (or a pick not in the list), your own tab is.
+function PVP.UI.deck_tabs(players, self_id, selected_id)
+	local tabs, chosen = {}, nil
+	for _, p in ipairs(players or {}) do
+		local tab = { id = p.id, name = p.displayName or p.id, own = p.id == self_id }
+		tabs[#tabs + 1] = tab
+		if p.id == selected_id then chosen = tab end
+	end
+	if #tabs == 0 then tabs[1] = { id = self_id, own = true } end
+	if not chosen then
+		for _, tab in ipairs(tabs) do
+			if tab.own then chosen = tab break end
+		end
+	end
+	(chosen or tabs[1]).chosen = true
+	return tabs
 end
 
 -- Frees the off-screen area View Deck built, so no run keeps cards from the last one.
@@ -246,13 +273,9 @@ function Game:delete_run()
 	return delete_run_ref(self)
 end
 
--- The cards View Deck shows for the switcher's player, or nil (deck_to_show).
-function PVP.UI.selected_player_deck()
-	local show = PVP.UI.deck_to_show(
-		PVP._end_screen_selected_player_id,
-		MPAPI.connection_state.player_id,
-		PVP._collected_results
-	)
+-- The cards View Deck shows for a player, or nil (deck_to_show).
+function PVP.UI.player_deck(player_id)
+	local show = PVP.UI.deck_to_show(player_id, MPAPI.connection_state.player_id, PVP._collected_results)
 	if not show then return nil end
 	if show.own then return G.playing_cards end
 	-- Build them in a fresh off-screen area, dropping the last one shown.
@@ -263,17 +286,20 @@ function PVP.UI.selected_player_deck()
 	return PVP.UTILS.build_cards(specs, PVP.UI.shown_deck_area)
 end
 
-function G.UIDEF.view_nemesis_deck()
-	local cards = PVP.UI.selected_player_deck()
+-- One View Deck tab's contents; tab is an entry of PVP.UI.deck_tabs.
+function G.UIDEF.view_player_deck(tab)
+	if tab.own then return G.UIDEF.view_deck() end
+	local cards = PVP.UI.player_deck(tab.id)
 	if not cards then
 		-- The same "still playing" line the jokers show.
+		local _, _, text = end_game_player_state(tab.id, tab.name)
 		return {
 			n = G.UIT.ROOT,
 			config = { align = "cm", colour = G.C.BLACK, r = 0.1, padding = 0.2, minw = 10, minh = 6 },
 			nodes = {
 				{
 					n = G.UIT.T,
-					config = { text = PVP.end_game_jokers_text or "", scale = 0.5, colour = G.C.UI.TEXT_LIGHT, shadow = true },
+					config = { text = text or "", scale = 0.5, colour = G.C.UI.TEXT_LIGHT, shadow = true },
 				},
 			},
 		}
@@ -286,22 +312,26 @@ function G.UIDEF.view_nemesis_deck()
 end
 
 function G.UIDEF.create_UIBox_view_nemesis_deck()
-	local name = PVP._end_screen_selected_player_name or "Player"
+	local tabs = {}
+	local deck_tabs = PVP.UI.deck_tabs(
+		end_screen_players(MPAPI.get_current_lobby()),
+		MPAPI.connection_state.player_id,
+		PVP._end_screen_selected_player_id
+	)
+	for _, tab in ipairs(deck_tabs) do
+		tabs[#tabs + 1] = {
+			label = tab.own and localize("k_your_deck")
+				or localize({ type = "variable", key = "k_end_player_deck", vars = { tab.name } }),
+			chosen = tab.chosen,
+			tab_definition_function = G.UIDEF.view_player_deck,
+			tab_definition_function_args = tab,
+		}
+	end
 	return create_UIBox_generic_options({
 		back_func = "overlay_endgame_menu",
 		contents = {
 			create_tabs({
-				tabs = {
-					{
-						label = localize({ type = "variable", key = "k_end_player_deck", vars = { name } }),
-						chosen = true,
-						tab_definition_function = G.UIDEF.view_nemesis_deck,
-					},
-					{
-						label = localize("k_your_deck"),
-						tab_definition_function = G.UIDEF.view_deck,
-					},
-				},
+				tabs = tabs,
 				tab_h = 8,
 				snap_to_nav = true,
 			}),

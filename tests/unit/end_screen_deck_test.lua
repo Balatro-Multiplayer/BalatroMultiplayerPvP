@@ -1,7 +1,7 @@
 -- Plain Lua test for the end screen's View Deck: a player's cards travel in the result
--- they send when they are out (pvp_api/actions/player_result.lua), and View Deck shows
--- the deck of the player picked in the switcher (PVP.UI.selected_player_deck,
--- ui/game/game_end.lua), none for a player still in the match.
+-- they send when they are out (pvp_api/actions/player_result.lua), and View Deck has a
+-- tab per player (PVP.UI.deck_tabs, ui/game/game_end.lua) that shows that player's deck
+-- (PVP.UI.player_deck), none for a player still in the match.
 -- Run from the repo root: luajit tests/unit/end_screen_deck_test.lua
 G = {
 	FUNCS = {},
@@ -81,8 +81,9 @@ dofile("pvp_api/actions/player_result.lua")
 load_chunk("lib/card_utils.lua", "function PVP.UTILS.parse_deck_string(str, known)")
 load_chunk("lib/card_utils.lua", "function PVP.UTILS.build_cards(specs, area)")
 load_chunk("ui/game/game_end.lua", "function PVP.UI.clear_shown_deck_area()")
-load_chunk("ui/game/game_end.lua", "function PVP.UI.deck_to_show(selected_id, self_id, results)")
-local has_selected = load_chunk("ui/game/game_end.lua", "function PVP.UI.selected_player_deck()")
+load_chunk("ui/game/game_end.lua", "function PVP.UI.deck_to_show(player_id, self_id, results)")
+load_chunk("ui/game/game_end.lua", "function PVP.UI.deck_tabs(players, self_id, selected_id)")
+local has_player_deck = load_chunk("ui/game/game_end.lua", "function PVP.UI.player_deck(player_id)")
 
 local failures = 0
 local function check(name, got, want)
@@ -95,11 +96,10 @@ local function check(name, got, want)
 end
 
 local function deck_of(player_id)
-	PVP._end_screen_selected_player_id = player_id
-	if not has_selected then
-		return "no selected_player_deck"
+	if not has_player_deck then
+		return "no player_deck"
 	end
-	return PVP.UI.selected_player_deck()
+	return PVP.UI.player_deck(player_id)
 end
 
 local DECK = ";S-A-m_glass-none-none;H-K-none-none-none"
@@ -115,11 +115,11 @@ on_receive(nil, OUT, { jokers = {}, interim = true })
 -- A player still in the match has only sent a mid-match roster.
 on_receive(nil, PLAYING, { jokers = {}, interim = true })
 
-check("switcher on me: my own deck", deck_of(SELF), G.playing_cards)
+check("my own deck", deck_of(SELF), G.playing_cards)
 local cards = deck_of(OUT)
-check("switcher on a player who is out: their cards", type(cards) == "table" and #cards, 2)
+check("a player who is out: their cards", type(cards) == "table" and #cards, 2)
 check("their cards come back as sent", type(cards) == "table" and cards[1].center, G.P_CENTERS.m_glass)
-check("switcher on a player still playing: no deck", deck_of(PLAYING), nil)
+check("a player still playing: no deck", deck_of(PLAYING), nil)
 
 -- deck_to_show is pure: plain values in, plain values out.
 local results = { out = { cards = DECK }, playing = { jokers = {}, interim = true } }
@@ -138,6 +138,26 @@ for _, case in ipairs({
 	check("deck_to_show, " .. name, got, want)
 end
 check("deck_to_show with no results table", PVP.UI.deck_to_show(OUT, SELF, nil), nil)
+
+-- View Deck has a tab per player, whoever was picked; the picked player's tab opens first.
+local players = { { id = SELF, displayName = "Me" }, { id = OUT, displayName = "Out" }, { id = PLAYING } }
+local function tabs_summary(selected_id, list)
+	local parts = {}
+	for _, tab in ipairs(PVP.UI.deck_tabs(list or players, SELF, selected_id)) do
+		parts[#parts + 1] = tostring(tab.id)
+			.. (tab.own and "(own)" or "")
+			.. (tab.chosen and "*" or "")
+			.. "="
+			.. tostring(tab.name)
+	end
+	return table.concat(parts, " ")
+end
+check("tabs with yourself picked", tabs_summary(SELF), "me(own)*=Me out=Out playing=playing")
+check("tabs with another player picked", tabs_summary(OUT), "me(own)=Me out*=Out playing=playing")
+check("tabs with nobody picked open your own", tabs_summary(nil), "me(own)*=Me out=Out playing=playing")
+check("tabs with a pick not listed open your own", tabs_summary("gone"), "me(own)*=Me out=Out playing=playing")
+check("tabs with no players still show your own", tabs_summary(nil, {}), "me(own)*=nil")
+check("tabs without you open the first", tabs_summary(nil, { { id = OUT, displayName = "Out" } }), "out*=Out")
 
 -- Leaving the run frees the area View Deck built last.
 deck_of(OUT)
