@@ -270,9 +270,11 @@ function PVP.stop_find_game_polling()
 	_rating_els = {}
 end
 
--- One half (In Queue or In Game): a label above a darker inset value, like the HUD's Ante box.
-local function build_count_half(label, value)
-	return { n = G.UIT.C, config = { align = "cm", padding = 0.02, minw = 1.0, minh = 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
+-- One half (In Queue, In Game, Elo, Placement or Position): a label above a darker inset value,
+-- like the HUD's Ante box. A Ranked pillar stacks two rows of these, so it asks for a shorter
+-- `minh` (and gets tighter padding) to stay as tall as a Casual pillar.
+local function build_count_half(label, value, minh)
+	return { n = G.UIT.C, config = { align = "cm", padding = minh and 0.01 or 0.02, minw = 1.0, minh = minh or 0.85, colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), emboss = 0.05, r = 0.1 }, nodes = {
 		{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 			{ n = G.UIT.T, config = { text = label, scale = 0.24, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 		} },
@@ -282,43 +284,47 @@ local function build_count_half(label, value)
 	} }
 end
 
-local function build_stat_box(mode)
+local RANKED_HALF_MINH = 0.6
+
+-- The In Queue / In Game halves, with no box around them: build_items puts them in one box,
+-- under the Ranked standing halves when the pillar has them.
+local function build_stat_box(mode, minh)
 	local key = count_key(mode)
 	local el = MPAPI.ui_element(function()
 		local counts = key and _latest_counts and _latest_counts[key]
-		return { nodes = { MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
-			build_count_half("In Queue", counts and counts.queued or 0),
+		return { nodes = {
+			build_count_half("In Queue", counts and counts.queued or 0, minh),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
-			build_count_half("In Game", counts and counts.inMatch or 0),
-		} }) } }
+			build_count_half("In Game", counts and counts.inMatch or 0, minh),
+		} }
 	end)
 	_stat_els[mode.key] = el
 	return el.node
 end
 
--- A Ranked pillar's own standing: Elo and leaderboard place, or placement progress while the
--- account is still in its placement games (no rating or place shown yet), in the same two-half
--- box as the queue counts below it.
+-- A Ranked pillar's own standing, two halves above the queue counts: Elo, then placement
+-- progress while the account is still in its placement games, or its leaderboard position once
+-- they are done.
 local function build_rating_box(mode)
 	local el = MPAPI.ui_element(function()
 		local r = _own_ratings[mode.key]
-		local left_label, left, right = "Elo", "-", "-"
+		local elo, right_label, right = "-", "Position", "-"
 		if r == false then
-			left, right = "...", "..."
+			elo, right = "...", "..."
 		elseif r then
+			elo = tonumber(r.rating) and tostring(math.floor(r.rating + 0.5)) or "-"
 			local placement = PVP.placement_progress(r)
 			if placement then
-				left_label, left = "Placement", placement
+				right_label, right = "Placement", placement
 			else
-				left = tostring(math.floor(r.rating + 0.5))
 				right = tonumber(r.rank) and ("#" .. r.rank) or "-"
 			end
 		end
-		return { nodes = { MPAPI.ui_embossed_box({ minw = 2.4, nodes = {
-			build_count_half(left_label, left),
+		return { nodes = {
+			build_count_half("Elo", elo, RANKED_HALF_MINH),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
-			build_count_half("Rank", right),
-		} }) } }
+			build_count_half(right_label, right, RANKED_HALF_MINH),
+		} }
 	end)
 	_rating_els[mode.key] = el
 	return el.node
@@ -376,12 +382,12 @@ local function build_items(modes, group)
 			-- this is what makes a 2-line description sit centered with breathing room instead
 			-- of the box just shrinking to hug the text (2026-09-08 user feedback).
 			description = MPAPI.ui_pillar_description_box({ lines = mode.desc, minh = 1.3 }),
-			stat_box = (mode.ruleset_key and not group)
-				and { n = G.UIT.C, config = { align = "cm" }, nodes = {
-					{ n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { build_rating_box(mode) } },
-					{ n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = { build_stat_box(mode) } },
-				} }
-				or build_stat_box(mode),
+			stat_box = MPAPI.ui_embossed_box({ minw = 2.4, nodes = (mode.ruleset_key and not group)
+				and { { n = G.UIT.C, config = { align = "cm" }, nodes = {
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_rating_box(mode) } },
+					{ n = G.UIT.R, config = { align = "cm" }, nodes = { build_stat_box(mode, RANKED_HALF_MINH) } },
+				} } }
+				or { build_stat_box(mode) } }),
 			extra = mode.uses_order and build_order_card() or nil,
 		}
 	end
