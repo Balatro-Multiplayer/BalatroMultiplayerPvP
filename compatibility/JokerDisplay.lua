@@ -165,6 +165,38 @@ if SMODS.Mods["JokerDisplay"] and SMODS.Mods["JokerDisplay"].can_load then
 				card.joker_display_values.localized_text = localize("k_gold")
 			end,
 		}
+		jd_def["j_mp_reserved_parking"] = {
+			text = {
+				{ ref_table = "card.joker_display_values", ref_value = "count", retrigger_type = "mult" },
+				{ text = "x", scale = 0.35 },
+				{ text = "$", colour = G.C.GOLD },
+				{ ref_table = "card.ability.extra", ref_value = "dollars", colour = G.C.GOLD },
+			},
+			extra = {
+				{
+					{ text = "(" },
+					{ ref_table = "card.joker_display_values", ref_value = "odds" },
+					{ text = ")" },
+				},
+			},
+			extra_config = { colour = G.C.GREEN, scale = 0.3 },
+			calc_function = function(card)
+				local playing_hand = next(G.play.cards)
+				local count = 0
+				for _, playing_card in ipairs(G.hand.cards) do
+					if playing_hand or not playing_card.highlighted then
+						if playing_card.facing and not (playing_card.facing == "back") and playing_card:is_face() then
+							-- Every retrigger rolls, so each one counts
+							count = count + JokerDisplay.calculate_card_triggers(playing_card, nil, true)
+						end
+					end
+				end
+				card.joker_display_values.count = count
+				local numerator, denominator = SMODS.get_probability_vars(card, 1, card.ability.extra.odds, "parking")
+				card.joker_display_values.odds =
+					localize({ type = "variable", key = "jdis_odds", vars = { numerator, denominator } })
+			end,
+		}
 		jd_def["j_mp_seltzer"] = {
 			reminder_text = {
 				{ text = "(" },

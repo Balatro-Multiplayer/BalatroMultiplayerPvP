@@ -54,17 +54,17 @@ end
 local full = {
 	banned_jokers = "j_mp_conjoined_joker,j_mp_defensive_joker,j_mp_speedrun",
 	banned_consumables = "c_justice",
-	banned_silent = "c_ouija,j_bloodstone,j_hanging_chad,j_selzer,j_ticket,j_turtle_bean",
-	reworked_jokers = "j_mp_bloodstone,j_mp_hanging_chad,j_mp_seltzer,j_mp_ticket,j_mp_turtle_bean",
+	banned_silent = "c_ouija,j_bloodstone,j_hanging_chad,j_reserved_parking,j_selzer,j_ticket,j_turtle_bean",
+	reworked_jokers = "j_mp_bloodstone,j_mp_hanging_chad,j_mp_reserved_parking,j_mp_seltzer,j_mp_ticket,j_mp_turtle_bean",
 	reworked_consumables = "c_mp_ouija_standard",
 	reworked_enhancements = "m_glass",
 }
--- Balanced keeps the Hanging Chad, Bloodstone and Glass reworks and the Justice ban, and nothing else.
+-- Balanced keeps the Hanging Chad, Bloodstone, Reserved Parking and Glass reworks and the Justice ban, and nothing else.
 local near_vanilla = {
 	banned_jokers = "",
 	banned_consumables = "c_justice",
-	banned_silent = "j_bloodstone,j_hanging_chad",
-	reworked_jokers = "j_mp_bloodstone,j_mp_hanging_chad",
+	banned_silent = "j_bloodstone,j_hanging_chad,j_reserved_parking",
+	reworked_jokers = "j_mp_bloodstone,j_mp_hanging_chad,j_mp_reserved_parking",
 	reworked_consumables = "",
 	reworked_enhancements = "m_glass",
 }
