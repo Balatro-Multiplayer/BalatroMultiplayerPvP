@@ -228,8 +228,22 @@ function PVP.UI.deck_to_show(selected_id, self_id, results)
 	if selected_id == nil then return nil end
 	if selected_id == self_id then return { own = true } end
 	local result = results and results[selected_id]
-	if result and result.cards then return { cards = result.cards } end
+	if result and result.cards and result.cards ~= "" then return { cards = result.cards } end
 	return nil
+end
+
+-- Frees the off-screen area View Deck built, so no run keeps cards from the last one.
+function PVP.UI.clear_shown_deck_area()
+	if PVP.UI.shown_deck_area and PVP.UI.shown_deck_area.cards then
+		PVP.UI.shown_deck_area:remove()
+	end
+	PVP.UI.shown_deck_area = nil
+end
+
+local delete_run_ref = Game.delete_run
+function Game:delete_run()
+	PVP.UI.clear_shown_deck_area()
+	return delete_run_ref(self)
 end
 
 -- The cards View Deck shows for the switcher's player, or nil (deck_to_show).
@@ -242,9 +256,7 @@ function PVP.UI.selected_player_deck()
 	if not show then return nil end
 	if show.own then return G.playing_cards end
 	-- Build them in a fresh off-screen area, dropping the last one shown.
-	if PVP.UI.shown_deck_area and PVP.UI.shown_deck_area.cards then
-		PVP.UI.shown_deck_area:remove()
-	end
+	PVP.UI.clear_shown_deck_area()
 	PVP.UI.shown_deck_area = CardArea(-100, -100, G.CARD_W, G.CARD_H, { type = "deck" })
 	local specs =
 		PVP.UTILS.parse_deck_string(show.cards, { cards = G.P_CARDS, centers = G.P_CENTERS, seals = G.P_SEALS })

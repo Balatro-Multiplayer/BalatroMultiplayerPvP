@@ -80,6 +80,7 @@ load_chunk("lib/card_utils.lua", "function PVP.UTILS.deck_to_string(cards)")
 dofile("pvp_api/actions/player_result.lua")
 load_chunk("lib/card_utils.lua", "function PVP.UTILS.parse_deck_string(str, known)")
 load_chunk("lib/card_utils.lua", "function PVP.UTILS.build_cards(specs, area)")
+load_chunk("ui/game/game_end.lua", "function PVP.UI.clear_shown_deck_area()")
 load_chunk("ui/game/game_end.lua", "function PVP.UI.deck_to_show(selected_id, self_id, results)")
 local has_selected = load_chunk("ui/game/game_end.lua", "function PVP.UI.selected_player_deck()")
 
@@ -129,6 +130,7 @@ for _, case in ipairs({
 	{ "a player who is out", OUT, DECK },
 	{ "a player still playing", PLAYING, nil },
 	{ "a player with no result at all", "unknown", nil },
+	{ "a player whose result has an empty cards string", "empty", nil, { empty = { cards = "" } } },
 }) do
 	local name, selected, want, case_results = case[1], case[2], case[3], case[4]
 	local show = PVP.UI.deck_to_show(selected, SELF, case_results or results)
@@ -136,6 +138,15 @@ for _, case in ipairs({
 	check("deck_to_show, " .. name, got, want)
 end
 check("deck_to_show with no results table", PVP.UI.deck_to_show(OUT, SELF, nil), nil)
+
+-- Leaving the run frees the area View Deck built last.
+deck_of(OUT)
+local shown = PVP.UI.shown_deck_area
+PVP.UI.clear_shown_deck_area()
+check("clearing the area removes its cards", shown.cards, nil)
+check("clearing the area drops the reference", PVP.UI.shown_deck_area, nil)
+PVP.UI.clear_shown_deck_area()
+check("clearing with no area is safe", PVP.UI.shown_deck_area, nil)
 
 if failures > 0 then
 	print(failures .. " failed")
