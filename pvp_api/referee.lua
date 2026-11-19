@@ -1042,6 +1042,9 @@ end
 -- onto every teammate, or these paths would desync an individual's pl.lives from
 -- their team's actual pool (the pool is the only thing check_team_win reads).
 local function team_lose_life(pl, unguarded)
+	if pl.lives <= 0 then
+		return
+	end
 	if not PVP.LOBBY.config.team_based then
 		lose_life(pl, unguarded)
 		return
