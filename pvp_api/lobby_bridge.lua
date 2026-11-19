@@ -314,12 +314,25 @@ PVP.setup_lobby_mirror = function(lobby)
 	if mirror_metadata(lobby) == false then return end
 	mirror_players(lobby)
 	PVP._version_mismatch_shown = false
+	PVP._start_held = false
 
 	-- Shows the version overlay once per run of mismatches; it re-arms when they clear.
 	local function check_version_mismatch()
 		local mismatches = PVP.UTILS.version_mismatches()
 		if #mismatches == 0 then
-			PVP._version_mismatch_shown = false
+			-- A mismatch this client saw has cleared: a start held back by it
+			-- goes ahead. Each retry needs a mismatch that clears, so a start
+			-- the server keeps refusing can't loop.
+			if PVP._version_mismatch_shown then
+				PVP._version_mismatch_shown = false
+				if PVP._start_held and PVP.lobby then
+					PVP.lobby.start_broadcasted = false
+				end
+				PVP._start_held = false
+				if PVP.maybe_autostart then
+					PVP.maybe_autostart()
+				end
+			end
 		elseif not PVP._version_mismatch_shown then
 			PVP._version_mismatch_shown = true
 			PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
