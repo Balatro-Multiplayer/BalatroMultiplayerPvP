@@ -34,6 +34,11 @@ function FN.PRE.get_dollar_colour(n)
 	end
 end
 
+-- Expected money preview only shows in rulesets with the money_preview layer
+function FN.PRE.money_preview_enabled()
+	return PVP.is_layer_active("money_preview")
+end
+
 function FN.PRE.enabled()
 	return G.SETTINGS.FN.preview_score or G.SETTINGS.FN.preview_dollars
 end
