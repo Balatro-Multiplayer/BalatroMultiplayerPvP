@@ -37,7 +37,7 @@ function create_UIBox_HUD()
 			if add_dollars_node(child) then return true end
 		end
 	end
-	add_dollars_node(contents)
+	if FN.PRE.money_preview_enabled() then add_dollars_node(contents) end
 
 	return contents
 end

@@ -74,6 +74,8 @@ PVP.EXPERIMENTAL = {
 	alt_stakes = false,
 	suppress_dev_warning = false,
 	mem_debug = true,
+	-- Expected money next to the dollar counter (Score Preview). Also on wherever the money_preview layer is
+	money_preview = false,
 }
 
 -- Override experimental flags and server config from .env file if present

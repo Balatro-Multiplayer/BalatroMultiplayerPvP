@@ -34,6 +34,11 @@ function FN.PRE.get_dollar_colour(n)
 	end
 end
 
+-- Expected money preview is gated: on via PVP.EXPERIMENTAL.money_preview (.env) or the money_preview layer
+function FN.PRE.money_preview_enabled()
+	return PVP.EXPERIMENTAL.money_preview or PVP.is_layer_active("money_preview")
+end
+
 function FN.PRE.enabled()
 	return G.SETTINGS.FN.preview_score or G.SETTINGS.FN.preview_dollars
 end
