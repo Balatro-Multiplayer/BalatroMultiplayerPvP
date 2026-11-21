@@ -471,11 +471,46 @@ function Card:hover()
 	end
 end
 
+-- A base-game deck's description numbers, as Back:generate_UI fills them (it needs a live Back).
+local function base_deck_vars(center)
+	local name = center.name
+	if name == "Blue Deck" then return { center.config.hands } end
+	if name == "Red Deck" then return { center.config.discards } end
+	if name == "Yellow Deck" then return { center.config.dollars } end
+	if name == "Green Deck" then return { center.config.extra_hand_bonus, center.config.extra_discard_bonus } end
+	if name == "Black Deck" then return { center.config.joker_slot, -center.config.hands } end
+	if name == "Magic Deck" then
+		return {
+			localize({ type = "name_text", key = "v_crystal_ball", set = "Voucher" }),
+			localize({ type = "name_text", key = "c_fool", set = "Tarot" }),
+		}
+	end
+	if name == "Nebula Deck" then
+		return { localize({ type = "name_text", key = "v_telescope", set = "Voucher" }), -1 }
+	end
+	if name == "Zodiac Deck" then
+		return {
+			localize({ type = "name_text", key = "v_tarot_merchant", set = "Voucher" }),
+			localize({ type = "name_text", key = "v_planet_merchant", set = "Voucher" }),
+			localize({ type = "name_text", key = "v_overstock_norm", set = "Voucher" }),
+		}
+	end
+	if name == "Painted Deck" then return { center.config.hand_size, center.config.joker_slot } end
+	if name == "Anaglyph Deck" then return { localize({ type = "name_text", key = "tag_double", set = "Tag" }) } end
+	if name == "Plasma Deck" then return { center.config.ante_scaling } end
+	return nil
+end
+
 local generate_card_ui_ref = generate_card_ui
 function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, hide_desc, main_start, main_end, card)
 	if card and card.mp_cocktail_select then
 		_c = G.P_CENTERS[card.mp_cocktail_select]
-		local ret = generate_card_ui_ref(
+		-- The base call draws the description once, with _c.vars for a base-game deck (it ignores
+		-- specific_vars for a Back); a modded deck's generate_ui fills its own. The shared center stays as is.
+		if type(_c.generate_ui) ~= "function" then
+			_c = setmetatable({ vars = base_deck_vars(_c) }, { __index = _c })
+		end
+		return generate_card_ui_ref(
 			_c,
 			full_UI_table,
 			specific_vars,
@@ -486,45 +521,6 @@ function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, h
 			main_end,
 			card
 		)
-		if not _c.generate_ui or type(_c.generate_ui) ~= "function" then
-			-- i literally can't get the vars from anywhere else so we're thunk coding
-
-			local name_to_check = G.P_CENTERS[card.mp_cocktail_select].name
-
-			if name_to_check == "Blue Deck" then
-				specific_vars = { _c.config.hands }
-			elseif name_to_check == "Red Deck" then
-				specific_vars = { _c.config.discards }
-			elseif name_to_check == "Yellow Deck" then
-				specific_vars = { _c.config.dollars }
-			elseif name_to_check == "Green Deck" then
-				specific_vars = { _c.config.extra_hand_bonus, _c.config.extra_discard_bonus }
-			elseif name_to_check == "Black Deck" then
-				specific_vars = { _c.config.joker_slot, -_c.config.hands }
-			elseif name_to_check == "Magic Deck" then
-				specific_vars = {
-					localize({ type = "name_text", key = "v_crystal_ball", set = "Voucher" }),
-					localize({ type = "name_text", key = "c_fool", set = "Tarot" }),
-				}
-			elseif name_to_check == "Nebula Deck" then
-				specific_vars = { localize({ type = "name_text", key = "v_telescope", set = "Voucher" }), -1 }
-			elseif name_to_check == "Zodiac Deck" then
-				specific_vars = {
-					localize({ type = "name_text", key = "v_tarot_merchant", set = "Voucher" }),
-					localize({ type = "name_text", key = "v_planet_merchant", set = "Voucher" }),
-					localize({ type = "name_text", key = "v_overstock_norm", set = "Voucher" }),
-				}
-			elseif name_to_check == "Painted Deck" then
-				specific_vars = { _c.config.hand_size, _c.config.joker_slot }
-			elseif name_to_check == "Anaglyph Deck" then
-				specific_vars = { localize({ type = "name_text", key = "tag_double", set = "Tag" }) }
-			elseif name_to_check == "Plasma Deck" then
-				specific_vars = { _c.config.ante_scaling }
-			end
-
-			localize({ type = "descriptions", key = _c.key, set = _c.set, nodes = ret.main, vars = specific_vars })
-		end
-		return ret
 	end
 	return generate_card_ui_ref(
 		_c,
