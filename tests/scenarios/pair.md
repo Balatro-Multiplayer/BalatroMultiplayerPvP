@@ -8,6 +8,21 @@ without two humans clicking through a lobby.
 bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
 ```
 
+On Windows, with Docker Desktop running Linux containers and Lovely installed:
+
+```powershell
+.\scripts\run_pair.ps1 -Name pair_pvp_blind
+.\scripts\run_pair.ps1 -Name pair_end_screen_leave
+```
+
+The Windows launcher defaults to Steam's Balatro installation and the sibling
+`BalatroMultiplayerServer` checkout; override them with `-BalatroDir` and
+`-ServerDir`. Link MPAPI and PvP into `%APPDATA%\Balatro\Mods`, and install
+Steamodded there. It starts only Nakama and Postgres, with `BMP_SERVER_KIND=dev`,
+temporarily links the Dev mod, and removes that link afterwards. Existing Balatro
+clients must be closed. The printed run directory contains logs and screenshots.
+Back up your Balatro saves first: both clients share the same profile directory.
+
 ## what it does
 
 - `scripts/run_pair.sh` reuses whatever answers on `127.0.0.1:7350`, else starts
@@ -51,7 +66,7 @@ identical hands every blind was a tie, which proves nothing about lives.
   test, but they break silently when MPAPI moves things.
 - **a timeout isn't a diagnosis.** `NOTE` lines log state changes and plays;
   `nakama.log` and both Lovely logs are linked from the run dir the script prints.
-- **only `run_pair.sh` touches the machine.** it changes the Mods dir and the shared
+- **only the pair launchers touch the machine.** they change the Mods dir and the shared
   `bmp-nakama` container, which other workspaces use too. say so in the PR if
   you change either.
 
@@ -59,4 +74,4 @@ identical hands every blind was a tie, which proves nothing about lives.
 
 - both clients share one Balatro profile dir. don't build save/reload checks on
   this yet.
-- macOS only, one pair at a time, and the reused DB collects throwaway accounts.
+- macOS and Windows launchers support one pair at a time, and the reused DB collects throwaway accounts.
