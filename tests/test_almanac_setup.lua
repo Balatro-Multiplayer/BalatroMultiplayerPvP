@@ -4,7 +4,7 @@ local function check(value, message)
 	assert(value, message)
 	checks = checks + 1
 end
-PVP = {}
+PVP = { id = "MultiplayerPvP" }
 G = {
 	FUNCS = {},
 	C = { WHITE = {} },
@@ -84,7 +84,7 @@ check(not valid and tostring(reason):find("stake_mp_planet", 1, true), "missing 
 -- Real layer resolver and the real run-start Draft config.
 local api = os.getenv("MPAPI_DIR") or "../BalatroMultiplayerAPI/"
 if api:sub(-1) ~= "/" then api = api .. "/" end
-MPAPI = {}
+MPAPI = { register_mod_isolation = function() end }
 dofile(api .. "api/layers/registry.lua")
 dofile(api .. "api/layers/fields.lua")
 dofile(api .. "api/ruleset/current.lua")
@@ -94,7 +94,8 @@ function PVP.Ruleset(init)
 	PVP.Rulesets["ruleset_mp_" .. init.key] = MPAPI.resolve_layers(init)
 	return { inject = function() end }
 end
-for _, name in ipairs({ "balanced", "expanded", "expanded_draft", "pvp_timer", "almanac" }) do
+dofile("layers/_layers.lua")
+for _, name in ipairs({ "balanced", "expanded", "multiplayer_content", "expanded_draft", "pvp_timer", "almanac" }) do
 	dofile("layers/" .. name .. ".lua")
 end
 dofile("rulesets/expanded.lua")
@@ -104,13 +105,15 @@ for i, layer in ipairs(expanded._layer_order) do
 	check(almanac._layer_order[i] == layer, "Almanac inherits Expanded's actual layer chain")
 end
 check(almanac.pvp_timer_base_seconds == expanded.pvp_timer_base_seconds, "Expanded's timer is retained")
-check(almanac.multiplayer_content == expanded.multiplayer_content, "Expanded's multiplayer content is retained")
-PVP.LOBBY = { config = {}, deck = {} }
+check(almanac._layers[PVP.LayerKey.MULTIPLAYER_CONTENT], "Expanded's multiplayer content is retained")
+PVP.LOBBY = { config = { different_decks = true, random_loadout = true }, deck = {} }
 almanac.force_lobby_options()
 check(
 	PVP.LOBBY.config.back == "Almanac" and PVP.LOBBY.deck.back == "Almanac",
 	"required deck is pinned on both loadouts"
 )
+check(not PVP.LOBBY.config.different_decks and not PVP.LOBBY.config.random_loadout, "the carrier cannot be replaced")
+check(PVP.LOBBY.config.shared_pvp_rules, "Almanac still enables shared rules automatically")
 check(
 	PVP.LOBBY.config.sleeve == "sleeve_casl_none" and PVP.LOBBY.deck.sleeve == "sleeve_casl_none",
 	"no sleeve changes the carrier"
@@ -234,6 +237,8 @@ PVP.referee_reset = function() end
 PVP.dispatch_action = function(_, params)
 	sent = params
 end
+Event = function(event) return event end
+G.E_MANAGER = { add_event = function() end }
 PVP.on_game_start({ seed = "SETUP", stake = 1 })
 check(plan.draft and not plan.votes, "private Almanac drafts stakes without casual votes")
 check(
@@ -256,9 +261,6 @@ check(
 check(not stake.above_stake, "White- appends without moving existing stake indices")
 check(stake.prefix_config.applied_stakes.mod == false, "White is a vanilla stake, not a mod-prefixed stake")
 local queue, grants = {}, {}
-Event = function(event)
-	return event
-end
 G.E_MANAGER = {
 	add_event = function(_, event)
 		queue[#queue + 1] = event
