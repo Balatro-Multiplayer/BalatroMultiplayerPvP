@@ -11,7 +11,7 @@ local function publish()
 end
 
 local function changed(setting)
-	PVP.lobby_settings_reset_hidden(PVP.LOBBY.config)
+	PVP.resolve_current_lobby_settings()
 	if setting then
 		O.state.focus = setting.key
 	end
@@ -25,22 +25,34 @@ local function editable_setting(key)
 	if not (setting and O.can_edit()) then
 		return nil
 	end
-	if PVP.lobby_forced_settings(PVP.LOBBY.config.ruleset)[key] ~= nil then
+	local config = PVP.LOBBY.config
+	if not PVP.lobby_setting_visible(setting, config) or PVP.lobby_setting_locked(setting, PVP.lobby_settings_policy(config.ruleset)) then
 		return nil
 	end
 	return setting
 end
 
+-- nil releases a pin, even if the old choice happened to match today's default.
+local function choose(key, value)
+	local setting = editable_setting(key)
+	if not setting then return end
+	if value ~= nil and not (PVP.lobby_setting_accepts(setting, value) and O.value_available(setting, value)) then return end
+	local choices = PVP.LOBBY.setting_choices
+	choices[key] = value
+	if key == "seed_mode" and value == "set" and choices.custom_seed == nil
+		and not PVP.lobby_settings_policy(PVP.LOBBY.config.ruleset).custom_seed then
+		-- Roll once on the host, never during resolution on each client.
+		choices.custom_seed = generate_starting_seed()
+	end
+	O.state.focus_id = O.control_id(setting)
+	changed(setting)
+end
+
 -- From create_option_cycle: args.cycle_config is the cycle's own args (widgets.lua).
 G.FUNCS.mp_pvp_opt_cycle = function(args)
 	local cycle = args.cycle_config
-	local setting = editable_setting(cycle.setting_key)
-	if not setting then
-		return
-	end
-	PVP.lobby_setting_set(setting, PVP.LOBBY.config, cycle.setting_values[args.to_key])
-	O.state.focus_id = O.control_id(setting)
-	changed(setting)
+	local value = cycle.setting_values[args.to_key]
+	if value ~= nil then choose(cycle.setting_key, value) end
 end
 
 G.FUNCS.mp_pvp_opt_tile = function(e)
@@ -48,26 +60,18 @@ G.FUNCS.mp_pvp_opt_tile = function(e)
 	if not setting then
 		return
 	end
-	PVP.lobby_setting_set(setting, PVP.LOBBY.config, PVP.lobby_setting_get(setting, PVP.LOBBY.config) ~= true)
-	O.state.focus_id = e.config.ref_table.focus_id
-	changed(setting)
+	choose(setting.key, not PVP.lobby_setting_get(setting, PVP.LOBBY.config))
 end
 
 G.FUNCS.mp_pvp_opt_reset = function(e)
-	local setting = editable_setting(e.config.ref_table.key)
-	if not setting then
-		return
-	end
-	PVP.lobby_setting_apply_standard(setting, PVP.LOBBY.config)
-	O.state.focus_id = O.control_id(setting)
-	changed(setting)
+	choose(e.config.ref_table.key, nil)
 end
 
 G.FUNCS.mp_pvp_opt_restore = function()
 	if not O.can_edit() then
 		return
 	end
-	PVP.lobby_settings_apply_standard(PVP.LOBBY.config)
+	PVP.LOBBY.setting_choices = {}
 	PVP.LOBBY.config.ruleset = PVP.LOBBY_STANDARD_RULESET
 	changed()
 end
@@ -135,9 +139,10 @@ G.FUNCS.mp_pvp_opt_track_focus = function(e)
 end
 
 G.FUNCS.mp_pvp_seed_overlay = function()
-	if not O.can_edit() then
+	if not editable_setting("custom_seed") then
 		return
 	end
+	local lobby = MPAPI.get_current_lobby()
 	local current = PVP.LOBBY.config.custom_seed
 	PVP.LOBBY.temp_seed = (current and current ~= "random") and current or ""
 	G.FUNCS.overlay_menu({
@@ -153,10 +158,7 @@ G.FUNCS.mp_pvp_seed_overlay = function()
 					keyboard_offset = 4,
 					callback = function()
 						local seed = PVP.LOBBY.temp_seed
-						if seed and seed ~= "" then
-							PVP.LOBBY.config.custom_seed = seed
-							publish()
-						end
+						if MPAPI.get_current_lobby() == lobby and seed and seed ~= "" then choose("custom_seed", seed) end
 					end,
 				}),
 				{ n = G.UIT.T, config = { text = localize("k_enter_to_save"), scale = 0.3, colour = G.C.UI.TEXT_LIGHT } },

@@ -18,8 +18,8 @@ local PANE_W = 4.5
 -- What every widget in one build needs to know.
 function O.context()
 	local config = PVP.LOBBY.config
-	local forced = PVP.lobby_forced_settings(config.ruleset)
-	local changed = PVP.lobby_settings_changed(config, forced)
+	local policy = PVP.lobby_settings_policy(config.ruleset)
+	local changed = PVP.lobby_settings_changed(config, policy)
 	local changed_set = {}
 	for _, setting in ipairs(changed) do
 		changed_set[setting.key] = true
@@ -27,7 +27,8 @@ function O.context()
 	return {
 		config = config,
 		editable = O.can_edit(),
-		forced = forced,
+		policy = policy,
+		choices = PVP.LOBBY.setting_choices,
 		changed = changed,
 		changed_set = changed_set,
 		ruleset_changed = (config.ruleset or PVP.LOBBY_STANDARD_RULESET) ~= PVP.LOBBY_STANDARD_RULESET,
@@ -89,6 +90,7 @@ function O.current_value(setting, config)
 end
 
 function O.control_id(setting)
+	if setting.art then return "mp_pvp_tile_" .. setting.key end
 	return "mp_pvp_set_" .. setting.key
 end
 
@@ -171,7 +173,7 @@ local function reset_button(setting)
 end
 
 function O.setting_row(setting, ctx)
-	local forced = ctx.forced[setting.key] ~= nil
+	local forced = PVP.lobby_setting_locked(setting, ctx.policy)
 	local editable = ctx.editable and not forced
 	local changed = ctx.changed_set[setting.key]
 	local control = setting.type == "text" and text_control(setting, ctx, editable) or value_cycle(setting, ctx, editable)
@@ -199,7 +201,7 @@ function O.setting_row(setting, ctx)
 			} },
 			{ n = G.UIT.C, config = { align = "cm", minw = CONTROL_W + 1.1 }, nodes = { control } },
 			{ n = G.UIT.C, config = { align = "cm", minw = 0.85 }, nodes = {
-				(changed and editable) and reset_button(setting) or nil,
+				(editable and ctx.choices[setting.key] ~= nil) and reset_button(setting) or nil,
 			} },
 		},
 	}
@@ -207,10 +209,10 @@ end
 
 -- A mutator: an on/off tile with art, name and state.
 function O.setting_tile(setting, ctx)
-	local forced = ctx.forced[setting.key] ~= nil
+	local forced = PVP.lobby_setting_locked(setting, ctx.policy)
 	local editable = ctx.editable and not forced
 	local on = PVP.lobby_setting_get(setting, ctx.config) == true
-	local id = "mp_pvp_tile_" .. setting.key
+	local id = O.control_id(setting)
 	return {
 		n = G.UIT.C,
 		config = {
@@ -240,6 +242,7 @@ function O.setting_tile(setting, ctx)
 			{ n = G.UIT.R, config = { align = "cm" }, nodes = {
 				text(O.value_label(setting, on), 0.32, on and G.C.GOLD or G.C.UI.TEXT_INACTIVE),
 			} },
+			editable and ctx.choices[setting.key] ~= nil and { n = G.UIT.R, config = { align = "cm" }, nodes = { reset_button(setting) } } or nil,
 		},
 	}
 end
@@ -314,8 +317,8 @@ function O.build_pane()
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", minw = PANE_W }, nodes = { text(line, 0.34) } }
 	end
 	rows[#rows + 1] = { n = G.UIT.R, config = { minh = 0.25 } }
-	if setting.std ~= nil then
-		rows[#rows + 1] = fact(localize("k_pvp_opt_standard"), O.value_label(setting, setting.std))
+	if not PVP.lobby_setting_locked(setting, ctx.policy) then
+		rows[#rows + 1] = fact(localize("k_pvp_opt_default"), O.value_label(setting, PVP.lobby_setting_default(setting, ctx.policy)))
 	end
 	local when = setting.when or (setting.parent and { setting.parent, true })
 	if when then
@@ -324,7 +327,7 @@ function O.build_pane()
 	for value, need in pairs(setting.needs or {}) do
 		rows[#rows + 1] = fact(O.value_label(setting, value), localize("k_pvp_opt_need_" .. need))
 	end
-	if ctx.forced[setting.key] ~= nil then
+	if PVP.lobby_setting_locked(setting, ctx.policy) then
 		rows[#rows + 1] = fact(localize("k_pvp_opt_forced_by"), PVP.ruleset_display_name(ctx.config.ruleset) or "")
 	end
 	return { nodes = rows }

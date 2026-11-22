@@ -207,39 +207,19 @@ PVP.load_mp_dir("overrides")
 
 function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 	PVP.match_log("debug", "Resetting lobby options")
+	PVP.LOBBY.setting_choices = {}
 	PVP.LOBBY.config = {
-		gold_on_life_loss = true,
-		no_gold_on_round_loss = false,
-		death_on_round_loss = true,
-		different_seeds = false,
-		the_order = true,
-		starting_lives = 4,
-		pvp_start_round = 2,
-		-- Manhunt only: each Hunter's individual life count (Runner is always
-		-- fixed at 1, not configurable -- see PVP.referee_reset).
-		manhunt_hunter_lives = 7,
-		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
-		trap_cards = false,
-		timer_base_seconds = 150,
-		timer_increment_seconds = 60,
-		pvp_countdown_seconds = 3,
-		ruleset = persist_ruleset_and_gamemode and PVP.LOBBY.config.ruleset or "ruleset_mp_expanded",
+		ruleset = persist_ruleset_and_gamemode and PVP.LOBBY.config.ruleset or PVP.LOBBY_STANDARD_RULESET,
 		gamemode = persist_ruleset_and_gamemode and PVP.LOBBY.config.gamemode or "gamemode_mp_attrition",
 		weekly = nil,
-		custom_seed = "random",
-		different_decks = false,
-		random_loadout = false,
 		back = "Red Deck",
 		sleeve = "sleeve_casl_none",
 		stake = 1,
 		challenge = "",
 		cocktail = "",
-		timer = true,
-		timer_forgiveness = 0,
 		forced_config = false,
-		preview_disabled = false,
-		smallerworld = false,
 	}
+	PVP.resolve_current_lobby_settings()
 end
 PVP.reset_lobby_config()
 

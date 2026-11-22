@@ -19,7 +19,7 @@ local dictionary = dofile("localization/en-us.lua").misc.dictionary
 
 local function standard(over)
 	local c = { ruleset = PVP.LOBBY_STANDARD_RULESET, deck_mode = "select" }
-	PVP.lobby_settings_apply_standard(c)
+	PVP.resolve_lobby_settings(c, {}, {})
 	for k, v in pairs(over or {}) do c[k] = v end
 	return c
 end
@@ -39,17 +39,15 @@ for _, cat in ipairs(PVP.LOBBY_SETTING_CATEGORIES) do
 	check("category label " .. cat.key, type(dictionary["k_pvp_cat_" .. cat.key]), "string")
 end
 for _, s in ipairs(PVP.LOBBY_SETTINGS) do
-	check("category of " .. s.key, cats[s.cat], true)
-	check("label " .. s.key, type(dictionary["k_pvp_set_" .. s.key]), "string")
-	check("description " .. s.key, type(dictionary["k_pvp_set_" .. s.key .. "_desc"]), "string")
+	if not s.hidden then
+		check("category of " .. s.key, cats[s.cat], true)
+		check("label " .. s.key, type(dictionary["k_pvp_set_" .. s.key]), "string")
+		check("description " .. s.key, type(dictionary["k_pvp_set_" .. s.key .. "_desc"]), "string")
+	end
 	if s.parent then
 		check("parent of " .. s.key, PVP.lobby_setting(s.parent) ~= nil, true)
 	end
-	if s.std ~= nil then
-		local found = false
-		for _, v in ipairs(s.values) do found = found or v == s.std end
-		check("standard is a value: " .. s.key, found, true)
-	end
+	check("default is a value: " .. s.key, PVP.lobby_setting_accepts(s, s.default), true)
 end
 
 -- The verified baseline is the one the lobby used before the schema.
@@ -79,13 +77,13 @@ end
 -- Changed from standard
 check("standard lobby: nothing changed", changed_keys(standard()), "")
 check("lives 6", changed_keys(standard({ starting_lives = 6 })), "starting_lives")
-check("draft counts as standard", changed_keys(standard({ deck_mode = "draft" })), "")
+check("draft differs from the lobby default", changed_keys(standard({ deck_mode = "draft" })), "deck_mode")
 check("different decks", changed_keys(standard({ different_decks = true })), "deck_mode")
 check("preview off", changed_keys(standard({ preview_disabled = true })), "preview_disabled")
-check("set seed", changed_keys(standard({ custom_seed = "ABCD" })), "seed_mode")
-check("forced setting not counted", changed_keys(standard({ the_order = false }), { the_order = false }), "")
+check("set seed", changed_keys(standard({ custom_seed = "ABCD" })), "seed_mode,custom_seed")
+check("locked setting not counted", changed_keys(standard({ the_order = false }), { the_order = { locked = false } }), "")
 check("missing boolean reads off", changed_keys(standard({ trap_cards = nil })), "")
-check("hunter lives has no standard", changed_keys(standard({ manhunt = true, manhunt_hunter_lives = 12 })), "")
+check("non-default hunter lives are visible", changed_keys(standard({ manhunt = true, manhunt_hunter_lives = 12 })), "manhunt_hunter_lives")
 
 -- Visibility
 check("timer children shown", visible("timer_base_seconds", standard()), true)
@@ -113,19 +111,18 @@ check("set seed gets a value", PVP.lobby_setting_get(seed, c), "set")
 PVP.lobby_setting_set(seed, c, "random")
 check("random seed clears it", c.custom_seed, "random")
 
--- Reset one / reset hidden / restore all
-c = standard({ different_decks = true, random_loadout = true })
-PVP.lobby_setting_apply_standard(deck, c)
-check("reset deck mode", changed_keys(c), "")
-check("reset deck mode clears random loadout", c.random_loadout, false)
-c = standard({ smallerworld = true })
-PVP.lobby_settings_reset_hidden(c)
-check("hidden smallerworld goes back to off", c.smallerworld, false)
-c = standard({ ruleset = "ruleset_mp_smallworld", smallerworld = true })
-PVP.lobby_settings_reset_hidden(c)
-check("shown smallerworld stays", c.smallerworld, true)
+-- Inactive options are harmless in gameplay; a ruleset switch doesn't erase intent.
+local choices = { smallerworld = true, random_loadout = true, deck_mode = "different" }
+c = standard()
+PVP.resolve_lobby_settings(c, choices, { deck_mode = { locked = "draft" } })
+check("hidden smallerworld is off", c.smallerworld, false)
+check("locked draft masks random loadout", c.random_loadout, false)
+c.ruleset = "ruleset_mp_smallworld"
+PVP.resolve_lobby_settings(c, choices, {})
+check("unmasked smallerworld", c.smallerworld, true)
+check("unmasked random loadout", c.random_loadout, true)
 c = { ruleset = PVP.LOBBY_STANDARD_RULESET, gamemode = "gamemode_mp_attrition", starting_lives = 9, timer = false, different_seeds = true }
-PVP.lobby_settings_apply_standard(c)
+PVP.resolve_lobby_settings(c, {}, {})
 check("restore standard is verified", (PVP.verified_lobby_check(c, { { standing = "verified" } })), true)
 
 -- Shown values

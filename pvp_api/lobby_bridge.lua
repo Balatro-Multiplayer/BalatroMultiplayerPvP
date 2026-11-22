@@ -211,7 +211,7 @@ local function mirror_metadata(lobby)
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
 		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
+		if k ~= "deck" and k ~= "kind" and k ~= "setting_choices" and k ~= PVP.REF_CHECKPOINT_KEY then
 			PVP.LOBBY.config[k] = v
 		end
 	end
@@ -226,6 +226,14 @@ local function mirror_metadata(lobby)
 	-- lobby-options picker, since none of them ride the generic per-key loop above.
 	PVP.LOBBY.config.manhunt = (def and def.manhunt) or nil
 	PVP.LOBBY.config.team_based = (def and def.team_based) or nil
+	local kind = meta.kind or PVP._pvp_kind
+	if kind == PVP.LobbyAccess.PRIVATE and type(meta.setting_choices) == "table" then
+		PVP.LOBBY.setting_choices = {}
+		for key, value in pairs(meta.setting_choices) do PVP.LOBBY.setting_choices[key] = value end
+	end
+	if kind and kind ~= PVP.LobbyAccess.PRACTICE then
+		PVP.resolve_current_lobby_settings()
+	end
 	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
 	-- layers on top of it for the whole lobby. Every client derives them from the
 	-- mirrored ruleset, so they follow a Lobby Options ruleset change and agree
@@ -233,7 +241,7 @@ local function mirror_metadata(lobby)
 	-- cards: the private lobby host's switch here, the Casual vote below.
 	if PVP.LOBBY.config.ruleset then
 		MPAPI.apply_default_modifiers(PVP.LOBBY.config.ruleset)
-		if (meta.kind or PVP._pvp_kind) == PVP.LobbyAccess.PRIVATE and meta.trap_cards == true then
+		if kind == PVP.LobbyAccess.PRIVATE and PVP.LOBBY.config.trap_cards then
 			MPAPI.add_modifier("traps")
 		end
 		PVP.LOBBY.config.modifier_layers = MPAPI.modifiers_serialize()
@@ -247,9 +255,6 @@ local function mirror_metadata(lobby)
 		PVP.LOBBY.deck.stake = tonumber(meta.stake) or PVP.LOBBY.deck.stake
 	end
 	if not meta.cocktail_recipe then PVP.LOBBY.deck.cocktail_recipe = nil end
-	-- A guest's first mirror (from lobby_ready) runs before the host's metadata
-	-- arrives, so the queued kind stands in for it.
-	PVP.force_lobby_options(meta.kind or PVP._pvp_kind, PVP.LOBBY.config.ruleset)
 	-- The Casual votes' ruleset and Trap cards go over the queued ones
 	-- (pvp_api/setup.lua), after the modifier reset above.
 	PVP.SETUP.apply_results(lobby)
@@ -315,6 +320,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- not its code: a join by code has no code until its first snapshot.
 	if PVP.CURRENT_LOBBY ~= lobby then
 		PVP._player_lives_cache = nil
+		PVP.LOBBY.setting_choices = {}
 		if PVP.REF then
 			PVP.REF.players = {}
 		end

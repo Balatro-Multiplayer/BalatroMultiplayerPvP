@@ -78,7 +78,7 @@ local function mode_plates(ctx)
 end
 
 local function verdict(ctx)
-	local count = #ctx.changed + (ctx.ruleset_changed and 1 or 0)
+	local count = #ctx.changed
 	local plate
 	if count == 0 then
 		plate = { n = G.UIT.C, config = { align = "cm", minh = 0.75, padding = 0.12, r = 0.1, colour = G.C.GREEN, emboss = 0.05 }, nodes = {
@@ -90,7 +90,7 @@ local function verdict(ctx)
 		} }
 	end
 	local nodes = { plate }
-	if ctx.editable and count > 0 then
+	if ctx.editable and (ctx.ruleset_changed or next(ctx.choices)) then
 		nodes[#nodes + 1] = {
 			n = G.UIT.C,
 			config = { align = "cm", minh = 0.75, padding = 0.12, r = 0.1, colour = G.C.BLUE, hover = true, shadow = true, button = "mp_pvp_opt_restore" },

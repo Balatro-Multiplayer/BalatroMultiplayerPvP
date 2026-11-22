@@ -16,7 +16,7 @@ end
 function PVP.lobby.build_rules_strip()
 	local O = PVP.lobby_opts
 	local config = PVP.LOBBY.config
-	local changed = PVP.lobby_settings_changed(config, PVP.lobby_forced_settings(config.ruleset))
+	local changed = PVP.lobby_settings_changed(config, PVP.lobby_settings_policy(config.ruleset))
 	local nodes = {}
 	if #changed == 0 then
 		nodes[1] = pill(localize("k_pvp_opt_standard_settings"):upper(), true)
