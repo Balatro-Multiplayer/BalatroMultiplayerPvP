@@ -29,6 +29,9 @@ PVP.build_in_lobby_ui = function()
 	local is_private = lobby and not PVP.is_matchmaking() and MPAPI.Party.kind_known(lobby) and not MPAPI.Party.is_party_lobby(lobby)
 	local banner = is_private and L.build_mode_banner(lobby)
 	rows[#rows + 1] = banner or { n = G.UIT.R, config = { minh = 0.2 } }
+	if banner and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+		rows[#rows + 1] = L.build_rules_strip()
+	end
 	rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm" }, nodes = { L.build_controls() } }
 
 	return {

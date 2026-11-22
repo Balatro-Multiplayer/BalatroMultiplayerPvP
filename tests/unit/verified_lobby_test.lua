@@ -13,6 +13,7 @@ end
 MPAPI = { Standing = { VERIFIED = "verified", VALID = "valid", NONE = "none" } }
 function MPAPI.is_launcher_verified() return false end
 PVP = { self_player_id = function() return "me" end }
+dofile("lib/lobby_settings.lua")
 dofile("lib/verified_lobby.lua")
 
 local function config(over)

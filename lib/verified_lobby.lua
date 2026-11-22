@@ -8,28 +8,10 @@
 -- metadata (PVP.pvp_lobby_metadata), so every client shows the same badge. It is
 -- recomputed on every lobby change (PVP.refresh_verified_lobby).
 
--- The standard ranked (Expanded) settings. A missing config value counts as false.
-PVP.VERIFIED_DEFAULTS = {
-	ruleset = "ruleset_mp_expanded",
-	starting_lives = 4,
-	pvp_start_round = 2,
-	gold_on_life_loss = true,
-	no_gold_on_round_loss = false,
-	death_on_round_loss = true,
-	the_order = true,
-	normal_bosses = false,
-	preview_disabled = false,
-	smallerworld = false,
-	trap_cards = false,
-	timer = true,
-	timer_base_seconds = 150,
-	timer_increment_seconds = 60,
-	pvp_countdown_seconds = 3,
-	different_seeds = false,
-	different_decks = false,
-	random_loadout = false,
-	custom_seed = "random",
-}
+-- The standard ranked (Expanded) settings, from the lobby settings schema
+-- (lib/lobby_settings.lua) plus the ruleset. A missing config value counts as false.
+PVP.VERIFIED_DEFAULTS = PVP.lobby_settings_standard_config()
+PVP.VERIFIED_DEFAULTS.ruleset = PVP.LOBBY_STANDARD_RULESET
 
 local NEMESIS_GAMEMODE = "gamemode_mp_attrition"
 

@@ -94,6 +94,9 @@ local function part_node(part)
 	}
 end
 
+-- One plate, also the Lobby Options header's (ui/lobby/options/screen.lua).
+PVP.lobby.build_mode_plate = part_node
+
 -- The banner row, or nil when there is nothing known to name yet. The gamemode is
 -- read from the lobby's own metadata, so a key left over from an earlier lobby is
 -- never shown; the host's own key covers the moment before its first write lands.

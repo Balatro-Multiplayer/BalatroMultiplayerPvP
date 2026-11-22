@@ -510,6 +510,10 @@ PVP.setup_lobby_mirror = function(lobby)
 		-- Setup may wait for the host's write of the rolled ruleset.
 		PVP.SETUP.continue(lobby)
 		MPAPI.refresh_current_view()
+		-- An open Lobby Options shows the new settings: a guest's follows the host's.
+		if PVP.lobby_opts then
+			PVP.lobby_opts.refresh()
+		end
 	end)
 
 	-- A Party lobby's Find Game pillars grey a mode a player's standing

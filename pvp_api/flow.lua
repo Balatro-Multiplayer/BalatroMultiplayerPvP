@@ -59,7 +59,9 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	-- Matchmade and practice lobbies keep the config's own defaults and the rulesets' forced options.
 	if (kind or PVP.LobbyAccess.PRIVATE) == PVP.LobbyAccess.PRIVATE then
 		for _, key in ipairs(PVP.PRIVATE_OPTION_KEYS) do
-			meta[key] = PVP.LOBBY.config[key]
+			if meta[key] == nil then
+				meta[key] = PVP.LOBBY.config[key]
+			end
 		end
 		meta.deck_mode = PVP.LOBBY.config.deck_mode or PVP.DeckMode.SELECT
 		meta.verified_lobby = PVP.compute_verified_lobby()
@@ -70,24 +72,9 @@ end
 -- How a private lobby picks its deck: the host chooses one, or the players run the Draft.
 PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
 
--- Lobby config fields a private lobby's host can set, carried in the lobby metadata.
-PVP.PRIVATE_OPTION_KEYS = {
-	"gold_on_life_loss",
-	"no_gold_on_round_loss",
-	"death_on_round_loss",
-	"normal_bosses",
-	"timer",
-	"timer_base_seconds",
-	"timer_increment_seconds",
-	"pvp_countdown_seconds",
-	"preview_disabled",
-	"the_order",
-	"smallerworld",
-	"different_seeds",
-	"different_decks",
-	"random_loadout",
-	"custom_seed",
-}
+-- Lobby config fields a private lobby's host can set, carried in the lobby metadata:
+-- every key the lobby settings schema writes (lib/lobby_settings.lua).
+PVP.PRIVATE_OPTION_KEYS = PVP.lobby_settings_config_keys()
 
 -- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
 -- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
