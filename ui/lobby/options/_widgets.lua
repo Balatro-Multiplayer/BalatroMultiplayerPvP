@@ -312,7 +312,8 @@ function O.build_pane()
 	local rows = {
 		{ n = G.UIT.R, config = { align = "cl", minw = PANE_W, padding = 0.05 }, nodes = { text(O.label(setting), 0.55) } },
 	}
-	local desc = localize("k_pvp_set_" .. setting.key .. "_desc")
+	local variant = setting.description_variant and setting.description_variant(ctx.config)
+	local desc = localize("k_pvp_set_" .. setting.key .. "_desc" .. (variant and "_" .. variant or ""))
 	for line in (desc .. "\n"):gmatch("(.-)\n") do
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cl", minw = PANE_W }, nodes = { text(line, 0.34) } }
 	end

@@ -95,6 +95,25 @@ check("seed value shown", visible("custom_seed", standard({ custom_seed = "ABCD"
 check("smallerworld hidden", visible("smallerworld", standard()), false)
 check("smallerworld shown", visible("smallerworld", standard({ ruleset = "ruleset_mp_smallworld" })), true)
 check("hunter lives hidden", visible("manhunt_hunter_lives", standard()), false)
+check("Manhunt uses Hunter Lives, not Lives", visible("starting_lives", standard({ manhunt = true })), false)
+check("Teams uses Lives", visible("starting_lives", standard({ team_based = true })), true)
+local lives_variant = PVP.lobby_setting("starting_lives").description_variant
+check("ordinary lives description", lives_variant({}), nil)
+check("shared lives description", lives_variant({ team_based = true }), "teams")
+check("shared lives translation", type(dictionary.k_pvp_set_starting_lives_desc_teams), "string")
+
+PVP.UTILS = {}
+dofile("lib/ruleset_utils.lua")
+local function check_skip_variant(layer, threshold, expected)
+	PVP.is_any_layer_active = function() return layer end
+	PVP.UTILS.timer_display_threshold = function() return threshold end
+	local variant = PVP.lobby_setting("timer_increment_seconds").description_variant()
+	check("skip description: " .. tostring(expected), variant, expected)
+	check("skip translation", type(dictionary["k_pvp_set_timer_increment_seconds_desc" .. (variant and "_" .. variant or "")]), "string")
+end
+check_skip_variant(false, 0, nil)
+check_skip_variant(false, 180, "own")
+check_skip_variant(true, 180, "opponent")
 
 -- Virtual settings
 local deck = PVP.lobby_setting("deck_mode")

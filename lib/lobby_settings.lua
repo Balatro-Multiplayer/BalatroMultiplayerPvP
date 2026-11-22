@@ -15,6 +15,7 @@
 --   suffix         appended to a number value ("150s")
 --   parent         the setting this one hangs under; without `shown` it shows while the parent is on
 --   shown          function(config) -> whether the row shows
+--   description_variant  optional suffix for the description key, chosen for this lobby
 --   type           "text": a free-text value edited in its own overlay
 --   get / set      a virtual setting: one control over several config keys
 --   writes         a virtual setting's config keys
@@ -48,7 +49,11 @@ PVP.LOBBY_SETTING_CATEGORIES = {
 }
 
 PVP.LOBBY_SETTINGS = {
-	{ key = "starting_lives", cat = "match", values = range(1, 16), default = 4 },
+	{
+		key = "starting_lives", cat = "match", values = range(1, 16), default = 4,
+		shown = function(config) return not config.manhunt end,
+		description_variant = function(config) return config.team_based and "teams" or nil end,
+	},
 	{ key = "pvp_start_round", cat = "match", values = range(1, 20), default = 2 },
 	{ key = "preview_disabled", cat = "match", default = false, invert = true },
 	{
@@ -141,7 +146,13 @@ PVP.LOBBY_SETTINGS = {
 
 	{ key = "timer", cat = "clock", default = true },
 	{ key = "timer_base_seconds", cat = "clock", values = range(30, 240, 30), suffix = "s", default = 150, parent = "timer" },
-	{ key = "timer_increment_seconds", cat = "clock", values = range(0, 180, 30), suffix = "s", default = 60, parent = "timer" },
+	{
+		key = "timer_increment_seconds", cat = "clock", values = range(0, 180, 30), suffix = "s", default = 60, parent = "timer",
+		description_variant = function()
+			local mode = PVP.UTILS.skip_increment_mode()
+			return mode ~= "unmatched" and mode or nil
+		end,
+	},
 	{ key = "pvp_countdown_seconds", cat = "clock", values = { 0, 3, 5, 10 }, suffix = "s", default = 3 },
 
 	{ key = "trap_cards", cat = "mutators", default = false, art = "!" },

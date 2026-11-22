@@ -23,6 +23,13 @@ function PVP.UTILS.pvp_timer_base()
 	return base * mult
 end
 
+-- Whose skips earn ante-clock time. Shared by the clock and its lobby description.
+function PVP.UTILS.skip_increment_mode()
+	if PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" }) then return "opponent" end
+	if PVP.UTILS.timer_display_threshold() > 0 then return "own" end
+	return "unmatched"
+end
+
 -- True when an active layer is driving the timer locally (not server-synced).
 -- pvp_timer only counts during a PvP boss; outside PvP it's dormant.
 function PVP.timer_is_local()
