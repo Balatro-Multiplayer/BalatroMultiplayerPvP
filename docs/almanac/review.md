@@ -21,7 +21,6 @@ The server owns every decision: deck offers, both players' acquisition histories
 - **Hand-coded decks.** Abandoned, Erratic and Checkered destroy or rewrite cards. Anaglyph, Heidelberg and Echo run every round through `D.calculate`. These need a check against the real deck config.
 - **Detection.** Server `isAlmanac` and client `R.enabled` trust lobby metadata the host can edit. Move this to `rankedMode` before a queue exists.
 - **Soft lock.** If the server never answers, the draft gate leaves the run on the "waiting" overlay.
-- **Prototype toggle.** Lobby Options keeps "Shared PvP rules (prototype)" for non-Almanac private lobbies. Ship it or remove it.
 
 ## Running it
 

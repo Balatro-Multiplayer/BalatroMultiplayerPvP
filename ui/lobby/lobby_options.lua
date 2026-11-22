@@ -203,26 +203,9 @@ local function ruleset_row(lobby)
 	}).node)
 end
 
-local function shared_rules_row(lobby)
-	return option_row(MPAPI.disableable_option_cycle({
-		id = "mp_pvp_shared_rules",
-		label = PVP.SHARED_RULES.supported(lobby) and "Shared PvP rules (prototype, 2 players)"
-			or "Shared PvP rules (needs updated server)",
-		options = { "Off", "On" },
-		current_option = PVP.LOBBY.config.shared_pvp_rules and 2 or 1,
-		opt_callback = "mp_pvp_change_shared_rules",
-		w = 4,
-		scale = 0.5,
-		enabled = function()
-			return can_edit_private_lobby(lobby) and PVP.SHARED_RULES.supported(lobby)
-		end,
-	}).node)
-end
-
 local function lobby_tab(lobby)
 	local rows = {}
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
-		rows[#rows + 1] = shared_rules_row(lobby)
 		rows[#rows + 1] = ruleset_row(lobby)
 		rows[#rows + 1] = deck_mode_row()
 		rows[#rows + 1] = toggle_row("mp_pvp_trap_cards", "k_pvp_lobby_trap_cards", "trap_cards")
@@ -398,13 +381,6 @@ G.FUNCS.mp_pvp_set_verified_defaults = function()
 	publish_options()
 	-- Reopen so every control shows the restored values.
 	G.FUNCS.mp_pvp_lobby_options()
-end
-
-G.FUNCS.mp_pvp_change_shared_rules = function(e)
-	local lobby = MPAPI.get_current_lobby()
-	if not can_edit_private_lobby(lobby) or not PVP.SHARED_RULES.supported(lobby) then return end
-	PVP.LOBBY.config.shared_pvp_rules = e.to_key == 2
-	publish_options()
 end
 
 G.FUNCS.mp_pvp_change_ruleset = function(e)
