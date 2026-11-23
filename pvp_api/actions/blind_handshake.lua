@@ -46,5 +46,24 @@ A("pvp_ready_ack", function(_at, from, params)
 end)
 
 A_host("pvp_start_blind", function(_at, from, params)
-	PVP.accept_round_start(params, from)
+	local result = params.shared_rules
+	if not result then return PVP.accept_round_start(params, from) end
+
+	local lobby = MPAPI.get_current_lobby()
+	-- An eliminated player sits out the blinds the others still play.
+	if not lobby or PVP.GAME.eliminated then return end
+	local R = PVP.SHARED_RULES
+	local admission = R.Round.admit(result)
+	if admission == "drop" then return end
+	if admission == "wait" then return R.Round.defer(from, params) end
+
+	PVP.accept_round_start(params, from, function()
+		R.Round.start(result)
+		PVP.GAME.next_blind_context = PVP.GAME.next_blind_context or { UIBox = G.blind_select }
+		if G.OVERLAY_MENU then G.FUNCS.exit_overlay_menu() end
+		R.show_result(result)
+		if PVP.RLOG then
+			PVP.RLOG.record("shared_rules", { result.id, result.ante, result.rules[1], result.rules[2] })
+		end
+	end)
 end)

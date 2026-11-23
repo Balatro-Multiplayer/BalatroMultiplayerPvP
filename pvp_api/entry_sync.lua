@@ -85,7 +85,8 @@ function PVP.update_entry_sync(dt)
 end
 
 -- Called by the host-filtered action handler in actions/blind_handshake.lua.
-function PVP.accept_round_start(start, host_id)
+-- The shared-rule reveal runs only after the start is accepted, before dispatch.
+function PVP.accept_round_start(start, host_id, before_dispatch)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby or PVP.GAME.eliminated then return end
 	local expected = start.entries and start.entries[lobby.player_id]
@@ -110,6 +111,7 @@ function PVP.accept_round_start(start, host_id)
 		if not delivery or PVP.GAME.round_sync.applied then return end
 	end
 	if delivery then delivery.accepted_start_id = start.entry_id end
+	if before_dispatch then before_dispatch() end
 
 	-- The existing countdown/start UI uses host/guest labels, not player IDs.
 	local me = lobby.is_host and "host" or "guest"

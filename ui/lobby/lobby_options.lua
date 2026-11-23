@@ -9,6 +9,7 @@ local RULESET_KEYS = {
 	PVP.RulesetKey.VANILLA,
 	PVP.RulesetKey.BALANCED,
 	PVP.RulesetKey.EXPANDED,
+	PVP.RulesetKey.ALMANAC,
 	PVP.RulesetKey.SMALLWORLD,
 }
 
