@@ -184,6 +184,9 @@ local function remember_names(lobby)
 	end
 end
 
+-- Seconds an opponent must stay away before the "disconnected" overlay shows.
+PVP.DISCONNECT_GRACE = 5
+
 local function departed_player_name(lobby, player_id)
 	local names = known_names[lobby]
 	local name = (names and names[player_id]) or player_name(lobby, player_id)
@@ -308,6 +311,20 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- Kept per lobby: a later PLAYER_LEFT after a socket drop means the
 	-- disconnect grace period expired, rather than a voluntary leave.
 	local disconnected_players = {}
+	-- A dropped opponent only gets the overlay once they stay away for
+	-- PVP.DISCONNECT_GRACE seconds, so a socket blip that reconnects shows nothing.
+	-- pending_disconnect[id] is the token of the timer still waiting on that player;
+	-- shown_disconnect[id] is the overlay it opened, so a reconnect closes only that one.
+	local pending_disconnect = {}
+	local shown_disconnect = {}
+	local function cancel_disconnect_notice(player_id)
+		pending_disconnect[player_id] = nil
+		local overlay = shown_disconnect[player_id]
+		shown_disconnect[player_id] = nil
+		if overlay and G.OVERLAY_MENU == overlay then
+			G.FUNCS.exit_overlay_menu()
+		end
+	end
 	-- Who was out of the last lobby's match (the referee's lives, the lives
 	-- cache) means nothing in another lobby: a group back home from its public
 	-- match otherwise showed whoever lost there crossed out on the home
@@ -417,6 +434,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	lobby:on(MPAPI.LobbyEvent.PLAYER_LEFT, function(player_id)
 		local departed_name = departed_player_name(lobby, player_id)
 		local disconnected = disconnected_players[player_id]
+		cancel_disconnect_notice(player_id)
 		if player_id ~= lobby.player_id then
 			local message = disconnected and (departed_name .. " did not reconnect.")
 				or (departed_name .. " left the lobby.")
@@ -461,15 +479,31 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- while a player is away, so they follow players dropping and coming back.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function(player_id)
 		if player_id and player_id ~= lobby.player_id then
-			local departed_name = departed_player_name(lobby, player_id)
 			disconnected_players[player_id] = true
-			PVP.UI.UTILS.overlay_message(departed_name .. " disconnected.\nWaiting for reconnection...")
+			local token = {}
+			pending_disconnect[player_id] = token
+			G.E_MANAGER:add_event(Event({
+				trigger = "after",
+				delay = PVP.DISCONNECT_GRACE,
+				timer = "REAL",
+				blocking = false,
+				blockable = false,
+				func = function()
+					if pending_disconnect[player_id] ~= token then return true end
+					pending_disconnect[player_id] = nil
+					local departed_name = departed_player_name(lobby, player_id)
+					PVP.UI.UTILS.overlay_message(departed_name .. " disconnected.\nWaiting for reconnection...")
+					shown_disconnect[player_id] = G.OVERLAY_MENU
+					return true
+				end,
+			}))
 		end
 		refresh()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		disconnected_players[player_id] = nil
+		cancel_disconnect_notice(player_id)
 		refresh()
 		PVP.TRAP_ROW.on_player_back(player_id)
 		PVP.reconcile_round()
