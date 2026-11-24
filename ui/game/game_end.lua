@@ -80,7 +80,7 @@ end
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
 	local state, result, text = end_game_player_state(player_id, player_name)
 	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
-	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
+	PVP.rebuild_result_jokers_area(PVP.end_game_jokers, show_jokers and result or nil)
 	PVP.end_game_jokers_text = text
 end
 

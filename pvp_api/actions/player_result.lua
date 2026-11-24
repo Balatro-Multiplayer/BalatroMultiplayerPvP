@@ -35,6 +35,62 @@ local function capture_local_jokers()
 	return jokers
 end
 
+-- The whole joker area as one encoded string (G.jokers:save(), the same payload
+-- the 0.5.5 end-game jokers message sent). Unlike the plain list above it keeps
+-- everything a card carries -- editions, every sticker, the perishable tally --
+-- and the area's real slot limit. Nil when there is nothing usable to send.
+local function capture_local_jokers_save()
+	if not (G.jokers and G.jokers.cards) then
+		return nil
+	end
+	local ok, encoded = pcall(function()
+		return MPAPI.encode(G.jokers:save())
+	end)
+	if not ok or type(encoded) ~= "string" then
+		sendDebugMessage("Failed to encode end game jokers: " .. tostring(encoded), "MULTIPLAYER")
+		return nil
+	end
+	if #encoded > MPAPI.MAX_ENCODED_BYTES then
+		-- MPAPI.decode would refuse it on the other side anyway.
+		sendDebugMessage(string.format("End game jokers too large to send (%d bytes)", #encoded), "MULTIPLAYER")
+		return nil
+	end
+	return encoded
+end
+
+-- Fills `area` from a collected result: the saved joker area when there is one,
+-- else the plain list an older client sends. Cards are marked as never added to
+-- the deck first so clearing or replacing them can't run their removal effects
+-- (a negative joker would otherwise shrink the real joker slots).
+function PVP.rebuild_result_jokers_area(area, result)
+	if not area then
+		return
+	end
+	MPAPI.rebuild_jokers_area(area, nil)
+	if not result then
+		return
+	end
+	if result.jokers_save then
+		local save, err = MPAPI.decode(result.jokers_save)
+		local ok = save ~= nil
+		if ok then
+			ok, err = pcall(area.load, area, save)
+		end
+		if ok then
+			for _, card in ipairs(area.cards or {}) do
+				card.added_to_deck = false
+			end
+			return
+		end
+		sendDebugMessage("Failed to load end game jokers: " .. tostring(err), "MULTIPLAYER")
+		for _, card in ipairs(area.cards or {}) do
+			card.added_to_deck = false
+		end
+		MPAPI.rebuild_jokers_area(area, nil)
+	end
+	MPAPI.rebuild_jokers_area(area, result.jokers)
+end
+
 -- Called once, when this client's own match involvement ends (win or loss --
 -- see action_win_game/action_lose_game in networking/action_handlers.lua).
 -- `on_delivered` (optional) runs once the server has relayed the roster back to
@@ -47,12 +103,14 @@ function PVP.report_roster_result(on_delivered)
 		return
 	end
 	local jokers = capture_local_jokers()
+	local jokers_save = capture_local_jokers_save()
 	local deck_back = PVP.LOBBY.deck and PVP.LOBBY.deck.back
 	local highest_pvp_score = PVP.Score.or_zero(PVP.GAME.highest_pvp_score)
 	local cards = PVP.UTILS.deck_to_string(G.playing_cards)
 
 	PVP._collected_results[lobby.player_id] = {
 		jokers = jokers,
+		jokers_save = jokers_save,
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
 		cards = cards,
@@ -81,6 +139,7 @@ function PVP.report_roster_result(on_delivered)
 	end
 	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
 		jokers = jokers,
+		jokers_save = jokers_save,
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
 		cards = cards,
@@ -98,6 +157,7 @@ function PVP.report_roster_snapshot()
 	end
 	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
 		jokers = capture_local_jokers(),
+		jokers_save = capture_local_jokers_save(),
 		interim = true,
 	})
 end
@@ -117,6 +177,7 @@ MPAPI.ActionType({
 			-- Keep the deck and score of the earlier roster, if any.
 			PVP._collected_results[from_player_id] = {
 				jokers = params.jokers,
+				jokers_save = params.jokers_save,
 				deck_back = kept and kept.deck_back,
 				highest_pvp_score = kept and kept.highest_pvp_score,
 				interim = true,
@@ -125,6 +186,7 @@ MPAPI.ActionType({
 		end
 		PVP._collected_results[from_player_id] = {
 			jokers = params.jokers,
+			jokers_save = params.jokers_save,
 			deck_back = params.deck_back,
 			highest_pvp_score = params.highest_pvp_score,
 			cards = params.cards,

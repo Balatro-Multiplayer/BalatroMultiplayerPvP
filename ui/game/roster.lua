@@ -90,29 +90,18 @@ end
 -- Read-only display of one player's captured joker snapshot. Builds ordinary
 -- display Cards, the same technique MPAPI.BanPick's own deck tiles use --
 -- these are never clickable/playable.
-local function build_joker_area(jokers)
-	local area = CardArea(0, 0, math.max(#jokers, 1) * 1.1, 1.6 * G.CARD_H / G.CARD_W, { card_limit = math.max(#jokers, 1), type = 'joker' })
-	for _, j in ipairs(jokers or {}) do
-		local center = G.P_CENTERS[j.key]
-		if center then
-			local card = Card(area.T.x, area.T.y, G.CARD_W, G.CARD_H, nil, center, { bypass_discovery_center = true })
-			if j.edition then
-				card:set_edition(j.edition, true, true)
-			end
-			card.ability.eternal = j.eternal or false
-			card.ability.perishable = j.perishable or false
-			area:emplace(card)
-		end
-	end
+local function build_joker_area(result)
+	local n = math.max(result and result.jokers and #result.jokers or 0, 5)
+	local area = CardArea(0, 0, n * 1.1, 1.6 * G.CARD_H / G.CARD_W, { card_limit = n, type = 'joker' })
+	PVP.rebuild_result_jokers_area(area, result)
 	return area
 end
 
 G.FUNCS.mp_pvp_view_roster_jokers = function(e)
 	local player_id = e.config.ref_table.player_id
 	local result = PVP._collected_results and PVP._collected_results[player_id]
-	local jokers = (result and result.jokers) or {}
 
-	local area = build_joker_area(jokers)
+	local area = build_joker_area(result)
 	G.FUNCS.overlay_menu({
 		definition = create_UIBox_generic_options({ contents = {
 			{ n = G.UIT.R, config = { align = 'cm', padding = 0.1 }, nodes = {
