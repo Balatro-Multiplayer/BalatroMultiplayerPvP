@@ -79,6 +79,7 @@ MPAPI = {
 		end,
 	},
 }
+PVP.pvp_blind_reader = { hands_source_loaded = function() return { kind = "from server" } end }
 dofile("lib/run_save.lua")
 dofile("pvp_api/spectate_feed.lua")
 local S = PVP.SPECTATE

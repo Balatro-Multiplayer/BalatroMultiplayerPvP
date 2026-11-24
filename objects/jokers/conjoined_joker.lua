@@ -25,10 +25,15 @@ MPAPI.Joker({
 	update = function(self, card, dt)
 		if PVP.LOBBY.code then
 			if G.STAGE == G.STAGES.RUN then
-				card.ability.extra.x_mult = math.max(
-					math.min(1 + (PVP.GAME.enemy.hands * card.ability.extra.x_mult_gain), card.ability.extra.max_x_mult),
-					1
-				)
+				local hands = PVP.GAME.enemy.hands
+				if hands == nil then
+					card.ability.extra.x_mult = 1
+				else
+					card.ability.extra.x_mult = math.max(
+						math.min(1 + (hands * card.ability.extra.x_mult_gain), card.ability.extra.max_x_mult),
+						1
+					)
+				end
 			end
 		else
 			card.ability.extra.x_mult = 1

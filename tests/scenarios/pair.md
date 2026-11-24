@@ -31,8 +31,8 @@ bash scripts/run_pair.sh pair_pvp_blind   # ~1 min
 ## what's real and what's a fixture
 
 real: login, lobby, ready/start, the server's stake Draft, cash out and shop,
-the referee, and every played hand. fake: `P.jump_to_pvp` sets the ante and
-skips Small/Big so we land on the PvP boss. it tells the referee the ante via
+the server's rules, and every played hand. fake: `P.jump_to_pvp` sets the ante and
+skips Small/Big so we land on the PvP boss. it tells the run screen the ante via
 `PVP.ACTIONS.set_ante`, as `ease_ante` would.
 
 the host plays five leftmost cards, the guest plays one. with a shared seed and

@@ -93,7 +93,7 @@ end
 local function publish_ruleset(lobby)
 	local ruleset = S.rolled(setup_results(lobby))
 	if ruleset and lobby.is_host and (lobby:get_metadata() or {}).ruleset ~= ruleset then
-		lobby:set_metadata({ ruleset = ruleset })
+		PVP.lobby_screen.send_settings(lobby, { ruleset = ruleset })
 	end
 end
 

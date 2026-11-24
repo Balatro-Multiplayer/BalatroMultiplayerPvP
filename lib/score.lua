@@ -57,39 +57,3 @@ end
 function PVP.Score.to_game_value(text)
 	return MPAPI.BigScore.to_game_value(text)
 end
-
--- Score text of the sum of score texts. The sum uses the installed number type
--- (doubles with no mod). With no mod, a score past the double range cannot be
--- added, so the largest score stands in for the sum. Malformed scores count as zero.
--- If the installed mod's add raises an error, the error is logged and the sum
--- falls back to the double rule.
-function PVP.Score.sum(list)
-	local texts = {}
-	for i = 1, #list do
-		texts[i] = PVP.Score.or_zero(list[i])
-	end
-	if MPAPI.BigScore.has_number_mod() then
-		local total = to_big(0)
-		local ok, err = pcall(function()
-			for _, text in ipairs(texts) do
-				local value, reason = PVP.Score.to_game_value(text)
-				if value == nil then error(reason, 0) end
-				total = total + value
-			end
-		end)
-		if ok then return PVP.Score.from_game_value(total) end
-		sendWarnMessage("[score] the number mod could not add scores: " .. tostring(err), "MULTIPLAYER")
-	end
-	local total, largest = 0, PVP.Score.ZERO
-	for _, text in ipairs(texts) do
-		if PVP.Score.greater(text, largest) then largest = text end
-		local n = not text:find(",", 1, true) and tonumber(text) or nil
-		if n and total then
-			total = total + n
-		else
-			total = nil
-		end
-	end
-	if total and total < 1e300 then return PVP.Score.from_game_value(total) end
-	return largest
-end

@@ -12,7 +12,9 @@ end
 
 MPAPI = { Standing = { VERIFIED = "verified", VALID = "valid", NONE = "none" } }
 function MPAPI.is_launcher_verified() return false end
-PVP = { self_player_id = function() return "me" end }
+local lobby = { player_id = "me" }
+function MPAPI.get_current_lobby() return lobby end
+PVP = {}
 dofile("lib/verified_lobby.lua")
 
 local function config(over)
@@ -23,6 +25,31 @@ local function config(over)
 end
 local both = { { id = "me", standing = "verified" }, { id = "you", standing = "verified" } }
 local function ok(cfg, players) return (PVP.verified_lobby_check(cfg, players or both)) end
+
+-- A fresh lobby config (core.lua's defaults, read from the source text) passes as verified.
+local function fresh_config()
+	local file = assert(io.open("core.lua", "rb"))
+	local text = file:read("*a"):gsub("\r", "")
+	file:close()
+	local block = assert(text:match("function PVP%.reset_lobby_config.-\n\tPVP%.LOBBY%.config = {(.-)\n\t}\nend"))
+	local c = { gamemode = "gamemode_mp_attrition" }
+	for key, literal in block:gmatch("\n\t\t([%a_][%w_]*) = ([%w_\"]+),") do
+		if literal == "true" then c[key] = true
+		elseif literal == "false" then c[key] = false
+		elseif tonumber(literal) then c[key] = tonumber(literal)
+		elseif literal:match('^".*"$') then c[key] = literal:sub(2, -2) end
+	end
+	c.ruleset = "ruleset_mp_expanded"
+	c.custom_seed = "random"
+	return c
+end
+local _, fresh_failed = PVP.verified_lobby_check(fresh_config(), both)
+check("a fresh config is verified", #fresh_failed, 0)
+if #fresh_failed > 0 then print("  failed keys: " .. table.concat(fresh_failed, ", ")) end
+check("own id read from the current lobby", PVP.own_player_id(), "me")
+lobby = nil
+check("no lobby, no own id", PVP.own_player_id(), nil)
+lobby = { player_id = "me" }
 
 check("defaults + verified players", ok(config()), true)
 check("draft deck mode allowed", ok(config({ deck_mode = "draft" })), true)

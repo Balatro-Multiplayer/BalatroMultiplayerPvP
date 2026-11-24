@@ -93,6 +93,7 @@ function PVP._join_queue(kind, gamemode_key)
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
+		PVP.refusal_screen.show(err)
 	end)
 
 	handle:on("queued", function(pos)
@@ -112,13 +113,9 @@ function PVP._join_queue(kind, gamemode_key)
 		-- After the match: back to the Find Game tab it was queued from.
 		PVP.set_lobby_exit_page(lobby, "pvp_find_game", { category = kind == PVP.LobbyAccess.RANKED and "ranked" or "casual" })
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, kind))
+			PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(gamemode_key, kind))
 		end
-		-- lobby_ready fires from inside the lobby's own 'connected' handler, so signal
-		-- ready now; the host auto-starts once every client has reported in (see
-		-- PVP.maybe_autostart). Re-announce a few times to cover the match-join race.
-		PVP.signal_ready(true)
-		PVP.start_ready_resync()
+		-- Ready goes up from the lobby view (lobby_screen.lua); the host auto-starts once the view shows all ready.
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
 	end)
@@ -133,67 +130,6 @@ function PVP._join_queue(kind, gamemode_key)
 		PVP._pvp_kind = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
-	end)
-end
-
--- The finished match's placements for `player_ids`: the winner first, everyone else
--- second. `opts.team` makes `winner` a team id (Manhunt/Teams, resolved through
--- PVP.LOBBY.roster); `opts.draw` places everyone first. `opts.places` (id -> place)
--- overrides all of that: tied players share a place, and a tie for first is no win.
--- metric = each player's best PvP score (the leaderboard's season-best column).
-function PVP.build_placements(player_ids, winner, opts)
-	opts = opts or {}
-	local tied_first = 0
-	for _, id in ipairs(player_ids) do
-		if opts.places and opts.places[id] == 1 then
-			tied_first = tied_first + 1
-		end
-	end
-	local placements = {}
-	for _, id in ipairs(player_ids) do
-		local place, performance
-		if opts.places then
-			place = opts.places[id] or #player_ids
-			performance = (place == 1 and tied_first == 1) and 1 or 0
-		else
-			local won
-			if opts.draw then
-				won = true
-			elseif opts.team then
-				won = PVP.LOBBY.roster and PVP.LOBBY.roster[id] == winner
-			else
-				won = id == winner
-			end
-			place = won and 1 or 2
-			performance = (won and not opts.draw) and 1 or 0
-		end
-		placements[#placements + 1] = {
-			playerId = id,
-			place = place,
-			performance = performance,
-			metric = (PVP.pvp_score_metric and PVP.pvp_score_metric(id)) or 0,
-			metricText = PVP.pvp_score_text and PVP.pvp_score_text(id) or PVP.Score.ZERO,
-		}
-	end
-	return placements
-end
-
--- A server-refereed lobby: every client reports the same placements for the players
--- the game started with. Once per game.
-function PVP.report_server_result(lobby, winner, opts)
-	local started = lobby._game.started
-	if not started or PVP._reported_run_id == started.run_id then
-		return
-	end
-	PVP._reported_run_id = started.run_id
-	local ids = {}
-	for _, p in ipairs(started.players or {}) do
-		ids[#ids + 1] = p.id
-	end
-	lobby:report_result(PVP.build_placements(ids, winner, opts), function(err)
-		if err then
-			sendWarnMessage("report_result error: " .. tostring(err), "MULTIPLAYER")
-		end
 	end)
 end
 
@@ -246,6 +182,7 @@ function PVP._join_ranked_ruleset(ruleset_key)
 		PVP._match_handle = nil
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
+		PVP.refusal_screen.show(err)
 	end)
 
 	handle:on("queued", function(pos)
@@ -264,10 +201,8 @@ function PVP._join_ranked_ruleset(ruleset_key)
 		PVP.setup_lobby_mirror(lobby)
 		PVP.set_lobby_exit_page(lobby, "pvp_find_game", { category = "ranked" })
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED))
+			PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.RANKED))
 		end
-		PVP.signal_ready(true)
-		PVP.start_ready_resync()
 		PVP._active_queue_id = nil
 		PVP._show_searching(false)
 	end)

@@ -45,7 +45,7 @@ function localize(args)
 	end
 end
 
-MPAPI = { Party = { KIND = "party" }, apply_default_modifiers = noop, modifiers_serialize = noop }
+MPAPI = { Party = { KIND = "party" }, register_player_status_provider = noop, apply_default_modifiers = noop, modifiers_serialize = noop }
 PVP = {
 	id = "MultiplayerPvP",
 	-- The player's own Cocktail: only Red in the pool, nothing forced, shown.
@@ -164,7 +164,6 @@ for _, recipe in ipairs({
 	check(PVP.LOBBY.code == nil, "rejection leaves the lobby")
 end
 check(rejected == 7 and rejection_message ~= nil, "rejections explain the incompatibility")
-PVP._pvp_action_helpers = { A = noop, relay = noop }
 dofile("pvp_api/actions/run_lifecycle.lua")
 MPAPI.get_current_lobby = function()
 	return {
@@ -215,10 +214,12 @@ local host_lobby = {
 	is_host = true,
 	get_players = function() return { {}, {} } end,
 	get_metadata = function() return {} end,
-	set_metadata = function(_, patch) sent[#sent + 1] = { metadata = patch } end,
-	start_game = function() sent[#sent + 1] = { start = true } end,
 }
 MPAPI.get_current_lobby = function() return host_lobby end
+PVP.lobby_screen = {
+	send_settings = function(_, patch) sent[#sent + 1] = { metadata = patch } end,
+	send_start = function() sent[#sent + 1] = { start = true } end,
+}
 MPAPI.has_server_referee = function() return true end
 MPAPI.GameModes = {}
 PVP.UTILS = { version_mismatches = function() return {} end }

@@ -8,11 +8,9 @@ SMODS.Atlas({
 	py = 95,
 })
 
--- Broadcasts the "an asteroid was used" event to the opponent; the receiver's
--- receive downgrades their own best-leveled visible hand by 1 (was action_asteroid).
-function PVP.broadcast_asteroid()
-	local center = G.P_CENTERS["c_mp_asteroid"]
-	if center then center:sync({}) end
+-- One asteroid launched at the other player. Their best-leveled hand goes down through their inbox.
+function PVP.launch_asteroid()
+	PVP.run_screen.effect("asteroid")
 end
 
 MPAPI.Consumable({
@@ -28,16 +26,6 @@ MPAPI.Consumable({
 	end,
 	can_use = function(self, card)
 		return true
-	end,
-	receive = function(self, context)
-		if PVP.is_byed() then
-			return
-		end
-		local target = PVP.current_target_id()
-		if target and context.from ~= target then
-			return
-		end
-		PVP.UI.show_asteroid_hand_level_up()
 	end,
 	use = function(self, card, area, copier)
 		local asteroids = PVP.GAME.asteroids

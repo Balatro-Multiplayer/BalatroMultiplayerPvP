@@ -15,7 +15,7 @@ if PVP.handle_duplicate_end() then
 	return true
 end
 if PVP.LOBBY.code then
-	PVP.GAME.round_ended = true
+	PVP.GAME.blind_ended = true
 end
 '''
 times = 1
@@ -64,64 +64,7 @@ times = 1
 
 ## survival mode things
 
-# define local var
-[[patches]]
-[patches.pattern]
-target = "functions/state_events.lua"
-pattern = '''
-G.STATE = G.STATES.ROUND_EVAL
-G.STATE_COMPLETE = false
-'''
-position = 'after'
-payload = '''
-local temp_furthest_blind = 0
-'''
-match_indent = true
-times = 1
-
-# small
-[[patches]]
-[patches.pattern]
-target = "functions/state_events.lua"
-pattern = '''
-G.GAME.round_resets.blind_states.Small = 'Defeated'
-'''
-position = 'after'
-payload = '''
-temp_furthest_blind = G.GAME.round_resets.ante * 10 + 1
-'''
-match_indent = true
-times = 1
-
-# big
-[[patches]]
-[patches.pattern]
-target = "functions/state_events.lua"
-pattern = '''
-G.GAME.round_resets.blind_states.Big = 'Defeated'
-'''
-position = 'after'
-payload = '''
-temp_furthest_blind = G.GAME.round_resets.ante * 10 + 2
-'''
-match_indent = true
-times = 1
-
-# boss
-[[patches]]
-[patches.pattern]
-target = "functions/state_events.lua"
-pattern = '''
-G.GAME.round_resets.blind_states.Boss = 'Defeated'
-'''
-position = 'after'
-payload = '''
-temp_furthest_blind = (G.GAME.round_resets.ante - 1) * 10 + 3
-'''
-match_indent = true
-times = 1
-
-# set furthest blind and pincher index
+# move the pincher index
 [[patches]]
 [patches.pattern]
 target = "functions/state_events.lua"
@@ -131,9 +74,6 @@ if G.GAME.round_resets.temp_handsize then G.hand:change_size(-G.GAME.round_reset
 position = 'before'
 payload = '''
 if PVP.LOBBY.code then
-	PVP.GAME.furthest_blind = (temp_furthest_blind > PVP.GAME.furthest_blind) and temp_furthest_blind or PVP.GAME.furthest_blind
-	PVP.ACTIONS.set_furthest_blind(PVP.GAME.furthest_blind)
-
 	PVP.GAME.pincher_index = PVP.GAME.pincher_index + 1
 end
 '''

@@ -1,3 +1,32 @@
+-- Builds the Boss slot of the open blind select again from G.GAME.round_resets.blind_choices.Boss, the way
+-- vanilla's boss reroll does. Nothing to do when the blind select is not on screen.
+function PVP.UI.rebuild_boss_choice()
+	local slot = G.blind_select and G.blind_select_opts and G.blind_select_opts.boss
+	local par = slot and slot.parent
+	if not par then return end
+	slot:remove()
+	G.blind_select_opts.boss = UIBox({
+		T = { par.T.x, 0, 0, 0 },
+		definition = {
+			n = G.UIT.ROOT,
+			config = { align = "cm", colour = G.C.CLEAR },
+			nodes = {
+				UIBox_dyn_container(
+					{ create_UIBox_blind_choice("Boss") },
+					false,
+					get_blind_main_colour("Boss"),
+					mix_colours(G.C.BLACK, get_blind_main_colour("Boss"), 0.8)
+				),
+			},
+		},
+		config = { align = "bmi", offset = { x = 0, y = G.ROOM.T.y + 9 }, major = par, xy_bond = "Weak" },
+	})
+	par.config.object = G.blind_select_opts.boss
+	par.config.object:recalculate()
+	G.blind_select_opts.boss.parent = par
+	G.blind_select_opts.boss.alignment.offset.y = 0
+end
+
 local create_UIBox_blind_choice_ref = create_UIBox_blind_choice
 ---@diagnostic disable-next-line: lowercase-global
 function create_UIBox_blind_choice(type, run_info)

@@ -1,8 +1,7 @@
 -- Back to the private lobby's waiting room from the end screen. Unlike the leave in leave.lua, the
 -- lobby stays joined: go_to_menu rebuilds the menu as the lobby view (the lobby is still
 -- the current one). Each player returns on their own, so one can keep reading the end
--- screen while the others are already back; a server-refereed lobby's game has ended by
--- now, since every client reports its result when the match is decided.
+-- screen while the others are already back; the server has decided the match by now.
 function G.FUNCS.mp_pvp_return_to_lobby()
 	G.FUNCS.exit_overlay_menu()
 	G.SETTINGS.paused = false
@@ -49,26 +48,17 @@ function PVP.UI.create_UIBox_round_scores_row_nemesis()
     }}
 end
 
--- Rebuilds PVP.end_game_jokers from PVP._collected_results (pvp_api/actions/
--- player_result.lua) for whichever player is currently selected -- the same
--- per-player broadcast SPDRN's own SPDRN._collected_results uses, which is
--- why MPAPI.rebuild_jokers_area (BalatroMultiplayerAPI/api/end_screen.lua)
--- can be shared between the two mods outright. Supersedes the old
--- get_end_game_jokers/load_end_game_jokers request-response pair (still
--- defined in networking/action_handlers.lua but no longer called from
--- here) -- that pair only ever tracked a single scalar payload with no
--- sender id, so in any N>2 lobby whichever response landed last would've
--- clobbered every other player's data; _collected_results is keyed by
--- sender id and already had to solve that problem for the Roster screen.
+-- Rebuilds PVP.end_game_jokers for whichever player is currently selected: my own jokers from my
+-- game, another player's from the view (PVP.finish_screen). No jokers known = no ROSTER state.
 local END_GAME_JOKERS_TEXT_KEY = {
 	[PVP.MATCH_PLAYERS.State.ROSTER] = "k_end_player_jokers",
 	[PVP.MATCH_PLAYERS.State.LEFT] = "k_end_player_left",
 	[PVP.MATCH_PLAYERS.State.PLAYING] = "k_end_player_playing",
 }
 
--- A player's end-screen state and the line that says it ("X is still playing").
-local function end_game_player_state(player_id, player_name)
-	local result = player_id and PVP._collected_results and PVP._collected_results[player_id]
+-- A player's end-screen state and the line that says it ("X is still playing"). `result` is
+-- { jokers } when the view carries them; View Deck passes none, since it asks about the deck.
+local function end_game_player_state(player_id, player_name, result)
 	local lobby = MPAPI.get_current_lobby()
 	local present = PVP.MATCH_PLAYERS.present_set(lobby and lobby:get_players())
 	local state = PVP.MATCH_PLAYERS.state(player_id, present, result)
@@ -78,7 +68,8 @@ local function end_game_player_state(player_id, player_name)
 end
 
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
-	local state, result, text = end_game_player_state(player_id, player_name)
+	local jokers = player_id and PVP.finish_screen.jokers_of(player_id)
+	local state, result, text = end_game_player_state(player_id, player_name, jokers and { jokers = jokers } or nil)
 	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
 	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
 	PVP.end_game_jokers_text = text
@@ -101,13 +92,12 @@ G.FUNCS.pvp_end_screen_select_player = function(e)
 	pvp_rebuild_end_game_jokers(p.id, PVP._end_screen_selected_player_name)
 end
 
--- A result that arrives while the end screen is up redraws the shown player's jokers.
--- The player who lost usually sees the screen before the winner's result comes in.
--- Called by pvp_api/actions/player_result.lua.
-function PVP.UI.refresh_end_screen_player(player_id)
-	if player_id == nil or player_id ~= PVP._end_screen_selected_player_id then return end
-	if not PVP.end_game_jokers or PVP.end_game_jokers.REMOVED then return end
-	pvp_rebuild_end_game_jokers(player_id, PVP._end_screen_selected_player_name)
+-- The open end screen takes jokers that arrived after it was built (pvp_api/finish_screen.lua).
+-- The player who lost usually sees the screen before the winner's jokers come in.
+function PVP.UI.refresh_end_game_jokers()
+	local id = PVP._end_screen_selected_player_id
+	if id == nil or not PVP.end_game_jokers or PVP.end_game_jokers.REMOVED then return end
+	pvp_rebuild_end_game_jokers(id, PVP._end_screen_selected_player_name)
 end
 
 -- The jokers + player-selector panel embedded in end_game_body, built via
@@ -176,6 +166,19 @@ function PVP.end_screen_buttons()
 	return MPAPI.end_screen_buttons(specs)
 end
 
+-- The rank line under the nemesis row: { text, scale, padding }, or nil when the result did not say.
+-- The overlay is centred, so a taller body loses its title at the top: the line a ranked screen newly
+-- gets is the compact one.
+function PVP.UI.end_info_line()
+	local rank = PVP.GAME.end_rank
+	if rank == "counts" then
+		return { text = localize("k_pvp_game_counts"), scale = 0.32, padding = 0 }
+	elseif rank == "not_counted" then
+		return { text = localize("k_pvp_game_unrated"), scale = 0.4, padding = 0.05 }
+	end
+	return nil
+end
+
 -- The PvP end screen's body: the shared MPAPI.end_screen_body
 -- (BalatroMultiplayerAPI/api/end_screen.lua), with the nemesis-vs-you score
 -- row as PvP's one extra side row and PvP's own button set. SPDRN's
@@ -183,7 +186,7 @@ end
 -- ui/lose_screen.lua) call the exact same shared body.
 function PVP.UI.end_game_body(has_won)
 	local side_rows = { PVP.UI.create_UIBox_round_scores_row_nemesis() }
-	if PVP.GAME.contested then
+	if PVP.GAME.end_shown == "by contest" then
 		side_rows = {
 			PVP.UI.UTILS.create_row({ align = "cm", padding = 0.05 }, {
 				PVP.UI.UTILS.create_text_node(localize("k_pvp_contested_text_1"), { scale = 0.5, colour = G.C.UI.TEXT_LIGHT }),
@@ -193,10 +196,14 @@ function PVP.UI.end_game_body(has_won)
 			}),
 		}
 	end
+	local info = PVP.GAME.end_shown ~= "by contest" and PVP.UI.end_info_line() or nil
+	if info then
+		side_rows[#side_rows + 1] = PVP.UI.UTILS.create_row({ align = "cm", padding = info.padding }, {
+			PVP.UI.UTILS.create_text_node(info.text, { scale = info.scale, colour = G.C.UI.TEXT_LIGHT }),
+		})
+	end
 	if PVP.GAME.pending_death_screen then
-		local wait_key = PVP.GAME.pending_death and PVP.GAME.pending_death.opponent_id == nil
-				and "k_pvp_pending_death_wait_many"
-			or "k_pvp_pending_death_wait"
+		local wait_key = PVP.pending_death_reader.wait_key(PVP.GAME.pending_death)
 		side_rows = {}
 		for _, line in ipairs({
 			{ "k_pvp_pending_death_result", 0.5 },
@@ -215,28 +222,16 @@ function PVP.UI.end_game_body(has_won)
 	})
 end
 
--- Builds the PvP win / game-over screen inside the shared MPAPI.end_screen shell. The
--- nemesis stats fetch is kicked off here -- jokers and decks need no fetch of their
--- own; PVP.UI.build_end_game_extras (called
--- from end_game_body, below) reads them straight out of PVP._collected_results,
--- which is already populated synchronously before this ever runs (see
--- action_win_game/action_lose_game's PVP.report_roster_result() call in
--- networking/action_handlers.lua). PvP hooks this via the create_UIBox_win/
--- game_over overrides below rather than calling the overlay directly, so it keeps
--- its own paused handling.
-function PVP.UI.prepare_nemesis_deck()
-	PVP.ACTIONS.request_nemesis_stats()
-end
-
+-- Builds the PvP win / game-over screen inside the shared MPAPI.end_screen shell. Jokers and decks
+-- are read from the view when shown (PVP.finish_screen). PvP hooks this via the create_UIBox_win/
+-- game_over overrides below rather than calling the overlay directly, so it keeps its own paused handling.
 function PVP.UI.create_UIBox_mp_game_end(has_won)
-	PVP.UI.prepare_nemesis_deck()
-
 	G.SETTINGS.paused = false
 
 	return MPAPI.end_screen_uibox({
 		won = has_won,
 		draw = PVP.GAME.draw,
-		title_key = PVP.GAME.contested and "k_pvp_contested_title"
+		title_key = PVP.GAME.end_shown == "by contest" and "k_pvp_contested_title"
 			or PVP.GAME.pending_death_screen and "k_pvp_pending_death_title"
 			or nil,
 		id = has_won and "you_win_UI" or nil,
@@ -245,14 +240,13 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 end
 
 -- Pure: which deck View Deck shows for a player. { own = true } for yourself;
--- { cards = <deck string> } for a player who is out (the cards came in their result,
--- pvp_api/actions/player_result.lua); nil while they are still playing, since they
--- have sent no result yet.
-function PVP.UI.deck_to_show(player_id, self_id, results)
+-- { cards = <deck string> } for a player whose end of game the view carries
+-- (PVP.finish_screen.deck_of answers it); nil while they are still playing or the deck is unknown.
+function PVP.UI.deck_to_show(player_id, self_id, deck_of)
 	if player_id == nil then return nil end
 	if player_id == self_id then return { own = true } end
-	local result = results and results[player_id]
-	if result and result.cards and result.cards ~= "" then return { cards = result.cards } end
+	local cards = deck_of(player_id)
+	if cards and cards ~= "" then return { cards = cards } end
 	return nil
 end
 
@@ -313,7 +307,7 @@ end
 
 -- The cards View Deck shows for a player, or nil (deck_to_show).
 function PVP.UI.player_deck(player_id)
-	local show = PVP.UI.deck_to_show(player_id, MPAPI.connection_state.player_id, PVP._collected_results)
+	local show = PVP.UI.deck_to_show(player_id, MPAPI.connection_state.player_id, PVP.finish_screen.deck_of)
 	if not show then return nil end
 	if show.own then return G.playing_cards end
 	-- Build them in a fresh off-screen area, dropping the last one shown.

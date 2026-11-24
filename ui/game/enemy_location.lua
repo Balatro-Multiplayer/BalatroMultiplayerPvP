@@ -85,7 +85,7 @@ end
 -- The opponent this location belongs to; before a target latches, the same
 -- gamemode name the blind shows (see ui/game/blind_hud.lua).
 local function opponent_name()
-	if PVP.is_announced_bye() then
+	if (PVP.my_boss() == "bye") then
 		return PVP.pvp_blind_opponent_name()
 	end
 	local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host

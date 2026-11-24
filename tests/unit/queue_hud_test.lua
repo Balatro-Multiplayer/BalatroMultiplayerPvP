@@ -740,6 +740,7 @@ do
 		}
 	end
 	PVP.match_log = noop
+	PVP.refusal_screen = { show = noop }
 	G.FUNCS = {}
 	dofile("pvp_api/queue.lua")
 	sendWarnMessage = noop
@@ -753,7 +754,7 @@ do
 	MPAPI.GameModes = { pvp_royale = { max_players = { public = 16 } } }
 	MPAPI.matchmaking.group = nil
 	PVP.reset_ruleset_to_gamemode_default = noop
-	PVP.setup_lobby_mirror, PVP.signal_ready, PVP.start_ready_resync = noop, noop, noop
+	PVP.setup_lobby_mirror = noop
 	PVP.pvp_lobby_metadata = noop
 	dofile("pvp_api/group_queue.lua")
 	handlers = {}

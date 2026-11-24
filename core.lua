@@ -147,12 +147,8 @@ PVP.ante_based = MPAPI.ante_based
 PVP.order_round_based = MPAPI.order_round_based
 PVP.sorted_hand_list = MPAPI.sorted_hand_list
 
--- Forward-declaration stub: PVP.reset_game_states() below calls PVP.UTILS.timer_base(),
--- which reads PVP.current_ruleset() -- but that call happens synchronously at this
--- file's own load time, before rulesets/_rulesets.lua (loaded later via
--- PVP.load_mp_dir("rulesets", true)) defines the real PVP.current_ruleset(). Without
--- this stub the early call crashes on a nil field. The real definition overwrites
--- this one once rulesets load; this one is never reached again after that.
+-- Stub until rulesets/_rulesets.lua (PVP.load_mp_dir("rulesets") below) defines PVP.current_ruleset:
+-- a ruleset read while the mod is still loading gets an empty ruleset instead of a nil call.
 function PVP.current_ruleset()
 	return {}
 end
@@ -209,14 +205,15 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
 		gold_on_life_loss = true,
-		no_gold_on_round_loss = false,
-		death_on_round_loss = true,
+		death_on_normal_blind_loss = true,
+		normal_bosses = false,
+		no_gold_on_pvp_loss = false,
 		different_seeds = false,
 		the_order = true,
 		starting_lives = 4,
-		pvp_start_round = 2,
+		pvp_start_ante = 2,
 		-- Manhunt only: each Hunter's individual life count (Runner is always
-		-- fixed at 1, not configurable -- see PVP.referee_reset).
+		-- fixed at 1, not configurable).
 		manhunt_hunter_lives = 7,
 		-- Private lobbies only: the host's Lobby Options switch for the "traps" modifier.
 		trap_cards = false,
@@ -245,36 +242,36 @@ PVP.reset_lobby_config()
 
 function PVP.reset_game_states()
 	PVP.match_log("debug", "Resetting game states")
-	-- §17.10: fresh per-match roster collection -- must not carry over from
-	-- whatever match (if any) this player was previously in.
-	PVP._collected_results = {}
-	-- Players who started the match (lib/match_players.lua); set by action_start_game.
+	-- Players who started the match (lib/match_players.lua); set by game_effects.start_game.
 	PVP._match_players = nil
+	-- This client's clock readings for the run: a new game or a Run load starts without them.
+	PVP._run_started_at = nil
+	PVP.magnet_request_at = nil
 	PVP.GAME = {
 		ready_blind = false,
 		ready_blind_text = localize("b_ready"),
-		processed_round_done = false,
+		-- Where the PvP blind's hands and score come from (pvp_blind_reader.lua).
+		hands_source = { kind = "game" },
+		-- "not yet", "by out" (out before any result), "by result" or "by contest": how the end screen came.
+		end_shown = "not yet",
 		lives = 0,
-		loaded_ante = 0,
-		loading_blinds = false,
-		comeback_bonus_given = true,
+		-- "none", "pending" (a comeback bonus waits for the next cash out) or "given".
+		comeback_payout = "none",
 		comeback_bonus = 0,
 		end_pvp = false,
 		enemy = {
 			score = PVP.Score.ZERO,
 			real_score = PVP.Score.ZERO,
 			score_text = PVP.Score.ZERO,
-			hands = 4,
-			hands_text = "4",
+			-- hands stays unset until the blind starts and the opponent's starting count is known.
+			hands_text = localize("k_pvp_hands_unknown"),
 			-- Whether an enemyInfo message has arrived this blind.
 			info_received = false,
 			location = localize("loc_selecting"),
 			-- " (catching up)" while the target is replaying its run after a crash, else "".
 			catching_up_text = "",
+			-- The opponent's lives are unknown (nil) until the view shows them.
 			skips = 0,
-			skips_before_pvp = 0,
-			lives = PVP.LOBBY.config.starting_lives,
-			sells = 0,
 			sells_per_ante = {},
 			spent_in_shop = {},
 			highest_score = PVP.Score.ZERO,
@@ -284,35 +281,20 @@ function PVP.reset_game_states()
 		ante_key = tostring(math.random()),
 		antes_keyed = {},
 		prevent_eval = false,
-		round_ended = false,
+		blind_ended = false,
 		duplicate_end = false,
 		misprint_display = "",
 		spent_total = 0,
-		skips_before_pvp = 0,
-		skips_difference = 0,
 		spent_before_shop = 0,
 		highest_score = PVP.Score.ZERO,
-		-- §17.10: PVP.GAME.highest_score above tracks the best SINGLE-BLIND
-		-- score of any kind (updated unconditionally in every play_hand,
-		-- including plain Small/Big/Boss blinds) -- not what the end-of-run
-		-- roster needs ("highest PvP-blind score"). Tracked separately here,
-		-- only updated while PVP.is_pvp_boss() is true.
+		-- Best score in a PvP blind only; highest_score above counts every blind.
 		highest_pvp_score = PVP.Score.ZERO,
-		timer = PVP.UTILS.timer_base(),
-		timer_started = false,
-		timer_threshold_pending = false,
-		timer_consumed = false,
-		pvp_reached = false,
 		pvp_countdown = 0,
-		real_money = 0,
-		ce_cache = false,
-		furthest_blind = 0,
 		pincher_index = -3,
 		pincher_unlock = false,
 		asteroids = 0,
 		pizza_discards = 0,
 		disable_live_and_timer_hud = false,
-		timers_forgiven = 0,
 		stats = {
 			reroll_count = 0,
 			reroll_cost_total = 0,
@@ -398,14 +380,10 @@ PVP.load_mp_dir("objects/vouchers")
 
 -- MultiplayerPvP runs on BalatroMultiplayerAPI. The API owns the connection,
 -- lobbies, matchmaking, leaderboards, and the main-menu host, so we no longer start
--- our own TCP socket thread or call PVP.ACTIONS.connect(). Instead we register with
+-- our own socket thread. Instead we register with
 -- the API once it signals ready; it then lists "PvP" in its account panel and swaps
 -- in our menu (PVP.build_pre_lobby_ui) when the player selects it.
 --
--- NOTE (skeleton milestone): the in-game PvP protocol in networking/action_handlers.lua
--- is still loaded but inert (no socket thread) — Phase 4 converts each action to an
--- MPAPI.ActionType. The menus here are placeholders — Phase 6 builds the real
--- Find Game / Leaderboard / Practice / Join / Create layout.
 MPAPI.on_loaded(function()
 	MPAPI.Page({
 		key = 'pvp_main_menu',
@@ -505,24 +483,16 @@ MPAPI.on_loaded(function()
 		title = "mp_pvp_title",
 	})
 
-	-- Load API-side content (bridge GameModes now; ActionTypes in Phase 4) here so
+	-- Load API-side content (bridge GameModes, ActionTypes) here so
 	-- their SMODS GameObjects are tagged to this mod — per-lobby routing requires it.
 	PVP.load_mp_dir("pvp_api", true)
 
-	-- Boot diagnostic: confirm the pvp_* ActionTypes actually registered.
-	local n = 0
-	for k in pairs(MPAPI.ActionTypes or {}) do
-		if tostring(k):match("^pvp_") then
-			n = n + 1
-		end
-	end
-	PVP.match_log(
-		"debug",
-		"[pvp] boot: pvp ActionTypes registered="
-			.. n
-			.. " pvp_player_ready="
-			.. tostring(MPAPI.ActionTypes and MPAPI.ActionTypes["pvp_player_ready"] ~= nil)
-	)
+	-- The match net is the only way the lobby talks to the server in PvP: its view, inputs and inbox.
+	PVP.match_net.register()
+	PVP.match_net.handlers = PVP.inbox_handlers.effects
+	PVP.entry_screen.install(PVP.match_net)
+	PVP.lobby_screen.install(PVP.match_net)
+	PVP.timer_screen.install(PVP.match_net)
 
 	MPAPI.on_connection_state_change(function()
 		if PVP.UI and PVP.UI.update_connection_status then

@@ -61,6 +61,7 @@ function PVP._wire_group_handle(handle, gamemode_key)
 			PVP._match_handle = nil
 		end
 		refresh()
+		PVP.refusal_screen.show(err)
 	end)
 
 	handle:on("queued", function()
@@ -80,9 +81,6 @@ function PVP._wire_group_handle(handle, gamemode_key)
 			PVP.lobby.ui_ref = nil
 			PVP.lobby.buttons_initialized = false
 		end
-		if PVP.stop_ready_resync then
-			PVP.stop_ready_resync()
-		end
 	end)
 
 	handle:on("lobby_ready", function(lobby)
@@ -91,10 +89,8 @@ function PVP._wire_group_handle(handle, gamemode_key)
 		PVP._match_handle = handle
 		PVP.setup_lobby_mirror(lobby)
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.CASUAL))
+			PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.CASUAL))
 		end
-		PVP.signal_ready(true)
-		PVP.start_ready_resync()
 		refresh()
 	end)
 

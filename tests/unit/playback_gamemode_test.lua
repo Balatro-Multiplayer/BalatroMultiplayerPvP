@@ -1,11 +1,11 @@
 -- Plain Lua test: a replay playback gets the same PvP blind a live match has (no game needed).
 -- A balanced match has no forced gamemode, and a playback has no lobby code, so the playback used to
 -- run with no gamemode at all: every PvP boss came out as a plain boss, a 1-chip rule or a normal
--- blind ended the round on the first hand, and the rest of its recorded plays found no cards.
+-- blind ended the blind on the first hand, and the rest of its recorded plays found no cards.
 -- Run from the repo root: luajit tests/unit/playback_gamemode_test.lua
 MPAPI = { Rulesets = {}, ReworkCenter = function() end, LoadReworks = function() end }
 PVP = {
-	LOBBY = { config = { pvp_start_round = 2 } },
+	LOBBY = { config = { pvp_start_ante = 2 } },
 	GAME = {},
 	SP = { practice = false },
 	PVP_GAMEMODES = { pvp_nemesis = { gamemode = "gamemode_mp_attrition" } },
@@ -46,12 +46,12 @@ check("a live lobby still reads its own config", (function()
 end)(), "gamemode_mp_other")
 
 -- The opponent is not known in a playback, which reads as a bye: the boss must still be the PvP one.
-PVP.is_byed = function() return true end
+PVP.my_boss = function() return "bye" end
+G = { GAME = { round_resets = { pvp_blind_choices = {}, blind_choices = { Boss = "bl_goad" } } } }
 local _, _, boss = gamemode.get_blinds_by_ante(gamemode, 2)
 check("a playback gets the PvP boss even with no partner", boss, "bl_mp_nemesis")
 PVP.SP.playback_gamemode = nil
-G = { GAME = { round_resets = { pvp_blind_choices = {} } } }
 _, _, boss = gamemode.get_blinds_by_ante(gamemode, 2)
-check("a real bye still plays a normal boss", boss, nil)
+check("a real bye still plays a normal boss", boss, "bl_goad")
 
 if failures > 0 then os.exit(1) end

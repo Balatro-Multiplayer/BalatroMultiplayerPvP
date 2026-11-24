@@ -4,6 +4,10 @@
 local hud, timer, saved, stable_popup
 local retired = {}
 local calls = { start = 0, pause = 0 }
+-- What the stubbed timer screen answers: the seconds shown, whose clock runs, whether I started it, and
+-- whether the button has an action.
+local fake = { seconds = 60, clock = "none", timing = false, can_act = false }
+local screen_names = { "seconds", "clock", "timing", "timed", "button", "press", "text" }
 
 local function copy(source)
 	local result = {}
@@ -32,8 +36,9 @@ local function cleanup()
 	if saved then
 		PVP.GAME = saved.game
 		PVP.LOBBY = saved.lobby
-		PVP.ACTIONS.start_ante_timer = saved.start
-		PVP.ACTIONS.pause_ante_timer = saved.pause
+		for _, name in ipairs(screen_names) do
+			PVP.timer_screen[name] = saved.screen[name]
+		end
 		saved = nil
 	end
 end
@@ -107,31 +112,40 @@ local can_pause = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" }
 
 return {
 	step(function(S)
-		assert(S.check(PVP and PVP.UI.timer_tooltip_state ~= nil, "tooltip implementation loaded"))
+		assert(S.check(PVP and PVP.timer_screen and PVP.timer_screen.tip ~= nil, "tooltip implementation loaded"))
 		assert(not PVP.LOBBY.code, "run this scenario from the main menu, outside a lobby")
 		assert(not PVP.is_pvp_boss(), "main menu has no active PvP boss")
 		saved = {
 			game = PVP.GAME,
 			lobby = PVP.LOBBY,
-			start = PVP.ACTIONS.start_ante_timer,
-			pause = PVP.ACTIONS.pause_ante_timer,
+			screen = {},
 		}
 		PVP.GAME = copy(saved.game)
 		PVP.LOBBY = copy(saved.lobby)
 		PVP.LOBBY.config = copy(saved.lobby.config)
 		PVP.LOBBY.config.timer = true
-		PVP.GAME.timer = 60
-		PVP.GAME.timer_started = false
-		PVP.GAME.nemesis_timer_started = false
 		PVP.GAME.pvp_countdown_in_progress = false
-		PVP.GAME.ready_blind = false
-		PVP.ACTIONS.start_ante_timer = function()
-			calls.start = calls.start + 1
-			PVP.GAME.timer_started = true
+		for _, name in ipairs(screen_names) do
+			saved.screen[name] = PVP.timer_screen[name]
 		end
-		PVP.ACTIONS.pause_ante_timer = function()
-			calls.pause = calls.pause + 1
-			PVP.GAME.timer_started = false
+		PVP.timer_screen.seconds = function() return fake.seconds end
+		PVP.timer_screen.clock = function() return fake.clock end
+		PVP.timer_screen.timing = function() return fake.timing end
+		PVP.timer_screen.timed = function() return fake.timing or fake.clock == "against me" end
+		PVP.timer_screen.button = function()
+			if not fake.can_act then return nil end
+			return fake.timing and "pause" or "start"
+		end
+		PVP.timer_screen.text = function() return "60.00" end
+		PVP.timer_screen.press = function()
+			local action = PVP.timer_screen.button()
+			if action == "start" then
+				calls.start = calls.start + 1
+				fake.timing = true
+			elseif action == "pause" then
+				calls.pause = calls.pause + 1
+				fake.timing = false
+			end
 		end
 		hud = UIBox({
 			definition = {
@@ -154,7 +168,7 @@ return {
 		S.check(timer.children.h_popup == stable_popup, "idle popup survives unchanged frames")
 		check_popup(S, "idle", idle)
 		remember_popup()
-		PVP.GAME.ready_blind = true
+		fake.can_act = true
 	end, 0.5),
 	step(function(S)
 		check_popup(S, "can_start", can_start)
@@ -172,20 +186,20 @@ return {
 	step(function(S)
 		check_popup(S, "can_start", can_start)
 		remember_popup()
-		PVP.GAME.ready_blind = false
-		PVP.GAME.timer_started = true
+		fake.can_act = false
+		fake.timing = true
 	end),
 	step(function(S)
 		check_popup(S, "running", { "k_timer_tip_running" })
 		remember_popup()
-		PVP.GAME.nemesis_timer_started = true
+		fake.clock = "against me"
 	end),
 	step(function(S)
 		check_popup(S, "nemesis_running", { "k_timer_tip_nemesis_running_1", "k_timer_tip_nemesis_running_2" })
 		timer:click()
 		S.check(calls.start == 1 and calls.pause == 1, "opponent-started timer cannot be toggled")
 		remember_popup()
-		PVP.GAME.timer = 0
+		fake.seconds = 0
 	end),
 	step(function(S)
 		check_popup(S, "expired", { "k_timer_tip_expired" })
@@ -196,9 +210,9 @@ return {
 		timer:stop_hover()
 		S.check(timer.children.h_popup == nil, "leaving timer removes popup")
 		S.check(timer.config.h_popup == nil, "leaving timer clears popup definition")
-		PVP.GAME.timer = 60
-		PVP.GAME.timer_started = false
-		PVP.GAME.nemesis_timer_started = false
+		fake.seconds = 60
+		fake.timing = false
+		fake.clock = "none"
 	end),
 	step(function(S)
 		S.check(timer.children.h_popup == nil, "unhovered state change does not open popup")
@@ -209,10 +223,7 @@ return {
 		local original = saved
 		cleanup()
 		S.check(PVP.GAME == original.game and PVP.LOBBY == original.lobby, "original state restored")
-		S.check(
-			PVP.ACTIONS.start_ante_timer == original.start and PVP.ACTIONS.pause_ante_timer == original.pause,
-			"original actions restored"
-		)
+		S.check(PVP.timer_screen.press ~= nil and PVP.timer_screen.tip ~= nil, "timer screen restored")
 		for _, popup in ipairs(retired) do
 			S.check(not registered(popup), "cleanup leaves no scenario popup")
 		end

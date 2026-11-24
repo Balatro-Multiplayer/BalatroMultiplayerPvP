@@ -12,10 +12,10 @@
 PVP.VERIFIED_DEFAULTS = {
 	ruleset = "ruleset_mp_expanded",
 	starting_lives = 4,
-	pvp_start_round = 2,
+	pvp_start_ante = 2,
 	gold_on_life_loss = true,
-	no_gold_on_round_loss = false,
-	death_on_round_loss = true,
+	no_gold_on_pvp_loss = false,
+	death_on_normal_blind_loss = true,
 	the_order = true,
 	normal_bosses = false,
 	preview_disabled = false,
@@ -44,6 +44,12 @@ local function normalized(key, value)
 	return value
 end
 
+-- My own player id from the current lobby; nil outside one.
+function PVP.own_player_id()
+	local lobby = MPAPI.get_current_lobby()
+	return lobby and lobby.player_id or nil
+end
+
 -- Whether a lobby player (an MPAPI player_data) is verified.
 function PVP.player_is_verified(player)
 	if not player then
@@ -53,7 +59,7 @@ function PVP.player_is_verified(player)
 		return true
 	end
 	-- The local account's own launcher verdict may land before its standing echoes back.
-	local is_self = PVP.self_player_id and player.id == PVP.self_player_id()
+	local is_self = player.id ~= nil and player.id == PVP.own_player_id()
 	return is_self and MPAPI.is_launcher_verified() == true or false
 end
 
@@ -110,7 +116,7 @@ function PVP.refresh_verified_lobby(lobby)
 	end
 	local now = PVP.compute_verified_lobby(lobby)
 	if now ~= (PVP.LOBBY.config.verified_lobby == true) then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+		PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
 	end
 end
 

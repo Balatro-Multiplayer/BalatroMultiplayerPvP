@@ -202,7 +202,7 @@ end
 -- ── Create Lobby overlay ─────────────────────────────────────────────────────
 -- Gamemode (shape) picker, same grid-of-buttons style as the Practice overlay
 -- below. Nemesis IS the 1v1 shape (its rotating pairing degenerates identically
--- to plain pairwise at exactly 2 players, see referee.lua) so there's no separate
+-- to plain pairwise at exactly 2 players) so there's no separate
 -- "1v1" option. Ruleset (default Balanced) is picked afterward, once inside the
 -- lobby, via Lobby Options (ui/lobby/lobby_options.lua) -- not here.
 -- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below.

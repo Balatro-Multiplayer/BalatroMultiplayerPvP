@@ -15,7 +15,7 @@ function PVP.lobby.create_buttons()
 		scale = 0.7,
 		enabled = function()
 			local lobby = L.ref
-			if not lobby or not lobby.is_host then
+			if not lobby or not lobby.is_host or not PVP.lobby_screen.start_askable() then
 				return false
 			end
 			local players = lobby:get_players()
@@ -51,7 +51,9 @@ function PVP.lobby.create_buttons()
 		label = { localize("b_ready_cap") },
 		scale = 0.7,
 		col = true,
-		enabled = true,
+		enabled = function()
+			return PVP.lobby_screen.ready_state() ~= "waiting"
+		end,
 	}
 	b.ready = MPAPI.disableable_button(b.ready_args)
 	b.lobby_options = MPAPI.disableable_button({
@@ -104,4 +106,5 @@ function PVP.lobby.create_buttons()
 	})
 
 	L.buttons_initialized = true
+	PVP.lobby_screen.refresh_buttons()
 end

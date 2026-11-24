@@ -14,17 +14,15 @@ local function check(name, got, want)
 	end
 end
 
-check("ranked 2 players", C.should_offer("ranked", 2, true), true)
-check("casual 2 players", C.should_offer("casual", 2, true), true)
-check("private lobby keeps the plain forfeit", C.should_offer("private", 2, true), false)
+check("ranked 2 players", C.should_offer("ranked", 2), true)
+check("casual 2 players", C.should_offer("casual", 2), true)
+check("private lobby keeps the plain forfeit", C.should_offer("private", 2), false)
 check("practice keeps the plain forfeit", C.should_offer("practice", 1, false), false)
-check("no kind known", C.should_offer(nil, 2, true), false)
-check("3 players offer a contest", C.should_offer("casual", 3, true), true)
-check("ranked 4 players", C.should_offer("ranked", 4, true), true)
-check("private 3 players keep the plain forfeit", C.should_offer("private", 3, true), false)
-check("3 players, no server referee", C.should_offer("casual", 3, false), false)
-check("1 player", C.should_offer("ranked", 1, true), false)
-check("no server referee", C.should_offer("ranked", 2, false), false)
+check("no kind known", C.should_offer(nil, 2), false)
+check("3 players offer a contest", C.should_offer("casual", 3), true)
+check("ranked 4 players", C.should_offer("ranked", 4), true)
+check("private 3 players keep the plain forfeit", C.should_offer("private", 3), false)
+check("1 player", C.should_offer("ranked", 1), false)
 
 local players = {
 	{ id = "me", displayName = "Me" },
@@ -39,11 +37,13 @@ local function ids(list)
 	end
 	return table.concat(out, ",")
 end
-check("opponents leave out me", ids(C.opponents(players, "me", nil)), "a,b,c")
-check("opponents leave out the dead", ids(C.opponents(players, "me", { b = 0 })), "a,c")
-check("opponents keep the unknown", ids(C.opponents(players, "me", { a = 3 })), "a,b,c")
-check("opponents of nobody", ids(C.opponents(nil, "me", nil)), "")
-check("opponent without a name shows its id", C.opponents({ { id = "x" } }, "me", nil)[1].displayName, "x")
+check("opponents leave out me", ids(C.opponents(players, "me")), "a,b,c")
+check("opponents of nobody", ids(C.opponents(nil, "me")), "")
+local seen = { players = { a = { status = "out" }, b = { status = "playing" }, c = { status = "away" } } }
+check("opponents leave out a player who is out", ids(C.opponents(players, "me", seen)), "b,c")
+check("a player the view does not list stays", ids(C.opponents(players, "me", { players = { a = { status = "out" } } })), "b,c")
+check("a view with no players leaves everyone", ids(C.opponents(players, "me", {})), "a,b,c")
+check("opponent without a name shows its id", C.opponents({ { id = "x" } }, "me")[1].displayName, "x")
 
 check("2 players: everyone sees it", C.scope(2, "me", "me"), C.Scope.EVERYONE)
 check("2 players: the other sees it", C.scope(2, "a", "me"), C.Scope.EVERYONE)

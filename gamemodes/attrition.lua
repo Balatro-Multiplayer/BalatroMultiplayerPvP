@@ -1,24 +1,29 @@
 PVP.Gamemode({
 	key = "attrition",
 	get_blinds_by_ante = function(self, ante)
-		if ante >= PVP.LOBBY.config.pvp_start_round then
-			-- PVP.current_target_id() is always non-nil for 1v1 (sole opponent). For
-			-- Nemesis (rotating pairing), nil means byed this ante -- fall through to a
-			-- normal boss instead of the nemesis one, the entire bye mechanism. Royale
-			-- has no bye/sit-out concept (referee.lua's rank-and-cut ranks every alive
-			-- player every PvP round), and PVP.GAME.royale_target_id only ever latches as
-			-- a side effect of a multiplayer joker/consumable interaction (Asteroid/
-			-- Taxes/Penny Pincher) -- which can't happen before the first PvP blind ever
-			-- runs. Treating an unresolved Royale target as a bye would mean a match with
-			-- no multiplayer jokers owned/used never reaches a PvP blind at all, so only
-			-- Nemesis-pairing's real bye gates on it.
-			-- A playback has no opponent, which reads as a bye. The recorded run had a partner.
-			local byed = PVP.is_byed() and not PVP.SP.playback_gamemode
-			if not PVP.LOBBY.config.normal_bosses and not byed then
-				return nil, nil, "bl_mp_nemesis"
-			else
-				G.GAME.round_resets.pvp_blind_choices.Boss = true
+		if ante >= PVP.LOBBY.config.pvp_start_ante then
+			local resets = G.GAME.round_resets
+			-- The only place the Boss slot is decided; target_screen asks again until the Boss is
+			-- played. A bye the view has announced keeps the rolled normal boss but is still a blind
+			-- Boss: it gets Ready, waits for everyone, and is played and reported as the blind. Until
+			-- the view says either way the Boss is undecided: it cannot be picked. A playback has no
+			-- view, and the recorded run had a partner.
+			if resets.blind_choices.Boss ~= "bl_mp_nemesis" then
+				resets.pvp_normal_boss = resets.blind_choices.Boss
 			end
+			local boss = "plays"
+			if not PVP.SP.playback_gamemode then boss = PVP.my_boss() end
+			if boss == "bye" then
+				resets.pvp_boss = "decided"
+				resets.pvp_blind_choices.Boss = true
+				return nil, nil, resets.pvp_normal_boss
+			end
+			if not PVP.LOBBY.config.normal_bosses then
+				resets.pvp_boss = boss == "unknown" and "undecided" or "decided"
+				return nil, nil, "bl_mp_nemesis"
+			end
+			resets.pvp_boss = "decided"
+			resets.pvp_blind_choices.Boss = true
 		end
 		return nil, nil, nil
 	end,

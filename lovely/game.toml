@@ -19,8 +19,8 @@ pattern = '''dollars = dollars + G.GAME.interest_amount*math.min(math.floor(G.GA
     end'''
 position = 'after'
 payload = '''
-  if PVP.in_session() and not PVP.GAME.comeback_bonus_given then
-		PVP.GAME.comeback_bonus_given = true
+  if PVP.in_session() and PVP.GAME.comeback_payout == "pending" then
+		PVP.GAME.comeback_payout = "given"
 		local comeback_bonus
 
 		if PVP.LOBBY.config.ruleset == "ruleset_mp_sandbox" then
@@ -104,8 +104,8 @@ times = 1
 target = "functions/common_events.lua"
 pattern = '''G.GAME.current_round.hands_left = G.GAME.current_round.hands_left + mod'''
 position = 'after'
-payload = '''if PVP.LOBBY.code and PVP.is_pvp_boss() and mod > 0 then
-		PVP.ACTIONS.play_hand(G.GAME.chips, G.GAME.current_round.hands_left)
+payload = '''if PVP.LOBBY.code then
+		PVP.pvp_blind_screen.hands_gained(mod)
 	end'''
 match_indent = true
 times = 1
@@ -115,11 +115,11 @@ times = 1
 target = "functions/button_callbacks.lua"
 pattern = '''G.FUNCS.toggle_shop = function(e)'''
 position = 'after'
-# §18.2: tell the opponent how much we spent this shop visit -- any of their
-# cards watching for opponent_spent_in_shop (e.g. Penny Pincher) reacts via
-# their own calculate.
+# The dollars spent this shop visit go to the server as the shop's total; Penny Pincher
+# reads the opponent's from the view. My jokers go up too, for the end screens of the others.
 payload = '''if PVP.LOBBY.code then
-  MPAPI.broadcast_opponent_context({ opponent_spent_in_shop = to_number(to_big(PVP.GAME.spent_total) - to_big(PVP.GAME.spent_before_shop)) })
+  PVP.run_screen.shop_closed(to_number(to_big(PVP.GAME.spent_total) - to_big(PVP.GAME.spent_before_shop)))
+  PVP.finish_screen.send_jokers()
 end'''
 match_indent = true
 times = 1

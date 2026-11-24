@@ -1,57 +1,12 @@
--- What the opponent did in their shop, recorded once and read by Taxes and
--- Penny Pincher. Pure: plain tables in, plain tables out, no game globals.
--- The recording used to sit inside the jokers' calculate, so it depended on
--- holding a copy (and ran once per copy, per Blueprint, and never when debuffed).
+-- What Taxes and Penny Pincher read of the opponent's run (sells per ante, dollars spent per shop,
+-- from the view; run_screen.lua writes them). Pure: plain tables in, plain numbers out, no game globals.
 PVP.OPPONENT_RECORD = {}
--- A shop spend is bounded by the player's money, far below this. A larger finite
--- spend counts as this much.
-PVP.OPPONENT_RECORD.MAX_SPEND = 1e6
 
-local function copy_list(t)
-	local out = {}
-	for k, v in pairs(t or {}) do
-		out[k] = v
-	end
-	return out
-end
-
--- `record` is { sells, sells_per_ante, spent_in_shop }. Returns a new record
--- with the event applied; the input is left alone. Events from anyone but the
--- current target, or while byed, change nothing.
-function PVP.OPPONENT_RECORD.apply(record, context, ante, target_id, byed)
-	local out = {
-		sells = (record and record.sells) or 0,
-		sells_per_ante = copy_list(record and record.sells_per_ante),
-		spent_in_shop = copy_list(record and record.spent_in_shop),
-	}
-	if byed or not context then
-		return out
-	end
-	if target_id and context.from ~= target_id then
-		return out
-	end
-	if context.opponent_selling_card then
-		out.sells = out.sells + 1
-		out.sells_per_ante[ante] = (out.sells_per_ante[ante] or 0) + 1
-	end
-	if context.opponent_spent_in_shop ~= nil then
-		-- The amount comes from a peer. A finite number above MAX_SPEND counts as MAX_SPEND;
-		-- anything not a finite number from 0 up is recorded as 0 so the shop index stays aligned.
-		local spent = tonumber(context.opponent_spent_in_shop)
-		if not spent or spent ~= spent or spent < 0 or spent == math.huge then
-			spent = 0
-		elseif spent > PVP.OPPONENT_RECORD.MAX_SPEND then
-			spent = PVP.OPPONENT_RECORD.MAX_SPEND
-		end
-		out.spent_in_shop[#out.spent_in_shop + 1] = spent
-	end
-	return out
-end
-
--- Taxes: sells this ante, plus every earlier ante until PvP has been reached.
-function PVP.OPPONENT_RECORD.taxes_mult_gain(sells_per_ante, ante, pvp_start_round, mult_gain)
+-- Taxes: sells this ante, plus every earlier ante until PvP has been reached. No sells known, no gain.
+function PVP.OPPONENT_RECORD.taxes_mult_gain(sells_per_ante, ante, pvp_start_ante, mult_gain)
+	if not sells_per_ante then return 0 end
 	local sells = sells_per_ante[ante] or 0
-	if ante <= pvp_start_round then
+	if ante <= pvp_start_ante then
 		for i = 1, ante - 1 do
 			sells = sells + (sells_per_ante[i] or 0)
 		end
@@ -61,7 +16,7 @@ end
 
 -- Penny Pincher: dollars for the shop at `index`, or 0 if there is none.
 function PVP.OPPONENT_RECORD.pincher_payout(spent_in_shop, index, divisor, dollars)
-	local spent = spent_in_shop[index]
+	local spent = spent_in_shop and spent_in_shop[index]
 	if not spent then
 		return 0
 	end

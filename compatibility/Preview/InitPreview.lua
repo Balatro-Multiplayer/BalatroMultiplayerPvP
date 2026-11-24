@@ -51,11 +51,9 @@ function FN.PRE.start_new_coroutine()
                 and FN.PRE.data and not FN.PRE.data.empty
                 and PVP.LOBBY.code and not PVP.is_pvp_boss()
                 and PVP.LOBBY.config.timer
-                and not PVP.GAME.timer_started
-                and not PVP.GAME.nemesis_timer_started
-                and not PVP.GAME.timer_consumed
+                and not PVP.timer_screen.timed()
             then
-                PVP.UI.consume_timer(timer_cost, nil, math.max(10, timer_cost))
+                PVP.timer_screen.spend()
             end
             return true
         end

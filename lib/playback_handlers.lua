@@ -60,20 +60,11 @@ local function highlight_hand_indices(indices)
 	end
 end
 
--- Non-POV projection: NOT via MPAPI.calculate_blind -- that dispatches to the
--- blind's `calculate` (the SEND decision on the ACTING player's own client,
--- see objects/blinds/nemesis.lua and api/synced/core.lua), which only takes
--- effect by broadcasting over a live sync bus to a connected opponent. A
--- playback/spectate session has no such live opponent, so that call would be
--- a silent no-op here -- confirmed by reading api/synced/core.lua's
--- perform_send/broadcast_raw, which both bail out with no lobby. What a live
--- match's RECEIVING client actually applies to PVP.GAME.enemy.* is the
--- blind's `receive` (nemesis.lua), so this mirrors receive's own core score/
--- hands assignment directly instead. Deliberately omits receive's skips/lives
--- fields and side effects (sounds, timer-stop logic): the `hand_result`
--- opcode's own recorded args never carried skips/lives (see net.lua's
--- RLOG.record call), so writing them here from absent data would incorrectly
--- null out values `skip_blind`'s own handler (below) is responsible for.
+-- Non-POV projection: NOT via MPAPI.calculate_blind -- a playback/spectate session has no live
+-- opponent, so that call would be a silent no-op here (api/synced/core.lua's perform_send and
+-- broadcast_raw bail out with no lobby). The score and hands are written directly. It leaves out
+-- skips and lives: the `hand_result` opcode's recorded args never carried them, so writing them
+-- here from absent data would null out values `skip_blind`'s own handler (below) is responsible for.
 local function project_enemy_hand_result(args)
 	local score_str, hands_left = args and args[1], args and args[2]
 	if not score_str or not hands_left then
@@ -213,9 +204,11 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, c
 			G.FUNCS.skip_blind({ UIBox = MPAPI.playback.current_blind_panel() })
 		end)
 	else
-		-- Direct projection, same reasoning as project_enemy_hand_result above
-		-- -- MPAPI.calculate_blind would be a silent no-op here.
-		PVP.GAME.enemy.skips = (PVP.GAME.enemy.skips or 0) + 1
+		-- Direct projection, same reasoning as project_enemy_hand_result above. A replay has no view to
+		-- show the opponent's skips; with a live view the view owns them.
+		if not (PVP.match_net and PVP.match_net.view) then
+			PVP.GAME.enemy.skips = (PVP.GAME.enemy.skips or 0) + 1
+		end
 	end
 end)
 
@@ -281,8 +274,6 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
 			card:sell_card()
 			SMODS.calculate_context({ selling_card = true, card = card })
 		end
-	else
-		PVP.GAME.enemy.sells = (PVP.GAME.enemy.sells or 0) + 1
 	end
 end)
 
@@ -432,10 +423,10 @@ end)
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx)
 	if ctx.is_pov then
 		-- Pay what the live player was paid: playback runs as practice, with no
-		-- referee life loss, so its own round eval misses the comeback bonus
-		-- (and pays a blind no_gold_on_round_loss withheld). Recordings from
+		-- life loss, so its own blind evaluation misses the comeback bonus
+		-- (and pays a blind no_gold_on_pvp_loss withheld). Recordings from
 		-- before round_dollars existed keep the replay's own total. Set at the click,
-		-- once the round evaluation has run: it writes the same field.
+		-- once the blind's evaluation has run: it writes the same field.
 		local recorded = recorded_round_dollars
 		recorded_round_dollars = nil
 		MPAPI.playback.cash_out_when_ready(ctx, PVP._playback_wait_for, function()
@@ -453,5 +444,5 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_PIZZA, function(_args, _
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.NET_MAGNET, function(_args, _ctx) end)
 
 -- life_lost {lost, lives}: bookkeeping for the server's achievements (Mr Bones).
--- The lives themselves replay through the referee's own events.
+-- The lives themselves replay through the server's own events.
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.LIFE_LOST, function(_args, _ctx) end)
