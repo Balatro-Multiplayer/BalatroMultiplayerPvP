@@ -8,7 +8,8 @@ local BUILT_IN = {
 
 -- The recipe the server last answered with (set by admins on the website).
 -- nil: none set, or none heard yet, so the built-in one applies.
--- { name, random = true }: three decks rolled for every game instead.
+-- { name, random = true }: every Cocktail tile on the Draft board gets its own
+-- three decks. With same_every_tile, every tile shares one roll per game.
 local server_recipe = nil
 
 -- What a random Cocktail draws from: the vanilla and PvP decks, the ones the
@@ -40,7 +41,9 @@ end
 -- still checks every deck against this game when the lobby carries it.
 local function wire_recipe(value)
 	if type(value) ~= "table" or type(value.name) ~= "string" then return nil end
-	if value.random == true then return { name = value.name, random = true } end
+	if value.random == true then
+		return { name = value.name, random = true, same_every_tile = value.sameEveryTile == true }
+	end
 	if type(value.decks) ~= "table" or #value.decks < 1 then return nil end
 	for _, key in ipairs(value.decks) do
 		if type(key) ~= "string" then return nil end
@@ -83,6 +86,17 @@ function PVP.MatchmakingPolicy.cocktail_recipe(kind)
 	if kind ~= PVP.LobbyAccess.RANKED and kind ~= PVP.LobbyAccess.CASUAL then return nil end
 	if server_recipe and server_recipe.random then return copy(lobby_roll().recipe) end
 	return copy(server_recipe or BUILT_IN)
+end
+
+-- The host, building the Draft board: the mix for one Cocktail tile. Each tile
+-- rolls its own when the website asks for a random Cocktail; nil when every
+-- tile plays the lobby's recipe (a fixed one, or random "same every tile").
+-- The mix travels with the tile (its `cocktail_mix`), so every player sees and
+-- plays the same one.
+function PVP.MatchmakingPolicy.tile_cocktail(kind)
+	if kind ~= PVP.LobbyAccess.RANKED and kind ~= PVP.LobbyAccess.CASUAL then return nil end
+	if not (server_recipe and server_recipe.random) or server_recipe.same_every_tile then return nil end
+	return roll_random(server_recipe.name)
 end
 
 -- The host, before each Ranked or Casual game: a random Cocktail rolls again

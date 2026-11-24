@@ -329,6 +329,97 @@ check(#sent == 1 and sent[1].start, "a matchmade lobby keeps the recipe it queue
 leave()
 
 print()
+print("-- a random Cocktail: one mix per Draft tile --")
+Policy._set_server_recipe({ name = "Mystery Cocktail", random = true })
+PVP.LOBBY.code = "TILES1"
+local tile_rolls, tiles_differ = {}, false
+for i = 1, 12 do
+	tile_rolls[i] = Policy.tile_cocktail(A.RANKED)
+	check(valid(tile_rolls[i]), "each tile rolls three different known decks")
+	if i > 1 and not same(tile_rolls[i], tile_rolls[1]) then tiles_differ = true end
+end
+check(tiles_differ, "tiles roll different mixes")
+check(Policy.tile_cocktail(A.PRIVATE) == nil, "a private lobby's tiles keep the host's Cocktail")
+Policy._set_server_recipe({ name = "Mystery Cocktail", random = true, sameEveryTile = true })
+check(Policy.tile_cocktail(A.RANKED) == nil, "same every tile: tiles play the lobby's one roll")
+Policy._set_server_recipe({ name = "Fixed", decks = { "b_red" } })
+check(Policy.tile_cocktail(A.CASUAL) == nil, "a fixed recipe: tiles play it")
+
+-- The host's Draft board: Cocktail tiles carry their own mix, other tiles none.
+Policy._set_server_recipe({ name = "Mystery Cocktail", random = true })
+PVP._pvp_kind = A.RANKED
+local real_draft = PVP.DRAFT
+PVP.DRAFT = {
+	build = function()
+		return {
+			{ id = "b_red@1", key = "b_red", stake = 1 },
+			{ id = "b_mp_cocktail@1", key = "b_mp_cocktail", stake = 1 },
+			{ id = "b_mp_cocktail@3", key = "b_mp_cocktail", stake = 3 },
+		}
+	end,
+	tile_order = noop,
+}
+PVP.SETUP = { Step = { DRAFT = "draft" }, apply_results = noop }
+local config = PVP._ban_pick_config_for({ ban_pick = { pool_size = 9 } }, "ruleset_mp_expanded")
+local board = config.build_pool()
+check(board[1].cocktail_mix == nil, "a plain deck carries no mix")
+check(valid(board[2].cocktail_mix) and valid(board[3].cocktail_mix), "both Cocktail tiles carry a mix of their own")
+PVP.DRAFT = real_draft
+
+-- Every client's tile: the hover reads the tile's mix, also from its stake chip.
+local card = {}
+config.decorate_tile(card, { id = "b_mp_cocktail@1", key = "b_mp_cocktail", cocktail_mix = { name = "Mystery Cocktail", decks = { "b_red", "b_blue" } } })
+check(card.mp_cocktail_mix and card.mp_cocktail_mix.decks[2] == "b_blue", "the tile keeps its mix")
+join({ cocktail_recipe = { name = "Lobby", decks = { "b_abandoned" } } })
+G.CONTROLLER = { hovering = { target = card } }
+check(localize({ type = "name_text", set = "Back", key = "b_mp_cocktail" }) == "Mystery Cocktail", "hovering the tile names its mix")
+nodes = description()
+check(nodes[1] == "Red Deck" and nodes[2] == "Blue Deck" and nodes[3] == "", "and describes its own decks")
+G.CONTROLLER = { hovering = { target = { role = { major = card } } } }
+check(description()[1] == "Red Deck", "its stake chip shows the same mix")
+G.CONTROLLER = { hovering = { target = {} } }
+check(description()[1] == "Abandoned Deck", "anything else shows the lobby's recipe")
+G.CONTROLLER = nil
+local plain = {}
+config.decorate_tile(plain, { id = "b_red@1", key = "b_red" })
+check(plain.mp_cocktail_mix == nil, "a plain tile has no mix")
+
+-- Picking a Cocktail tile plays its mix; the host stamps it into the lobby.
+local stamped, dispatched = {}, nil
+local picked_mix = { name = "Mystery Cocktail", decks = { "b_yellow", "b_green", "b_red" } }
+local game_lobby = {
+	is_host = true,
+	get_metadata = function() return { queue_mode = "pvp_nemesis" } end,
+	set_metadata = function(_, patch) stamped[#stamped + 1] = patch end,
+	get_players = function() return { {}, {} } end,
+}
+MPAPI.get_current_lobby = function() return game_lobby end
+MPAPI.has_server_referee = function() return true end
+MPAPI.GameModes = { pvp_nemesis = {} }
+PVP.is_matchmaking = function() return true end
+PVP.SETUP = {
+	Step = { DRAFT = "draft" },
+	plan = function() return { votes = false, draft = true } end,
+	begin = function(_, _, _, done) done({ key = "b_mp_cocktail", stake = 2, cocktail_mix = picked_mix }) end,
+	apply_results = noop,
+}
+PVP.referee_reset = noop
+PVP.dispatch_action = function(name, params) dispatched = { name = name, params = params } end
+PVP.LOBBY.code = "TILES2"
+PVP.LOBBY.deck.cocktail = ""
+PVP.on_game_start({ seed = "S" })
+local playing = PVP.cocktail_recipe()
+check(playing and table.concat(playing.decks, ",") == "b_yellow,b_green,b_red", "the picked tile's mix is the one played")
+local stamp
+for _, patch in ipairs(stamped) do
+	if patch.cocktail_recipe then stamp = patch.cocktail_recipe end
+end
+check(stamp and table.concat(stamp.decks, ",") == "b_yellow,b_green,b_red", "the host stamps it into the lobby")
+check(dispatched and dispatched.name == "startGame" and dispatched.params.stake == 2, "and the run starts on the tile's stake")
+Policy._set_server_recipe(nil)
+leave()
+
+print()
 if failures == 0 then
 	print("ALL PASS")
 else

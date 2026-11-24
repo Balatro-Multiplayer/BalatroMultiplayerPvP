@@ -127,11 +127,19 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 		keep = bp.keep,
 		schedule = bp.schedule,
 		build_pool = function()
-			return PVP.DRAFT.build({
+			local board = PVP.DRAFT.build({
 				ruleset = ruleset,
 				size = bp.pool_size,
 				max_stake = PVP.DECK and PVP.DECK.MAX_STAKE,
 			})
+			-- A random Cocktail: each Cocktail tile carries its own mix
+			-- (lib/matchmaking_policy.lua).
+			for _, tile in ipairs(board) do
+				if tile.key == "b_mp_cocktail" then
+					tile.cocktail_mix = PVP.MatchmakingPolicy.tile_cocktail(PVP._pvp_kind)
+				end
+			end
+			return board
 		end,
 		-- The server shuffles the pool; show it lowest stake first, then by deck.
 		tile_order = PVP.DRAFT.tile_order,
@@ -140,6 +148,8 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 		-- to read at this tile size). The chip is its own object: hovering it shows what the stake
 		-- does, and clicking it selects the deck. The deck's own tooltip still names the stake.
 		decorate_tile = function(card, item)
+			-- Its hover shows its own Cocktail mix (objects/decks/ZZ_cocktail.lua).
+			card.mp_cocktail_mix = type(item) == "table" and type(item.cocktail_mix) == "table" and item.cocktail_mix or nil
 			local stake_index = type(item) == "table" and tonumber(item.stake)
 			local stake = stake_index and G.P_CENTER_POOLS.Stake[stake_index]
 			if not stake then
@@ -246,6 +256,14 @@ function PVP.on_game_start(params)
 			deck_ref, stake = picked.key, picked.stake
 		else
 			deck_ref = picked
+		end
+		-- A Cocktail tile with its own mix: everyone plays that mix, and the host
+		-- stamps it into the lobby so a Reseed or a rejoin keeps it.
+		if type(picked) == "table" and type(picked.cocktail_mix) == "table" then
+			if not PVP.receive_cocktail_recipe(picked.cocktail_mix) then return end
+			if lobby and lobby.is_host then
+				lobby:set_metadata({ cocktail_recipe = PVP.cocktail_recipe() })
+			end
 		end
 		if deck_ref then
 			-- Draft survivors are center KEYS (e.g. 'b_red'); PVP's run start wants a deck

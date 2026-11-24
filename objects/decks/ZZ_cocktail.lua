@@ -682,12 +682,24 @@ function PVP.cocktail_get_forced_num()
 	return c
 end
 
+-- The mix of the Draft tile being hovered (its stake chip hovers for it), if
+-- it has one of its own (pvp_api/actions/run_lifecycle.lua decorate_tile).
+local function hovered_tile_mix()
+	local hovering = G.CONTROLLER and G.CONTROLLER.hovering
+	local target = hovering and hovering.target
+	if not target then return nil end
+	if target.mp_cocktail_mix then return target.mp_cocktail_mix end
+	local major = target.role and target.role.major
+	return major and major.mp_cocktail_mix or nil
+end
+
 local localize_ref = localize
 function localize(args, misc_cat)
 	if args and type(args) == "table" and args.key then
 		local key = args.key or args.node and args.node.config.center.key or "NULL"
 		-- A lobby's Cocktail: its own name, and its decks' names as the description.
-		local recipe = key == "b_mp_cocktail" and PVP.cocktail_recipe()
+		-- A Draft tile with its own mix shows that one.
+		local recipe = key == "b_mp_cocktail" and (hovered_tile_mix() or PVP.cocktail_recipe())
 		if recipe and args.type == "name_text" and recipe.name then return recipe.name end
 		if recipe and args.type == "descriptions" then
 			local mix = {}
