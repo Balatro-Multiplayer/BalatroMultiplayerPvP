@@ -19,6 +19,8 @@
 -- MPAPI.playback.build_timeline's first event already carries for whichever
 -- player is chosen as POV.
 function PVP._start_playback(manifest, on_ready)
+	-- The playback driver multiplies the player's speed; make sure it is a real one.
+	PVP.enforce_gamespeed()
 	-- Guard against being invoked while still connected to a real lobby --
 	-- confirmed live to hang the whole instance: creating a local lobby
 	-- (below) while the real lobby's own leave/teardown is still an

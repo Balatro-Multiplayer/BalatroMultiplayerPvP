@@ -362,6 +362,7 @@ local function action_start_game(p)
 	end
 	if PVP.lobby and PVP.lobby.draw_votes then
 		PVP.lobby.draw_votes:reset()
+		PVP._draw_vote_times = {}
 	end
 	local stake = tonumber(p.stake)
 	PVP.ACTIONS.set_ante(0)
