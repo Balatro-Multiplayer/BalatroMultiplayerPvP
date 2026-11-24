@@ -115,6 +115,8 @@ love = {
 }
 PVP.match_log, sendWarnMessage = noop, noop
 -- The simulator's search runs through the real queue handlers.
+-- Queueing asks the server for the Cocktail (lib/matchmaking_policy.lua).
+PVP.MatchmakingPolicy = { refresh_cocktail = function() end }
 dofile("pvp_api/queue.lua")
 local real_cancel = G.FUNCS.mp_pvp_cancel_queue
 local loads = 0

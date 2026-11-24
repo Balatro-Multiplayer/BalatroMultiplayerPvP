@@ -194,6 +194,8 @@ PVP._pvp_action_helpers = setmetatable({}, {
 	end,
 })
 dofile("pvp_api/actions/run_lifecycle.lua")
+-- Cocktail tiles ask for their own mix (lib/matchmaking_policy.lua): none here.
+PVP.MatchmakingPolicy = { tile_cocktail = noop }
 
 local function pool_stakes_and_decks(ruleset, pool_size)
 	local config = PVP._ban_pick_config_for({ ban_pick = { pool_size = pool_size or 9, keep = 1, schedule = {} } }, ruleset)
