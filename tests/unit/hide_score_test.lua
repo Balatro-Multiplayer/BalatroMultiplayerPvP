@@ -29,12 +29,12 @@ local function hud(opts)
 	PVP = {
 		LOBBY = { config = {} },
 		GAME = { enemy = { score = "1200", score_text = "0", hands = 3 } },
-		Score = {
+		SCORE = {
 			display = function(s) return s end,
 			small_number = function(s) return tonumber(s) end,
 		},
-		is_practice_mode = function() return false end,
-		is_pvp_boss = function() return opts.pvp_boss end,
+		PRACTICE = { is_on = function() return false end },
+		UTILS = { is_pvp_blind = function() return opts.pvp_boss end },
 	}
 	assert((loadstring or load)(chunk))()
 	G.FUNCS.multiplayer_blind_chip_UI_scale({ config = {} })

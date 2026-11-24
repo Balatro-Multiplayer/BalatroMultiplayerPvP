@@ -19,9 +19,15 @@ local function steal_seal_reward(trap, cards_before)
 			for _, held in ipairs(G.consumeables.cards) do
 				if not known[held] and held ~= trap then
 					local stolen = MPAPI.serialize_card(held)
-					G.consumeables:remove_card(held)
-					held:remove()
-					PVP.TRAP.fire(trap, { card = stolen })
+					local problem = PVP.TRAP.fire_problem(trap, { card = stolen })
+					if problem then
+						-- The reward card stays with its player and the Magic Mouth stays hidden and live.
+						sendWarnMessage("[magic_mouth] the reward card was not taken: " .. problem, "MULTIPLAYER")
+					else
+						G.consumeables:remove_card(held)
+						held:remove()
+						PVP.TRAP.fire(trap, { card = stolen })
+					end
 					break
 				end
 			end
@@ -33,7 +39,7 @@ end
 local function wrap_seal_method(method_name)
 	local method_ref = Card[method_name]
 	Card[method_name] = function(self, context)
-		if not PVP.in_session() then
+		if not PVP.LOBBY.in_session() then
 			return method_ref(self, context)
 		end
 		local trap = (self.seal == "Blue" or self.seal == "Purple") and PVP.TRAP.find_planted(PVP.TRAP.KEY.MAGIC_MOUTH)

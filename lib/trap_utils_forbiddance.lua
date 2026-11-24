@@ -15,7 +15,7 @@ end
 
 local discard_cards_ref = G.FUNCS.discard_cards_from_highlighted
 function G.FUNCS.discard_cards_from_highlighted(e, is_hook_blind)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return discard_cards_ref(e, is_hook_blind)
 	end
 	local trap = not is_hook_blind and #G.hand.highlighted > 0 and PVP.TRAP.find_planted(PVP.TRAP.KEY.FORBIDDANCE)
@@ -30,7 +30,7 @@ end
 
 local stay_flipped_ref = Blind.stay_flipped
 function Blind:stay_flipped(to_area, card, from_area)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return stay_flipped_ref(self, to_area, card, from_area)
 	end
 	local trap = to_area == G.hand and from_area == G.deck and armed_forbiddance()
@@ -43,7 +43,7 @@ end
 
 local draw_from_deck_to_hand_ref = G.FUNCS.draw_from_deck_to_hand
 function G.FUNCS.draw_from_deck_to_hand(e)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return draw_from_deck_to_hand_ref(e)
 	end
 	local trap = armed_forbiddance()

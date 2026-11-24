@@ -20,7 +20,7 @@ G = {
 darken = function(c)
 	return c
 end
-PVP = { config = {} }
+PVP = { NET = {}, READ = {}, UI = { queue = {}, card_info = {}, find_game = {} }, QUEUE = {}, LOBBY = {}, RULES = {}, config = {} }
 SMODS = { Sound = {
 	get_current_music = function()
 		return "other_mod_music"
@@ -48,8 +48,8 @@ dofile("ui/queue/backdrop.lua")
 dofile("ui/queue/cards.lua")
 dofile("ui/queue/hud.lua")
 dofile("ui/queue/reveal.lua")
-local Q = PVP.QUEUE_HUD
-local Cards, Reveal = PVP.QUEUE_CARDS, PVP.QUEUE_REVEAL
+local Q = PVP.UI.queue.hud
+local Cards, Reveal = PVP.UI.queue.cards, PVP.UI.queue.reveal
 
 local function eq(got, want, what)
 	if got ~= want then error(what .. ": got " .. tostring(got) .. ", want " .. tostring(want), 2) end
@@ -68,7 +68,7 @@ eq(Q.swirl_for(600), Q.swirl_for(10000), "the swirl stops speeding up at the cap
 assert(Q.swirl_for(150) > 1, "the swirl runs faster than the menu's from the first step")
 
 -- The reveal's palettes map like ease_background_colour's.
-local Backdrop = PVP.QUEUE_BACKDROP
+local Backdrop = PVP.UI.queue.backdrop
 local p = Backdrop.palette_of({ new_colour = { 1, 1, 1, 1 }, contrast = 3 })
 eq(p.L[1], 1.3, "light colour is the new colour x1.3")
 eq(p.C[1], 0.9, "main colour is the new colour x0.9")
@@ -309,14 +309,14 @@ do
 			end,
 		},
 	}
-	PVP.LobbyAccess = { RANKED = "ranked", CASUAL = "casual" }
-	PVP.ruleset_display_name = function()
+	PVP.LOBBY.Access = { RANKED = "ranked", CASUAL = "casual" }
+	PVP.RULES.display_name = function()
 		return "Balanced"
 	end
-	PVP.ranked_ticket = function(key)
+	PVP.QUEUE.ranked_ticket = function(key)
 		return "ranked:pvp_ranked_" .. key
 	end
-	PVP.PVP_GAMEMODES = {}
+	PVP.RULES.MODES = {}
 	PVP.id = "MultiplayerPvP"
 	MPAPI.connection_state = { preferred_joker = "j_blueprint" }
 	MPAPI.matchmaking.ranked_spread = function(t)
@@ -727,9 +727,9 @@ do
 	eq(Reveal.view, nil, "a start that never comes ends the reveal shortly after the countdown")
 
 	-- A failed lobby join after match_found (MPAPI's error event) ends the reveal.
-	PVP.LOBBY = { config = {} }
-	PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
-	PVP.LobbyAccess.RANKED_PREFIX = "ranked:"
+	PVP.LOBBY = { config = {}, Access = PVP.LOBBY.Access }
+	PVP.RULES.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
+	PVP.LOBBY.Access.RANKED_PREFIX = "ranked:"
 	MPAPI.GameModes = {}
 	local handlers = {}
 	MPAPI.matchmaking.queue = function()
@@ -740,10 +740,11 @@ do
 		}
 	end
 	PVP.match_log = noop
+	PVP.UI.refusal = { show = noop }
 	G.FUNCS = {}
 	dofile("pvp_api/queue.lua")
 	sendWarnMessage = noop
-	PVP._join_ranked_ruleset("balanced")
+	PVP.QUEUE.join_ranked("balanced")
 	handlers.match_found({ lobbyCode = "ABCD" })
 	assert(Reveal.view, "match_found opens the reveal")
 	handlers.error("lobby join failed: timeout")
@@ -752,12 +753,12 @@ do
 	-- The group queue's handles drive the same reveal (pvp_api/group_queue.lua).
 	MPAPI.GameModes = { pvp_royale = { max_players = { public = 16 } } }
 	MPAPI.matchmaking.group = nil
-	PVP.reset_ruleset_to_gamemode_default = noop
-	PVP.setup_lobby_mirror, PVP.signal_ready, PVP.start_ready_resync = noop, noop, noop
-	PVP.pvp_lobby_metadata = noop
+	PVP.RULES.reset_to_gamemode_default = noop
+	PVP.LOBBY.mirror = noop
+	PVP.LOBBY.metadata = noop
 	dofile("pvp_api/group_queue.lua")
 	handlers = {}
-	PVP._wire_group_handle({
+	PVP.QUEUE.wire_group_handle({
 		on = function(_, event, fn)
 			handlers[event] = fn
 		end,

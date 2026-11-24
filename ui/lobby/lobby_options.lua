@@ -6,16 +6,16 @@
 -- still needs its players to pick a role before the match can start).
 
 local RULESET_KEYS = {
-	PVP.RulesetKey.VANILLA,
-	PVP.RulesetKey.BALANCED,
-	PVP.RulesetKey.EXPANDED,
-	PVP.RulesetKey.SMALLWORLD,
+	PVP.RULES.RulesetKey.VANILLA,
+	PVP.RULES.RulesetKey.BALANCED,
+	PVP.RULES.RulesetKey.EXPANDED,
+	PVP.RULES.RulesetKey.SMALLWORLD,
 }
 
 local function ruleset_labels()
 	local labels = {}
 	for i, key in ipairs(RULESET_KEYS) do
-		labels[i] = PVP.ruleset_display_name(key)
+		labels[i] = PVP.RULES.display_name(key)
 	end
 	return labels
 end
@@ -29,17 +29,17 @@ local function ruleset_option(ruleset_key)
 end
 
 local function current_ruleset_option()
-	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(PVP.default_ruleset(PVP._pvp_gamemode, PVP.LobbyAccess.PRIVATE)) or 1
+	return ruleset_option(PVP.LOBBY.config.ruleset) or ruleset_option(PVP.RULES.default_ruleset(PVP.LOBBY.mode_key, PVP.LOBBY.Access.PRIVATE)) or 1
 end
 
 local function can_edit_private_lobby(lobby)
-	return lobby and lobby.is_host and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and not lobby:is_game_started()
+	return lobby and lobby.is_host and PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE and not lobby:is_game_started()
 end
 
 local function publish_options()
 	local lobby = MPAPI.get_current_lobby()
 	if lobby and lobby.is_host then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+		PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(PVP.LOBBY.mode_key, PVP.LOBBY.kind))
 	end
 end
 
@@ -66,7 +66,7 @@ end
 -- Number-valued options: key -> { values = { ... }, suffix }. Each gets a G.FUNCS callback.
 local NUMBER_OPTIONS = {
 	starting_lives = { values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 } },
-	pvp_start_round = { values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } },
+	pvp_start_ante = { values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } },
 	timer_base_seconds = { values = { 30, 60, 90, 120, 150, 180, 210, 240 }, suffix = "s" },
 	timer_increment_seconds = { values = { 0, 30, 60, 90, 120, 150, 180 }, suffix = "s" },
 	pvp_countdown_seconds = { values = { 0, 3, 5, 10 }, suffix = "s" },
@@ -105,7 +105,7 @@ local function deck_mode_index()
 	if PVP.LOBBY.config.different_decks then
 		return 3
 	end
-	return (PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT) and 2 or 1
+	return (PVP.LOBBY.config.deck_mode == PVP.LOBBY.DeckMode.DRAFT) and 2 or 1
 end
 
 local function deck_mode_row()
@@ -204,7 +204,7 @@ end
 
 local function lobby_tab(lobby)
 	local rows = {}
-	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+	if PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE then
 		rows[#rows + 1] = ruleset_row(lobby)
 		rows[#rows + 1] = deck_mode_row()
 		rows[#rows + 1] = toggle_row("mp_pvp_trap_cards", "k_pvp_lobby_trap_cards", "trap_cards")
@@ -217,13 +217,13 @@ end
 local function gameplay_tab()
 	return {
 		toggle_row("mp_pvp_gold_on_life_loss", "b_opts_cb_money", "gold_on_life_loss"),
-		toggle_row("mp_pvp_no_gold_on_round_loss", "b_opts_no_gold_on_loss", "no_gold_on_round_loss"),
-		toggle_row("mp_pvp_death_on_round_loss", "b_opts_death_on_loss", "death_on_round_loss"),
+		toggle_row("mp_pvp_no_gold_on_pvp_loss", "b_opts_no_gold_on_loss", "no_gold_on_pvp_loss"),
+		toggle_row("mp_pvp_death_on_normal_blind_loss", "b_opts_death_on_loss", "death_on_normal_blind_loss"),
 		toggle_row("mp_pvp_the_order", "b_opts_the_order", "the_order"),
 		toggle_row("mp_pvp_preview_disabled", "b_opts_disable_preview", "preview_disabled"),
 		-- Always listed so players know it exists; only Small World can use it.
 		toggle_row("mp_pvp_smallerworld", "b_opts_smallerworld", "smallerworld", function()
-			return is_host() and PVP.LOBBY.config.ruleset == PVP.RulesetKey.SMALLWORLD
+			return is_host() and PVP.LOBBY.config.ruleset == PVP.RULES.RulesetKey.SMALLWORLD
 		end),
 	}
 end
@@ -244,27 +244,49 @@ local function timer_tab()
 		toggle_row("mp_pvp_timer", "b_opts_timer", "timer"),
 		number_row("timer_base_seconds", "k_opts_pvp_timer"),
 		number_row("timer_increment_seconds", "k_opts_pvp_timer_increment"),
-		number_row("pvp_start_round", "k_opts_pvp_start_round"),
+		number_row("pvp_start_ante", "k_opts_pvp_start_round"),
 		number_row("pvp_countdown_seconds", "k_opts_pvp_countdown_seconds"),
 	}
+end
+
+local team_pickers = {}
+
+-- A picker that shows the team the view says I am on and is greyed and inert while a pick of mine
+-- is unconfirmed. Kept so a new view (or my own press) can redraw it.
+local function team_picker(args, second_team, can_pick)
+	local function sync()
+		args.current_option = (PVP.UI.blind_start.team_look().team == second_team) and 2 or 1
+	end
+	args.enabled = function()
+		return PVP.UI.blind_start.team_look().state ~= "waiting" and can_pick()
+	end
+	sync()
+	local element = MPAPI.disableable_option_cycle(args)
+	team_pickers[args.id] = function()
+		sync()
+		element:update()
+	end
+	return element
+end
+
+function PVP.UI.lobby_options.refresh_team_pickers()
+	for _, refresh in pairs(team_pickers) do refresh() end
 end
 
 local function player_rows()
 	local rows = {}
 	local lobby = MPAPI.get_current_lobby()
 	if PVP.LOBBY.config.manhunt then
-		rows[#rows + 1] = option_row(MPAPI.disableable_option_cycle({
+		rows[#rows + 1] = option_row(team_picker({
 			id = "mp_pvp_manhunt_role",
 			label = "Role",
 			options = { "Hunter", "Runner" },
-			current_option = (PVP.LOBBY.team_id == "RUNNER") and 2 or 1,
 			opt_callback = "mp_pvp_change_manhunt_role",
 			w = 4,
 			scale = 0.6,
-			enabled = function()
-				return PVP.LOBBY.team_id == "RUNNER" or not PVP.is_runner_taken()
-			end,
-		}).node)
+		}, "RUNNER", function()
+			return PVP.LOBBY.team_id == "RUNNER" or not PVP.LOBBY.is_runner_taken()
+		end).node)
 		if lobby and lobby.is_host then
 			rows[#rows + 1] = option_row(create_option_cycle({
 				id = "mp_pvp_manhunt_hunter_lives",
@@ -277,20 +299,22 @@ local function player_rows()
 			}))
 		end
 	elseif PVP.LOBBY.config.team_based then
-		rows[#rows + 1] = option_row(create_option_cycle({
+		rows[#rows + 1] = option_row(team_picker({
 			id = "mp_pvp_team_pick",
 			label = "My Team",
 			options = { "Team A", "Team B" },
-			current_option = (PVP.LOBBY.team_id == "B") and 2 or 1,
 			opt_callback = "mp_pvp_change_team",
 			w = 4,
 			scale = 0.6,
-		}))
+		}, "B", function()
+			return true
+		end).node)
 	end
 	return rows
 end
 
-function PVP.build_lobby_options()
+function PVP.UI.lobby_options.build()
+	team_pickers = {}
 	local lobby = MPAPI.get_current_lobby()
 	local tabs = {}
 	local function add_tab(label, rows_fn)
@@ -303,7 +327,7 @@ function PVP.build_lobby_options()
 		}
 	end
 
-	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+	if PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE then
 		add_tab(localize("k_pvp_tab_lobby"), function()
 			local rows = lobby_tab(lobby)
 			for _, r in ipairs(player_rows()) do
@@ -325,7 +349,7 @@ function PVP.build_lobby_options()
 end
 
 G.FUNCS.mp_pvp_change_deck_mode = function(e)
-	PVP.LOBBY.config.deck_mode = (e.to_key == 2) and PVP.DeckMode.DRAFT or PVP.DeckMode.SELECT
+	PVP.LOBBY.config.deck_mode = (e.to_key == 2) and PVP.LOBBY.DeckMode.DRAFT or PVP.LOBBY.DeckMode.SELECT
 	PVP.LOBBY.config.different_decks = e.to_key == 3
 	if e.to_key ~= 3 then
 		PVP.LOBBY.config.random_loadout = false
@@ -376,7 +400,7 @@ G.FUNCS.mp_pvp_seed_overlay = function()
 end
 
 G.FUNCS.mp_pvp_set_verified_defaults = function()
-	PVP.apply_verified_defaults()
+	PVP.VERIFIED.apply_defaults()
 	publish_options()
 	-- Reopen so every control shows the restored values.
 	G.FUNCS.mp_pvp_lobby_options()
@@ -386,19 +410,19 @@ G.FUNCS.mp_pvp_change_ruleset = function(e)
 	local lobby = MPAPI.get_current_lobby()
 	if not can_edit_private_lobby(lobby) then return end
 	PVP.LOBBY.config.ruleset = RULESET_KEYS[e.to_key]
-	lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+	PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(PVP.LOBBY.mode_key, PVP.LOBBY.kind))
 end
 
 G.FUNCS.mp_pvp_change_manhunt_role = function(e)
-	PVP.pvp_set_team((e.to_key == 2) and "RUNNER" or "HUNTER")
+	PVP.LOBBY.set_team((e.to_key == 2) and "RUNNER" or "HUNTER")
 end
 
 G.FUNCS.mp_pvp_change_team = function(e)
-	PVP.pvp_set_team((e.to_key == 2) and "B" or "A")
+	PVP.LOBBY.set_team((e.to_key == 2) and "B" or "A")
 end
 
 G.FUNCS.mp_pvp_change_manhunt_hunter_lives = function(e)
 	PVP.LOBBY.config.manhunt_hunter_lives = e.to_key + 6
 	local lobby = MPAPI.get_current_lobby()
-	if lobby and lobby.is_host then lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind)) end
+	if lobby and lobby.is_host then PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(PVP.LOBBY.mode_key, PVP.LOBBY.kind)) end
 end

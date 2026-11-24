@@ -22,7 +22,7 @@ end
 -- Runs for both a skipped pack and a pack whose picks are used up.
 local end_consumeable_ref = G.FUNCS.end_consumeable
 G.FUNCS.end_consumeable = function(e, delayfac)
-	if PVP.in_session() then
+	if PVP.LOBBY.in_session() then
 		fire_mental_prison_if_wheel_left(G.pack_cards)
 	end
 	return end_consumeable_ref(e, delayfac)
@@ -30,7 +30,7 @@ end
 
 local reroll_shop_ref = G.FUNCS.reroll_shop
 G.FUNCS.reroll_shop = function(e)
-	if PVP.in_session() then
+	if PVP.LOBBY.in_session() then
 		fire_mental_prison_if_wheel_left(G.shop_jokers)
 	end
 	return reroll_shop_ref(e)

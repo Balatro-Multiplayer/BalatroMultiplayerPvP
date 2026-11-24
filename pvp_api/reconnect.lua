@@ -1,15 +1,15 @@
 -- PvP's lobby kind for a lobby this client rejoined. Every other entry path sets
--- PVP._pvp_kind from the button the player clicked (Create Private / Find Match / Ranked
+-- PVP.LOBBY.kind from the button the player clicked (Create Private / Find Match / Ranked
 -- Queue); a rejoin has no such click to read, so it comes from the lobby's own server-reported
 -- type. MPAPI.LobbyType has no CASUAL value of its own (only PUBLIC/PRIVATE/RANKED): PvP's
 -- "casual" matchmaking queue is what a plain PUBLIC lobby type means here.
-function PVP.rejoined_lobby_kind(lobby)
+function PVP.LOBBY.rejoined_kind(lobby)
 	if lobby.type == MPAPI.LobbyType.RANKED then
-		return PVP.LobbyAccess.RANKED
+		return PVP.LOBBY.Access.RANKED
 	elseif lobby.type == MPAPI.LobbyType.PUBLIC then
-		return PVP.LobbyAccess.CASUAL
+		return PVP.LOBBY.Access.CASUAL
 	end
-	return PVP.LobbyAccess.PRIVATE
+	return PVP.LOBBY.Access.PRIVATE
 end
 
 -- Crash-relaunch reconnect: called once the lobby object itself has already
@@ -19,9 +19,9 @@ end
 -- file's Reconnect handler -- this one only ever runs pre-match: waiting
 -- room or mid-ban-pick-draft).
 MPAPI.register_lobby_reconnect(PVP.id, function(lobby)
-	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
+	PVP.LOBBY.kind = PVP.LOBBY.rejoined_kind(lobby)
 
-	PVP.setup_lobby_mirror(lobby)
+	PVP.LOBBY.mirror(lobby)
 
 	-- Rejoin a game still in Setup (a vote or the Draft): the server's
 	-- snapshot already restored the Setup state (lobby._game.setup), so the
@@ -30,7 +30,7 @@ MPAPI.register_lobby_reconnect(PVP.id, function(lobby)
 	local started = lobby._game and lobby._game.started
 	local setup = lobby._game and lobby._game.setup
 	local in_setup = setup and (setup.open or next(setup.results or {}))
-	if MPAPI.has_server_referee(lobby) and started and not started.restarted and in_setup then
-		PVP.on_game_start({ seed = started.seed, stake = tostring(started.stake or 1) })
+	if started and not started.restarted and in_setup then
+		PVP.ACTIONS.on_game_start({ seed = started.seed, stake = tostring(started.stake or 1) })
 	end
 end)

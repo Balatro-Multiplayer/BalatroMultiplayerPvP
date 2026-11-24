@@ -1,4 +1,4 @@
-PVP.LayerKey = {
+PVP.RULES.LayerKey = {
 	MULTIPLAYER_CONTENT = "multiplayer_content",
 	SANDBOX = "sandbox",
 }
@@ -14,7 +14,7 @@ end)
 -- materialized onto the ruleset" design) -- delegate rather than keep a second
 -- copy. modifiers_parse is called from networking/action_handlers.lua and
 -- apply_default_modifiers from pvp_api/lobby_bridge.lua's mirror_metadata.
-PVP.modifiers_parse = MPAPI.modifiers_parse
+PVP.RULES.parse_modifiers = MPAPI.modifiers_parse
 
-PVP.is_layer_active = MPAPI.is_layer_active
-PVP.is_any_layer_active = MPAPI.is_any_layer_active
+PVP.RULES.is_layer_active = MPAPI.is_layer_active
+PVP.RULES.is_any_layer_active = MPAPI.is_any_layer_active

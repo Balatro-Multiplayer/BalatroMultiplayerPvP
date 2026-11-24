@@ -1,5 +1,5 @@
 local function code_panel()
-	local b = PVP.lobby.buttons
+	local b = PVP.UI.lobby.buttons
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.1, r = 0.2, colour = G.C.BLACK },
@@ -20,9 +20,9 @@ end
 -- a guest's is the same box, display-only, since every player plays the host's deck.
 -- Rebuilt with the rest of the controls whenever the lobby metadata changes.
 local function deck_button()
-	local lobby = PVP.lobby.ref
+	local lobby = PVP.UI.lobby.ref
 	-- Draft deck mode replaces the picker: the players draft the deck once the game starts.
-	if PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT then
+	if PVP.LOBBY.config.deck_mode == PVP.LOBBY.DeckMode.DRAFT then
 		return MPAPI.disableable_button({
 			id = "mp_pvp_choose_deck",
 			button = "lobby_choose_deck",
@@ -62,8 +62,8 @@ local function deck_button()
 end
 
 local function build_private_controls()
-	local b = PVP.lobby.buttons
-	local lobby = PVP.lobby.ref
+	local b = PVP.UI.lobby.buttons
+	local lobby = PVP.UI.lobby.ref
 	local row_nodes = {}
 	if lobby and lobby.is_host then
 		row_nodes[#row_nodes + 1] = b.start_game.node
@@ -92,8 +92,8 @@ end
 -- has Find Game, every other player a Ready toggle. While the party queues, the
 -- group panel (ui/lobby/group_panel.lua) says where it is.
 local function build_party_controls()
-	local b = PVP.lobby.buttons
-	local lobby = PVP.lobby.ref
+	local b = PVP.UI.lobby.buttons
+	local lobby = PVP.UI.lobby.ref
 	local row_nodes = {}
 	if lobby.is_host then
 		row_nodes[#row_nodes + 1] = b.party_find_game.node
@@ -104,7 +104,7 @@ local function build_party_controls()
 	row_nodes[#row_nodes + 1] = b.leave.node
 
 	local rows = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = row_nodes } }
-	local group_panel = PVP.lobby.build_group_panel(lobby)
+	local group_panel = PVP.UI.lobby.build_group_panel(lobby)
 	if group_panel then
 		rows[#rows + 1] = { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { group_panel } }
 	end
@@ -141,7 +141,7 @@ local function build_matchmaking_controls()
 	}
 end
 
-function PVP.lobby.refresh_mm_status()
+function PVP.UI.lobby.refresh_mm_status()
 	if _mm_status_el then
 		_mm_status_el:update()
 	end
@@ -149,7 +149,7 @@ end
 
 -- A joiner before the host's metadata arrives: only what every lobby kind has.
 local function build_pending_controls()
-	local b = PVP.lobby.buttons
+	local b = PVP.UI.lobby.buttons
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
@@ -160,16 +160,16 @@ local function build_pending_controls()
 	}
 end
 
-function PVP.lobby.build_controls()
-	if PVP.is_matchmaking() then
+function PVP.UI.lobby.build_controls()
+	if PVP.LOBBY.is_matchmaking() then
 		return build_matchmaking_controls()
 	end
 	-- A private lobby's Draft shows in the same status panel as a matchmade one's.
 	local setup = PVP.SETUP.game
-	if setup and not setup.finished and PVP.LOBBY.config.deck_mode == PVP.DeckMode.DRAFT then
+	if setup and not setup.finished and PVP.LOBBY.config.deck_mode == PVP.LOBBY.DeckMode.DRAFT then
 		return build_matchmaking_controls()
 	end
-	local lobby = PVP.lobby.ref
+	local lobby = PVP.UI.lobby.ref
 	if not MPAPI.Party.kind_known(lobby) then
 		return build_pending_controls()
 	end

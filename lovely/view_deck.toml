@@ -13,7 +13,7 @@ pattern = '''{
       },'''
 position = 'after'
 payload = '''PVP.LOBBY.code and {
-              label = G.localization.misc.challenge_names[PVP.current_ruleset().challenge_deck],
+              label = G.localization.misc.challenge_names[PVP.RULES.current().challenge_deck],
               tab_definition_function = G.UIDEF.multiplayer_deck,
             },'''
 match_indent = true

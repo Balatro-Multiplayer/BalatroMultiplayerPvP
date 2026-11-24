@@ -5,17 +5,17 @@
 -- host-picked deck or the Draft are both fine.
 --
 -- Cosmetic only: the host's client computes the flag and publishes it in the lobby
--- metadata (PVP.pvp_lobby_metadata), so every client shows the same badge. It is
--- recomputed on every lobby change (PVP.refresh_verified_lobby).
+-- metadata (PVP.LOBBY.metadata), so every client shows the same badge. It is
+-- recomputed on every lobby change (PVP.VERIFIED.refresh).
 
 -- The standard ranked (Expanded) settings. A missing config value counts as false.
-PVP.VERIFIED_DEFAULTS = {
+PVP.VERIFIED.DEFAULTS = {
 	ruleset = "ruleset_mp_expanded",
 	starting_lives = 4,
-	pvp_start_round = 2,
+	pvp_start_ante = 2,
 	gold_on_life_loss = true,
-	no_gold_on_round_loss = false,
-	death_on_round_loss = true,
+	no_gold_on_pvp_loss = false,
+	death_on_normal_blind_loss = true,
 	the_order = true,
 	normal_bosses = false,
 	preview_disabled = false,
@@ -34,7 +34,7 @@ PVP.VERIFIED_DEFAULTS = {
 local NEMESIS_GAMEMODE = "gamemode_mp_attrition"
 
 local function normalized(key, value)
-	local want = PVP.VERIFIED_DEFAULTS[key]
+	local want = PVP.VERIFIED.DEFAULTS[key]
 	if type(want) == "boolean" then
 		return value == true
 	end
@@ -44,8 +44,14 @@ local function normalized(key, value)
 	return value
 end
 
+-- My own player id from the current lobby; nil outside one.
+function PVP.VERIFIED.own_player_id()
+	local lobby = MPAPI.get_current_lobby()
+	return lobby and lobby.player_id or nil
+end
+
 -- Whether a lobby player (an MPAPI player_data) is verified.
-function PVP.player_is_verified(player)
+function PVP.VERIFIED.player_is_verified(player)
 	if not player then
 		return false
 	end
@@ -53,19 +59,19 @@ function PVP.player_is_verified(player)
 		return true
 	end
 	-- The local account's own launcher verdict may land before its standing echoes back.
-	local is_self = PVP.self_player_id and player.id == PVP.self_player_id()
+	local is_self = player.id ~= nil and player.id == PVP.VERIFIED.own_player_id()
 	return is_self and MPAPI.is_launcher_verified() == true or false
 end
 
 -- Pure check. Returns true, {} when the lobby is verified, else false and the
 -- list of what failed (setting keys, "players", "gamemode").
-function PVP.verified_lobby_check(config, players)
+function PVP.VERIFIED.check(config, players)
 	local failed = {}
 	if #players == 0 then
 		failed[#failed + 1] = "players"
 	end
 	for _, player in ipairs(players) do
-		if not PVP.player_is_verified(player) then
+		if not PVP.VERIFIED.player_is_verified(player) then
 			failed[#failed + 1] = "players"
 			break
 		end
@@ -74,12 +80,12 @@ function PVP.verified_lobby_check(config, players)
 		failed[#failed + 1] = "gamemode"
 	end
 	local keys = {}
-	for key in pairs(PVP.VERIFIED_DEFAULTS) do
+	for key in pairs(PVP.VERIFIED.DEFAULTS) do
 		keys[#keys + 1] = key
 	end
 	table.sort(keys)
 	for _, key in ipairs(keys) do
-		if normalized(key, config[key]) ~= PVP.VERIFIED_DEFAULTS[key] then
+		if normalized(key, config[key]) ~= PVP.VERIFIED.DEFAULTS[key] then
 			failed[#failed + 1] = key
 		end
 	end
@@ -88,36 +94,36 @@ end
 
 -- The verdict for the current private lobby, read from live state (host only
 -- computes it; guests read the mirrored PVP.LOBBY.config.verified_lobby).
-function PVP.compute_verified_lobby(lobby)
+function PVP.VERIFIED.compute(lobby)
 	lobby = lobby or MPAPI.get_current_lobby()
 	if not lobby then
 		return false
 	end
-	return (PVP.verified_lobby_check(PVP.LOBBY.config, lobby:get_players()))
+	return (PVP.VERIFIED.check(PVP.LOBBY.config, lobby:get_players()))
 end
 
 -- Whether to show the Verified Lobby badge (the host's published verdict).
-function PVP.is_verified_lobby()
-	return PVP.LOBBY.config.verified_lobby == true and PVP._pvp_kind == PVP.LobbyAccess.PRIVATE
+function PVP.VERIFIED.is_verified()
+	return PVP.LOBBY.config.verified_lobby == true and PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE
 end
 
 -- Host: republish the metadata when the verdict moved, e.g. a player joined, left or
 -- changed standing. Settings changes republish on their own and carry the new verdict.
-function PVP.refresh_verified_lobby(lobby)
+function PVP.VERIFIED.refresh(lobby)
 	lobby = lobby or MPAPI.get_current_lobby()
-	if not (lobby and lobby.is_host) or PVP._pvp_kind ~= PVP.LobbyAccess.PRIVATE then
+	if not (lobby and lobby.is_host) or PVP.LOBBY.kind ~= PVP.LOBBY.Access.PRIVATE then
 		return
 	end
-	local now = PVP.compute_verified_lobby(lobby)
+	local now = PVP.VERIFIED.compute(lobby)
 	if now ~= (PVP.LOBBY.config.verified_lobby == true) then
-		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+		PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(PVP.LOBBY.mode_key, PVP.LOBBY.kind))
 	end
 end
 
 -- Host: put every setting that matters to verification at the standard ranked value.
 -- The deck and stake picks are left alone.
-function PVP.apply_verified_defaults()
-	for key, value in pairs(PVP.VERIFIED_DEFAULTS) do
+function PVP.VERIFIED.apply_defaults()
+	for key, value in pairs(PVP.VERIFIED.DEFAULTS) do
 		PVP.LOBBY.config[key] = value
 	end
 	PVP.LOBBY.config.gamemode = NEMESIS_GAMEMODE

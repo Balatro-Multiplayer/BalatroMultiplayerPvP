@@ -6,7 +6,7 @@
 -- sleeve, challenge) and the LAST run_info (seed, deck, stake). A reseeded match
 -- logs one run_info per start, and the Replay plays the latest one.
 -- Returns nil when the log has no lobby_info or no run_info for this player.
-function PVP.replay_bootstrap(timeline, player_id)
+function PVP.REPLAY.bootstrap(timeline, player_id)
 	local bootstrap = {}
 	local found_manifest, found_lobby, found_run = false, false, false
 	for _, entry in ipairs(timeline) do
@@ -39,7 +39,7 @@ end
 -- Writes the replay file's deck, stake, sleeve and challenge into both the
 -- lobby deck and the lobby config. Later copies of the config (the metadata
 -- mirror, copy_host_deck) read the config, so it must hold the real values.
-function PVP.apply_replay_loadout(lobby_state, manifest)
+function PVP.REPLAY.apply_loadout(lobby_state, manifest)
 	local deck = lobby_state.deck
 	local config = lobby_state.config
 	deck.back = manifest.deck

@@ -12,17 +12,44 @@ end
 
 MPAPI = { Standing = { VERIFIED = "verified", VALID = "valid", NONE = "none" } }
 function MPAPI.is_launcher_verified() return false end
-PVP = { self_player_id = function() return "me" end }
+local lobby = { player_id = "me" }
+function MPAPI.get_current_lobby() return lobby end
+PVP = { VERIFIED = {} }
 dofile("lib/verified_lobby.lua")
 
 local function config(over)
 	local c = { gamemode = "gamemode_mp_attrition", deck_mode = "select" }
-	for k, v in pairs(PVP.VERIFIED_DEFAULTS) do c[k] = v end
+	for k, v in pairs(PVP.VERIFIED.DEFAULTS) do c[k] = v end
 	for k, v in pairs(over or {}) do c[k] = v end
 	return c
 end
 local both = { { id = "me", standing = "verified" }, { id = "you", standing = "verified" } }
-local function ok(cfg, players) return (PVP.verified_lobby_check(cfg, players or both)) end
+local function ok(cfg, players) return (PVP.VERIFIED.check(cfg, players or both)) end
+
+-- A fresh lobby config (core.lua's defaults, read from the source text) passes as verified.
+local function fresh_config()
+	local file = assert(io.open("core.lua", "rb"))
+	local text = file:read("*a"):gsub("\r", "")
+	file:close()
+	local block = assert(text:match("function PVP%.LOBBY%.reset_config.-\n\tPVP%.LOBBY%.config = {(.-)\n\t}\nend"))
+	local c = { gamemode = "gamemode_mp_attrition" }
+	for key, literal in block:gmatch("\n\t\t([%a_][%w_]*) = ([%w_\"]+),") do
+		if literal == "true" then c[key] = true
+		elseif literal == "false" then c[key] = false
+		elseif tonumber(literal) then c[key] = tonumber(literal)
+		elseif literal:match('^".*"$') then c[key] = literal:sub(2, -2) end
+	end
+	c.ruleset = "ruleset_mp_expanded"
+	c.custom_seed = "random"
+	return c
+end
+local _, fresh_failed = PVP.VERIFIED.check(fresh_config(), both)
+check("a fresh config is verified", #fresh_failed, 0)
+if #fresh_failed > 0 then print("  failed keys: " .. table.concat(fresh_failed, ", ")) end
+check("own id read from the current lobby", PVP.VERIFIED.own_player_id(), "me")
+lobby = nil
+check("no lobby, no own id", PVP.VERIFIED.own_player_id(), nil)
+lobby = { player_id = "me" }
 
 check("defaults + verified players", ok(config()), true)
 check("draft deck mode allowed", ok(config({ deck_mode = "draft" })), true)
@@ -46,11 +73,11 @@ check("other ruleset", ok(config({ ruleset = "ruleset_mp_balanced" })), false)
 check("trap cards", ok(config({ trap_cards = true })), false)
 check("timer off", ok(config({ timer = false })), false)
 check("other gamemode", ok(config({ gamemode = "gamemode_mp_royale" })), false)
-local _, failed = PVP.verified_lobby_check(config({ starting_lives = 3 }), both)
+local _, failed = PVP.VERIFIED.check(config({ starting_lives = 3 }), both)
 check("reports the failed key", failed[1], "starting_lives")
 
 PVP.LOBBY = { config = config({ different_seeds = true, gamemode = "x", starting_lives = 1 }) }
-PVP.apply_verified_defaults()
+PVP.VERIFIED.apply_defaults()
 check("apply_verified_defaults restores", ok(PVP.LOBBY.config), true)
 
 if failures > 0 then os.exit(1) end

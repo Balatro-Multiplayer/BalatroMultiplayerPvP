@@ -9,7 +9,7 @@ local now = 0
 love = { timer = { getTime = function() return now end } }
 local warnings = {}
 MPAPI = { sendWarnMessage = function(message) warnings[#warnings + 1] = message end }
-PVP = { GAME = {} }
+PVP = { GAME = {}, REPLAY = {}, SCORE = {} }
 G = { GAME = { chips = 0 } }
 dofile("../BalatroMultiplayerAPI/lib/big_score.lua")
 dofile("lib/score.lua")
@@ -36,7 +36,7 @@ local function poll()
 end
 
 -- The score lands after the check was made: no warning.
-PVP.check_hand_result_when_scored("500", wait_for)
+PVP.REPLAY.check_hand_result("500", wait_for)
 poll()
 check("no warning while the hand is scoring", #warnings, 0)
 G.GAME.chips = 500
@@ -46,10 +46,10 @@ check("the check is done", #waiters, 0)
 
 -- A score that never matches warns once, after the wait.
 G.GAME.chips = 500
-PVP.check_hand_result_when_scored("900", wait_for)
+PVP.REPLAY.check_hand_result("900", wait_for)
 poll()
 check("a mismatch does not warn at once", #warnings, 0)
-now = now + PVP.HAND_RESULT_CHECK_TIMEOUT_SECONDS + 1
+now = now + PVP.REPLAY.HAND_CHECK_TIMEOUT_SECONDS + 1
 poll()
 check("a mismatch warns after the wait", #warnings, 1)
 check("the warning names both scores", warnings[1]:find("recorded=900", 1, true) ~= nil and warnings[1]:find("real=500", 1, true) ~= nil, true)

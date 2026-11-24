@@ -7,7 +7,7 @@ SMODS.Atlas({
 
 SMODS.Joker({
 	key = "hit_the_road_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 
 	unlocked = true,
 	discovered = true,

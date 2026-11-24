@@ -16,7 +16,7 @@ SMODS.Tag({
 	name = "Gambling Tag",
 	discovered = true,
 	min_ante = 2, -- less degeneracy
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	config = {
 		type = "store_joker_create",
 		odds = 2,

@@ -1,9 +1,9 @@
 -- Plain Lua test for lib/mp_content_visibility.lua (pure rules, no game needed).
 -- Run from the repo root: luajit tests/unit/mp_content_visibility_test.lua
-PVP = { LobbyAccess = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" } }
+PVP = { RULES = {}, LOBBY = { Access = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" } } }
 dofile("lib/mp_content_visibility.lua")
-local hide = PVP.MpContentVisibility.should_hide
-local A = PVP.LobbyAccess
+local hide = PVP.RULES.content.should_hide
+local A = PVP.LOBBY.Access
 
 local failures = 0
 local function check(name, got, want)

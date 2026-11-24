@@ -1,33 +1,25 @@
 -- The PvP blind's on-HUD name. Read through __index so the DynaText re-reads it every
 -- frame: the opponent slot is re-mirrored (a new table) whenever the roster or target
--- changes. Before a target latches (the Manhunt Runner, Royale before pairing) that slot
--- has no username, so fall back to the same gamemode name the blind-choice screen shows
--- rather than rendering a literal "nil".
+-- changes. Until the view names a target that slot has no username, so fall back to the
+-- same gamemode name the blind-choice screen shows rather than rendering a literal "nil".
 local hud_opponent_name = setmetatable({}, {
     __index = function()
-        if PVP.is_announced_bye() then
-            return PVP.pvp_blind_opponent_name()
+        if (PVP.READ.target.my_boss() == "bye") then
+            return PVP.READ.pvp_blind.opponent_name()
         end
         local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
-        return (opponent and opponent.username) or PVP.pvp_blind_opponent_name()
+        return (opponent and opponent.username) or PVP.READ.pvp_blind.opponent_name()
     end,
 })
 
 -- The enemy-score label's text, read each frame through PVP.GAME.enemy.score_label.
--- Royale tells the player what their shown target's score means: "Beat:" while they
--- are in the losing half, "Leading:" while safe. Every other mode (and Royale before
--- the host's first target broadcast) keeps the plain "Current Enemy score" label.
+-- Royale's key comes from the view's targets.cut (pvp_api/read/target.lua).
 function PVP.UI.refresh_enemy_score_label()
-	local safe = PVP.GAME.royale_target_safe
-	local key = "k_enemy_score"
-	if safe ~= nil and PVP.current_target_id() then
-		key = safe and "k_royale_leading" or "k_royale_beat"
-	end
-	PVP.GAME.enemy.score_label = localize(key)
+	PVP.GAME.enemy.score_label = localize(PVP.READ.target.enemy_score_label_key())
 end
 
 function PVP.UI.update_blind_HUD(blind, reset, silent)
-    if PVP.is_mp_or_practice() then
+    if PVP.LOBBY.in_lobby_or_practice() then
         -- Setup blind name display
         local name_element = G.HUD_blind:get_UIE_by_ID("HUD_blind_name")
         name_element.config.object.config.string =  {
@@ -47,12 +39,12 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
         name_element.config.object:update_text(true)
         name_element.states.visible = false
         -- A bye has no opponent: keep the normal boss text ("Score at least",
-        -- "Reward") with a 0 score requirement. The PvP round still ends only
+        -- "Reward") with a 0 score requirement. The PvP blind still ends only
         -- after every hand is played (Game:update_hand_played), not at 0 chips.
-        local bye = PVP.is_announced_bye()
+        local bye = (PVP.READ.target.my_boss() == "bye")
         if bye then
             G.GAME.blind.chips = 0
-            G.GAME.blind.chip_text = PVP.Score.ZERO
+            G.GAME.blind.chip_text = PVP.SCORE.ZERO
         end
         if not bye then
             -- Setup enemy score text
@@ -109,7 +101,7 @@ function PVP.UI.update_blind_HUD(blind, reset, silent)
 end
 
 function PVP.UI.reset_blind_HUD()
-	if PVP.is_mp_or_practice() then
+	if PVP.LOBBY.in_lobby_or_practice() then
         local name_element = G.HUD_blind:get_UIE_by_ID("HUD_blind_name")
 		name_element.config.object.config.string =
 			{ { ref_table = G.GAME.blind, ref_value = "loc_name" } }
@@ -196,7 +188,7 @@ end
 local add_round_eval_rowref = add_round_eval_row
 function add_round_eval_row(config) -- if i could post a skull emoji i would, wtf is this (cashout screen)
 	if config.name == "blind1" and G.GAME.blind.config.blind.key == "bl_mp_nemesis" then
-		G.GAME.blind.chip_text = PVP.Score.display(PVP.GAME.enemy.score)
+		G.GAME.blind.chip_text = PVP.SCORE.display(PVP.GAME.enemy.score)
 
 		G.P_BLINDS["bl_mp_nemesis"].atlas = "mp_player_blind_col"
 		G.GAME.blind.pos = G.P_BLINDS[PVP.UTILS.get_nemesis_key()].pos -- this one is getting reset so no need to bother
@@ -217,12 +209,12 @@ end
 local blind_defeat_ref = Blind.defeat
 function Blind:defeat(silent)
 	blind_defeat_ref(self, silent)
-	if PVP.is_mp_or_practice() and PVP.UI.reset_blind_HUD then PVP.UI.reset_blind_HUD() end
+	if PVP.LOBBY.in_lobby_or_practice() and PVP.UI.reset_blind_HUD then PVP.UI.reset_blind_HUD() end
 end
 
 local blind_disable_ref = Blind.disable
 function Blind:disable()
-	if PVP.is_pvp_boss() and not (G.GAME.blind and G.GAME.blind.name == "Verdant Leaf") then -- hackfix to make verdant work properly
+	if PVP.UTILS.is_pvp_blind() and not (G.GAME.blind and G.GAME.blind.name == "Verdant Leaf") then -- hackfix to make verdant work properly
 		return
 	end
 	blind_disable_ref(self)
@@ -233,7 +225,7 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 	-- nothing to reveal). Checked first since practice is never a real PvP boss in
 	-- the sense the checks below assume (the score mask is meaningless without a
 	-- live opponent).
-	if PVP.is_practice_mode() then
+	if PVP.PRACTICE.is_on() then
 		PVP.GAME.enemy.hands_text = "???"
 		PVP.GAME.enemy.score_text = "???"
 		return
@@ -241,37 +233,33 @@ G.FUNCS.multiplayer_blind_chip_UI_scale = function(e)
 
 	-- Hands start at the opponent's starting count (set when the blind starts), so
 	-- there is nothing to hide.
-	PVP.GAME.enemy.hands_text = tostring(PVP.GAME.enemy.hands)
+	PVP.GAME.enemy.hands_text = PVP.GAME.enemy.hands ~= nil and tostring(PVP.GAME.enemy.hands) or localize("k_pvp_hands_unknown")
 
 	-- Hide the opponent's score until we have played a hand this PvP blind, so
 	-- a player can't wait for the opponent to go first and then always play
 	-- second. Applies in every mode.
 	if
-		PVP.is_pvp_boss()
+		PVP.UTILS.is_pvp_blind()
 		and G.GAME.current_round
 		and G.GAME.current_round.hands_played == 0
 	then
 		PVP.GAME.enemy.score_text = "???"
 		return
 	end
-	local new_score_text = PVP.Score.display(PVP.GAME.enemy.score)
+	local new_score_text = PVP.SCORE.display(PVP.GAME.enemy.score)
 	if G.GAME.blind and PVP.GAME.enemy.score and PVP.GAME.enemy.score_text ~= new_score_text then
-		local plain = PVP.Score.small_number(PVP.GAME.enemy.score)
+		local plain = PVP.SCORE.small_number(PVP.GAME.enemy.score)
 		e.config.scale = plain and scale_number(plain, 0.7, 100000) or 0.7
 		PVP.GAME.enemy.score_text = new_score_text
 	end
 end
 
 -- Counts PVP.GAME.enemy.score up to `new_score` (score text) over 3s while both
--- are plain numbers; any larger score is set at once. Shared by
--- objects/blinds/nemesis.lua's raw per-sender relay and
--- pvp_api/actions/team_manhunt.lua's pvp_team_score_board handler (Teams' HUD
--- shows a host-computed team SUM, not a single sender's raw score, so it can't
--- reuse the relay itself -- just this animation).
+-- are plain numbers; any larger score is set at once.
 function PVP.UI.ease_enemy_score(new_score)
-	local target = PVP.Score.or_zero(new_score)
-	local from = PVP.Score.small_number(PVP.GAME.enemy.score)
-	local to = PVP.Score.small_number(target)
+	local target = PVP.SCORE.or_zero(new_score)
+	local from = PVP.SCORE.small_number(PVP.GAME.enemy.score)
+	local to = PVP.SCORE.small_number(target)
 	if not (from and to) then
 		PVP.GAME.enemy.score_ease = nil
 		PVP.GAME.enemy.score = target
@@ -298,7 +286,7 @@ function PVP.UI.ease_enemy_score(new_score)
 end
 
 function PVP.UI.juice_up_pvp_hud()
-	if PVP.is_pvp_boss() then
+	if PVP.UTILS.is_pvp_blind() then
 		G.HUD_blind:get_UIE_by_ID("HUD_blind_count"):juice_up()
 		G.HUD_blind:get_UIE_by_ID("dollars_to_be_earned"):juice_up()
 	end

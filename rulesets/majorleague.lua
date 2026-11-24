@@ -1,4 +1,4 @@
-PVP.Ruleset({
+PVP.RULES.Ruleset({
 	key = "majorleague",
 	layers = { "majorleague" },
 	forced_gamemode = "gamemode_mp_attrition",

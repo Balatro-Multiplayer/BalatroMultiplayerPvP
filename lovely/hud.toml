@@ -5,7 +5,7 @@ priority = 2147483600
 
 # Run Info/Options minh-shrink patch used to live here -- moved to
 # BalatroMultiplayerAPI's own lovely/hud.toml (generalized to
-# MPAPI.get_current_lobby(), with a PVP.is_practice_mode() fallback for this
+# MPAPI.get_current_lobby(), with a PVP.PRACTICE.is_on() fallback for this
 # mod's own practice mode) so SPDRN gets the same consistent HUD button
 # heights instead of only PvP.
 
@@ -24,7 +24,7 @@ target = "blind.lua"
 pattern = '''G.HUD_blind:get_UIE_by_ID("HUD_blind_name").states.visible = false'''
 position = 'before'
 payload = '''
-if PVP.is_mp_or_practice() and PVP.is_pvp_boss() then
+if PVP.LOBBY.in_lobby_or_practice() and PVP.UTILS.is_pvp_blind() then
     PVP.UI.update_blind_HUD(blind, reset, silent)
     return true
 end

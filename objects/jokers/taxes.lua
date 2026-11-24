@@ -1,10 +1,9 @@
--- The opponent's sells are recorded once, outside any joker (pvp_api/actions/opponent_context.lua);
--- Taxes only reads them.
+-- The opponent's sells come from the view (pvp_api/ui/run.lua); Taxes only reads them.
 local function next_taxes_total_mult_gain(card)
 	return PVP.OPPONENT_RECORD.taxes_mult_gain(
 		PVP.GAME.enemy.sells_per_ante,
 		G.GAME.round_resets.ante,
-		PVP.LOBBY.config.pvp_start_round,
+		PVP.LOBBY.config.pvp_start_ante,
 		card.ability.extra.mult_gain
 	)
 end

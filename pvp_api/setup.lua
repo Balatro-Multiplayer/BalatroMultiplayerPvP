@@ -93,7 +93,7 @@ end
 local function publish_ruleset(lobby)
 	local ruleset = S.rolled(setup_results(lobby))
 	if ruleset and lobby.is_host and (lobby:get_metadata() or {}).ruleset ~= ruleset then
-		lobby:set_metadata({ ruleset = ruleset })
+		PVP.UI.lobby.send_settings(lobby, { ruleset = ruleset })
 	end
 end
 
@@ -111,8 +111,8 @@ end
 S.game = nil
 
 local function refresh()
-	if PVP.lobby and PVP.lobby.refresh_mm_status then
-		PVP.lobby.refresh_mm_status()
+	if PVP.UI.lobby and PVP.UI.lobby.refresh_mm_status then
+		PVP.UI.lobby.refresh_mm_status()
 	end
 end
 
@@ -193,7 +193,7 @@ function S.on_changed(lobby)
 	end
 	for id, result in pairs(setup_results(lobby)) do
 		if result.kind == "vote" and not g.revealed[id] then
-			PVP.mirror_lobby_metadata(lobby)
+			PVP.LOBBY.mirror_metadata(lobby)
 			reveal(lobby, id, result)
 			return
 		end
@@ -261,7 +261,7 @@ local TILE_SCALE = 1 / 1.75
 
 local function option_label(id, option)
 	if id == S.Step.RULESET then
-		return PVP.ruleset_display_name(S.ruleset_key(option))
+		return PVP.RULES.display_name(S.ruleset_key(option))
 	end
 	return localize("k_pvp_setup_" .. id .. "_" .. option)
 end
@@ -285,7 +285,7 @@ end
 local function option_sprite(id, option)
 	local sprite
 	if id == S.Step.RULESET then
-		sprite = PVP.ruleset_chip_sprite(S.ruleset_key(option), 1.3)
+		sprite = PVP.UI.mode_chips.ruleset_sprite(S.ruleset_key(option), 1.3)
 	else
 		local w, h = G.CARD_W * TILE_SCALE, G.CARD_H * TILE_SCALE
 		local center = G.P_CENTERS[TRAP_ON_CENTER]

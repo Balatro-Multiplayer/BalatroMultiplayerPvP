@@ -7,7 +7,7 @@ SMODS.Tag({
 		return { vars = { tag.config.h_size } }
 	end,
 	apply = function(self, tag, context)
-		if context.type == "round_start_bonus" and PVP.is_pvp_boss() then
+		if context.type == "round_start_bonus" and PVP.UTILS.is_pvp_blind() then
 			tag:yep("+", G.C.BLUE, function()
 				return true
 			end)
@@ -19,5 +19,5 @@ SMODS.Tag({
 	end,
 	unlocked = true,
 	discovered = true,
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 })

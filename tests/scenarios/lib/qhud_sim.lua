@@ -14,10 +14,10 @@
 --   f  lobby join fails (handle error)        l  opponent leaves the lobby
 --   e  cycle forced egg: off > jimbo > joker > nope
 --   x  stop everything, restore real API calls
---   b  cycle the reveal's backdrop preset (PVP.QUEUE_BACKDROP.PRESETS, then off)
+--   b  cycle the reveal's backdrop preset (PVP.UI.queue.backdrop.PRESETS, then off)
 
-local Q = PVP.QUEUE_HUD
-local Cards = PVP.QUEUE_CARDS
+local Q = PVP.UI.queue.hud
+local Cards = PVP.UI.queue.cards
 local SIM = rawget(_G, "QHUD_SIM") or {}
 QHUD_SIM = SIM
 local DRAFT = PVP.load_mp_file("tests/scenarios/lib/qhud_draft.lua")
@@ -144,18 +144,18 @@ end
 local function drop_handle()
 	local handle = SIM.handle
 	SIM.handle = nil
-	if handle and PVP._match_handle == handle then PVP._cancel_queue() end
+	if handle and PVP.QUEUE.match_handle == handle then PVP.QUEUE.cancel() end
 end
 
 -- lobby_ready's queue half: the search is over.
 local function end_search()
-	PVP._active_queue_id = nil
-	PVP._show_searching(false)
+	PVP.QUEUE.active_id = nil
+	PVP.UI.queue.show_searching(false)
 end
 
 local function start(kind)
 	drop_handle()
-	if PVP._match_handle or (PVP.LOBBY and PVP.LOBBY.code) then
+	if PVP.QUEUE.match_handle or (PVP.LOBBY and PVP.LOBBY.code) then
 		log("leave the live queue or lobby before starting the simulator")
 		return false
 	end
@@ -177,9 +177,9 @@ local function start(kind)
 	end
 	local ok, err = pcall(function()
 		if kind == "casual" then
-			PVP._join_queue(PVP.LobbyAccess.CASUAL, "pvp_nemesis")
+			PVP.QUEUE.join(PVP.LOBBY.Access.CASUAL, "pvp_nemesis")
 		else
-			PVP._join_ranked_ruleset(PVP.RulesetKey.EXPANDED)
+			PVP.QUEUE.join_ranked(PVP.RULES.RulesetKey.EXPANDED)
 		end
 	end)
 	M.queue = real_queue
@@ -253,7 +253,7 @@ local function picked(item)
 			blockable = false,
 			blocking = false,
 			func = function()
-				PVP._start_practice(DRAFT.RULESET, { back = center.name, stake = item.stake })
+				PVP.PRACTICE.start(DRAFT.RULESET, { back = center.name, stake = item.stake })
 				return true
 			end,
 		}))
@@ -287,7 +287,7 @@ local function join(opp_delay)
 		if SIM.lobby == lobby then players[2] = opponent() end
 	end)
 	-- The host's start hold (ui/lobby/_ready.lua) runs from the opponent's arrival.
-	after((opp_delay or 1.5) + PVP.QUEUE_REVEAL.HOLD_SECONDS, function()
+	after((opp_delay or 1.5) + PVP.UI.queue.reveal.HOLD_SECONDS, function()
 		if SIM.lobby == lobby and not lobby._destroyed and players[2] then draft(players) end
 	end)
 end
@@ -363,7 +363,7 @@ local keys = {
 		log("reduced motion: " .. tostring(G.SETTINGS.reduced_motion))
 	end,
 	b = function()
-		local B = PVP.QUEUE_BACKDROP
+		local B = PVP.UI.queue.backdrop
 		local keys = {}
 		for k in pairs(B.PRESETS) do
 			keys[#keys + 1] = k

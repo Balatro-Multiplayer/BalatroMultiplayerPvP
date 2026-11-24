@@ -2,13 +2,13 @@
 -- and rewired to PvP. Same layout: a big Find Game, a Leaderboard/Practice stack, a
 -- Join Lobby column (by-code / from-clipboard), and a big Create Lobby.
 
-PVP.main_menu = PVP.main_menu or { buttons = {}, initialized = false }
+PVP.UI.main_menu = PVP.UI.main_menu or { buttons = {}, initialized = false }
 
 -- Distinct teal for the Leaderboard button (matches Speed).
 local _leaderboard_colour = { 0.20, 0.74, 0.72, 1 }
 
-function PVP.main_menu.create_buttons()
-	local M = PVP.main_menu
+function PVP.UI.main_menu.create_buttons()
+	local M = PVP.UI.main_menu
 	if M.initialized then
 		return
 	end
@@ -93,8 +93,8 @@ function PVP.main_menu.create_buttons()
 	M.initialized = true
 end
 
-PVP.update_main_menu_buttons = function()
-	local M = PVP.main_menu
+PVP.UI.main_menu.update_buttons = function()
+	local M = PVP.UI.main_menu
 	if not M.initialized then
 		return
 	end
@@ -106,8 +106,8 @@ PVP.update_main_menu_buttons = function()
 end
 
 -- Swap the Find Game button between search / cancel (called by queue.lua).
-PVP._show_searching_state = function(searching)
-	local M = PVP.main_menu
+PVP.UI.queue.show_searching_state = function(searching)
+	local M = PVP.UI.main_menu
 	if not M.initialized or not M.find_game_args then
 		return
 	end
@@ -123,10 +123,10 @@ PVP._show_searching_state = function(searching)
 	M.buttons.find_game:update()
 end
 
-PVP.build_pre_lobby_ui = function()
-	PVP.main_menu.create_buttons()
+PVP.UI.pre_lobby.build = function()
+	PVP.UI.main_menu.create_buttons()
 	MPAPI.set_logo_offset(0, true)
-	local b = PVP.main_menu.buttons
+	local b = PVP.UI.main_menu.buttons
 	-- Back from a group queue's public match without having made it home
 	-- (still in a run, or the automatic return gave up): offer it here.
 	local Group = MPAPI.matchmaking and MPAPI.matchmaking.group
@@ -202,7 +202,7 @@ end
 -- ── Create Lobby overlay ─────────────────────────────────────────────────────
 -- Gamemode (shape) picker, same grid-of-buttons style as the Practice overlay
 -- below. Nemesis IS the 1v1 shape (its rotating pairing degenerates identically
--- to plain pairwise at exactly 2 players, see referee.lua) so there's no separate
+-- to plain pairwise at exactly 2 players) so there's no separate
 -- "1v1" option. Ruleset (default Balanced) is picked afterward, once inside the
 -- lobby, via Lobby Options (ui/lobby/lobby_options.lua) -- not here.
 -- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below.
@@ -212,27 +212,27 @@ end
 
 G.FUNCS.mp_pvp_create_lobby_nemesis = function()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_create_private_lobby(PVP.GamemodeKey.PVP_NEMESIS)
+	PVP.LOBBY.create_private(PVP.RULES.GamemodeKey.PVP_NEMESIS)
 end
 
 G.FUNCS.mp_pvp_create_lobby_royale = function()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_create_private_lobby("pvp_royale")
+	PVP.LOBBY.create_private("pvp_royale")
 end
 
 G.FUNCS.mp_pvp_create_lobby_manhunt = function()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_create_private_lobby("pvp_manhunt")
+	PVP.LOBBY.create_private("pvp_manhunt")
 end
 
 G.FUNCS.mp_pvp_create_lobby_teams = function()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_create_private_lobby("pvp_teams")
+	PVP.LOBBY.create_private("pvp_teams")
 end
 
 G.FUNCS.mp_pvp_create_lobby_party = function()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_create_party_lobby()
+	PVP.LOBBY.create_party()
 end
 
 -- ── Join overlays (copied from Speed's join.lua) ─────────────────────────────
@@ -279,7 +279,7 @@ G.FUNCS.mp_pvp_join_lobby_confirm = function()
 	text = text:match("^%s*(.-)%s*$") or ""
 	if #text > 0 then
 		G.FUNCS.exit_overlay_menu()
-		PVP.pvp_join_lobby(text)
+		PVP.LOBBY.join(text)
 	end
 end
 
@@ -287,14 +287,14 @@ G.FUNCS.mp_pvp_join_lobby_from_clipboard = function()
 	local code = (love.system.getClipboardText and love.system.getClipboardText()) or ""
 	code = code:match("^%s*(.-)%s*$") or ""
 	if #code > 0 then
-		PVP.pvp_join_lobby(code)
+		PVP.LOBBY.join(code)
 	end
 end
 
 -- ── Practice overlay ─────────────────────────────────────────────────────────
 -- Ruleset picker, not a gamemode picker: Royale/Nemesis both resolve to the same
 -- ruleset_mp_vanilla + gamemode_mp_attrition as plain Vanilla and have no distinguishing
--- mechanic with a single practice player (see PVP._start_practice's header comment), so
+-- mechanic with a single practice player (see PVP.PRACTICE.start's header comment), so
 -- they're intentionally not offered here.
 -- Pillar page: ui/main_menu/game_select.lua; each pillar presses the per-mode handler below,
 -- which opens the run setup screen (deck, stake, seed) for that ruleset.
@@ -303,19 +303,19 @@ G.FUNCS.mp_pvp_practice = function()
 end
 
 G.FUNCS.mp_pvp_practice_balanced = function()
-	PVP.open_practice_setup(PVP.RulesetKey.BALANCED)
+	PVP.PRACTICE.open_setup(PVP.RULES.RulesetKey.BALANCED)
 end
 
 G.FUNCS.mp_pvp_practice_expanded = function()
-	PVP.open_practice_setup(PVP.RulesetKey.EXPANDED)
+	PVP.PRACTICE.open_setup(PVP.RULES.RulesetKey.EXPANDED)
 end
 
 G.FUNCS.mp_pvp_practice_vanilla = function()
-	PVP.open_practice_setup(PVP.RulesetKey.VANILLA)
+	PVP.PRACTICE.open_setup(PVP.RULES.RulesetKey.VANILLA)
 end
 
 G.FUNCS.mp_pvp_practice_smallworld = function()
-	PVP.open_practice_setup(PVP.RulesetKey.SMALLWORLD)
+	PVP.PRACTICE.open_setup(PVP.RULES.RulesetKey.SMALLWORLD)
 end
 
 -- ── Replay/Spectate overlay ───────────────────────────────────────────────

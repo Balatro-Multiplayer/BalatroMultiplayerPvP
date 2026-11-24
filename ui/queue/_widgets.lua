@@ -1,6 +1,6 @@
 -- Stateless UI construction and real-time event helpers.
 local Widgets = {}
-PVP.QUEUE_WIDGETS = Widgets
+PVP.UI.queue.widgets = Widgets
 
 function Widgets.now()
 	return love.timer.getTime()

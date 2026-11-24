@@ -3,7 +3,7 @@
 -- table is the safe thing to resume from. The save file is not: it is written
 -- a frame later, and game over removes it. Saving is switched on here because
 -- a lobby switches it off.
-function PVP.take_run_snapshot(game, save_run_fn)
+function PVP.PRACTICE.take_snapshot(game, save_run_fn)
 	game.F_NO_SAVING = false
 	game.ARGS.save_run = nil
 	save_run_fn()
@@ -41,13 +41,14 @@ end
 --   ctx.fallback_boss    key of a vanilla boss for the Boss slot (optional)
 --   ctx.next_vouchers    function giving the shop vouchers a Boss blind unlocks, as the
 --                        table Steamodded keeps in current_round.voucher (optional)
-function PVP.solo_resume_snapshot(snap, ctx)
+function PVP.PRACTICE.resume_snapshot(snap, ctx)
 	local game = snap.GAME
 	local in_pvp_blind = snap.BLIND and snap.BLIND.config_blind == ctx.nemesis_key
 	local game_over = snap.STATE == ctx.states.GAME_OVER
 
 	if game.round_resets then
 		game.round_resets.pvp_blind_choices = {}
+		game.round_resets.pvp_boss = nil
 		local choices = game.round_resets.blind_choices or {}
 		for slot, key in pairs(choices) do
 			if key == ctx.nemesis_key then choices[slot] = VANILLA_BLIND[slot] or ctx.fallback_boss or key end

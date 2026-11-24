@@ -1,7 +1,7 @@
 -- Plain Lua test: the real Penny Pincher pays for the opponent's shop it points at,
--- whether or not a Pincher was held when that shop's spend arrived, and however
--- many copies are held. The opponent context is dispatched the way MPAPI's
--- mpapi_opponent_context on_receive does it (each held card's center:calculate).
+-- whether or not a Pincher was held when that shop's spend was shown, and however
+-- many copies are held. The spends are in PVP.GAME.enemy.spent_in_shop, where pvp_api/ui/run.lua
+-- puts what the view shows.
 -- Run from the repo root: luajit tests/unit/penny_pincher_payout_test.lua
 local failures = 0
 local function check(name, got, want)
@@ -13,23 +13,8 @@ local function check(name, got, want)
 	end
 end
 
--- Mirrors api/context/opponent.lua's on_receive.
-local function api_on_receive(_, from, params)
-	local context = params or {}
-	context.from = from
-	for _, area in ipairs({ G.jokers, G.consumeables }) do
-		for _, card in ipairs(area.cards) do
-			local center = card.config.center
-			if center.calculate then
-				center:calculate(card, context)
-			end
-		end
-	end
-end
-
 local pincher
 MPAPI = {
-	ActionTypes = { mpapi_opponent_context = { on_receive = api_on_receive } },
 	sendWarnMessage = function() end,
 	get_current_lobby = function()
 		return { mod_id = "pvp" }
@@ -42,15 +27,14 @@ SMODS = { Atlas = function() end }
 PVP = {
 	id = "pvp",
 	UTILS = { add_nemesis_info = function() end },
-	self_player_id = function()
-		return "me"
-	end,
-	current_target_id = function()
-		return "them"
-	end,
-	is_byed = function()
-		return false
-	end,
+	READ = { target = {
+		current_id = function()
+			return "them"
+		end,
+		my_boss = function()
+			return "plays"
+		end,
+	} },
 }
 
 local function new_game()
@@ -63,18 +47,12 @@ local function hold_pincher()
 	return card
 end
 local function opponent_leaves_shop(spent)
-	MPAPI.ActionTypes.mpapi_opponent_context.on_receive(nil, "them", { opponent_spent_in_shop = spent })
+	table.insert(PVP.GAME.enemy.spent_in_shop, spent)
 end
 
 new_game()
 dofile("objects/jokers/penny_pincher.lua")
-for _, f in ipairs({ "lib/opponent_record.lua", "pvp_api/actions/opponent_context.lua" }) do
-	local file = io.open(f)
-	if file then
-		file:close()
-		dofile(f)
-	end
-end
+dofile("lib/opponent_record.lua")
 
 -- Bought after the opponent's first shop: the second shop still pays for itself.
 new_game()

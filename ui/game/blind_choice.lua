@@ -1,7 +1,36 @@
+-- Builds the Boss slot of the open blind select again from G.GAME.round_resets.blind_choices.Boss, the way
+-- vanilla's boss reroll does. Nothing to do when the blind select is not on screen.
+function PVP.UI.rebuild_boss_choice()
+	local slot = G.blind_select and G.blind_select_opts and G.blind_select_opts.boss
+	local par = slot and slot.parent
+	if not par then return end
+	slot:remove()
+	G.blind_select_opts.boss = UIBox({
+		T = { par.T.x, 0, 0, 0 },
+		definition = {
+			n = G.UIT.ROOT,
+			config = { align = "cm", colour = G.C.CLEAR },
+			nodes = {
+				UIBox_dyn_container(
+					{ create_UIBox_blind_choice("Boss") },
+					false,
+					get_blind_main_colour("Boss"),
+					mix_colours(G.C.BLACK, get_blind_main_colour("Boss"), 0.8)
+				),
+			},
+		},
+		config = { align = "bmi", offset = { x = 0, y = G.ROOM.T.y + 9 }, major = par, xy_bond = "Weak" },
+	})
+	par.config.object = G.blind_select_opts.boss
+	par.config.object:recalculate()
+	G.blind_select_opts.boss.parent = par
+	G.blind_select_opts.boss.alignment.offset.y = 0
+end
+
 local create_UIBox_blind_choice_ref = create_UIBox_blind_choice
 ---@diagnostic disable-next-line: lowercase-global
 function create_UIBox_blind_choice(type, run_info)
-	if PVP.is_mp_or_practice() then
+	if PVP.LOBBY.in_lobby_or_practice() then
 		if not G.GAME.blind_on_deck then G.GAME.blind_on_deck = "Small" end
 		if not run_info then G.GAME.round_resets.blind_states[G.GAME.blind_on_deck] = "Select" end
 
@@ -35,8 +64,8 @@ function create_UIBox_blind_choice(type, run_info)
 
 		if not G.GAME.orbital_choices[G.GAME.round_resets.ante][type] then
 			local _poker_hands = {}
-			if PVP.should_use_the_order() then
-				_poker_hands = PVP.sorted_hand_list()
+			if PVP.RULES.use_the_order() then
+				_poker_hands = PVP.UTILS.sorted_hand_list()
 			else
 				for k, v in pairs(G.GAME.hands) do
 					if SMODS.is_poker_hand_visible(k) then _poker_hands[#_poker_hands + 1] = k end
@@ -137,11 +166,11 @@ function create_UIBox_blind_choice(type, run_info)
 		local loc_name
 		if G.GAME.round_resets.blind_choices[type] == "bl_mp_nemesis" then
 			-- Royale/Manhunt/Teams don't have a single named opponent (and
-			-- host/guest's mirrored PVP.current_target_id() can be nil / "not yet
-			-- latched" at blind-select time for them) -- PVP.pvp_blind_opponent_name
+			-- host/guest's mirrored PVP.READ.target.current_id() can be nil / "not yet
+			-- latched" at blind-select time for them) -- PVP.READ.pvp_blind.opponent_name
 			-- picks the right label per gamemode instead of feeding a nil string to
 			-- DynaText. See pvp_api/lobby_bridge.lua.
-			loc_name = PVP.pvp_blind_opponent_name()
+			loc_name = PVP.READ.pvp_blind.opponent_name()
 		else
 			loc_name = localize({ type = "name_text", key = blind_choice.config.key, set = "Blind" })
 		end

@@ -56,10 +56,10 @@ G = {
 }
 PVP = {
 	id = "MultiplayerPvP",
-	LOBBY = {},
-	LobbyAccess = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" },
+	PRACTICE = {},
+	LOBBY = { Access = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" } },
 	config = {},
-	multiplayer_content_enabled = function() return false end,
+	RULES = { content_enabled = function() return false end },
 }
 SMODS = { injectItems = noop }
 function create_option_cycle(args) return args end
@@ -109,11 +109,11 @@ check("collection still cycles the full pool", cycle_to({}, 3), "b_mp_orange")
 
 for _, ruleset in ipairs({ "balanced", "expanded", "vanilla", "smallworld" }) do
 	local key = "ruleset_mp_" .. ruleset
-	PVP.open_practice_setup(key)
+	PVP.PRACTICE.open_setup(key)
 	local cycle = G.OVERLAY_MENU
-	check(ruleset .. " practice setup keeps its ruleset", PVP.practice_setup_ruleset(), key)
+	check(ruleset .. " practice setup keeps its ruleset", PVP.PRACTICE.setup_ruleset(), key)
 	check(ruleset .. " practice setup has no network lobby", PVP.LOBBY.code, nil)
-	check(ruleset .. " practice is not running yet", PVP.is_practice_mode(), false)
+	check(ruleset .. " practice is not running yet", PVP.PRACTICE.is_on(), false)
 	check(ruleset .. " practice setup shows multiplayer decks", #cycle.options, 4)
 	check_stakes(ruleset .. " practice setup", cycle, true)
 	check(ruleset .. " practice cycles to Orange", cycle_to(cycle, 3), "b_mp_orange")
@@ -122,27 +122,27 @@ for _, ruleset in ipairs({ "balanced", "expanded", "vanilla", "smallworld" }) do
 end
 
 singleplayer = G.FUNCS.setup_run()
-check("normal setup clears the practice setup context", PVP.practice_setup_ruleset(), nil)
+check("normal setup clears the practice setup context", PVP.PRACTICE.setup_ruleset(), nil)
 check("normal setup hides multiplayer decks again", #singleplayer.options, 2)
 check_stakes("normal setup after practice setup", singleplayer, false)
 
-PVP.SP.practice = true
-PVP._pvp_kind = PVP.LobbyAccess.PRACTICE
+PVP.PRACTICE.practice = true
+PVP.LOBBY.kind = PVP.LOBBY.Access.PRACTICE
 local practice = G.UIDEF.run_setup_option()
 check("active practice shows multiplayer decks without setup context", #practice.options, 4)
 check("active practice cycles to Cocktail", cycle_to(practice, 4), "b_mp_cocktail")
 check_stakes("active practice", practice, true)
 
-PVP.SP.practice = false
+PVP.PRACTICE.practice = false
 singleplayer = G.FUNCS.setup_run()
 check("after practice, stale practice kind does not expose decks", #singleplayer.options, 2)
 check_stakes("after practice with stale practice kind", singleplayer, false)
 PVP.LOBBY.code = "ABCDE"
-PVP._pvp_kind = PVP.LobbyAccess.RANKED
+PVP.LOBBY.kind = PVP.LOBBY.Access.RANKED
 local ranked = G.FUNCS.setup_run()
 check("ranked ruleset without multiplayer content still hides decks", #ranked.options, 2)
 check_stakes("ranked ruleset without multiplayer content", ranked, false)
-PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
+PVP.LOBBY.kind = PVP.LOBBY.Access.PRIVATE
 local private = G.FUNCS.setup_run()
 check("private lobby still shows multiplayer decks", #private.options, 4)
 check_stakes("private lobby", private, true)

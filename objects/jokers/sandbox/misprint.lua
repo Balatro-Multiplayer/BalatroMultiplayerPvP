@@ -7,14 +7,14 @@ SMODS.Atlas({
 
 SMODS.Joker({
 	key = "misprint_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	atlas = "misprint_sandbox",
 	blueprint_compat = true,
 	rarity = 1,
 	cost = 4,
-	ruleset = PVP.LayerKey.SANDBOX,
+	ruleset = PVP.RULES.LayerKey.SANDBOX,
 	config = { extra = { max = 46, min = -23, mult = "???", color = G.C.MULT }, mp_balanced = true },
 	loc_vars = function(self, info_queue, card)
 		return { vars = { card.ability.extra.mult, colours = { card.ability.extra.color } } }

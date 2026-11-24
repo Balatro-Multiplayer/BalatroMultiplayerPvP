@@ -8,7 +8,7 @@ priority = 2147483600
 target = 'game.lua'
 pattern = 'self\.jokers = CardArea'
 position = 'before'
-payload = '''PVP.create_nemesis_slots(CAI)
+payload = '''PVP.NEMESIS.create_slots(CAI)
 '''
 times = 1
 
@@ -17,7 +17,7 @@ times = 1
 target = 'functions/common_events.lua'
 pattern = 'G.consumeables.T.y = 0'
 position = 'after'
-payload = '''PVP.place_nemesis_slots()
+payload = '''PVP.NEMESIS.place_slots()
 '''
 match_indent = true
 times = 1

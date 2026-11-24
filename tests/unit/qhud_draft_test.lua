@@ -48,12 +48,12 @@ MPAPI = {
 	},
 }
 PVP = {
+	NET = {}, READ = {}, UI = { lobby = {} },
+	LOBBY = { Access = { RANKED = "ranked" } },
 	id = "pvp",
-	lobby = {},
-	LobbyAccess = { RANKED = "ranked" },
-	_ban_pick_config_for = function()
+	DRAFT = { ban_pick_config_for = function()
 		return {}
-	end,
+	end },
 }
 local DRAFT = dofile("tests/scenarios/lib/qhud_draft.lua")
 

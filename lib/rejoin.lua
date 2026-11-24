@@ -1,16 +1,6 @@
--- PvP's side of the crash rejoin. The flow itself (join the lobby first, skip to the last
--- checkpoint, play the tail, resume) is MPAPI's: BalatroMultiplayerAPI/api/playback/rejoin.lua.
--- PvP supplies the hooks: what its run start needs from the log, how to boot the catch-up run,
--- and the state to restore before the run goes live (the lobby mirror, the lobby kind).
---
--- Lives and the Nemesis or Teams target are not rebuilt here. The host sends them when it hears
--- the player is back (PVP.referee_on_player_reconnected); MPAPI holds those messages while the
--- player catches up and plays them once the lobby is attached, after the mirror below has reset
--- the game state. The opponent's REPLAY_TAIL is held and applied the same way
--- (pvp_api/lobby_bridge.lua).
---
--- PvP sets a catch-up limit: the server forfeits a seat that is still catching up after 3 min
--- (nakama lobby/catch_up.ts, keyed by this mod's id).
+-- PvP's hooks for MPAPI's crash rejoin (api/playback/rejoin.lua): what the run start needs from
+-- the log, how to start the run, and what to reset before it goes live. Lives, targets and the
+-- opponent come back in the server's view.
 
 local function read_lobby_info(args, bootstrap)
 	local options = args.options or {}
@@ -23,36 +13,29 @@ local function read_run_info(args, bootstrap)
 	bootstrap.deck = args.deck
 end
 
--- The live lobby replaces the local playback one.
+-- The live lobby replaces the local one.
 local function attach(lobby, _ctx)
-	-- _start_playback ran the catch-up as a practice session; left set, the resumed run stays in
-	-- practice mode and its PvP blinds never reach the referee, so the round never resolves.
-	PVP.SP.practice = false
-	PVP.SP.playback_gamemode = nil
-	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
-	-- The same wiring PVP.pvp_join_lobby does (opponent mirror, HUD, lobby events). It runs before
-	-- MPAPI plays the held messages, so the host's lives and target resend lands on a reset state.
-	PVP.setup_lobby_mirror(lobby)
-	-- The rebuilt state knows none of the opponent's skips. Their first update carries the whole
-	-- run's total, which must be taken as the baseline, not counted as skips since the last PvP.
-	PVP.GAME.enemy.skips_resync = true
+	-- Left set, the resumed run stays a practice run and its PvP blinds never reach the server.
+	PVP.PRACTICE.practice = false
+	PVP.PRACTICE.playback_gamemode = nil
+	PVP.LOBBY.kind = PVP.LOBBY.rejoined_kind(lobby)
+	-- Before MPAPI plays the held messages, so the view lands on a reset state.
+	PVP.LOBBY.mirror(lobby)
 end
 
 MPAPI.playback.register_rejoin_hooks(PVP.id, {
 	playback_mod_id = "pvp",
-	-- PVP._start_playback starts its run through Game:start_run, so a staged Run save is what
-	-- the catch-up run starts from; the match state comes back through lib/run_save.lua.
+	-- The run starts through Game:start_run, so it starts from the staged Run save.
 	supports_run_save = true,
 	read_lobby_info = read_lobby_info,
 	read_run_info = read_run_info,
 	start_run = function(bootstrap, on_ready)
-		PVP._start_playback(bootstrap, on_ready)
+		PVP.REPLAY.start(bootstrap, on_ready)
 	end,
 	attach = attach,
-	-- The seat was lost before the run went live (the 3 min catch-up limit, a forfeit, a closed
-	-- lobby): what is left is the local catch-up run, which nobody can play on. Leave it.
+	-- The seat was lost before the run went live: nobody can play on, so leave.
 	aborted = function()
-		PVP._drop_playback_waiters()
+		PVP.REPLAY.drop_waiters()
 		G.FUNCS.go_to_menu()
 	end,
 })

@@ -2,7 +2,7 @@
 -- through a localize that looks keys up the way the game does (a "variable" key in
 -- misc.v_dictionary, a plain key in misc.dictionary).
 -- Run from the repo root: luajit tests/unit/version_message_test.lua
-PVP = {}
+PVP = { NET = {} }
 local en = dofile("localization/en-us.lua")
 G = { localization = en }
 
@@ -33,12 +33,12 @@ local function check(name, got, want)
 	end
 end
 
-local line = PVP.VersionGate.message({ our = "1.0.3", their = "1.0.4" })
+local line = PVP.NET.version_gate.message({ our = "1.0.3", their = "1.0.4" })
 check(
 	"mismatch line names both versions",
 	line,
 	"A player runs MultiplayerPvP 1.0.4, you run 1.0.3.\nEveryone in a game needs the same version."
 )
-check("refused line is found", PVP.VersionGate.refused_message() ~= "ERROR", true)
+check("refused line is found", PVP.NET.version_gate.refused_message() ~= "ERROR", true)
 
 if failures > 0 then os.exit(1) end

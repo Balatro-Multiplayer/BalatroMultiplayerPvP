@@ -5,8 +5,8 @@
 -- same chips, so one hand's score is lost. The lock lifts when the first play's
 -- events have run, after 10s, or when a new run starts (leaving clears the
 -- event queue, unlock included).
-PVP.PlayLock = { LIMIT = 10 }
-local PL = PVP.PlayLock
+PVP.ACTIONS.play_lock = { LIMIT = 10 }
+local PL = PVP.ACTIONS.play_lock
 
 local pending = nil
 
@@ -18,7 +18,7 @@ end
 -- dropped, true when it ran. The lock is set only after play returns, so a play
 -- that raises cannot leave it stuck.
 function PL.run(play, ...)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		play(...)
 		return true
 	end

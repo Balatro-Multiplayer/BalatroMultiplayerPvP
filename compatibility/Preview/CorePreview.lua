@@ -85,7 +85,7 @@ function FN.PRE.update_on_card_order_change(cardarea)
 	local prev_order = nil
 	if cardarea.config.type == "joker" and cardarea.cards[1].ability.set == "Joker" then
 		for _, card in ipairs(cardarea.cards) do
-			if PVP.is_phantom(card) then return end
+			if PVP.NEMESIS.is_phantom(card) then return end
 		end
 		-- Note that the consumables cardarea also has type 'joker' so must verify by checking first card.
 		prev_order = FN.PRE.joker_order

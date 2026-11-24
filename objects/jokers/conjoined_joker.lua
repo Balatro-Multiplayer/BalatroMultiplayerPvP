@@ -25,10 +25,15 @@ MPAPI.Joker({
 	update = function(self, card, dt)
 		if PVP.LOBBY.code then
 			if G.STAGE == G.STAGES.RUN then
-				card.ability.extra.x_mult = math.max(
-					math.min(1 + (PVP.GAME.enemy.hands * card.ability.extra.x_mult_gain), card.ability.extra.max_x_mult),
-					1
-				)
+				local hands = PVP.GAME.enemy.hands
+				if hands == nil then
+					card.ability.extra.x_mult = 1
+				else
+					card.ability.extra.x_mult = math.max(
+						math.min(1 + (hands * card.ability.extra.x_mult_gain), card.ability.extra.max_x_mult),
+						1
+					)
+				end
 			end
 		else
 			card.ability.extra.x_mult = 1
@@ -38,8 +43,8 @@ MPAPI.Joker({
 		if
 			context.cardarea == G.jokers
 			and context.joker_main
-			and PVP.is_pvp_boss()
-			and not PVP.is_phantom(card)
+			and PVP.UTILS.is_pvp_blind()
+			and not PVP.NEMESIS.is_phantom(card)
 		then
 			return {
 				x_mult = card.ability.extra.x_mult,

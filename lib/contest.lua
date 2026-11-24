@@ -1,19 +1,18 @@
 -- Pure rules for the Forfeit or Contest modal. No game state, broadcasts or UI
 -- here: ui/contest_modal.lua feeds this module and acts on the answer.
 
-PVP.Contest = {}
-local Contest = PVP.Contest
+local Contest = PVP.CONTEST
 
 -- The run status the server gives a contested run (GAME_ENDED).
 Contest.RunStatus = { CONTESTED = "contested" }
 
--- Only a matchmade (Ranked or Casual) match of 2 players or more on a server
--- referee offers a Contest. Every other match keeps the plain forfeit.
-function Contest.should_offer(kind, player_count, has_server_referee)
-	if not has_server_referee or player_count < 2 then
+-- Only a matchmade (Ranked or Casual) match of 2 players or more offers a Contest. Every other
+-- match keeps the plain forfeit.
+function Contest.should_offer(kind, player_count)
+	if player_count < 2 then
 		return false
 	end
-	return kind == PVP.LobbyAccess.RANKED or kind == PVP.LobbyAccess.CASUAL
+	return kind == PVP.LOBBY.Access.RANKED or kind == PVP.LOBBY.Access.CASUAL
 end
 
 -- Who a Contest ends the match for. A match of 2 players ends for both. In a
@@ -37,14 +36,15 @@ function Contest.page_path(run_id)
 	return "/contests/" .. run_id
 end
 
--- The players the contester can name: everyone else still in the match.
--- lives_cache[id] is the last lives count heard for a player; a player never
--- heard from counts as in. Each entry is {id, displayName}.
-function Contest.opponents(players, self_id, lives_cache)
+-- The players the contester can name: everyone else in the lobby except a player the view says is
+-- out (the server refuses a contest against one). A player the view does not list stays. Each entry
+-- is {id, displayName}.
+function Contest.opponents(players, self_id, view)
 	local list = {}
+	local seen = view and view.players or {}
 	for _, p in ipairs(players or {}) do
-		local lives = lives_cache and lives_cache[p.id]
-		if p.id ~= self_id and not (lives and lives <= 0) then
+		local out = seen[p.id] ~= nil and seen[p.id].status == "out"
+		if p.id ~= self_id and not out then
 			list[#list + 1] = { id = p.id, displayName = p.displayName or p.id }
 		end
 	end

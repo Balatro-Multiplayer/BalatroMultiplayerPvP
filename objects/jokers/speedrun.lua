@@ -24,7 +24,7 @@ MPAPI.Joker({
 	calculate = function(self, card, context)
 		if
 			context.mp_speedrun
-			and not PVP.is_phantom(card)
+			and not PVP.NEMESIS.is_phantom(card)
 			and #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit
 		then
 			G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1

@@ -28,7 +28,7 @@ local RULESET_STYLES = {
 -- What the banner shows, as plain data: one part per thing to name, in order.
 -- A part is { caption_key, name_key + desc_key | ruleset_key, style }. An unknown
 -- gamemode (nil before the host's metadata arrives) is left out rather than guessed.
-function PVP.lobby_mode_parts(queue_mode, ruleset_key)
+function PVP.UI.lobby.mode_parts(queue_mode, ruleset_key)
 	local parts = {}
 	local gamemode = queue_mode and GAMEMODES[queue_mode]
 	if gamemode then
@@ -42,7 +42,7 @@ end
 
 -- A description as tooltip lines: one per line of text, a blank line kept as a
 -- spacer, and nil when there is nothing to say.
-function PVP.lobby_mode_tooltip_lines(text)
+function PVP.UI.lobby.mode_tooltip_lines(text)
 	if type(text) ~= "string" or text:match("^%s*$") then
 		return nil
 	end
@@ -54,19 +54,19 @@ function PVP.lobby_mode_tooltip_lines(text)
 end
 
 local function part_tooltip(part)
-	local text = part.desc_key and localize(part.desc_key) or PVP.ruleset_description(part.ruleset_key)
-	local lines = PVP.lobby_mode_tooltip_lines(text)
+	local text = part.desc_key and localize(part.desc_key) or PVP.RULES.description(part.ruleset_key)
+	local lines = PVP.UI.lobby.mode_tooltip_lines(text)
 	return lines and { text = lines } or nil
 end
 
 local function part_node(part)
-	local colour = part.style and PVP.MODE_COLOUR[part.style] and HEX(PVP.MODE_COLOUR[part.style]) or G.C.UI.TEXT_INACTIVE
-	local name = part.name_key and localize(part.name_key) or PVP.ruleset_display_name(part.ruleset_key) or part.ruleset_key
+	local colour = part.style and PVP.UI.mode_chips.COLOUR[part.style] and HEX(PVP.UI.mode_chips.COLOUR[part.style]) or G.C.UI.TEXT_INACTIVE
+	local name = part.name_key and localize(part.name_key) or PVP.RULES.display_name(part.ruleset_key) or part.ruleset_key
 	local nodes = {}
-	local chip_row = part.style and PVP.MODE_CHIP_ROW[part.style]
+	local chip_row = part.style and PVP.UI.mode_chips.ROW[part.style]
 	if chip_row then
 		nodes[#nodes + 1] = { n = G.UIT.C, config = { align = "cm" }, nodes = {
-			{ n = G.UIT.O, config = { object = PVP.mode_chip_sprite(chip_row, 0.8) } },
+			{ n = G.UIT.O, config = { object = PVP.UI.mode_chips.sprite(chip_row, 0.8) } },
 		} }
 	end
 	nodes[#nodes + 1] = { n = G.UIT.C, config = { align = "cm", padding = 0.05 }, nodes = {
@@ -97,9 +97,9 @@ end
 -- The banner row, or nil when there is nothing known to name yet. The gamemode is
 -- read from the lobby's own metadata, so a key left over from an earlier lobby is
 -- never shown; the host's own key covers the moment before its first write lands.
-function PVP.lobby.build_mode_banner(lobby)
-	local queue_mode = (lobby:get_metadata() or {}).queue_mode or (lobby.is_host and PVP._pvp_gamemode) or nil
-	local parts = PVP.lobby_mode_parts(queue_mode, PVP.LOBBY.config.ruleset)
+function PVP.UI.lobby.build_mode_banner(lobby)
+	local queue_mode = (lobby:get_metadata() or {}).queue_mode or (lobby.is_host and PVP.LOBBY.mode_key) or nil
+	local parts = PVP.UI.lobby.mode_parts(queue_mode, PVP.LOBBY.config.ruleset)
 	if #parts == 0 then
 		return nil
 	end

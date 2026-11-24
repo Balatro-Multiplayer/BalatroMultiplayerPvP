@@ -60,7 +60,8 @@ function PVP.UTILS.get_nemesis_key(own) -- calling this function assumes the use
 	end
 	local num = ((not own) ~= (not PVP.LOBBY.is_host) and PVP.LOBBY.guest.blind_col or PVP.LOBBY.host.blind_col) or 1 -- cryptic xor fuckery
 	local ret = PVP.UTILS.blind_col_numtokey(num)
-	if tonumber(PVP.GAME.enemy.lives) <= 1 and tonumber(PVP.GAME.lives) <= 1 then
+	local enemy_lives = tonumber(PVP.GAME.enemy.lives)
+	if enemy_lives and enemy_lives <= 1 and tonumber(PVP.GAME.lives) <= 1 then
 		if G.STATE ~= G.STATES.ROUND_EVAL then -- very messy fix that mostly works. breaks in a different way... but far harder to notice
 			-- random ass showdown blind mapping because i can. surely one day this data will be organised better
 			ret = ({
@@ -120,29 +121,6 @@ function PVP.UTILS.copy_to_clipboard(text)
 	else
 		love.system.setClipboardText(text)
 	end
-end
-
-function PVP.UTILS.get_from_clipboard()
-	if G.F_LOCAL_CLIPBOARD then
-		return G.F_LOCAL_CLIPBOARD
-	else
-		return love.system.getClipboardText()
-	end
-end
-
-function PVP.UTILS.random_message()
-	local messages = {
-		localize("k_message1"),
-		localize("k_message2"),
-		localize("k_message3"),
-		localize("k_message4"),
-		localize("k_message5"),
-		localize("k_message6"),
-		localize("k_message7"),
-		localize("k_message8"),
-		localize("k_message9"),
-	}
-	return messages[math.random(1, #messages)]
 end
 
 function PVP.UTILS.add_nemesis_info(info_queue)

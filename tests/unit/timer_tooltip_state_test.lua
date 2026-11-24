@@ -1,16 +1,10 @@
--- Plain Lua test for PVP.UI.timer_tooltip_state (ui/game/timer.lua): which hover hint the
+-- Plain Lua test for PVP.READ.timer.tip (pvp_api/read/timer.lua): which hover hint the
 -- timer box shows in each state.
 -- Run from the repo root: luajit tests/unit/timer_tooltip_state_test.lua
-PVP = { UI = {}, GAME = {} }
-
--- timer.lua needs the whole game to load, so load just the state table and function.
-local file = assert(io.open("ui/game/timer.lua", "r"))
-local text = file:read("*a")
-file:close()
-local start = assert(text:find("PVP.UI.TimerTip = {", 1, true))
-local _, finish = assert(text:find("function PVP.UI.timer_tooltip_state()", start, true))
-local _, stop = assert(text:find("\nend\r?\n", finish))
-assert((loadstring or load)(text:sub(start, stop)))()
+PVP = { NET = {}, READ = {}, UI = {} }
+dofile("pvp_api/read/timer.lua")
+local reader = PVP.READ.timer
+local Tip = reader.Tip
 
 local failures = 0
 local function check(name, got, want)
@@ -22,25 +16,16 @@ local function check(name, got, want)
 	end
 end
 
-local can_act = false
-function PVP.UI.cam_timer_opponent()
-	return can_act
-end
-
-local Tip = PVP.UI.TimerTip
-local function state(game, acts)
-	PVP.GAME = game
-	can_act = acts or false
-	return PVP.UI.timer_tooltip_state()
-end
-
-check("no time left", state({ timer = 0, timer_started = true }, true), Tip.EXPIRED)
-check("no timer value counts as run out", state({}), Tip.EXPIRED)
-check("the opponent's timer runs for you", state({ timer = 30, nemesis_timer_started = true }, true), Tip.NEMESIS_RUNNING)
-check("you can start their timer", state({ timer = 30 }, true), Tip.CAN_START)
-check("you can pause the timer you started", state({ timer = 30, timer_started = true }, true), Tip.CAN_PAUSE)
-check("your timer runs and you cannot act", state({ timer = 30, timer_started = true }), Tip.RUNNING)
-check("nothing to do", state({ timer = 30 }), Tip.IDLE)
+check("no time left", reader.tip(0, "mine", true, true), Tip.EXPIRED)
+check("no clock shown is not run out", reader.tip(nil, "none", false, false), Tip.IDLE)
+check("an opponent's clock runs on you", reader.tip(30, "against me", false, true), Tip.AGAINST_ME)
+check("you can start their timer", reader.tip(30, "none", false, true), Tip.CAN_START)
+check("you can pause the timer you started", reader.tip(30, "mine", true, true), Tip.CAN_PAUSE)
+check("your timer runs and you cannot act", reader.tip(30, "mine", true, false), Tip.RUNNING)
+check("nothing to do", reader.tip(30, "none", false, false), Tip.IDLE)
+check("a press is blocked while a player is away", reader.tip(nil, "none", false, false, true), Tip.BLOCKED)
+check("blocked yields to a clock running on you", reader.tip(30, "against me", false, false, true), Tip.AGAINST_ME)
+check("blocked yields to a button that works", reader.tip(30, "mine", true, true, true), Tip.CAN_PAUSE)
 
 local seen = {}
 for _, value in pairs(Tip) do

@@ -1,12 +1,11 @@
--- Plain Lua test for PVP.Score and the referee's pure score decisions (no game needed).
+-- Plain Lua test for PVP.SCORE (no game needed).
 -- Run from the repo root: luajit tests/unit/score_test.lua
 -- Needs the MPAPI repo next to this one (BalatroMultiplayerAPI/lib/big_score.lua).
 MPAPI = {}
-PVP = {}
+PVP = { SCORE = {} }
 dofile("../BalatroMultiplayerAPI/lib/big_score.lua")
 dofile("lib/score.lua")
-dofile("pvp_api/referee.lua")
-local S = PVP.Score
+local S = PVP.SCORE
 
 local failures = 0
 local function check(name, got, want)
@@ -56,87 +55,6 @@ check(
 )
 check("an Amulet-style value past 1e308", S.from_game_value({ array = { 400, 1 }, sign = 1 }), "400,1")
 
--- The referee: who loses a round, decided on score text.
-local function side(id, score, hands)
-	return { id = id, score = score, hands_left = hands }
-end
-local function resolve(a_score, b_score, a_hands, b_hands)
-	local a, b = side("a", a_score, a_hands), side("b", b_score, b_hands)
-	return PVP.referee_resolve_2p_round(a, b), a, b
-end
-
-do
-	local r, a, b = resolve("5", "3", 0, 0)
-	check("2p: higher plain score wins", r.winner, a)
-	check("2p: lower plain score loses", r.loser, b)
-	check("2p: not a tie", r.equal, false)
-end
-do
-	local r, a, b = resolve(PLAIN, E100, 0, 0)
-	check("2p: an exponent score beats a plain score (Amulet vs no mod)", r.winner, b)
-	check("2p: the plain score loses", r.loser, a)
-end
-do
-	local r, a = resolve(E100, TOWER, 0, 0)
-	check("2p: a tower beats an exponent score", r.winner.id, "b")
-	check("2p: the exponent score loses", r.loser, a)
-end
-do
-	local r = resolve(E100, E100, 0, 0)
-	check("2p: equal big scores tie", r.equal, true)
-end
-check("2p: the round stays open while the trailing side has hands", resolve("5", "3", 0, 1), nil)
-do
-	local r, a, b = resolve("3", E100, 0, 2)
-	check("2p: the trailing side out of hands ends the round", r.loser, a)
-end
-
--- Manhunt and Royale compare the same way.
-do
-	local runner = { id = "r", score = E100 }
-	local hunters = { { id = "h1", score = PLAIN }, { id = "h2", score = TOWER } }
-	local out = PVP.referee_resolve_manhunt_round(runner, hunters)
-	check("manhunt: the hunter below the runner loses a life", #out.hunter_losers, 1)
-	check("manhunt: it is h1", out.hunter_losers[1].id, "h1")
-	check("manhunt: the runner is caught by a better hunter", out.runner_caught, true)
-	check("manhunt: the top hunter is h2", out.highest_hunter_id, "h2")
-end
-do
-	local out = PVP.referee_rank_royale({
-		{ id = "x", score = TOWER },
-		{ id = "y", score = PLAIN },
-		{ id = "z", score = E100 },
-		{ id = "w", score = "7" },
-	})
-	check("royale: the lowest two lose", #out.losers, 2)
-	check("royale: w loses", out.is_loser.w, true)
-	check("royale: y loses", out.is_loser.y, true)
-	check("royale: the tower is safe", out.is_loser.x, nil)
-end
-
--- Teams: the host sums each team's scores as score text.
-check("sum of plain scores", S.sum({ "5", "7" }), "12")
-check("sum of nothing is zero", S.sum({}), "0")
-check("sum skips a malformed score", S.sum({ "5", "banana", "2" }), "7")
-check("sum does not fall to text order", S.sum({ "9", "10" }), "19")
-check("no number mod: an exponent score stands in for the sum", S.sum({ "5", E100 }), E100)
-do
-	local function tm(a, b, a_hands, b_hands)
-		return PVP.referee_resolve_teams_round(a, b)
-	end
-	local r = tm({ { score = "5" }, { score = "4" } }, { { score = "10" } })
-	check("teams: 9 vs 10, team A loses", r.loser_team, "A")
-	check("teams: 9 vs 10 is not a tie", r.equal, false)
-	r = tm({ { score = "5" }, { score = "5" } }, { { score = "10" } })
-	check("teams: 10 vs 10 ties", r.equal, true)
-	r = tm({ { score = "2" } }, { { score = E100 }, { score = "3" } })
-	check("teams: an exponent team beats a plain team", r.loser_team, "A")
-	r = tm({ { score = TOWER } }, { { score = E100 } })
-	check("teams: a tower team beats an exponent team", r.loser_team, "B")
-	r = tm({ { score = E100 } }, { { score = E100 } })
-	check("teams: equal big teams tie", r.equal, true)
-end
-
 -- Fakes shaped like the two mods' constructors.
 -- Talisman: to_big(number) or to_big(array) builds {array, sign}; a table that wraps
 -- the array ({ array = ... }) has no array[1] and normalizes to 0.
@@ -174,13 +92,10 @@ local function add_first_entries(x, y)
 	return result
 end
 
--- With a number mod, the sum goes through the mod's own add.
+-- With a number mod, a score reads back through the mod's own number.
 for _, kind in ipairs({ "talisman", "amulet" }) do
 	local saved = to_big
 	to_big = make_mod(kind, add_first_entries)
-	check(kind .. ": sums with the mod's add", S.sum({ "5", "7" }), "12")
-	check(kind .. ": sums exponent scores with the mod's add", S.sum({ "100,1", "100,1" }), "200,1")
-	check(kind .. ": an array score is not dropped from the sum", S.sum({ "400,1", "1000" }) ~= "1000", true)
 	check(kind .. ": to_game_value reads back", MPAPI.BigScore.from_game_value(S.to_game_value("1234.5,1")), "1234.5,1")
 	check(kind .. ": to_game_value of a plain score", MPAPI.BigScore.from_game_value(S.to_game_value("12345")), "12345")
 	check(kind .. ": to_game_value of a tower", MPAPI.BigScore.from_game_value(S.to_game_value("20,3")), "20,3")
@@ -189,7 +104,7 @@ for _, kind in ipairs({ "talisman", "amulet" }) do
 end
 
 -- A mod that returns 0 for an array score without an error (Amulet given a wrapping
--- table): to_game_value refuses it, and the sum logs and falls back to doubles.
+-- table): to_game_value refuses it.
 do
 	local saved = to_big
 	local real = make_mod("amulet", add_first_entries)
@@ -205,10 +120,6 @@ do
 	local value, reason = S.to_game_value("400,1")
 	check("a zero for a nonzero array score is refused", value, nil)
 	check("the refusal says why", type(reason) == "string" and reason:find("different value", 1, true) ~= nil, true)
-	local warned
-	sendWarnMessage = function(message) warned = message end
-	check("a mod that builds zero: the sum takes the fallback", S.sum({ "400,1", "1000" }), "400,1")
-	check("a mod that builds zero: the sum logs it", warned ~= nil, true)
 	to_big = saved
 end
 
@@ -241,39 +152,6 @@ do
 	check("bignum mode: a plain score keeps its value", MPAPI.BigScore.from_game_value(S.to_game_value("12345")), "12345")
 	to_big = saved
 end
-
--- A mod whose add raises an error: the error is logged, and the sum falls back to doubles.
-do
-	local saved = to_big
-	local warned
-	sendWarnMessage = function(message)
-		warned = message
-	end
-	to_big = make_mod("talisman", function() error("add exploded") end)
-	check("mod error: sum falls back to doubles", S.sum({ "5", "7" }), "12")
-	check("mod error: the error is logged", warned ~= nil and warned:find("add exploded", 1, true) ~= nil, true)
-	to_big = saved
-end
-
--- The season best a player reports: score text, plus the number a score board is not fed.
-PVP.REF = {
-	players = {
-		big = { score = "20,2", highest_score = "25.5,2" },
-		low = { score = "5", highest_score = "1234" },
-		cur = { score = "77" },
-		none = {},
-		huge = { score = "100,1" },
-	},
-}
-check("season best text is the highest score", PVP.pvp_score_text("big"), "25.5,2")
-check("season best text keeps a whole number", PVP.pvp_score_text("low"), "1234")
-check("season best text falls back to the current score", PVP.pvp_score_text("cur"), "77")
-check("season best text of nobody is zero", PVP.pvp_score_text("ghost"), "0")
-check("season best text of a player with no score is zero", PVP.pvp_score_text("none"), "0")
-check("plain number of a small score", PVP.pvp_score_metric("low"), 1234)
-check("plain number caps at 1e15", PVP.pvp_score_metric("huge"), 1e15)
-check("plain number of a tower caps at 1e15", PVP.pvp_score_metric("big"), 1e15)
-check("plain number of nobody is zero", PVP.pvp_score_metric("ghost"), 0)
 
 if failures > 0 then
 	print(failures .. " failure(s)")

@@ -9,13 +9,13 @@
 -- Key prefixing: PvP gamemode files pass short keys (key = "attrition") and have
 -- always relied on a "gamemode_mp_" prefix (class "gamemode" + this mod's "mp")
 -- for the full key used everywhere else in the codebase -- same reasoning as
--- rulesets/_rulesets.lua's PVP.Ruleset.
+-- rulesets/_rulesets.lua's PVP.RULES.Ruleset.
 
-PVP.Gamemodes = MPAPI.GameModes
+PVP.RULES.gamemodes = MPAPI.GameModes
 
 local function noop_start_run() end
 
-function PVP.Gamemode(init)
+function PVP.RULES.Gamemode(init)
 	init.key = "gamemode_mp_" .. init.key
 	init.prefix_config = init.prefix_config or { key = false }
 	init.start_run = init.start_run or noop_start_run

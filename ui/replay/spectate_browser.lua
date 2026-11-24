@@ -1,7 +1,7 @@
 -- §22.3: "Spectate" browser -- lists MPAPI.replay.list_spectatable, launches
 -- a live, uninteractable follow of the picked match via PVP.SPECTATE.start
 -- (pvp_api/spectate_feed.lua), which bootstraps its own seeded local run
--- (PVP._start_playback) from the match's own buffered manifest before
+-- (PVP.REPLAY.start) from the match's own buffered manifest before
 -- attaching the live feed.
 --
 -- v1 scope: no pagination, matching replay_browser.lua's own scope decision.

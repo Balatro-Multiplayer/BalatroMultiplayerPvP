@@ -1,6 +1,3 @@
-local A = PVP._pvp_action_helpers.A
-local relay = PVP._pvp_action_helpers.relay
-
 -- Stake indices the hovered stake applies, easiest first. White (and anything
 -- else marked hide_from_run_info) is included only when it is the stake itself.
 local function stake_effect_indices(stake_index)
@@ -118,7 +115,7 @@ local function draft_stake_popup(stake_index)
 end
 
 -- Wire PvP's Draft policy and presentation into MPAPI.BanPick.
-function PVP._ban_pick_config_for(gm_def, ruleset)
+function PVP.DRAFT.ban_pick_config_for(gm_def, ruleset)
 	local bp = gm_def.ban_pick
 	local max_stake = (PVP.DECK and PVP.DECK.MAX_STAKE and PVP.DECK.MAX_STAKE > 0) and PVP.DECK.MAX_STAKE or 8
 	return {
@@ -192,8 +189,8 @@ function PVP._ban_pick_config_for(gm_def, ruleset)
 			end
 		end,
 		on_refresh = function()
-			if PVP.lobby and PVP.lobby.refresh_mm_status then
-				PVP.lobby.refresh_mm_status()
+			if PVP.UI.lobby and PVP.UI.lobby.refresh_mm_status then
+				PVP.UI.lobby.refresh_mm_status()
 			end
 		end,
 	}
@@ -204,7 +201,7 @@ end
 -- PVP.LOBBY on every metadata change, so a stale queued stake there would undo the
 -- Draft (and a Reseed would then start on it). The server keeps the drafted stake
 -- in the started game itself for a server-run restart.
-function PVP.publish_drafted_loadout(lobby, back, stake)
+function PVP.DRAFT.publish_loadout(lobby, back, stake)
 	local patch = {}
 	if back then
 		patch.deck = back
@@ -213,30 +210,26 @@ function PVP.publish_drafted_loadout(lobby, back, stake)
 		patch.stake = tostring(stake)
 	end
 	if next(patch) then
-		lobby:set_metadata(patch)
+		PVP.UI.lobby.send_settings(lobby, patch)
 	end
 end
 
--- Every client's start of a game (params = { seed, stake }): run off the
--- pvp_start_game broadcast (host-refereed lobbies) or off GAME_STARTED
--- (server-refereed lobbies, see pvp_api/lobby_bridge.lua) -- the same body.
+-- Every client's start of a game (params = { seed, stake }), run off GAME_STARTED
+-- (pvp_api/lobby_bridge.lua).
 -- A rejoin into a game still in Setup calls it again (pvp_api/reconnect.lua).
-function PVP.on_game_start(params)
+function PVP.ACTIONS.on_game_start(params)
 	-- The match reveal hides every menu, and the votes and the Draft open in the lobby's: it
 	-- gives them back at once and its player cards slide off over them.
-	if PVP.QUEUE_HUD then
-		PVP.QUEUE_HUD.finish_reveal()
+	if PVP.UI.queue.hud then
+		PVP.UI.queue.hud.finish_reveal()
 	end
-	if PVP.stop_ready_resync then
-		PVP.stop_ready_resync()
-	end
-	if PVP.reset_ready_state then
-		PVP.reset_ready_state()
+	if PVP.UI.lobby.reset_ready then
+		PVP.UI.lobby.reset_ready()
 	end
 
 	local lobby = MPAPI.get_current_lobby()
 	local meta = (lobby and lobby:get_metadata()) or {}
-	if meta.cocktail_recipe and not PVP.receive_cocktail_recipe(meta.cocktail_recipe) then return end
+	if meta.cocktail_recipe and not PVP.COCKTAIL.receive_recipe(meta.cocktail_recipe) then return end
 	local gm_def = meta.queue_mode and MPAPI.GameModes[meta.queue_mode]
 
 	-- picked is a { key, stake } item (deck+stake Draft), a plain deck key/name, or nil.
@@ -261,28 +254,27 @@ function PVP.on_game_start(params)
 			PVP.LOBBY.deck.stake = stake
 		end
 		if lobby and lobby.is_host then
-			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
+			PVP.DRAFT.publish_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
 		end
-		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
-		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
+		PVP.UI.match.start_game(params.seed, stake or params.stake)
 	end
 
-	-- Setup (pvp_api/setup.lua) runs on the server, so only a server-refereed
-	-- lobby has one: the Casual votes, then the matchmaking Draft. Two Draft
+	-- Setup (pvp_api/setup.lua) runs on the server, so only a lobby has one:
+	-- the Casual votes, then the matchmaking Draft. Two Draft
 	-- shapes exist (gamemodes.lua): BAN_PICK's explicit schedule addresses
 	-- exactly two actor slots, so it only drafts at exactly 2 players.
 	-- ROTATING_BAN_PICK (Royale/Manhunt/Teams) rotates through however many
 	-- players are in the game, so it runs at any N >= 2.
 	local plan = { votes = false, draft = false }
-	if lobby and MPAPI.has_server_referee(lobby) then
+	if lobby then
 		local started = lobby._game and lobby._game.started
 		plan = PVP.SETUP.plan(
 			meta.queue_mode,
-			PVP._pvp_kind == PVP.LobbyAccess.CASUAL,
-			PVP.is_matchmaking and PVP.is_matchmaking(),
+			PVP.LOBBY.kind == PVP.LOBBY.Access.CASUAL,
+			PVP.LOBBY.is_matchmaking and PVP.LOBBY.is_matchmaking(),
 			#((started and started.players) or lobby:get_players()),
 			gm_def and gm_def.ban_pick,
-			PVP._pvp_kind == PVP.LobbyAccess.PRIVATE and meta.deck_mode == PVP.DeckMode.DRAFT
+			PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE and meta.deck_mode == PVP.LOBBY.DeckMode.DRAFT
 		)
 	end
 	if not (plan.votes or plan.draft) then
@@ -295,23 +287,17 @@ function PVP.on_game_start(params)
 		end
 		return
 	end
-	if plan.draft and not PVP.is_matchmaking() then
+	if plan.draft and not PVP.LOBBY.is_matchmaking() then
 		-- The private lobby's view swaps to the Draft panel (ui/lobby/controls.lua).
 		G.E_MANAGER:add_event(Event({ func = function() MPAPI.refresh_current_view() return true end }))
 	end
 	PVP.SETUP.begin(lobby, plan, function(on_picked)
 		-- The Draft's pool follows the ruleset the votes rolled (applied by the
 		-- metadata mirror), else the queued one.
-		MPAPI.BanPick.start(lobby, PVP._ban_pick_config_for(gm_def, PVP.LOBBY.config.ruleset), function(survivors)
+		MPAPI.BanPick.start(lobby, PVP.DRAFT.ban_pick_config_for(gm_def, PVP.LOBBY.config.ruleset), function(survivors)
 			on_picked(survivors[1])
 		end)
 	end, function(picked)
 		proceed(picked or (lobby:get_metadata() or {}).deck)
 	end)
 end
-
-A("pvp_start_game", function(_at, from, params)
-	PVP.on_game_start(params)
-end)
-
-relay("pvp_stop_game", "stopGame")

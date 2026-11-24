@@ -1,6 +1,6 @@
 -- reverts gameplay-related changes in the game to the 1.0.0 release version
 --[[
-PVP.Ruleset({
+PVP.RULES.Ruleset({
 	key = "release",
 	layers = { "release" },
 }):inject()
@@ -14,44 +14,44 @@ SMODS.Atlas({
 	py = 95,
 })
 
-PVP.ReworkCenter("j_greedy_joker", {
+PVP.RULES.ReworkCenter("j_greedy_joker", {
 	layers = "release",
 	config = {extra = {s_mult = 4, suit = 'Diamonds'}},
 })
 
-PVP.ReworkCenter("j_lusty_joker", {
+PVP.RULES.ReworkCenter("j_lusty_joker", {
 	layers = "release",
 	config = {extra = {s_mult = 4, suit = 'Hearts'}},
 })
 
-PVP.ReworkCenter("j_wrathful_joker", {
+PVP.RULES.ReworkCenter("j_wrathful_joker", {
 	layers = "release",
 	config = {extra = {s_mult = 4, suit = 'Spades'}},
 })
 
-PVP.ReworkCenter("j_gluttenous_joker", {
+PVP.RULES.ReworkCenter("j_gluttenous_joker", {
 	layers = "release",
 	config = {extra = {s_mult = 4, suit = 'Clubs'}},
 })
 
-PVP.ReworkCenter("j_mad", {
+PVP.RULES.ReworkCenter("j_mad", {
 	layers = "release",
 	config = {t_mult = 20, type = 'Four of a Kind'},
 	atlas = "mp_release_jokers",
 })
 
-PVP.ReworkCenter("j_clever", {
+PVP.RULES.ReworkCenter("j_clever", {
 	layers = "release",
 	config = {t_chips = 150, type = 'Four of a Kind'},
 	atlas = "mp_release_jokers",
 })
 
-PVP.ReworkCenter("j_banner", {
+PVP.RULES.ReworkCenter("j_banner", {
 	layers = "release",
 	config = {extra = 40},
 })
 
-PVP.ReworkCenter("j_8_ball", {
+PVP.RULES.ReworkCenter("j_8_ball", {
 	layers = "release",
 	loc_key = "j_mp_8ball_release",
 	config = {extra = 2},
@@ -95,42 +95,42 @@ PVP.ReworkCenter("j_8_ball", {
 	end
 })
 
-PVP.ReworkCenter("j_fibonacci", {
+PVP.RULES.ReworkCenter("j_fibonacci", {
 	layers = "release",
 	cost = 7,
 })
 
-PVP.ReworkCenter("j_steel_joker", {
+PVP.RULES.ReworkCenter("j_steel_joker", {
 	layers = "release",
 	config = {extra = 0.25},
 })
 
-PVP.ReworkCenter("j_gros_michel", {
+PVP.RULES.ReworkCenter("j_gros_michel", {
 	layers = "release",
 	config = {extra = {odds = 4, mult = 15}},
 })
 
-PVP.ReworkCenter("j_odd_todd", {
+PVP.RULES.ReworkCenter("j_odd_todd", {
 	layers = "release",
 	config = {extra = 30},
 })
 
-PVP.ReworkCenter("j_runner", {
+PVP.RULES.ReworkCenter("j_runner", {
 	layers = "release",
 	config = {extra = {chips = 20, chip_mod = 10}},
 })
 
-PVP.ReworkCenter("j_sixth_sense", {
+PVP.RULES.ReworkCenter("j_sixth_sense", {
 	layers = "release",
 	rarity = 3,
 })
 
-PVP.ReworkCenter("j_hiker", {
+PVP.RULES.ReworkCenter("j_hiker", {
 	layers = "release",
 	config = {extra = 4},
 })
 
-PVP.ReworkCenter("j_todo_list", {
+PVP.RULES.ReworkCenter("j_todo_list", {
 	layers = "release",
 	loc_key = "j_mp_todo_list_release",
 	config = {extra = {dollars = 5, poker_hand = 'High Card'}},
@@ -162,7 +162,7 @@ PVP.ReworkCenter("j_todo_list", {
 	end
 })
 
-PVP.ReworkCenter("j_madness", {
+PVP.RULES.ReworkCenter("j_madness", {
 	layers = "release",
 	loc_key = "j_mp_madness_release",
 	calculate = function(self, card, context)
@@ -189,7 +189,7 @@ PVP.ReworkCenter("j_madness", {
 	end
 })
 
-PVP.ReworkCenter("j_square", {
+PVP.RULES.ReworkCenter("j_square", {
 	layers = "release",
 	config = {extra = {chips = 16, chip_mod = 4}},
 	cost = 5,
@@ -210,18 +210,18 @@ function Card:set_ability(center, initial, delay_sprites)
 	return ret
 end
 
-PVP.ReworkCenter("j_seance", {
+PVP.RULES.ReworkCenter("j_seance", {
 	layers = "release",
 	rarity = 3,
 	cost = 7,
 })
 
-PVP.ReworkCenter("j_riff_raff", {
+PVP.RULES.ReworkCenter("j_riff_raff", {
 	layers = "release",
 	cost = 4,
 })
 
-PVP.ReworkCenter("j_vampire", {
+PVP.RULES.ReworkCenter("j_vampire", {
 	layers = "release",
 	loc_key = "j_mp_vampire_release",
 	config = {extra = 0.2, Xmult = 1},
@@ -255,19 +255,19 @@ PVP.ReworkCenter("j_vampire", {
 	end,
 })
 
-PVP.ReworkCenter("j_vagabond", {
+PVP.RULES.ReworkCenter("j_vagabond", {
 	layers = "release",
 	rarity = 2,
 	config = {extra = 3},
 	cost = 6,
 })
 
-PVP.ReworkCenter("j_cloud_9", {
+PVP.RULES.ReworkCenter("j_cloud_9", {
 	layers = "release",
 	cost = 6,
 })
 
-PVP.ReworkCenter("j_midas_mask", {
+PVP.RULES.ReworkCenter("j_midas_mask", {
 	layers = "release",
 	loc_key = "j_mp_midas_mask_release",
 	cost = 6,
@@ -298,47 +298,47 @@ PVP.ReworkCenter("j_midas_mask", {
 	end,
 })
 
-PVP.ReworkCenter("j_luchador", {
+PVP.RULES.ReworkCenter("j_luchador", {
 	layers = "release",
 	eternal_compat = true, -- ok
 })
 
-PVP.ReworkCenter("j_reserved_parking", {
+PVP.RULES.ReworkCenter("j_reserved_parking", {
 	layers = "release",
 	rarity = 2,
 })
 
-PVP.ReworkCenter("j_mail", {
+PVP.RULES.ReworkCenter("j_mail", {
 	layers = "release",
 	config = {extra = 3},
 })
 
-PVP.ReworkCenter("j_lucky_cat", {
+PVP.RULES.ReworkCenter("j_lucky_cat", {
 	layers = "release",
 	config = {Xmult = 1, extra = 0.2},
 })
 
-PVP.ReworkCenter("j_trading", {
+PVP.RULES.ReworkCenter("j_trading", {
 	layers = "release",
 	cost = 5,
 })
 
-PVP.ReworkCenter("j_smiley", {
+PVP.RULES.ReworkCenter("j_smiley", {
 	layers = "release",
 	config = {extra = 4},
 })
 
-PVP.ReworkCenter("j_campfire", {
+PVP.RULES.ReworkCenter("j_campfire", {
 	layers = "release",
 	config = {extra = 0.5},
 })
 
-PVP.ReworkCenter("j_ticket", {
+PVP.RULES.ReworkCenter("j_ticket", {
 	layers = "release",
 	config = {extra = 3},
 })
 
-PVP.ReworkCenter("j_swashbuckler", {
+PVP.RULES.ReworkCenter("j_swashbuckler", {
 	layers = "release",
 	loc_key = "j_mp_swashbuckler_release",
 	config = {mult = 1, release = true},
@@ -359,28 +359,28 @@ function Card:update(dt)
 	end
 end
 
-PVP.ReworkCenter("j_hanging_chad", {
+PVP.RULES.ReworkCenter("j_hanging_chad", {
 	layers = "release",
 	loc_key = "j_mp_hanging_chad_release",
 	config = {extra = 1},
 })
 
-PVP.ReworkCenter("j_bloodstone", {
+PVP.RULES.ReworkCenter("j_bloodstone", {
 	layers = "release",
 	config = {extra = {odds = 3, Xmult = 2}},
 })
 
-PVP.ReworkCenter("j_onyx_agate", {
+PVP.RULES.ReworkCenter("j_onyx_agate", {
 	layers = "release",
 	config = {extra = 8},
 })
 
-PVP.ReworkCenter("j_glass", {
+PVP.RULES.ReworkCenter("j_glass", {
 	layers = "release",
 	config = {extra = 0.5, Xmult = 1},
 })
 
-PVP.ReworkCenter("j_flower_pot", {
+PVP.RULES.ReworkCenter("j_flower_pot", {
 	layers = "release",
 	loc_key = "j_mp_flower_pot_release",
 	calculate = function(self, card, context)
@@ -421,31 +421,31 @@ PVP.ReworkCenter("j_flower_pot", {
 	end,
 })
 
-PVP.ReworkCenter("j_wee", {
+PVP.RULES.ReworkCenter("j_wee", {
 	layers = "release",
 	config = {extra = {chips = 10, chip_mod = 8}},
 })
 
-PVP.ReworkCenter("j_stuntman", {
+PVP.RULES.ReworkCenter("j_stuntman", {
 	layers = "release",
 	rarity = 2,
 	config = {extra = {h_size = 2, chip_mod = 300}},
 	cost = 6,
 })
 
-PVP.ReworkCenter("j_invisible", {
+PVP.RULES.ReworkCenter("j_invisible", {
 	layers = "release",
 	config = {extra = 3},
 	cost = 10,
 })
 
-PVP.ReworkCenter("j_burnt", {
+PVP.RULES.ReworkCenter("j_burnt", {
 	layers = "release",
 	rarity = 2,
 	cost = 6,
 })
 
-PVP.ReworkCenter("j_yorick", {
+PVP.RULES.ReworkCenter("j_yorick", {
 	layers = "release",
 	loc_key = "j_mp_yorick_release",
 	config = {extra = {xmult = 5, discards = 23}},
@@ -479,7 +479,7 @@ PVP.ReworkCenter("j_yorick", {
 	end,
 })
 
-PVP.ReworkCenter("c_magician", {
+PVP.RULES.ReworkCenter("c_magician", {
 	layers = "release",
 	loc_key = "c_mp_magician_release",
 	config = {mod_conv = "m_lucky", max_highlighted = 1},
@@ -492,7 +492,7 @@ PVP.ReworkCenter("c_magician", {
 	end,
 })
 
-PVP.ReworkCenter("tag_uncommon", {
+PVP.RULES.ReworkCenter("tag_uncommon", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_uncommon_release",
@@ -511,7 +511,7 @@ PVP.ReworkCenter("tag_uncommon", {
 	end,
 })
 
-PVP.ReworkCenter("tag_rare", {
+PVP.RULES.ReworkCenter("tag_rare", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_rare_release",
@@ -543,7 +543,7 @@ PVP.ReworkCenter("tag_rare", {
 	end,
 })
 
-PVP.ReworkCenter("tag_negative", {
+PVP.RULES.ReworkCenter("tag_negative", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_negative_release",
@@ -564,7 +564,7 @@ PVP.ReworkCenter("tag_negative", {
 	end,
 })
 
-PVP.ReworkCenter("tag_foil", {
+PVP.RULES.ReworkCenter("tag_foil", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_foil_release",
@@ -585,7 +585,7 @@ PVP.ReworkCenter("tag_foil", {
 	end,
 })
 
-PVP.ReworkCenter("tag_holo", {
+PVP.RULES.ReworkCenter("tag_holo", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_holo_release",
@@ -606,7 +606,7 @@ PVP.ReworkCenter("tag_holo", {
 	end,
 })
 
-PVP.ReworkCenter("tag_polychrome", {
+PVP.RULES.ReworkCenter("tag_polychrome", {
 	layers = "release",
 	center_table = "P_TAGS",
 	loc_key = "tag_mp_poly_release",
@@ -640,13 +640,13 @@ for k, v in ipairs({
 	SMODS.Tags[v] = G.P_TAGS[v]
 end
 
-PVP.ReworkCenter("tag_investment", {
+PVP.RULES.ReworkCenter("tag_investment", {
 	layers = "release",
 	center_table = "P_TAGS",
 	config = {type = 'eval', dollars = 15},
 })
 
-PVP.ReworkCenter("Blue", {
+PVP.RULES.ReworkCenter("Blue", {
 	layers = "release",
 	center_table = "P_SEALS",
 	release = true,
@@ -682,48 +682,48 @@ function Card:get_end_of_round_effect(context)
 	return ret
 end
 
-PVP.ReworkCenter("Straight", {
+PVP.RULES.ReworkCenter("Straight", {
 	layers = "release",
 	center_table = SMODS.PokerHands,
 	l_mult = 2,
 })
 
 -- no behaviour change, just so it shows the sticker
-PVP.ReworkCenter("c_saturn", {
+PVP.RULES.ReworkCenter("c_saturn", {
 	layers = "release"
 })
 
-PVP.ReworkCenter("Straight Flush", {
+PVP.RULES.ReworkCenter("Straight Flush", {
 	layers = "release",
 	center_table = SMODS.PokerHands,
 	l_mult = 3,
 })
 
-PVP.ReworkCenter("c_neptune", {
+PVP.RULES.ReworkCenter("c_neptune", {
 	layers = "release",
 })
 
-PVP.ReworkCenter("Flush House", {
+PVP.RULES.ReworkCenter("Flush House", {
 	layers = "release",
 	center_table = SMODS.PokerHands,
 	l_mult = 3,
 })
 
-PVP.ReworkCenter("c_ceres", {
+PVP.RULES.ReworkCenter("c_ceres", {
 	layers = "release",
 })
 
-PVP.ReworkCenter("Flush Five", {
+PVP.RULES.ReworkCenter("Flush Five", {
 	layers = "release",
 	center_table = SMODS.PokerHands,
 	l_chips = 40,
 })
 
-PVP.ReworkCenter("c_eris", {
+PVP.RULES.ReworkCenter("c_eris", {
 	layers = "release",
 })
 
-PVP.ReworkCenter("stake_green", {
+PVP.RULES.ReworkCenter("stake_green", {
 	layers = "release",
 	center_table = "P_STAKES",
 	modifiers = function()
@@ -732,7 +732,7 @@ PVP.ReworkCenter("stake_green", {
 	end,
 })
 
-PVP.ReworkCenter("stake_purple", {
+PVP.RULES.ReworkCenter("stake_purple", {
 	layers = "release",
 	center_table = "P_STAKES",
 	modifiers = function()
@@ -763,7 +763,7 @@ function get_blind_amount(ante)
 	return get_blind_amount_ref(ante)
 end
 
-PVP.ReworkCenter("stake_orange", {
+PVP.RULES.ReworkCenter("stake_orange", {
 	layers = "release",
 	center_table = "P_STAKES",
 	loc_key = "stake_mp_orange_release",
@@ -772,7 +772,7 @@ PVP.ReworkCenter("stake_orange", {
 	end,
 })
 
-PVP.ReworkCenter("stake_gold", {
+PVP.RULES.ReworkCenter("stake_gold", {
 	layers = "release",
 	center_table = "P_STAKES",
 	loc_key = "stake_mp_gold_release",
@@ -782,7 +782,7 @@ PVP.ReworkCenter("stake_gold", {
 })
 
 -- there's an incredibly obscure crash directly caused by adding any sort of function or recursive table to the blind center, so this will crash the game even if the ruleset isn't loaded. i cba to figure out why at this point
-PVP.ReworkCenter("bl_arm", {
+PVP.RULES.ReworkCenter("bl_arm", {
 	layers = "release",
 	center_table = "P_BLINDS",
 	debuff_hand = function(self, cards, hand, handname, check)

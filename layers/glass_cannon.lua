@@ -13,7 +13,7 @@ local _back_trigger_effect = Back.trigger_effect
 function Back:trigger_effect(args)
     -- magic. don't ask
 	local nu_chip, nu_mult = _back_trigger_effect(self, args)
-	if args and args.context == "final_scoring_step" and PVP.is_layer_active("glass_cannon") then
+	if args and args.context == "final_scoring_step" and PVP.RULES.is_layer_active("glass_cannon") then
 		local base_mult = nu_mult or args.mult
 		return nu_chip, base_mult * GLASS_CANNON_XMULT
 	end

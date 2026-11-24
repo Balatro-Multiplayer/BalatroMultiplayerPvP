@@ -117,7 +117,7 @@ function P.lobby(gamemode, configure)
 	return {
 		only("host", {
 			run = function()
-				PVP.pvp_create_private_lobby(gamemode)
+				PVP.LOBBY.create_private(gamemode)
 			end,
 		}),
 		only("host", {
@@ -127,7 +127,7 @@ function P.lobby(gamemode, configure)
 			timeout = 20,
 			run = function()
 				if configure then configure(PVP.LOBBY.config) end
-				lobby():set_metadata(PVP.pvp_lobby_metadata(gamemode, PVP.LobbyAccess.PRIVATE))
+				lobby():set_metadata(PVP.LOBBY.metadata(gamemode, PVP.LOBBY.Access.PRIVATE))
 				P.put("lobby", lobby().code)
 			end,
 		}),
@@ -137,7 +137,7 @@ function P.lobby(gamemode, configure)
 			end,
 			timeout = 30,
 			run = function()
-				PVP.pvp_join_lobby(P.get("lobby"))
+				PVP.LOBBY.join(P.get("lobby"))
 			end,
 		}),
 		{
@@ -168,7 +168,7 @@ function P.start()
 			timeout = 30,
 			wait = 2,
 			run = function()
-				PVP.pvp_start_match()
+				PVP.LOBBY.start_match()
 			end,
 		}),
 	}
@@ -193,7 +193,7 @@ function P.reach_blind_select()
 end
 
 -- Fixture: from a blind select, jump to this ante with Small and Big already
--- skipped, so the next blind is the PvP boss. The referee hears the ante as it
+-- skipped, so the next blind is the PvP boss. The run screen hears the ante as it
 -- would from ease_ante. The blind select rebuilds on the next update.
 function P.jump_to_pvp(ante)
 	return {
@@ -277,7 +277,7 @@ end
 
 -- Readies for the PvP boss, runs any between steps, then
 -- plays leftmost-card hands until the round resolves on this side. Real cards,
--- real scoring, real referee. Host plays five cards, guest one, so the shared
+-- real scoring, the real server. Host plays five cards, guest one, so the shared
 -- seed doesn't make every blind a tie.
 function P.play_pvp_blind(between)
 	local cards = role == "host" and 5 or 1

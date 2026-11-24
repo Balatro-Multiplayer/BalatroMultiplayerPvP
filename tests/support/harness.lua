@@ -49,15 +49,21 @@ local session, practice = false, false
 PVP = {
 	id = "MultiplayerPvP",
 	EXPERIMENTAL = {},
-	LOBBY = { config = {}, deck = {} },
-	SP = {},
+	LOBBY = {
+		config = {},
+		deck = {},
+		in_session = function()
+			return session
+		end,
+	},
+	RULES = {},
+	REPLAY = {},
+	PRACTICE = {
+		is_on = function()
+			return practice
+		end,
+	},
 	GAME = {},
-	in_session = function()
-		return session
-	end,
-	is_practice_mode = function()
-		return practice
-	end,
 }
 
 dofile("layers/_layers.lua")
@@ -133,7 +139,7 @@ H.RUN_KINDS = { "lobby", "practice" }
 
 function H.start_run(ruleset, kind)
 	session, practice = kind ~= "normal", kind == "practice"
-	PVP.SP.ruleset = practice and "ruleset_mp_" .. ruleset or nil
+	PVP.PRACTICE.ruleset = practice and "ruleset_mp_" .. ruleset or nil
 	PVP.LOBBY.code = kind == "lobby" and "TEST" or nil
 	PVP.LOBBY.config = { ruleset = not practice and "ruleset_mp_" .. ruleset or nil }
 	MPAPI.MODIFIERS = {}

@@ -1,5 +1,5 @@
 -- Shared Pockets: hand, jokers and consumables share one pool of slots.
-function PVP.setup_shared_pockets()
+function PVP.RULES.setup_shared_pockets()
 	if G.GAME.mp_shared_pockets then return end
 	G.GAME.modifiers.mp_shared_pockets = true
 	-- we're gonna do some hardcoded jank on the backend because slots are weird
@@ -16,7 +16,7 @@ MPAPI.Layer("shared_pockets", {
 	},
 	calculate = function(self, context)
 		if context.apply_bans then
-			PVP.setup_shared_pockets()
+			PVP.RULES.setup_shared_pockets()
 		end
 	end,
 })

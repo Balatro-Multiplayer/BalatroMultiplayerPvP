@@ -1,5 +1,5 @@
 --[[ gotta redefine the logic
-PVP.ReworkCenter({
+PVP.RULES.ReworkCenter({
 	key = "c_judgement",
 	ruleset = PVP.UTILS.get_standard_rulesets({'minorleague'}),
 	silent = true,

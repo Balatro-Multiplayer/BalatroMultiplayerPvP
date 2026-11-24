@@ -1,6 +1,6 @@
 G.FUNCS.mp_pvp_view_code = function(e)
 	local text_config = e.children[1].children[1].config
-	local code = PVP.lobby.ref and PVP.lobby.ref.code
+	local code = PVP.UI.lobby.ref and PVP.UI.lobby.ref.code
 	if not code then
 		return
 	end
@@ -15,7 +15,7 @@ G.FUNCS.mp_pvp_view_code = function(e)
 end
 
 G.FUNCS.mp_pvp_copy_code = function(e)
-	local code = PVP.lobby.ref and PVP.lobby.ref.code
+	local code = PVP.UI.lobby.ref and PVP.UI.lobby.ref.code
 	if not code then
 		return
 	end
@@ -39,12 +39,12 @@ G.FUNCS.mp_pvp_copy_code = function(e)
 end
 
 G.FUNCS.mp_pvp_start_game = function()
-	PVP.pvp_start_match()
+	PVP.LOBBY.start_match()
 end
 
 G.FUNCS.mp_pvp_leave_lobby = function()
 	local function do_leave()
-		PVP.pvp_leave_lobby()
+		PVP.LOBBY.leave()
 		MPAPI.refresh_current_view()
 	end
 	-- Mid-game (e.g. from the end screen) confirm before tearing down the run; from the
@@ -70,5 +70,5 @@ G.FUNCS.lobby_choose_deck = function(e)
 end
 
 G.FUNCS.mp_pvp_lobby_options = function()
-	G.FUNCS.overlay_menu({ definition = PVP.build_lobby_options() })
+	G.FUNCS.overlay_menu({ definition = PVP.UI.lobby_options.build() })
 end

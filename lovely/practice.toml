@@ -14,14 +14,14 @@ pattern = '''function Controller:key_press_update(key, dt)'''
 position = 'before'
 payload = '''
 function Controller:practice_give_card()
-    if not (PVP and PVP.is_practice_mode()) then return end
+    if not (PVP and PVP.PRACTICE.is_on()) then return end
     if PVP.LOBBY.code then return end
     if not (self.hovering.target and self.hovering.target:is(Card)) then return end
     if not G.OVERLAY_MENU then return end
     local _card = self.hovering.target
     if _card.ability.set == 'Joker' and G.jokers then
-        if PVP.SP.unlimited_slots or #G.jokers.cards < G.jokers.config.card_limit then
-            if PVP.SP.unlimited_slots and #G.jokers.cards >= G.jokers.config.card_limit then
+        if PVP.PRACTICE.unlimited_slots or #G.jokers.cards < G.jokers.config.card_limit then
+            if PVP.PRACTICE.unlimited_slots and #G.jokers.cards >= G.jokers.config.card_limit then
                 G.jokers.config.card_limit = G.jokers.config.card_limit + 1
             end
             add_joker(_card.config.center.key)
@@ -29,8 +29,8 @@ function Controller:practice_give_card()
         end
     end
     if _card.ability.consumeable and G.consumeables then
-        if PVP.SP.unlimited_slots or #G.consumeables.cards < G.consumeables.config.card_limit then
-            if PVP.SP.unlimited_slots and #G.consumeables.cards >= G.consumeables.config.card_limit then
+        if PVP.PRACTICE.unlimited_slots or #G.consumeables.cards < G.consumeables.config.card_limit then
+            if PVP.PRACTICE.unlimited_slots and #G.consumeables.cards >= G.consumeables.config.card_limit then
                 G.consumeables.config.card_limit = G.consumeables.config.card_limit + 1
             end
             add_joker(_card.config.center.key)
@@ -49,11 +49,11 @@ target = "engine/controller.lua"
 pattern = '''if not _RELEASE_MODE then'''
 position = 'before'
 payload = '''
-if PVP and PVP.is_practice_mode() and not PVP.LOBBY.code then
+if PVP and PVP.PRACTICE.is_on() and not PVP.LOBBY.code then
     if key == "3" then
         self:practice_give_card()
     end
-    if key == "q" and PVP.SP.edition_cycling then
+    if key == "q" and PVP.PRACTICE.edition_cycling then
         if self.hovering.target and self.hovering.target:is(Card) then
             local _card = self.hovering.target
             if _card.ability.set == 'Joker' or _card.playing_card or _card.area then
@@ -79,7 +79,7 @@ target = "main.lua"
 pattern = '''G.CONTROLLER:queue_L_cursor_press(x, y)'''
 position = 'before'
 payload = '''
-        if PVP and PVP.is_practice_mode() then
+        if PVP and PVP.PRACTICE.is_on() then
             G.CONTROLLER:practice_give_card()
         end
 '''

@@ -1,6 +1,6 @@
 -- §22.2: "My Replays" browser -- lists MPAPI.replay.list_mine, launches a
 -- full, uninteractable card-level replay of the picked run via
--- PVP._start_playback (lib/playback_launch.lua) + MPAPI.playback (the same
+-- PVP.REPLAY.start (lib/playback_launch.lua) + MPAPI.playback (the same
 -- engine lib/playback_handlers.lua's opcode handlers drive).
 --
 -- Most-recent-first, paged with the server's cursor (Older / Newer).
@@ -22,7 +22,7 @@ local function format_run_label(run)
 	return date .. '  ' .. tostring(run.lobbyCode or '??????') .. '  ' .. status .. place
 end
 
-function PVP._launch_replay(run_id)
+function PVP.REPLAY.launch(run_id)
 	MPAPI.replay.get(run_id, function(err, data)
 		if err or not data or not data.logs then
 			MPAPI.sendWarnMessage('[replay] failed to load run ' .. tostring(run_id) .. ': ' .. tostring(err and err.message))
@@ -31,7 +31,7 @@ function PVP._launch_replay(run_id)
 
 		local timeline = MPAPI.playback.build_timeline(data.logs)
 		local my_id = MPAPI.get_replay_player_id()
-		local bootstrap = PVP.replay_bootstrap(timeline, my_id)
+		local bootstrap = PVP.REPLAY.bootstrap(timeline, my_id)
 		if not bootstrap then
 			MPAPI.sendWarnMessage('[replay] no bootstrap data found for our own player in run ' .. tostring(run_id))
 			return
@@ -44,7 +44,7 @@ function PVP._launch_replay(run_id)
 			return
 		end
 
-		PVP._start_playback(bootstrap, function()
+		PVP.REPLAY.start(bootstrap, function()
 			local driver = MPAPI.playback.new_driver(timeline, {
 				mod_id = 'pvp',
 				pov_player_id = my_id,
@@ -78,7 +78,7 @@ end
 -- as their own mod_id argument), NOT the literal 'pvp' string used above for
 -- mod_id = 'pvp' / register_handler('pvp', ...) -- that's a separate,
 -- unrelated opcode-dispatch namespace this PvP mod happens to also use.
-MPAPI.playback.register_launcher(PVP.id, PVP._launch_replay)
+MPAPI.playback.register_launcher(PVP.id, PVP.REPLAY.launch)
 
 -- Server pages hold every mod's runs; PvP's own are filtered out of them, so
 -- a page with none of ours is skipped (up to MAX_SKIP pages) rather than
@@ -130,7 +130,7 @@ local function show_page(runs, has_older)
 			} }
 			G.FUNCS['mp_pvp_replay_pick_' .. run.id] = function()
 				G.FUNCS.exit_overlay_menu()
-				PVP._launch_replay(run.id)
+				PVP.REPLAY.launch(run.id)
 			end
 		end
 	end

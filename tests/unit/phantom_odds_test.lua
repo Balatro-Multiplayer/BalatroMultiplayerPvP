@@ -12,8 +12,8 @@ function SMODS.get_probability_vars(trigger_obj, base_numerator, base_denominato
 	return base_numerator * 2, base_denominator
 end
 MPAPI = { connection_state = { player_id = "me" } }
-PVP = { end_game_jokers = {} }
-function PVP.is_phantom(card)
+PVP = { UI = { end_screen = { jokers = {} } }, NEMESIS = {} }
+function PVP.NEMESIS.is_phantom(card)
 	return card.ability ~= nil and card.ability.mp_phantom == true
 end
 
@@ -38,21 +38,21 @@ end
 
 local own = { ability = {} }
 local phantom = { ability = { mp_phantom = true } }
-local end_screen = { ability = {}, area = PVP.end_game_jokers }
+local end_screen = { ability = {}, area = PVP.UI.end_screen.jokers }
 
-PVP._end_screen_selected_player_id = "them"
+PVP.UI.end_screen.selected_id = "them"
 check("own joker keeps Oops", shown(own, 1, 4, "x"), 2)
 check("Phantom joker leaves out Oops", shown(phantom, 1, 4, "x"), 1)
 check("end screen, other player selected: leaves out Oops", shown(end_screen, 1, 4, "x"), 1)
-PVP._end_screen_selected_player_id = "me"
+PVP.UI.end_screen.selected_id = "me"
 check("end screen, self selected: keeps Oops", shown(end_screen, 1, 4, "x"), 2)
-PVP._end_screen_selected_player_id = nil
+PVP.UI.end_screen.selected_id = nil
 check("end screen, nobody selected: leaves out Oops", shown(end_screen, 1, 4, "x"), 1)
 check("table without ability keeps Oops", shown({}, 1, 4, "x"), 2)
 check("nil trigger_obj keeps Oops", shown(nil, 1, 4, "x"), 2)
 check("string trigger_obj keeps Oops", shown("s", 1, 4, "x"), 2)
 check("a caller's own no_mod is kept", shown(own, 1, 4, "x", false, true), 1)
-PVP._end_screen_selected_player_id = "them"
+PVP.UI.end_screen.selected_id = "them"
 check("a Phantom joker's roll keeps Oops", shown(phantom, 1, 4, "x", true), 2)
 check("a roll passes no no_mod", calls[#calls].no_mod, false)
 

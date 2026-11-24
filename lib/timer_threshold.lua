@@ -3,7 +3,7 @@
 -- the timer started only then. 0 or nil means no threshold.
 
 function PVP.UTILS.timer_display_threshold()
-	return PVP.current_ruleset().timer_display_threshold or 0
+	return PVP.RULES.current().timer_display_threshold or 0
 end
 
 function PVP.UTILS.timer_start_held_back(timer)

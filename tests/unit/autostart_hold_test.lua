@@ -34,15 +34,18 @@ MPAPI = {
 	end,
 }
 PVP = {
-	LobbyAccess = { RANKED = "ranked", CASUAL = "casual" },
-	QUEUE_REVEAL = { HOLD_SECONDS = 4 },
-	pvp_start_match = function()
-		starts = starts + 1
-	end,
+	NET = {}, READ = {}, UI = { queue = { reveal = { HOLD_SECONDS = 4 } } }, QUEUE = {},
+	LOBBY = {
+		Access = { RANKED = "ranked", CASUAL = "casual" },
+		start_match = function()
+			starts = starts + 1
+		end,
+	},
 }
 localize = function(k)
 	return k
 end
+PVP.UI.lobby = { refresh_buttons = function() end }
 dofile("ui/lobby/_ready.lua")
 
 local function eq(got, want, what)
@@ -63,36 +66,46 @@ local lobby = {
 		return players
 	end,
 }
-PVP._pvp_kind = "ranked"
-PVP.lobby.ref = lobby
-PVP.set_player_ready("me", true)
+local tally = {}
+local function set_ready(id, ready)
+	tally[id] = ready
+	PVP.UI.lobby.apply_ready(tally, #players)
+end
+local function reset_state()
+	tally = {}
+	PVP.UI.lobby.reset_ready()
+end
+PVP.LOBBY.kind = "ranked"
+PVP.UI.lobby.ref = lobby
+set_ready("me", true)
 eq(#events, 0, "no hold until every player is ready")
-PVP.set_player_ready("opp", true)
-PVP.set_player_ready("opp", true)
+set_ready("opp", true)
+set_ready("opp", true)
 eq(#events, 1, "one hold per start, however often ready repeats")
 eq(events[1].delay, 4, "the hold is the reveal's countdown")
 eq(starts, 0, "nothing starts during the hold")
 run_events()
 eq(starts, 1, "the match starts after the hold")
-PVP.set_player_ready("opp", true)
+set_ready("opp", true)
 run_events()
 eq(starts, 1, "and only once")
 
-PVP.reset_ready_state()
-PVP.set_player_ready("me", true)
-PVP.set_player_ready("opp", true)
+reset_state()
+set_ready("me", true)
+set_ready("opp", true)
 players[2] = nil
+PVP.UI.lobby.apply_ready(tally, #players)
 run_events()
 eq(starts, 1, "an opponent who left during the hold stops the start")
 players[2] = { id = "opp" }
-PVP.set_player_ready("opp", true)
+set_ready("opp", true)
 run_events()
 eq(starts, 2, "a later ready check holds and starts again")
 
-PVP.reset_ready_state()
-PVP.set_player_ready("me", true)
-PVP.set_player_ready("opp", true)
-PVP.reset_ready_state()
+reset_state()
+set_ready("me", true)
+set_ready("opp", true)
+reset_state()
 run_events()
 eq(starts, 2, "a reset cancels the pending hold")
 print("autostart_hold_test: ok")

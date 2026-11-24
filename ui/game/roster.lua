@@ -20,20 +20,17 @@ end
 
 local function roster_row(lobby, player_id)
 	local name = player_display_name(lobby, player_id)
-	local result = PVP._collected_results and PVP._collected_results[player_id]
-	local deck_label = (result and result.deck_back) or '--'
-	local score_label = (result and result.highest_pvp_score and PVP.Score.display(result.highest_pvp_score)) or '--'
-	local joker_count = result and result.jokers and #result.jokers or 0
+	local jokers = PVP.UI.finish.jokers_of(player_id)
+	local joker_count = jokers and #jokers or 0
+	local best = PVP.UI.finish.best_score_of(player_id)
+	local score_label = best and PVP.SCORE.display(best) or localize('k_timer_none')
 
 	local nodes = {
 		{ n = G.UIT.C, config = { align = 'cm', minw = 3, padding = 0.05 }, nodes = {
 			{ n = G.UIT.T, config = { text = name, scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 		} },
-		{ n = G.UIT.C, config = { align = 'cm', minw = 2.2, padding = 0.05 }, nodes = {
-			{ n = G.UIT.T, config = { text = deck_label, scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } },
-		} },
 		{ n = G.UIT.C, config = { align = 'cm', minw = 2.5, padding = 0.05 }, nodes = {
-			{ n = G.UIT.T, config = { text = 'Best PvP score: ' .. score_label, scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } },
+			{ n = G.UIT.T, config = { text = localize('k_best_pvp_score') .. ': ' .. score_label, scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } },
 		} },
 	}
 	if joker_count > 0 then
@@ -75,8 +72,8 @@ function PVP.UI.show_roster_overlay()
 	})
 end
 
--- Called by pvp_api/actions/player_result.lua whenever a new result arrives,
--- so an already-open roster reflects it without needing to be reopened.
+-- Called by PVP.UI.finish when another player's end of game arrives, so an
+-- already-open roster reflects it without needing to be reopened.
 function PVP.UI.refresh_roster()
 	if _roster_el then
 		_roster_el:update()
@@ -109,8 +106,7 @@ end
 
 G.FUNCS.mp_pvp_view_roster_jokers = function(e)
 	local player_id = e.config.ref_table.player_id
-	local result = PVP._collected_results and PVP._collected_results[player_id]
-	local jokers = (result and result.jokers) or {}
+	local jokers = PVP.UI.finish.jokers_of(player_id) or {}
 
 	local area = build_joker_area(jokers)
 	G.FUNCS.overlay_menu({

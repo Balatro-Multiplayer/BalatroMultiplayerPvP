@@ -57,5 +57,5 @@ if SMODS.Mods["Cryptid"] and SMODS.Mods["Cryptid"].can_load then
 		return card
 	end
 
-	PVP.set_max_stake("stake_cry_emerald")
+	PVP.DECK.set_max_stake("stake_cry_emerald")
 end

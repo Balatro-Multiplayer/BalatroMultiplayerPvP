@@ -106,7 +106,7 @@ SMODS.Joker({
 	end,
 
 	atlas = "error_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	mp_include = function(self)

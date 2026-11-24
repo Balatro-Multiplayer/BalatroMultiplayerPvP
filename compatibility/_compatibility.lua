@@ -84,7 +84,7 @@ PVP.DECK.MAX_STAKE = 0
 
 local stake_queue = {}
 
-function PVP.set_max_stake(stake_key)
+function PVP.DECK.set_max_stake(stake_key)
 	if not SMODS.booted then
 		stake_queue[stake_key] = true
 		return
@@ -108,7 +108,7 @@ function Game:update(dt)
 
 	if next(stake_queue) and SMODS.booted then
 		for key, _ in pairs(stake_queue) do
-			PVP.set_max_stake(key)
+			PVP.DECK.set_max_stake(key)
 			stake_queue[key] = nil
 		end
 	end

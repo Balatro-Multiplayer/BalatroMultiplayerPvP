@@ -12,7 +12,7 @@ MPAPI.Joker({
 	cost = 7,
 	unlocked = true,
 	discovered = true,
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	blueprint_compat = false,
 	eternal_compat = false,
 	perishable_compat = true,
@@ -35,7 +35,7 @@ MPAPI.Joker({
 	receive = function(self, context)
 		local d = context.data
 		if d.type == "request" then
-			PVP.RLOG.record(MPAPI.OPCODE.NET_MAGNET, nil, "action:netMagnet")
+			PVP.REPLAY.log.record(MPAPI.OPCODE.NET_MAGNET, nil, "action:netMagnet")
 			local best = nil
 			for _, v in pairs(G.jokers.cards) do
 				if not best or v.sell_cost > best.sell_cost then best = v end
@@ -50,8 +50,8 @@ MPAPI.Joker({
 			return { send = { type = "response", card = MPAPI.serialize_card(chosen_card) } }
 		elseif d.type == "response" then
 			-- Only accept a response to a request we actually sent, and only once.
-			local pending = PVP.magnet_request_at
-			PVP.magnet_request_at = nil
+			local pending = PVP.GAME.magnet_request_at
+			PVP.GAME.magnet_request_at = nil
 			if not pending or os.time() - pending > 60 then return nil end
 			if d.card then MPAPI.rebuild_card(d.card, G.jokers) end
 		end
@@ -62,7 +62,7 @@ MPAPI.Joker({
 			and not context.other_card
 			and not context.blueprint
 			and not context.debuffed
-			and not PVP.is_phantom(card)
+			and not PVP.NEMESIS.is_phantom(card)
 		then
 			local removed = false
 			card.ability.extra.current_rounds = card.ability.extra.current_rounds + 1
@@ -111,7 +111,7 @@ MPAPI.Joker({
 			and (card.ability.extra.current_rounds >= card.ability.extra.rounds)
 			and not context.blueprint
 		then
-			PVP.magnet_request_at = os.time()
+			PVP.GAME.magnet_request_at = os.time()
 			return { send = { type = "request" } }
 		end
 	end,
@@ -122,6 +122,6 @@ MPAPI.Joker({
 		code = { "Virtualized" },
 	},
 	mp_include = function(self)
-		return PVP.SANDBOX.is_joker_allowed(self.key) and PVP.multiplayer_content_enabled()
+		return PVP.SANDBOX.is_joker_allowed(self.key) and PVP.RULES.content_enabled()
 	end,
 })

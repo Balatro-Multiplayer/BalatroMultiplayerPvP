@@ -9,7 +9,7 @@ SMODS.Joker({
 	key = "ride_the_bus_sandbox",
 	blueprint_compat = true,
 	perishable_compat = false,
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 
 	unlocked = true,
 	discovered = true,

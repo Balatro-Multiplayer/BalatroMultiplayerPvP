@@ -2,8 +2,8 @@
 -- group_queue.lua, actions/run_lifecycle.lua); the reveal is reached through it.
 local Hud =
 	{ active = false, started_at = 0, ranked = false, label = "", next_poll = 0, last_minute = 0, generation = 0 }
-PVP.QUEUE_HUD = Hud
-local Cards, Backdrop, Widgets = PVP.QUEUE_CARDS, PVP.QUEUE_BACKDROP, PVP.QUEUE_WIDGETS
+PVP.UI.queue.hud = Hud
+local Cards, Backdrop, Widgets = PVP.UI.queue.cards, PVP.UI.queue.backdrop, PVP.UI.queue.widgets
 local now, after = Widgets.now, Widgets.after
 local slide, juice, remove_box, text_object = Widgets.slide, Widgets.juice, Widgets.remove_box, Widgets.text_object
 local COUNTS_POLL_SECONDS = 5
@@ -38,7 +38,7 @@ end
 -- `centre`: the rating the ticket carries, when known; else the rating record's.
 function Hud.range_text(rating, spread, centre)
 	if not rating then return "..." end
-	if PVP.placement_progress(rating) then
+	if PVP.UI.card_info.placement_progress(rating) then
 		local step, total = Hud.search_step(spread)
 		return localize({ type = "variable", key = "k_pvp_queue_widening", vars = { step, total } })
 	end
@@ -195,16 +195,16 @@ local function show_hud()
 end
 
 local function title_for(queue_id)
-	if queue_id.kind == PVP.LobbyAccess.RANKED then
-		return PVP.ruleset_display_name(queue_id.key) .. " " .. localize("k_pvp_ranked")
+	if queue_id.kind == PVP.LOBBY.Access.RANKED then
+		return PVP.RULES.display_name(queue_id.key) .. " " .. localize("k_pvp_ranked")
 	end
-	local def = PVP.PVP_GAMEMODES[queue_id.key]
+	local def = PVP.RULES.MODES[queue_id.key]
 	return def and def.display or tostring(queue_id.key)
 end
 
 -- How many a queue's lobby holds: ranked is two, a casual mode its public size.
 local function capacity_of(queue_id)
-	if queue_id.kind == PVP.LobbyAccess.RANKED then return 2 end
+	if queue_id.kind == PVP.LOBBY.Access.RANKED then return 2 end
 	local gm = MPAPI.GameModes and MPAPI.GameModes[queue_id.key]
 	return (gm and gm.max_players and gm.max_players.public) or 2
 end
@@ -236,9 +236,9 @@ function Hud.start(queue_id, handle)
 	Hud.handle = handle
 	Hud.started_at = now()
 	Hud.last_minute = 0
-	Hud.ranked = queue_id.kind == PVP.LobbyAccess.RANKED
+	Hud.ranked = queue_id.kind == PVP.LOBBY.Access.RANKED
 	Hud.label = title_for(queue_id)
-	Hud.ticket = Hud.ranked and PVP.ranked_ticket(queue_id.key) or nil
+	Hud.ticket = Hud.ranked and PVP.QUEUE.ranked_ticket(queue_id.key) or nil
 	Hud.count_key = Hud.ticket or queue_id.key
 	Hud.capacity = capacity_of(queue_id)
 	Hud.spread = search_spread()
@@ -263,7 +263,7 @@ function Hud.stop()
 	Hud.queue_id = nil
 	Hud.handle = nil
 	hide_hud()
-	if not PVP.QUEUE_REVEAL.view then Backdrop.restore() end
+	if not PVP.UI.queue.reveal.view then Backdrop.restore() end
 end
 
 local function tick_hud()
@@ -305,33 +305,33 @@ function Game:update(dt)
 	game_update_ref(self, dt)
 	local ok, err = pcall(function()
 		if Hud.active then tick_hud() end
-		PVP.QUEUE_REVEAL.update()
+		PVP.UI.queue.reveal.update()
 		Backdrop.update(G.real_dt or dt)
 	end)
 	if not ok then
 		sendWarnMessage("[pvp] queue HUD: " .. tostring(err), "MULTIPLAYER")
 		Hud.stop()
-		PVP.QUEUE_REVEAL.dismiss()
+		PVP.UI.queue.reveal.dismiss()
 	end
 end
 
 local start_run_ref = Game.start_run
 ---@diagnostic disable-next-line: duplicate-set-field
 function Game:start_run(args)
-	PVP.QUEUE_REVEAL.dismiss()
+	PVP.UI.queue.reveal.dismiss()
 	return start_run_ref(self, args)
 end
 
 function Hud.dismiss_reveal()
-	PVP.QUEUE_REVEAL.dismiss()
+	PVP.UI.queue.reveal.dismiss()
 end
 
 function Hud.finish_reveal()
-	PVP.QUEUE_REVEAL.finish()
+	PVP.UI.queue.reveal.finish()
 end
 
 function Hud.lobby_ready(lobby)
-	PVP.QUEUE_REVEAL.lobby_ready(lobby)
+	PVP.UI.queue.reveal.lobby_ready(lobby)
 end
 
 -- `queue_id` names the queue for a search the HUD didn't show: a group queue's
@@ -344,5 +344,5 @@ function Hud.match_found(queue_id)
 	end
 	search.avatar = MPAPI.connection_state.preferred_joker
 	Hud.stop()
-	PVP.QUEUE_REVEAL.start(search, cards)
+	PVP.UI.queue.reveal.start(search, cards)
 end

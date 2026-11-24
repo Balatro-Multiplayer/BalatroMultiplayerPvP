@@ -1,5 +1,5 @@
-PVP.MOD_HASH = "0000"
-PVP.MOD_STRING = ""
+PVP.QUEUE.mod_hash = "0000"
+PVP.QUEUE.mod_string = ""
 
 function hash(str)
 	local str_to_hash = str or "0000"
@@ -22,7 +22,7 @@ local function get_mod_data()
 	return mod_table
 end
 
-function PVP:generate_hash()
+function PVP.QUEUE.generate_hash()
 	local mod_data = get_mod_data()
 	table.sort(mod_data)
 	table.insert(mod_data, 1, "serversideConnectionID=" .. tostring(PVP.UTILS.server_connection_ID()))
@@ -31,8 +31,8 @@ function PVP:generate_hash()
 	table.insert(mod_data, 1, "unlocked=" .. tostring(PVP.config.unlocked))
 	table.insert(mod_data, 1, "preview=" .. tostring(PVP.config.integrations.Preview))
 	local mod_string = table.concat(mod_data, ";")
-	PVP.MOD_STRING = mod_string
-	PVP.MOD_HASH = hash(mod_string) or "0000"
+	PVP.QUEUE.mod_string = mod_string
+	PVP.QUEUE.mod_hash = hash(mod_string) or "0000"
     if PVP.ACTIONS.set_username then
         PVP.ACTIONS.set_username(PVP.LOBBY.username)
     end
@@ -46,7 +46,7 @@ function Game:update(dt)
 	game_update_ref(self, dt)
 
 	if not hash_generated and SMODS.booted then
-		PVP:generate_hash()
+		PVP.QUEUE.generate_hash()
 		hash_generated = true
 	end
 end
@@ -193,7 +193,7 @@ function PVP.UTILS.version_mismatches()
 	if not lobby then
 		return {}
 	end
-	return PVP.VersionGate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
+	return PVP.NET.version_gate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
 end
 
 function PVP.UTILS.get_banned_mods(mods)

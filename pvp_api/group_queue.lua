@@ -6,15 +6,15 @@
 -- (pvp_api/queue.lua) and says how to rejoin the home lobby.
 
 -- The casual modes a group may queue, in picker order.
-PVP.GROUP_QUEUE_MODES = { "pvp_nemesis", "pvp_royale", "pvp_teams", "pvp_smallworld" }
+PVP.QUEUE.GROUP_MODES = { "pvp_nemesis", "pvp_royale", "pvp_teams", "pvp_smallworld" }
 
 -- The host's pick in the group panel (index into the eligible list).
 
 -- Every group-queueable mode: { key, display, max_players, teams }.
-function PVP.group_queue_modes()
+function PVP.QUEUE.group_modes()
 	local modes = {}
-	for _, key in ipairs(PVP.GROUP_QUEUE_MODES) do
-		local def = PVP.PVP_GAMEMODES[key]
+	for _, key in ipairs(PVP.QUEUE.GROUP_MODES) do
+		local def = PVP.RULES.MODES[key]
 		local gm = MPAPI.GameModes[key]
 		if def and gm then
 			modes[#modes + 1] = {
@@ -32,11 +32,11 @@ end
 -- = may queue), and the first refusal that applies whatever the mode. A
 -- member refused for their standing (MEMBER_REFUSED) still leaves the modes
 -- listed: the panel greys the button and names them.
-function PVP.group_queue_options(lobby)
+function PVP.QUEUE.group_options(lobby)
 	local Group = MPAPI.matchmaking.group
 	local facts = Group.facts_from_lobby(lobby)
 	local lobby_refusal = Group.eligibility(facts, nil)
-	local ranked = Group.rank_modes(Group.without_standings(facts), PVP.group_queue_modes())
+	local ranked = Group.rank_modes(Group.without_standings(facts), PVP.QUEUE.group_modes())
 	local eligible = {}
 	for _, entry in ipairs(ranked) do
 		if not entry.refusal then
@@ -48,7 +48,7 @@ end
 
 -- A group queue's handle, host's or member's: the public match it finds is
 -- set up as a solo casual match is.
-function PVP._wire_group_handle(handle, gamemode_key)
+function PVP.QUEUE.wire_group_handle(handle, gamemode_key)
 	local function refresh()
 		pcall(MPAPI.refresh_current_view)
 	end
@@ -56,11 +56,12 @@ function PVP._wire_group_handle(handle, gamemode_key)
 	handle:on("error", function(err)
 		sendWarnMessage("[pvp] group queue error: " .. tostring(err), "MULTIPLAYER")
 		-- An error after match_found is a failed lobby join
-		PVP.QUEUE_HUD.dismiss_reveal()
-		if PVP._match_handle == handle then
-			PVP._match_handle = nil
+		PVP.UI.queue.hud.dismiss_reveal()
+		if PVP.QUEUE.match_handle == handle then
+			PVP.QUEUE.match_handle = nil
 		end
 		refresh()
+		PVP.UI.refusal.show(err)
 	end)
 
 	handle:on("queued", function()
@@ -70,44 +71,39 @@ function PVP._wire_group_handle(handle, gamemode_key)
 
 	handle:on("match_found", function(data)
 		PVP.match_log("debug", "[pvp] group match_found " .. tostring(data and data.matchId))
-		PVP.QUEUE_HUD.match_found({ kind = PVP.LobbyAccess.CASUAL, key = gamemode_key })
+		PVP.UI.queue.hud.match_found({ kind = PVP.LOBBY.Access.CASUAL, key = gamemode_key })
 		-- Out of the home lobby (MPAPI parked our seat there) and into a
 		-- matchmade one: the lobby view belongs to the public lobby now.
-		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
-		PVP.reset_ruleset_to_gamemode_default(gamemode_key)
-		if PVP.lobby then
-			PVP.lobby.ref = nil
-			PVP.lobby.ui_ref = nil
-			PVP.lobby.buttons_initialized = false
-		end
-		if PVP.stop_ready_resync then
-			PVP.stop_ready_resync()
+		PVP.LOBBY.kind = PVP.LOBBY.Access.CASUAL
+		PVP.RULES.reset_to_gamemode_default(gamemode_key)
+		if PVP.UI.lobby then
+			PVP.UI.lobby.ref = nil
+			PVP.UI.lobby.ui_ref = nil
+			PVP.UI.lobby.buttons_initialized = false
 		end
 	end)
 
 	handle:on("lobby_ready", function(lobby)
-		PVP.QUEUE_HUD.lobby_ready(lobby)
-		PVP._pvp_kind = PVP.LobbyAccess.CASUAL
-		PVP._match_handle = handle
-		PVP.setup_lobby_mirror(lobby)
+		PVP.UI.queue.hud.lobby_ready(lobby)
+		PVP.LOBBY.kind = PVP.LOBBY.Access.CASUAL
+		PVP.QUEUE.match_handle = handle
+		PVP.LOBBY.mirror(lobby)
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.CASUAL))
+			PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(gamemode_key, PVP.LOBBY.Access.CASUAL))
 		end
-		PVP.signal_ready(true)
-		PVP.start_ready_resync()
 		refresh()
 	end)
 
 	handle:on("match_resolved", function()
-		if PVP._match_handle == handle then
-			PVP._match_handle = nil
+		if PVP.QUEUE.match_handle == handle then
+			PVP.QUEUE.match_handle = nil
 		end
 	end)
 
 	handle:on("left", function()
-		PVP.QUEUE_HUD.dismiss_reveal()
-		if PVP._match_handle == handle then
-			PVP._match_handle = nil
+		PVP.UI.queue.hud.dismiss_reveal()
+		if PVP.QUEUE.match_handle == handle then
+			PVP.QUEUE.match_handle = nil
 		end
 		refresh()
 	end)
@@ -115,9 +111,9 @@ end
 
 -- Host: queue the current private lobby as a group for `gamemode_key`.
 -- Returns the handle, or nil and the refusal text.
-function PVP._join_group_queue(gamemode_key)
+function PVP.QUEUE.join_group(gamemode_key)
 	local Group = MPAPI.matchmaking.group
-	local def = PVP.PVP_GAMEMODES[gamemode_key]
+	local def = PVP.RULES.MODES[gamemode_key]
 	local gm = MPAPI.GameModes[gamemode_key]
 	if not def or not gm then
 		return nil, "unknown mode " .. tostring(gamemode_key)
@@ -137,13 +133,13 @@ function PVP._join_group_queue(gamemode_key)
 		end
 		return nil, text
 	end
-	PVP._wire_group_handle(handle, gamemode_key)
+	PVP.QUEUE.wire_group_handle(handle, gamemode_key)
 	pcall(MPAPI.refresh_current_view)
 	return handle
 end
 
 -- Any member: give up the group queue (the server ends it for everyone).
-function PVP._cancel_group_queue()
+function PVP.QUEUE.cancel_group()
 	MPAPI.matchmaking.group.cancel(function()
 		pcall(MPAPI.refresh_current_view)
 	end)
@@ -152,11 +148,11 @@ end
 if MPAPI.matchmaking.group and MPAPI.matchmaking.group.register then
 	MPAPI.matchmaking.group.register(PVP.id, {
 	on_member_handle = function(handle, view)
-		PVP._wire_group_handle(handle, view.mode)
+		PVP.QUEUE.wire_group_handle(handle, view.mode)
 		pcall(MPAPI.refresh_current_view)
 	end,
 	return_home = function(code)
-		PVP.pvp_join_lobby(code)
+		PVP.LOBBY.join(code)
 		return MPAPI.get_current_lobby()
 	end,
 	})
@@ -165,8 +161,8 @@ end
 -- Whether the host may queue the lobby for `key` now, and whether a member's
 -- standing refuses it. A refused standing leaves the mode pressable: the
 -- server's refusal names the mods (MPAPI api/matchmaking/group/queue.lua).
-function PVP.group_mode_available(lobby, key)
-	local eligible, refusal = PVP.group_queue_options(lobby)
+function PVP.QUEUE.group_mode_available(lobby, key)
+	local eligible, refusal = PVP.QUEUE.group_options(lobby)
 	local standing_refused = refusal and refusal.code == MPAPI.matchmaking.group.Refusal.MEMBER_REFUSED
 	if refusal and not standing_refused then
 		return false
@@ -182,7 +178,7 @@ end
 -- A pillar's group QUEUE: queue the lobby for that mode and go back to it.
 G.FUNCS.mp_pvp_group_queue_mode = function(e)
 	local rt = e.config.ref_table
-	if rt and rt.gamemode_key and PVP._join_group_queue(rt.gamemode_key) then
+	if rt and rt.gamemode_key and PVP.QUEUE.join_group(rt.gamemode_key) then
 		MPAPI.pages.show_deferred("pvp_lobby")
 	end
 end
@@ -192,7 +188,7 @@ G.FUNCS.mp_pvp_group_queue_back = function()
 end
 
 G.FUNCS.mp_pvp_group_cancel = function()
-	PVP._cancel_group_queue()
+	PVP.QUEUE.cancel_group()
 end
 
 G.FUNCS.mp_pvp_group_return = function()

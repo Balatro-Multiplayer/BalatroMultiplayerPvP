@@ -52,7 +52,7 @@ function D.tile_order(a, b)
 	return deck_order(a.key) < deck_order(b.key)
 end
 
-local board_rng = PVP.new_rng()
+local board_rng = PVP.UTILS.new_rng()
 
 function D.board(decks, stakes, opts)
 	opts = opts or {}

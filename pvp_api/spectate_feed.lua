@@ -1,17 +1,8 @@
--- §22.3 (Phase 4): live spectate feed adapter. Turns a spectated lobby
--- (MPAPI.replay.spectate_lobby) into a running MPAPI.playback driver whose
--- timeline is fed incrementally from the live match instead of a finished
--- carbon log -- the same driver/registry/handler code Phase 2/3 already
--- built and tested for post-hoc replay, just with a different event source.
+-- Live spectate feed adapter. Turns a spectated lobby (MPAPI.replay.spectate_lobby) into a running
+-- MPAPI.playback driver whose timeline is fed incrementally from the live match instead of a
+-- finished carbon log.
 --
--- Deliberately NOT built on the normal participant pipeline (lobby actions
--- delivered through MPAPI's dispatch). That pipeline runs EVERY registered
--- ActionType -- pvp_play_hand, pvp_skip, mpapi_sync, mpapi_opponent_context,
--- etc. -- all of which assume they're running on a live PARTICIPANT's own
--- client, mutating that client's own G.GAME/PVP.GAME/PVP.REF. A spectator has
--- no stake in the match (may not even have an active run at all), so those
--- handlers firing against unrelated/nonexistent local state would corrupt it
--- at best, crash at worst. Instead the server's spectator match
+-- Spectators skip the match screens: those write the viewer's own G.GAME. The server's spectator match
 -- (BalatroMultiplayerServer nakama/src/lobby/spectate.ts) forwards only the
 -- participants' replay events, already driver-ready.
 --
@@ -39,8 +30,7 @@ S._snapshot = nil
 -- Applies the one-time join snapshot (MPAPI.replay.spectate_lobby's {snapshot, ...} answer) as a
 -- baseline for the players not in view, through the registered playback handlers
 -- (set_ante_key/hand_result). The player in view gets their real board from their own run.
--- Known gap: the snapshot has no `lives` field; live lives changes flow through
--- pvp_player_lives, a separate broadcast this file doesn't touch.
+-- Known gap: the snapshot has no `lives` field.
 -- Exposed as a module field (not a local) so a test can call it with a synthetic snapshot.
 function S._apply_snapshot(snapshot, pov_player_id)
 	for _, entry in ipairs(snapshot) do
@@ -123,7 +113,7 @@ function S._on_run(data)
 		mod_id = 'pvp',
 		live = true,
 		start_run = function(bootstrap, on_ready)
-			PVP._start_playback(bootstrap, on_ready)
+			PVP.REPLAY.start(bootstrap, on_ready)
 		end,
 	}
 	if data.runSave then

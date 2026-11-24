@@ -31,7 +31,7 @@ G.FUNCS.start_run = function(e, args)
 			-- the lobby view refresh on that change, take it from there.
 			local lobby = MPAPI.get_current_lobby()
 			if PVP.LOBBY.is_host and lobby then
-				lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
+				PVP.UI.lobby.send_settings(lobby, PVP.LOBBY.metadata(PVP.LOBBY.mode_key, PVP.LOBBY.kind))
 			end
 		else
 			start_run_ref(e, {
