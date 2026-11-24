@@ -72,12 +72,12 @@ function PVP.contest_offered()
 	if not lobby or PVP.is_practice_mode() then
 		return false
 	end
-	return PVP.Contest.should_offer(PVP._pvp_kind, #lobby:get_players(), MPAPI.has_server_referee(lobby))
+	return PVP.Contest.should_offer(PVP._pvp_kind, #lobby:get_players())
 end
 
 function G.FUNCS.mp_pvp_contest_forfeit()
 	G.FUNCS.exit_overlay_menu()
-	PVP.pvp_forfeit()
+	PVP.finish_screen.forfeit()
 end
 
 function G.FUNCS.mp_pvp_contest_cancel()
@@ -109,7 +109,7 @@ local function send_contest(opponent_id)
 			MPAPI.open_web_page(page_path)
 		end
 		-- This client is the contester: it names the scope of its own contest.
-		local me = PVP.self_player_id()
+		local me = lobby.player_id
 		if PVP.Contest.scope(#match_players(lobby), me, me) == PVP.Contest.Scope.CONTESTER then
 			PVP.show_contester_contested_screen()
 		else
@@ -127,7 +127,7 @@ function G.FUNCS.mp_pvp_contest_send()
 		send_contest(nil)
 		return
 	end
-	local opponents = PVP.Contest.opponents(lobby:get_players(), PVP.self_player_id(), PVP._player_lives_cache)
+	local opponents = PVP.Contest.opponents(lobby:get_players(), lobby.player_id, PVP.match_net and PVP.match_net.view)
 	if #opponents == 0 then
 		PVP.UI.show_contest_modal(PVP.Contest.error_key("not_in_game"))
 	elseif #opponents == 1 then
@@ -151,30 +151,28 @@ end
 -- status contested), so it runs once. It is the draw screen with another title,
 -- and it reports no result.
 function PVP.show_contested_screen()
-	if PVP.GAME.contested or PVP.GAME.won or PVP.GAME.draw or G.STAGE ~= G.STAGES.RUN then
+	if PVP.GAME.end_shown == "by contest" or PVP.GAME.won or PVP.GAME.draw or G.STAGE ~= G.STAGES.RUN then
 		return
 	end
-	PVP.GAME.contested = true
+	PVP.GAME.end_shown = "by contest"
 	PVP.end_pending_death()
 	G.FUNCS.exit_overlay_menu()
-	PVP.dispatch_action("drawGame")
+	PVP.game_effects.draw()
 end
 
 -- A match of 3 or more players: only the contester leaves. They get the same
 -- contested screen, and the others are told nothing but a chat line. The
--- contester's leave goes through pvp_forfeit, the same path as leaving the
--- lobby, so the referee drops their hands and ends the match for nobody else
--- unless one player is left (a pending death of theirs is handled there
--- instead of as a forfeit).
+-- contester's leave goes through finish_screen.forfeit, the same path as leaving the
+-- lobby, so the server ends the match for nobody else unless one player is left.
 function PVP.show_contester_contested_screen()
-	if PVP.GAME.contested or G.STAGE ~= G.STAGES.RUN then
+	if PVP.GAME.end_shown == "by contest" or G.STAGE ~= G.STAGES.RUN then
 		return
 	end
-	PVP.GAME.contested = true
-	PVP.pvp_forfeit()
+	PVP.GAME.end_shown = "by contest"
+	PVP.finish_screen.forfeit()
 	PVP.end_pending_death()
 	G.FUNCS.exit_overlay_menu()
-	PVP.dispatch_action("drawGame")
+	PVP.game_effects.draw()
 end
 
 -- The others in a match of 3 or more players: a chat line, no screen.

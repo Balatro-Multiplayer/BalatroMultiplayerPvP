@@ -14,17 +14,8 @@
 -- ui/game/round.lua + lovely wiring drive the nemesis/showdown blinds off
 -- PVP.LOBBY.config, so the API's reset_blinds/ease_ante overlay (api/gamemode/hooks.lua)
 -- must not also mutate the blinds. get_blinds_by_ante returns nothing so the API
--- overlay is a harmless no-op; on_ante_change does nothing. The one API-side hook we
--- do use is on_player_forfeit -> check_single_survivor (win when the opponent quits).
-
--- The defined winning code path: a gamemode's on_player_forfeit just returns
--- { winner = player_id } and never touches an ActionType or a lobby object.
-MPAPI.on_winner_declared(function(winner_id)
-	local lobby = MPAPI.get_current_lobby()
-	if lobby and MPAPI.ActionTypes["pvp_player_won"] then
-		lobby:action(MPAPI.ActionTypes["pvp_player_won"]):broadcast({ player_id = winner_id })
-	end
-end)
+-- overlay is a harmless no-op; on_ante_change does nothing. Who wins, and a leaver's
+-- forfeit, are the server's (match_net.lua).
 
 -- The default/fallback queue mode key, referenced as a raw string across several
 -- consumer files (flow.lua, queue.lua, pvp_leaderboard.lua) -- kept as one named
@@ -33,12 +24,11 @@ end)
 PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 
 -- There is no separate "plain 1v1" shape: Nemesis's rotating pairing degenerates
--- identically to a plain pairwise 1v1 at exactly 2 players (see referee.lua's
--- try_resolve_round comments), so every ruleset-only entry below IS Nemesis --
--- one shape covers both. Ranked play is always exactly 2 players (matchmaking's
+-- identically to a plain pairwise 1v1 at exactly 2 players, so every
+-- ruleset-only entry below IS Nemesis -- one shape covers both. Ranked play is always exactly 2 players (matchmaking's
 -- ELO/forfeit resolution -- BalatroMultiplayerServer's autoForfeitMatch -- is
 -- hardcoded for a 2-player result and would tie multiple players for 1st with
--- more); casual Nemesis is 1v1 too, private lobbies go up to 16 (§17.4).
+-- more); casual Nemesis is 1v1 too, private lobbies go up to 16.
 --
 -- pvp_nemesis/pvp_smallworld are the only two ruleset-only entries left as
 -- MPAPI.GameMode registrations. pvp_nemesis (the renamed former ranked format)
@@ -55,12 +45,8 @@ PVP.PVP_GAMEMODES = {
 	pvp_royale = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Royale", has_ranked = false, custom_bridge = true },
 	pvp_manhunt = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Manhunt", has_ranked = false, custom_bridge = true, manhunt = true },
 	pvp_teams = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Teams", has_ranked = false, custom_bridge = true, team_based = true },
-	-- §17.6/§17.3: Experimental is a real, working ruleset (rulesets/experimental/
-	-- experimental.lua) that was never wired into any player-facing picker at all --
-	-- not a matchmaking gap, an everywhere gap. Deliberately NOT added to the
-	-- ipairs registration loop below (no GameMode/matchmaking entry, no ranked
-	-- ladder): it stays practice/private-lobby-local, the same scope the doc's
-	-- §17.6 item asks for.
+	-- Experimental stays practice/private-lobby-local: not in the registration loop below (no
+	-- matchmaking entry, no ranked ladder).
 	pvp_experimental = { ruleset = "ruleset_mp_experimental", gamemode = "gamemode_mp_attrition", display = "Experimental", has_ranked = false, custom_bridge = true, nemesis_pairing = true },
 }
 
@@ -79,7 +65,7 @@ local BAN_PICK = {
 	},
 }
 
--- §17.7: Royale/Manhunt/Teams's own draft. The legacy {pool_size,keep} shape
+-- Royale/Manhunt/Teams's own draft. The legacy {pool_size,keep} shape
 -- (no explicit schedule) instead of BAN_PICK above -- BAN_PICK's hand-authored
 -- schedule only ever addresses actor slots 1/2, so it silently degenerates to
 -- a 2-player draft regardless of lobby size. The legacy shape's derived
@@ -125,25 +111,10 @@ for _, key in ipairs({ "pvp_nemesis", "pvp_smallworld" }) do
 		get_blinds_by_ante = function(self, ante)
 			return nil, nil, nil
 		end,
-		-- Host-authoritative: when the opponent forfeits/leaves, the last player
-		-- standing wins. The registered winner handler above performs the broadcast.
-		on_player_forfeit = function(self, player_id)
-			-- More than two players at the start: the referee knocks the
-			-- forfeiter out and ends the match once one player is left.
-			if PVP.referee_n_player_forfeit(player_id) then
-				return
-			end
-			local winner_id = self:check_single_survivor(player_id)
-			if not winner_id then
-				return
-			end
-			return { winner = winner_id }
-		end,
 	})
 end
 
--- Royale: rotating N-player draft via ROTATING_BAN_PICK (§17.7). Elimination
--- math (rank-and-cut bottom half) lives in pvp_api/referee.lua.
+-- Royale: rotating N-player draft via ROTATING_BAN_PICK.
 do
 	local def = PVP.PVP_GAMEMODES.pvp_royale
 	MPAPI.GameMode({
@@ -163,25 +134,10 @@ do
 		get_blinds_by_ante = function(self, ante)
 			return nil, nil, nil
 		end,
-		on_player_forfeit = function(self, player_id)
-			-- More than two players at the start: the referee knocks the
-			-- forfeiter out and ends the match once one player is left.
-			if PVP.referee_n_player_forfeit(player_id) then
-				return
-			end
-			local winner_id = self:check_single_survivor(player_id)
-			if not winner_id then
-				return
-			end
-			return { winner = winner_id }
-		end,
 	})
 end
 
--- Manhunt: same bridge shape as Royale, including the rotating draft. Win/loss
--- is asymmetric (Runner vs best-Hunter, not "last one standing"), so forfeit
--- handling calls the dedicated referee helper instead of the generic
--- check_single_survivor -- a Hunter leaving doesn't end the match by itself.
+-- Manhunt: same bridge shape as Royale, including the rotating draft.
 do
 	local def = PVP.PVP_GAMEMODES.pvp_manhunt
 	MPAPI.GameMode({
@@ -201,21 +157,10 @@ do
 		get_blinds_by_ante = function(self, ante)
 			return nil, nil, nil
 		end,
-		-- Broadcasts pvp_win (winner_team_id) itself -- unlike check_single_survivor's
-		-- callers above, NOT returned as { winner = ... }: MPAPI._handle_gamemode_result
-		-- would hand a team_id string ("HUNTER") to the generic on_winner_declared
-		-- handler above, which broadcasts pvp_player_won with THAT as player_id -- a
-		-- string no real client id ever matches, so every client would wrongly resolve
-		-- to "I lost".
-		on_player_forfeit = function(self, player_id)
-			PVP.referee_manhunt_on_forfeit(player_id)
-		end,
 	})
 end
 
--- Teams: same bridge shape, including the rotating draft. A whole team's
--- roster leaving ends the match for the other team; a single member leaving
--- does not (see PVP.referee_teams_on_forfeit).
+-- Teams: same bridge shape, including the rotating draft.
 do
 	local def = PVP.PVP_GAMEMODES.pvp_teams
 	MPAPI.GameMode({
@@ -234,11 +179,6 @@ do
 		end,
 		get_blinds_by_ante = function(self, ante)
 			return nil, nil, nil
-		end,
-		-- Same reason as Manhunt's forfeit hook above: broadcasts pvp_win itself,
-		-- not returned as { winner = ... }.
-		on_player_forfeit = function(self, player_id)
-			PVP.referee_teams_on_forfeit(player_id)
 		end,
 	})
 end

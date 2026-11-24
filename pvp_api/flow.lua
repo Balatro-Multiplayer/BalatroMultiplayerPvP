@@ -51,9 +51,14 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		deck = PVP.LOBBY.config.back or "Red Deck",
 		stake = tostring(PVP.LOBBY.config.stake or 1),
 		starting_lives = PVP.LOBBY.config.starting_lives or 4,
-		pvp_start_round = PVP.LOBBY.config.pvp_start_round or 2,
+		pvp_start_ante = PVP.LOBBY.config.pvp_start_ante or 2,
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
+		-- The server refuses a start without these three, so a missing option stays
+		-- missing here rather than getting a guessed value.
+		timer_base_seconds = PVP.LOBBY.config.timer_base_seconds,
+		timer_forgiveness = PVP.LOBBY.config.timer_forgiveness,
+		timer_increment_seconds = PVP.LOBBY.config.timer_increment_seconds,
 	}
 	-- A private lobby's host sets these in Lobby Options (ui/lobby/lobby_options.lua).
 	-- Matchmade and practice lobbies keep the config's own defaults and the rulesets' forced options.
@@ -73,8 +78,8 @@ PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
 -- Lobby config fields a private lobby's host can set, carried in the lobby metadata.
 PVP.PRIVATE_OPTION_KEYS = {
 	"gold_on_life_loss",
-	"no_gold_on_round_loss",
-	"death_on_round_loss",
+	"no_gold_on_pvp_loss",
+	"death_on_normal_blind_loss",
 	"normal_bosses",
 	"timer",
 	"timer_base_seconds",
@@ -149,7 +154,7 @@ function PVP.pvp_create_private_lobby(gamemode_key)
 	PVP.set_lobby_exit_page(lobby, "pvp_main_menu")
 	lobby:on(MPAPI.LobbyEvent.CONNECTED, function()
 		if lobby.is_host then
-			lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE))
+			PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRIVATE))
 		end
 		if love and love.system and love.system.setClipboardText then
 			pcall(love.system.setClipboardText, lobby.code)
@@ -192,8 +197,8 @@ function PVP.set_lobby_exit_page(lobby, page, params)
 	end
 end
 
--- Host-only: attach a per-run gamemode instance (for forfeit handling + the API's
--- inert blind hooks) then trigger PVP's run-start, which broadcasts pvp_start_game.
+-- Host-only: attach a per-run gamemode instance (the API's inert blind hooks) then ask the server to
+-- start the game.
 function PVP.pvp_start_match()
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby or not lobby.is_host then
@@ -208,6 +213,8 @@ function PVP.pvp_start_match()
 		PVP.UI.UTILS.overlay_message(PVP.VersionGate.message(mismatches[1]))
 		return
 	end
+	local stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake)
+	if not stake then return PVP.refusal_screen.show_no_stake() end
 	local queue_mode = (lobby:get_metadata() or {}).queue_mode or PVP._pvp_gamemode or PVP.GamemodeKey.PVP_NEMESIS
 	local gm_def = MPAPI.GameModes[queue_mode]
 	if gm_def and gm_def.new_instance then
@@ -217,25 +224,14 @@ function PVP.pvp_start_match()
 	-- before the start so every player has it when the deck applies; false clears
 	-- the last game's recipe when the host's settings pick no decks.
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
-		lobby:set_metadata({ cocktail_recipe = PVP.roll_cocktail_recipe() or false })
+		PVP.lobby_screen.send_settings(lobby, { cocktail_recipe = PVP.roll_cocktail_recipe() or false })
 	end
-	if MPAPI.has_server_referee(lobby) then
-		-- The server checks who's ready and picks the seed; everyone starts off
-		-- GAME_STARTED (pvp_api/lobby_bridge.lua), where referee_reset runs host-side.
-		lobby:start_game({
-			stake = tonumber(PVP.LOBBY.deck.stake or PVP.LOBBY.config.stake or 1),
-			options = { queue_mode = queue_mode },
-		}, function(err)
-			if err and PVP.VersionGate.is_server_refusal(err) then
-				PVP.UI.UTILS.overlay_message(PVP.VersionGate.refused_message())
-			elseif err then
-				PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_start_refused", vars = { tostring(err) } }))
-			end
-		end)
-		return
-	end
-	-- referee_reset runs host-side inside the pvp_start_game handler (loopback).
-	PVP.ACTIONS.start_game()
+	-- Start is a numbered input: the server checks who's ready and picks the seed, a refusal comes back
+	-- in the lobby view (lobby_screen.lua), and everyone starts off GAME_STARTED (pvp_api/lobby_bridge.lua).
+	PVP.lobby_screen.send_start({
+		stake = stake,
+		options = { queue_mode = queue_mode },
+	})
 end
 
 -- The single leave-lobby path (the legacy G.FUNCS.lobby_leave was folded in here).
@@ -246,17 +242,7 @@ end
 function PVP.pvp_leave_lobby()
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
-		-- Mid-match leave: send the roster before the leave completes, so the
-		-- others still see this player's jokers on their end screen. The leave
-		-- waits for the roster to be relayed: it would otherwise reach the
-		-- server first and the roster would be dropped.
-		if G.STAGE == G.STAGES.RUN and PVP._match_players and PVP.GAME and PVP.GAME.lives then
-			PVP.report_roster_result(function()
-				lobby:leave()
-			end)
-		else
-			lobby:leave()
-		end
+		lobby:leave()
 	end
 	PVP.end_session()
 	PVP._version_mismatch_shown = false

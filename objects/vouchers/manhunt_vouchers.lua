@@ -2,8 +2,8 @@
 -- Petroglyph, already banned repo-wide for every PvP mode -- see
 -- gamemodes/attrition.lua's banned_vouchers). Same vanilla effect, plus: when the
 -- RUNNER redeems one, every Hunter gains +1 life (compensation for the Runner
--- buying themselves more time to evade) -- see pvp_api/actions/team_manhunt.lua's
--- pvp_redeem_ante_voucher, the host-authoritative handler.
+-- buying themselves more time to evade). The redemption goes to the server (pvp_api/run_screen.lua),
+-- which gives the Hunters the life.
 SMODS.Voucher({
 	key = "hieroglyph_manhunt",
 	pos = { x = 5, y = 2 },
@@ -25,7 +25,7 @@ SMODS.Voucher({
 		ease_hands_played(-card.ability.extra)
 
 		if PVP.LOBBY.team_id == "RUNNER" then
-			PVP.pvp_redeem_ante_voucher()
+			PVP.run_screen.voucher_redeemed(card.config.center.key)
 		end
 	end,
 })
@@ -52,7 +52,7 @@ SMODS.Voucher({
 		ease_discard(-card.ability.extra)
 
 		if PVP.LOBBY.team_id == "RUNNER" then
-			PVP.pvp_redeem_ante_voucher()
+			PVP.run_screen.voucher_redeemed(card.config.center.key)
 		end
 	end,
 })

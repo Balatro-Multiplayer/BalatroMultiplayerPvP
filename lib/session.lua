@@ -26,9 +26,6 @@ function PVP.end_session()
 	PVP.reset_game_states()
 	-- Only PvP fills MPAPI.MODIFIERS (lobby_bridge's apply_default_modifiers).
 	MPAPI.MODIFIERS = {}
-	if PVP.RECONNECT_TAIL then
-		PVP.RECONNECT_TAIL.forget()
-	end
 end
 
 -- A leave is asynchronous: by the time an old lobby is gone the player may

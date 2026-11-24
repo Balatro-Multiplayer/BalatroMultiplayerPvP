@@ -48,6 +48,7 @@ function PVP.solo_resume_snapshot(snap, ctx)
 
 	if game.round_resets then
 		game.round_resets.pvp_blind_choices = {}
+		game.round_resets.pvp_boss = nil
 		local choices = game.round_resets.blind_choices or {}
 		for slot, key in pairs(choices) do
 			if key == ctx.nemesis_key then choices[slot] = VANILLA_BLIND[slot] or ctx.fallback_boss or key end

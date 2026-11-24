@@ -1,9 +1,6 @@
 -- This mod's live transport for PVP.RLOG (an alias to MPAPI.replay, the
 -- generic recorder in BalatroMultiplayerAPI/api/replay/recorder.lua -- see
--- lib/replay_log.lua): replaces the legacy
--- Client.send({action="streamLogLines"/"submitLogHashes"}) calls, which
--- pvp_api/net.lua's router now silently drops (both are unlisted there --
--- "owned by the API now, or replay-stream features deferred for the port").
+-- lib/replay_log.lua).
 --
 -- One event per broadcast, not batched: this is deliberately per-line, not
 -- per-25-lines/2-seconds like the old stream, so a spectator (once built) is
@@ -13,26 +10,7 @@
 -- framing opcodes "manifest"/"end"/"chk", the frame's own dict payload --
 -- MPAPI's action-param validation only checks `type(value) == "table"`, so
 -- both shapes satisfy the same schema without a second ActionType.
---
--- on_receive tracks the opponent's own elapsed-t high-water mark (Phase 9:
--- reconnect tail-replay) -- PVP.RLOG._last_seen_t[player_id] is how far into
--- that player's own RLOG stream this client has observed live, so a
--- reconnecting client knows what `since_t` to request via
--- MPAPI.replay.get_tail after missing some broadcasts while disconnected.
--- Keyed by the SENDER's own clock (params.t, elapsed since THEIR begin_run),
--- not local wall-clock time, so it stays meaningful regardless of when this
--- client itself connected/reconnected. Broadcasts loop back to the sender
--- (see pvp_api/actions.lua's self_id() convention), so a client's own events
--- are skipped -- there's nothing to "catch up" on for your own stream. The
--- server-side buffering client and, later, spectators are the other
--- consumers of this same broadcast; this is purely an additional local
--- bookkeeping side effect, not a second dispatch path.
-PVP.RLOG._last_seen_t = PVP.RLOG._last_seen_t or {}
-
-local function self_id()
-	local lobby = MPAPI.get_current_lobby()
-	return lobby and lobby.player_id
-end
+-- Receiving clients ignore the event: it is for spectators.
 
 PVP.RLOG_EVENT_ACTION = MPAPI.ActionType({
 	key = "pvp_log_event",
@@ -42,11 +20,7 @@ PVP.RLOG_EVENT_ACTION = MPAPI.ActionType({
 		{ key = "opcode", type = "string", required = true },
 		{ key = "args", type = "table", required = false },
 	},
-	on_receive = function(_at, from, params)
-		if from == self_id() then return end
-		local prev = PVP.RLOG._last_seen_t[from] or 0
-		if params.t and params.t > prev then PVP.RLOG._last_seen_t[from] = params.t end
-	end,
+	on_receive = function() end,
 })
 
 -- Normalizes PVP.RLOG.record's flexible args shape (nil | scalar | array/dict

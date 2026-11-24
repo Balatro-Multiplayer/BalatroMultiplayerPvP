@@ -115,6 +115,7 @@ love = {
 }
 PVP.match_log, sendWarnMessage = noop, noop
 -- The simulator's search runs through the real queue handlers.
+PVP.refusal_screen = { show = noop }
 dofile("pvp_api/queue.lua")
 local real_cancel = G.FUNCS.mp_pvp_cancel_queue
 local loads = 0

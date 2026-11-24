@@ -1,45 +1,22 @@
 -- Shared plant/disguise/reveal plumbing for Trap consumables (objects/consumables/traps.lua).
 -- A Trap card is taken by the Trapper but sits, face-down, in their Nemesis's own
 -- G.consumeables until its trigger condition fires -- these are the pieces every one of the
--- 16 cards' use/calculate/receive triple reuses, so each card stays a small, uniform amount
+-- 16 cards' use/calculate pair reuses, so each card stays a small, uniform amount
 -- of code.
 PVP.TRAP = PVP.TRAP or {}
 
 PVP.TRAP.KEY = {
-	ARCANE_LOCK = "c_mp_trap_arcane_lock",
 	MAGIC_MOUTH = "c_mp_trap_magic_mouth",
 	FORBIDDANCE = "c_mp_trap_forbiddance",
 	MENTAL_PRISON = "c_mp_trap_mental_prison",
 }
 
-local function self_id()
-	local lobby = MPAPI.get_current_lobby()
-	return lobby and lobby.player_id
-end
-PVP.TRAP.self_id = self_id
-
 -- Fires from a Trap card's own use() -- the ONLY moment use() ever runs, since a Trap can only
 -- be obtained by taking it from a Trap pack (Card:use_consumeable removes the card from
--- G.pack_cards and never adds it anywhere else). Sent directly to the ante's Nemesis,
--- NOT the per-object sync bus, since there is no existing card instance on the receiving side yet
--- for `receive` to key off of.
+-- G.pack_cards and never adds it anywhere else). The server decides who holds it and whether an
+-- Arcane Lock sends it back; the card then reaches its holder through the view (pvp_api/trap_screen.lua).
 function PVP.TRAP.plant(card)
-	local lock = PVP.TRAP.find_planted(PVP.TRAP.KEY.ARCANE_LOCK)
-	if lock then
-		PVP.TRAP.bounce_to_taker(card, lock)
-		return
-	end
-	local lobby = MPAPI.get_current_lobby()
-	local targets = PVP.ante_nemesis_ids()
-	if not (lobby and #targets > 0) then
-		return
-	end
-	card.ability.mp_trap_owner_id = self_id() -- stamp before serializing; round-trips via card:save()/:load()
-	local params = { card = MPAPI.serialize_card(card), owner = self_id() }
-	-- A Manhunt runner has every hunter as a Nemesis: each one gets its own copy, which fires and pays on its own.
-	for _, target in ipairs(targets) do
-		lobby:action(PVP.TRAP.plant_action):send(target, params)
-	end
+	PVP.trap_screen.planted(card.config.center.key)
 end
 
 -- A planted trap of this center key that is still hidden and has not fired, in the player's own consumables.
@@ -80,7 +57,6 @@ function PVP.TRAP.disguise(card)
 	-- this runs (rebuild_card emplaces it), so the area recounts now, not on its next update.
 	card.ability.extra_slots_used = -1
 	if card.area then card.area:handle_card_limit() end
-	card.ability.mp_trap_card_id = card.ability.mp_trap_card_id or PVP.TRAP_ROW.new_card_id()
 end
 
 local can_sell_card_ref = Card.can_sell_card
@@ -130,22 +106,31 @@ function PVP.TRAP.reveal_and_consume(card)
 end
 
 -- Fires a trap from outside its calculate (a hooked vanilla function): marks it fired so nothing
--- re-fires it during the reveal delay, reveals and removes it, and sends the notice to the Trapper.
+-- re-fires it during the reveal delay, reveals and removes it, and tells the server.
 function PVP.TRAP.fire(trap, data)
 	trap.ability.mp_trap_fired = true
 	PVP.TRAP.reveal_and_consume(trap)
-	trap.config.center:sync(PVP.TRAP.notify_owner(trap, data).send)
+	PVP.TRAP.notify_owner(trap, data)
 end
 
--- Every trap's calculate replies with this exact shape. `send` is the only thing that goes out
--- on the wire (see BalatroMultiplayerAPI's synced_mixin.calculate). The owner id is carried
--- explicitly -- NOT resolved via PVP.current_target_id() at fire time, since a trap's Trapper
--- was fixed when the card was taken and that Trapper's Nemesis may have since rotated
--- to someone else. Every trap's receive must gate on `context.data.owner == PVP.TRAP.self_id()`.
+-- Every trap's calculate ends by calling this with the fields its trap names (pvp_api/_trap_data.lua):
+-- the server passes them on to the Trapper's inbox. The owner is the one stamped on the card when the
+-- view gave it to me, not whoever is the Nemesis now.
 function PVP.TRAP.notify_owner(card, data)
 	data = data or {}
 	data.owner = card.ability.mp_trap_owner_id
-	return { send = data }
+	PVP.trap_screen.fired(card, data)
+	return {}
+end
+
+-- Nil when the trap's fire can be built from these fields, else why not. For a trap that takes
+-- something before it fires: it must not take what it cannot report.
+function PVP.TRAP.fire_problem(card, data)
+	local values = { owner = card.ability.mp_trap_owner_id }
+	for name, value in pairs(data or {}) do
+		values[name] = value
+	end
+	return PVP.trap_screen.fire_problem(card, values)
 end
 
 -- The "use" animation played on the Trapper's own screen when their planted trap
@@ -187,24 +172,3 @@ function PVP.TRAP.fire_once(calculate)
 		return result
 	end
 end
-
-PVP.TRAP.plant_action = MPAPI.ActionType({
-	key = "pvp_trap_plant",
-	-- Explicit prefix_config: "pvp_trap_plant" doesn't start with this mod's own
-	-- prefix ("mp"), so SMODS would otherwise prepend it -> "mp_pvp_trap_plant",
-	-- breaking the direct-reference capture below (still matches the wire key,
-	-- but drifts from every other pvp_* ActionType's literal-key convention).
-	prefix_config = { key = false },
-	parameters = {
-		{ key = "card", type = "string", required = true },
-		{ key = "owner", type = "string", required = true },
-	},
-	on_receive = function(_at, from, params)
-		local card = MPAPI.rebuild_card(params.card, G.consumeables)
-		if not card then
-			return
-		end
-		card.ability.mp_trap_owner_id = params.owner
-		PVP.TRAP.disguise(card)
-	end,
-})

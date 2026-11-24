@@ -21,86 +21,9 @@ PVP.DISPLAY_NAMES = {
 	team = { A = "Team A", B = "Team B" }, -- shown to the opposing team
 }
 
--- The single opponent in a 1v1 PvP lobby (nil until a second player is present).
-function PVP.get_opponent_id()
-	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
-	for _, p in ipairs(lobby:get_players()) do
-		if p.id ~= lobby.player_id then
-			return p.id
-		end
-	end
-	return nil
-end
-
--- The gamemode-defined "current target": whichever player's enemy-facing state
--- (score/hands/lives sync, HUD, joker targeting like Asteroid/Penny Pincher/the
--- Nemesis boss blind) should be treated as "the enemy" right now. Host-computed
--- and broadcast in every N>2 case -- never a client-side race.
---  - Nemesis-pairing (rotating no-repeat duels, N>2): this ante's assigned partner,
---    broadcast by the host each ante; nil if byed or not yet received.
---  - Plain 1v1: the sole other lobby player, unchanged from before this existed.
---  - Manhunt (N>2): a Hunter's target is always the sole Runner, resolved locally
---    from the roster (static for the whole match, no broadcast needed). The
---    Runner's target is whichever Hunter currently has the highest score --
---    PVP.GAME.manhunt_target_id, broadcast live by the host (pvp_api/referee.lua).
---  - Teams (N>2): PVP.GAME.team_card_target_id, one random opposing-team member
---    per player, re-picked once per ante by the host (same cadence as Nemesis
---    pairing) -- used for joker/consumable triggering. The Teams score DISPLAY is
---    a separate aggregate broadcast (pvp_team_score_board) read directly by the
---    HUD, not routed through current_target_id().
---  - Royale (N>2, no pairing): PVP.GAME.royale_target_id, broadcast live by the
---    host and personalized per player -- a safe player's target is the adjacent
---    player with the next-lower score (their safety margin), an unsafe player's
---    target is the adjacent player with the next-higher score (what they need to
---    beat). See PVP.referee_rank_royale/broadcast_royale_targets.
-function PVP.current_target_id()
-	if PVP.LOBBY.config.nemesis_pairing then
-		return PVP.GAME.nemesis_partner_id
-	end
-	local lobby = MPAPI.get_current_lobby()
-	if not lobby then
-		return nil
-	end
-	if #lobby:get_players() == 2 then
-		return PVP.get_opponent_id()
-	end
-	if PVP.LOBBY.config.manhunt then
-		if PVP.LOBBY.team_id == "HUNTER" then
-			for id, role in pairs(PVP.LOBBY.roster or {}) do
-				if role == "RUNNER" then
-					return id
-				end
-			end
-			return nil
-		end
-		return PVP.GAME.manhunt_target_id
-	end
-	if PVP.LOBBY.config.team_based then
-		return PVP.GAME.team_card_target_id
-	end
-	return PVP.GAME.royale_target_id
-end
-
--- The enemy lives follow the target: pvp_player_lives only updates the lives of the
--- target at the time it arrives, so a target named later (a new Manhunt leader, a
--- rejoin that hears the lives before the target) reads them from the cache.
-function PVP.refresh_target_lives()
-	local target = PVP.current_target_id()
-	if not (target and PVP.GAME and PVP.GAME.enemy) then
-		return
-	end
-	PVP.GAME.enemy.lives = PVP.lives_of(target, {
-		ref_players = PVP.REF and PVP.REF.players,
-		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
-	})
-end
-
 -- The " (catching up)" badge after the target's location in the HUD (ui/game/enemy_location.lua):
--- set while the server says the target is replaying its run after a crash.
+-- set while the server says the target is replaying its run after a crash. The target itself comes
+-- from the view (pvp_api/target_screen.lua).
 function PVP.refresh_catching_up_badge()
 	if not (PVP.GAME and PVP.GAME.enemy) then
 		return
@@ -113,11 +36,11 @@ end
 
 -- The name shown on the PvP boss blind (key "bl_mp_nemesis", the shared marker
 -- for every gamemode's PvP boss -- see gamemodes/attrition.lua) for the CURRENT
--- gamemode. Mirrors current_target_id()'s own branch order/reasoning above:
+-- gamemode:
 --  - Nemesis-pairing or a plain 2-player lobby: a single real opponent, so show
 --    their actual username, same as everywhere else PVP.LOBBY.host/.guest is
---    read. That mirror is nil ("not yet known") until PVP.current_target_id()
---    latches, so mask to "????" rather than feed a nil string to DynaText.
+--    read. That mirror is nil until the view names a target, so mask to "????"
+--    rather than feed a nil string to DynaText.
 --  - Manhunt (N>2): there's no single named opponent from either role's POV --
 --    show the fixed "The Hunters"/"The Runner" label instead.
 --  - Teams (N>2): the blind shows the whole opposing team's aggregate score,
@@ -125,8 +48,12 @@ end
 --  - Royale (N>2, no pairing): show the fixed "The Royale" label.
 -- A Nemesis player with no nemesis this ante (a bye) gets "Bye".
 function PVP.pvp_blind_opponent_name()
-	if PVP.is_announced_bye() then
+	if (PVP.my_boss() == "bye") then
 		return localize("k_bye")
+	end
+	-- The view has not said yet whether I have an opponent this ante.
+	if PVP.my_boss() == "unknown" then
+		return "????"
 	end
 	local lobby = MPAPI.get_current_lobby()
 	if PVP.LOBBY.config.nemesis_pairing or not lobby or #lobby:get_players() == 2 then
@@ -142,22 +69,6 @@ function PVP.pvp_blind_opponent_name()
 		return PVP.DISPLAY_NAMES.team[opposing] or PVP.DISPLAY_NAMES.team.A
 	end
 	return PVP.DISPLAY_NAMES.royale
-end
-
--- True only while byed in Nemesis-pairing mode (an odd-numbered alive roster
--- leaves one player without a partner this ante) -- distinct from "target not
--- yet received", which current_target_id() also represents as nil. Guards that
--- need to reject stray senders while genuinely byed must check this explicitly
--- rather than relying on current_target_id() == nil, which is ambiguous between
--- the two cases.
-function PVP.is_byed()
-	return PVP.LOBBY.config.nemesis_pairing and PVP.GAME.nemesis_partner_id == nil
-end
-
--- True only for a bye the host has announced: is_byed() is also true before the
--- first pairing arrives, when the opponent is not yet known ("????", not "Bye").
-function PVP.is_announced_bye()
-	return PVP.is_byed() and PVP.GAME.nemesis_pairing_received == true
 end
 
 local function player_name(lobby, player_id)
@@ -210,20 +121,19 @@ local function mirror_metadata(lobby)
 	-- still needs.
 	local def = meta.queue_mode and PVP.PVP_GAMEMODES and PVP.PVP_GAMEMODES[meta.queue_mode]
 	for k, v in pairs(meta) do
-		-- The referee's own checkpoint (referee.lua) isn't lobby config.
-		if k ~= "deck" and k ~= "kind" and k ~= PVP.REF_CHECKPOINT_KEY then
+		if k ~= "deck" and k ~= "kind" then
 			PVP.LOBBY.config[k] = v
 		end
 	end
 	-- nemesis_pairing isn't part of the shared metadata schema, so it can't ride the
 	-- generic loop above -- but every client (not just the host, who's the only one
 	-- that runs the active gamemode's start_run) needs it set correctly, since
-	-- PVP.current_target_id/attrition.lua's bye check/the joker-targeting guards all
-	-- run client-side. Derive it the same way gamemode/ruleset are derived here.
+	-- attrition.lua's bye check and the target readers all run client-side.
+	-- Derive it the same way gamemode/ruleset are derived here.
 	PVP.LOBBY.config.nemesis_pairing = (def and def.nemesis_pairing) or nil
 	-- Same derivation for Manhunt/Teams -- every client (not just the host) needs
-	-- these to resolve PVP.current_target_id(), the referee's mode branch, and the
-	-- lobby-options picker, since none of them ride the generic per-key loop above.
+	-- these to read the right target and the lobby-options picker, since none
+	-- of them ride the generic per-key loop above.
 	PVP.LOBBY.config.manhunt = (def and def.manhunt) or nil
 	PVP.LOBBY.config.team_based = (def and def.team_based) or nil
 	-- A ruleset's default_modifiers (Experimental's pvp_timer + pressure_timer) are
@@ -262,18 +172,13 @@ PVP.mirror_lobby_metadata = mirror_metadata
 -- `is_host and LOBBY.guest or LOBBY.host` idiom purely to mean "my current
 -- opponent" -- never "whichever player is the literal lobby host" -- so the
 -- non-self slot must resolve to PVP.current_target_id(), not an arbitrary roster
--- pick. In 1v1 that's still just the sole other player (current_target_id()
--- delegates to PVP.get_opponent_id() there); in Royale/Nemesis (N>2) it's nil
--- until a target latches, same "not yet known" semantics as the masked
--- score/hands fields elsewhere -- not a wrong name.
+-- pick. It is empty until the view names a target; target_screen.lua mirrors
+-- again when the target changes.
 --
--- §17.2: Teams is the one exception -- its blind shows the whole opposing
--- TEAM's combined score (pvp_team_score_board), not any single member's, so
--- naming it after current_target_id()'s pick (one random opposing-team member,
--- chosen for joker-targeting purposes only -- see that function's own header
--- comment) would show a name that doesn't match what the score represents.
--- "Team A"/"Team B" mirrors the exact enemy_team derivation team_manhunt.lua's
--- own pvp_team_score_board receive handler already uses for the same purpose.
+-- Teams is the one exception -- its blind shows the whole opposing TEAM's
+-- combined score (run.targets.teamScores), not any single member's, so naming
+-- it after the card target would show a name that doesn't match what the score
+-- represents. "Team A"/"Team B" is the opposing team's label.
 local function mirror_players(lobby)
 	remember_names(lobby)
 	local self_name = player_name(lobby, lobby.player_id) or PVP.LOBBY.username or "Guest"
@@ -308,16 +213,105 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- Kept per lobby: a later PLAYER_LEFT after a socket drop means the
 	-- disconnect grace period expired, rather than a voluntary leave.
 	local disconnected_players = {}
-	-- Who was out of the last lobby's match (the referee's lives, the lives
-	-- cache) means nothing in another lobby: a group back home from its public
-	-- match otherwise showed whoever lost there crossed out on the home
-	-- lobby's cards (ui/game/player_status_provider.lua). By the lobby object,
-	-- not its code: a join by code has no code until its first snapshot.
-	if PVP.CURRENT_LOBBY ~= lobby then
-		PVP._player_lives_cache = nil
-		if PVP.REF then
-			PVP.REF.players = {}
+	-- The "waiting for reconnection" notice pauses the game; closed once everyone is back,
+	-- us included. Who is away, and when the server forfeits them, is read from the lobby roster
+	-- (is_away, forfeits_at_local). Back or Esc hides the notice: the small line (reconnect_screen.lua,
+	-- or away_screen.lua in a run) then counts down to the forfeit until they are back or gone. Both
+	-- end on their own: our rejoin gives up after the seat's grace (the lobby is left), and an
+	-- opponent past it is a PLAYER_LEFT.
+	-- Shown only once a drop has lasted NOTICE_DELAY: a quick rejoin goes unseen. The server
+	-- holds the clocks from the drop on, so nothing is lost meanwhile.
+	local NOTICE_DELAY = 3
+	local own_connection = "up" -- "up" | "dropped"
+	local surfaced = {} -- ids whose absence the player has been shown
+	local hidden = {} -- ids whose big notice the player dismissed
+	local disconnect_notice = nil
+	local notice_wait = nil -- the pending wait; replaced to drop it
+	local on_frame
+	-- Who is away: id -> { who = "me" } or { who = "other", name, forfeits_at }. Players no longer
+	-- away leave `surfaced` and `hidden` here.
+	local function away_now()
+		local away = {}
+		for _, player in ipairs(lobby:get_players()) do
+			if player.is_away and player.id ~= lobby.player_id then
+				away[player.id] = { who = "other", name = departed_player_name(lobby, player.id), forfeits_at = player.forfeits_at_local }
+			end
 		end
+		if own_connection == "dropped" then away[lobby.player_id] = { who = "me" } end
+		for id in pairs(surfaced) do
+			if not away[id] then surfaced[id] = nil end
+		end
+		for id in pairs(hidden) do
+			if not away[id] then hidden[id] = nil end
+		end
+		return away
+	end
+	-- The line belongs to the newest lobby; an older lobby's late events leave it alone.
+	local function sync_line()
+		if PVP.reconnect_screen.on_frame ~= on_frame then return end
+		local listed = {}
+		for id, entry in pairs(away_now()) do
+			if surfaced[id] then listed[id] = entry end
+		end
+		PVP.reconnect_screen.sync(listed, disconnect_notice == nil)
+	end
+	local function show_away_notice()
+		local id, entry
+		for other, other_entry in pairs(away_now()) do
+			if not hidden[other] and (id == nil or other_entry.who == "me") then id, entry = other, other_entry end
+		end
+		if id == nil then
+			-- Only our notice: a menu the player opened over it stays open.
+			if disconnect_notice and G.OVERLAY_MENU == disconnect_notice then G.FUNCS.exit_overlay_menu() end
+			disconnect_notice = nil
+			sync_line()
+			return
+		end
+		if entry.who == "me" then
+			PVP.UI.UTILS.overlay_message(localize("k_mp_reconnecting"))
+		else
+			PVP.UI.UTILS.overlay_message(localize({ type = "variable", key = "k_pvp_player_waiting", vars = { entry.name } }))
+		end
+		disconnect_notice = G.OVERLAY_MENU
+		for other in pairs(away_now()) do
+			surfaced[other] = true
+		end
+		sync_line()
+	end
+	-- Once a frame: the notice gone while players are still away means the player dismissed it.
+	on_frame = function()
+		if disconnect_notice and G.OVERLAY_MENU ~= disconnect_notice then
+			disconnect_notice = nil
+			for id in pairs(away_now()) do
+				hidden[id] = true
+			end
+			sync_line()
+		end
+	end
+	PVP.reconnect_screen.adopt(on_frame)
+	local function update_away_notice()
+		if next(away_now()) == nil or disconnect_notice then
+			notice_wait = nil
+			show_away_notice()
+		elseif not notice_wait then
+			local wait = {}
+			notice_wait = wait
+			G.E_MANAGER:add_event(Event({
+				trigger = "after",
+				delay = NOTICE_DELAY,
+				timer = "REAL",
+				blocking = false,
+				blockable = false,
+				func = function()
+					if notice_wait == wait then
+						notice_wait = nil
+						if next(away_now()) then show_away_notice() end
+					end
+					return true
+				end,
+			}))
+		end
+		sync_line()
 	end
 	PVP.CURRENT_LOBBY = lobby
 	PVP.LOBBY.code = lobby.code
@@ -326,10 +320,8 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- Manhunt/Teams role state must NOT carry over from a previous lobby: the
 	-- same two players reconnecting into a different lobby (any gamemode, not
 	-- just another Manhunt/Teams match) would otherwise inherit a stale
-	-- "HUNTER"/"RUNNER"/"A"/"B" roster entry, which -- since referee_reset's
-	-- team_based default ("pl.team_id or 'A'") only fires when team_id is still
-	-- nil -- can silently stick as an invalid team_id for the new mode instead of
-	-- being freshly assigned.
+	-- "HUNTER"/"RUNNER"/"A"/"B" roster entry, which can stick as an invalid
+	-- team_id for the new mode instead of being freshly assigned.
 	PVP.LOBBY.roster = {}
 	PVP.LOBBY.team_id = nil
 	PVP.reset_game_states()
@@ -338,8 +330,9 @@ PVP.setup_lobby_mirror = function(lobby)
 		PVP.lobby.ref = lobby
 		PVP.lobby.ui_ref = MPAPI.create_lobby_ui(lobby)
 		PVP.lobby.buttons_initialized = false
-		PVP.lobby.local_ready = false
 		PVP.lobby.start_broadcasted = false
+		PVP.lobby.present = nil
+		PVP.lobby_screen.reset()
 		if PVP.lobby.ready then
 			PVP.lobby.ready:reset()
 		end
@@ -383,6 +376,7 @@ PVP.setup_lobby_mirror = function(lobby)
 			if mirror_metadata(lobby) == false then return end
 		end
 		mirror_players(lobby)
+		update_away_notice()
 		-- A joiner's snapshot already holds the players (and their mods) who were
 		-- here first, and fires no PLAYER_JOINED or PLAYER_INFO for them.
 		check_version_mismatch()
@@ -400,7 +394,6 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_JOINED, function(player_id)
 		mirror_players(lobby)
-		PVP.TRAP_ROW.on_player_back(player_id)
 		PVP.refresh_verified_lobby(lobby)
 		refresh()
 		check_version_mismatch()
@@ -423,83 +416,39 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.UI.UTILS.overlay_message(message)
 		end
 		disconnected_players[player_id] = nil
+		if next(away_now()) == nil then update_away_notice() end
+		sync_line()
 		PVP.refresh_verified_lobby(lobby)
 		if PVP.lobby and PVP.lobby.ready then
 			PVP.lobby.ready:remove(player_id)
 		end
-		if PVP.lobby and PVP.lobby.seed_votes then
-			PVP.lobby.seed_votes:remove(player_id)
-		end
-		if PVP.lobby and PVP.lobby.draw_votes then
-			PVP.lobby.draw_votes:remove(player_id)
-		end
 		mirror_players(lobby)
-		PVP.TRAP_ROW.forget(player_id)
 		-- Re-arms the overlay once the mismatched player is gone.
 		check_version_mismatch()
-		-- The gamemode's forfeit hook (host-authoritative) handles a mid-match leave.
-		local gm = lobby.get_gamemode_instance and lobby:get_gamemode_instance()
-		-- A pending death decides it instead: leaving with one is not a forfeit.
-		if
-			gm
-			and gm.on_player_forfeit
-			and G.STAGE == G.STAGES.RUN
-			and not PVP.referee_pending_death_on_player_gone(player_id)
-		then
-			MPAPI._handle_gamemode_result(gm, gm:on_player_forfeit(player_id))
-		end
-		if G.STAGE == G.STAGES.RUN then PVP.referee_resume_entry() end
 		refresh()
 	end)
 
-	-- Phase 9: reconnect tail-replay. PLAYER_RECONNECTED fires to every lobby
-	-- member (including the reconnecting player's own client, once it
-	-- rejoins the match) -- only act when the reconnecting
-	-- player IS us; the opponent's own client needs no catch-up, it never
-	-- disconnected. See pvp_api/reconnect_tail.lua.
 	-- A Party lobby's Find Game pillars (ui/main_menu/find_game.lua) refuse
 	-- while a player is away, so they follow players dropping and coming back.
 	lobby:on(MPAPI.LobbyEvent.PLAYER_DISCONNECTED, function(player_id)
 		if player_id and player_id ~= lobby.player_id then
-			local departed_name = departed_player_name(lobby, player_id)
 			disconnected_players[player_id] = true
-			PVP.UI.UTILS.overlay_message(departed_name .. " disconnected.\nWaiting for reconnection...")
+			hidden[player_id] = nil
+			update_away_notice()
 		end
 		refresh()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.PLAYER_RECONNECTED, function(player_id)
 		disconnected_players[player_id] = nil
-		refresh()
-		PVP.TRAP_ROW.on_player_back(player_id)
-		PVP.reconcile_round()
 		if player_id ~= lobby.player_id then
-			PVP.referee_on_player_reconnected(player_id)
-			PVP.AnteTimer.on_opponent_back()
-			return
+			if surfaced[player_id] then
+				PVP.reconnect_screen.add_back(departed_player_name(lobby, player_id), love.timer.getTime())
+			end
+			if next(away_now()) == nil then update_away_notice() end
+			sync_line()
 		end
-		-- The host may have changed while we were away.
-		PVP._pvp_action_helpers.forget_host(lobby)
-		if G.STAGE ~= G.STAGES.RUN then return end
-		local opponent_id = PVP.get_opponent_id()
-		if opponent_id then
-			PVP.RECONNECT_TAIL.catch_up(opponent_id)
-		end
-	end)
-
-	-- The snapshot restores lobby state, not this client's pending round report.
-	lobby:on(MPAPI.LobbyEvent.SNAPSHOT_APPLIED, function(snapshot)
-		PVP.reconcile_round(snapshot.hostId)
-	end)
-
-	-- Replay tails come with the Nakama rejoin itself.
-	lobby:on(MPAPI.LobbyEvent.REPLAY_TAIL, function(tails)
-		PVP.RECONNECT_TAIL.receive_pushed_tails(tails)
-		if G.STAGE ~= G.STAGES.RUN then return end
-		local opponent_id = PVP.get_opponent_id()
-		if opponent_id then
-			PVP.RECONNECT_TAIL.catch_up(opponent_id)
-		end
+		refresh()
 	end)
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
@@ -532,16 +481,8 @@ PVP.setup_lobby_mirror = function(lobby)
 		end)
 	end
 
-	lobby:on(MPAPI.LobbyEvent.HOST_CHANGED, function(host_id)
-		-- Host-only actions are taken from this player now (pvp_api/actions/_helpers.lua).
-		PVP._pvp_action_helpers.note_host(lobby, host_id)
+	lobby:on(MPAPI.LobbyEvent.HOST_CHANGED, function()
 		mirror_players(lobby)
-		-- The host left mid-run (a crash, a dropped connection) and the server
-		-- made us host: the referee is ours now.
-		if lobby.is_host and G.STAGE == G.STAGES.RUN and not PVP.is_practice_mode() then
-			PVP.referee_take_over()
-		end
-		PVP.reconcile_round(host_id)
 		-- Before the run: we open the next Setup step if one is due (the Draft
 		-- itself is opened by MPAPI.BanPick).
 		PVP.SETUP.continue(lobby)
@@ -554,7 +495,26 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	-- The session state itself was already ended by the lobby's teardown
 	-- (lib/session.lua), which knows whether a newer PvP lobby has taken over.
+	-- Our own socket dropped: our game pauses too while the API rejoins.
+	lobby:on(MPAPI.LobbyEvent.CONNECTION_DROPPED, function()
+		own_connection = "dropped"
+		hidden[lobby.player_id] = nil
+		update_away_notice()
+	end)
+	lobby:on(MPAPI.LobbyEvent.CONNECTION_RESTORED, function()
+		own_connection = "up"
+		update_away_notice()
+	end)
+
+	-- A rejoin's snapshot (and a first one) may hold players already away, with their forfeit times.
+	lobby:on(MPAPI.LobbyEvent.SNAPSHOT_APPLIED, function()
+		update_away_notice()
+	end)
+
 	lobby:on(MPAPI.LobbyEvent.DISCONNECTED, function()
+		own_connection, surfaced, hidden = "up", {}, {}
+		update_away_notice()
+		if PVP.reconnect_screen.on_frame == on_frame then PVP.reconnect_screen.clear() end
 		-- An old lobby's leave can be answered after the player is in a newer PvP
 		-- lobby: that lobby owns PVP.lobby and the match handle now.
 		local current = MPAPI.get_current_lobby()
@@ -565,9 +525,6 @@ PVP.setup_lobby_mirror = function(lobby)
 			PVP.lobby.ref = nil
 			PVP.lobby.ui_ref = nil
 			PVP.lobby.buttons_initialized = false
-		end
-		if PVP.stop_ready_resync then
-			PVP.stop_ready_resync()
 		end
 		-- Drop the matchmaking handle for a matchmade lobby. Its match_id keeps it lingering
 		-- in mm.handles until the game ends (MATCH_RESOLVED); leaving before that would
@@ -583,21 +540,15 @@ PVP.setup_lobby_mirror = function(lobby)
 
 	lobby:on(MPAPI.LobbyEvent.ERROR, function(err)
 		sendWarnMessage("Lobby error: " .. tostring(err), "MULTIPLAYER")
+		PVP.refusal_screen.show(err)
 	end)
 
-	-- Server-refereed lobbies: ready, start, restart and the end of a game come from
-	-- the server rather than from PVP's own actions (whose handlers do the same work).
-	lobby:on(MPAPI.LobbyEvent.PLAYER_READY_CHANGED, function(player_id, ready)
-		if MPAPI.has_server_referee(lobby) then
-			PVP.set_player_ready(player_id, ready)
-		end
-	end)
-
+	-- Ready and Start are inputs of the lobby view (lobby_screen.lua); the game start and its end come from the server.
 	lobby:on(MPAPI.LobbyEvent.GAME_STARTED, function(started)
 		local recipe = (lobby:get_metadata() or {}).cocktail_recipe
 		if recipe and not PVP.receive_cocktail_recipe(recipe) then return end
 		if started.restarted then
-			PVP.on_reseed(started.seed)
+			PVP.game_effects.start_game(started.seed, PVP.LOBBY.deck.stake)
 		else
 			PVP.on_game_start({ seed = started.seed, stake = tostring(started.stake or 1) })
 		end
@@ -608,7 +559,7 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- it); everyone else gets a chat line (ui/contest_modal.lua).
 	lobby:on(MPAPI.LobbyEvent.CONTESTED, function(contested)
 		local by = contested and contested.by
-		local scope = PVP.Contest.scope(PVP._match_players and #PVP._match_players, by, PVP.self_player_id())
+		local scope = PVP.Contest.scope(PVP._match_players and #PVP._match_players, by, lobby.player_id)
 		if scope == PVP.Contest.Scope.EVERYONE then
 			PVP.show_contested_screen()
 		elseif scope == PVP.Contest.Scope.BYSTANDER then
@@ -633,3 +584,9 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 end
+
+-- The lobby grid shows a player who is out or gone debuffed: during a run from the live view, back in the
+-- lobby from the game that ended (as on main), until the next game starts.
+MPAPI.register_player_status_provider(PVP.id, function(_lobby, player_data)
+	return PVP.view.is_out(PVP.match_net and PVP.match_net.view, player_data.id)
+end)

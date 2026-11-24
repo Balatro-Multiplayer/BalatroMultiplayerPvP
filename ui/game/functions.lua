@@ -1,32 +1,45 @@
 -- Contains function overrides (monkey-patches) for G.FUNCS callbacks
 -- Overrides button callback functions like can_play, can_open, select_blind, skip_blind, etc.
 
+-- The widest the Ready text may be: inside the Boss button, whose width the vanilla Select button sets.
+local READY_TEXT_MAX_WIDTH = 2.2
+
 G.FUNCS.pvp_ready_button = function(e)
+	-- An undecided Boss (pvp_api/target_screen.lua) cannot be picked until the view says if I have a bye.
+	if G.GAME.round_resets.pvp_boss == "undecided" and G.GAME.blind_on_deck == "Boss" then
+		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
+		e.config.button = nil
+		e.config.pvp_boss_hold = "held"
+		return
+	end
+	e.config.pvp_boss_hold = "free"
 	if e.children[1].config.ref_table[e.children[1].config.ref_value] == localize("Select", "blind_states") then
 		e.config.button = "mp_toggle_ready"
 		e.config.one_press = false
 		e.children[1].config.ref_table = PVP.GAME
 		e.children[1].config.ref_value = "ready_blind_text"
+		e.children[1].config.maxw = READY_TEXT_MAX_WIDTH
 	end
-	if e.config.button == "mp_toggle_ready" then e.config.colour = (PVP.GAME.ready_blind and G.C.GREEN) or G.C.RED end
+	-- A held Ready (a blind is playing, or no view yet) has no action; the look decides each frame, so it
+	-- releases itself.
+	if e.config.button == "mp_toggle_ready" or e.config.pvp_ready_hold == "held" then
+		local look = PVP.entry_screen.ready_button()
+		local held = look == "held" or look == "waiting"
+		e.config.pvp_ready_hold = held and "held" or "free"
+		if held then
+			e.config.button = nil
+		else
+			e.config.button = "mp_toggle_ready"
+		end
+		e.config.colour = PVP.entry_screen.ready_colour()
+	end
 end
 
 function G.FUNCS.mp_toggle_ready(e)
+	local ready = PVP.entry_screen.press_ready(e)
+	if ready == nil then return end
 	PVP.match_log("trace", "Toggling Ready")
-	PVP.GAME.ready_blind = not PVP.GAME.ready_blind
-	PVP.GAME.ready_blind_text = PVP.GAME.ready_blind and localize("b_unready") or localize("b_ready")
-	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, PVP.GAME.ready_blind and 1 or 0)
-
-    PVP.GAME.pvp_reached = true
-
-	if PVP.GAME.ready_blind then
-		PVP.ACTIONS.set_location("loc_ready")
-		PVP.ACTIONS.ready_blind(e)
-	else
-		PVP.ACTIONS.set_location("loc_selecting")
-		PVP.ACTIONS.pause_ante_timer()
-		PVP.ACTIONS.unready_blind()
-	end
+	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, ready and 1 or 0)
 end
 
 local old_skip_blind = G.FUNCS.skip_blind
@@ -39,7 +52,7 @@ end
 
 local can_play_ref = G.FUNCS.can_play
 G.FUNCS.can_play = function(e)
-	if PVP.in_session() and G.GAME.current_round.hands_left <= 0 then
+	if PVP.in_session() and (G.GAME.current_round.hands_left <= 0 or not PVP.pvp_blind_screen.may_play()) then
 		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
 		e.config.button = nil
 	else
@@ -49,7 +62,7 @@ end
 
 local can_open_ref = G.FUNCS.can_open
 G.FUNCS.can_open = function(e)
-	if PVP.in_session() and PVP.GAME.ready_blind then
+	if PVP.in_session() and (PVP.GAME.ready_blind or PVP.entry_screen.ready_pending()) then
 		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
 		e.config.button = nil
 		return
@@ -62,9 +75,6 @@ function G.FUNCS.select_blind(e)
 	PVP.GAME.end_pvp = false
 	PVP.GAME.prevent_eval = false
 	select_blind_ref(e)
-	-- Confirmed-safe checkpoint for Phase 9's reconnect tail-replay -- drains
-	-- any pending opponent catch-up queued since the last checkpoint.
-	if PVP.RECONNECT_TAIL and PVP.in_session() then PVP.RECONNECT_TAIL.on_checkpoint() end
 	if PVP.is_mp_or_practice() then
 		PVP.GAME.ante_key = tostring(math.random())
 		-- Carbon: log the freshly-rolled (non-deterministic) ante_key so a
@@ -74,7 +84,6 @@ function G.FUNCS.select_blind(e)
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
 		PVP.RLOG.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
-		PVP.ACTIONS.play_hand(0, G.GAME.round_resets.hands)
 		PVP.ACTIONS.new_round()
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
 		if PVP.UI.hide_enemy_location then PVP.UI.hide_enemy_location() end
@@ -86,33 +95,20 @@ G.FUNCS.skip_blind = function(e)
 	local skipped_blind = G.GAME.blind_on_deck
 	skip_blind_ref(e)
 	if PVP.LOBBY.code then
-		-- A skipped blind counts as beaten for a pending death: the opponent died on
-		-- a blind this player went past, so there is nothing left to beat.
-		PVP.ACTIONS.blind_result(true, skipped_blind)
-
-		-- Old timer: skip time matches how far ahead of the opponent this player is.
-		PVP.GAME.skips_before_pvp = (PVP.GAME.skips_before_pvp or 0) + 1
-		PVP.UI.update_matching_skip_timer(false)
-
-		PVP.ACTIONS.skip(G.GAME.skips)
+		-- The server counts a skipped blind as beaten, so no blind result goes with it.
+		PVP.run_screen.skipped(skipped_blind)
+		-- The replay log keeps the score and hands a skip leaves, as a played hand does.
+		if PVP.RLOG then
+			PVP.RLOG.record(
+				MPAPI.OPCODE.HAND_RESULT,
+				{ PVP.Score.or_zero(PVP.GAME.score), (G.GAME.current_round and G.GAME.current_round.hands_left) or 0 }
+			)
+		end
 		-- RLOG's skip_blind opcode is now recorded once, generically, by
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.skip_blind hook -- nothing left to do here.
 
-		--Update the furthest blind
-		local temp_furthest_blind = 0
-		if G.GAME.round_resets.blind_states.Big == "Skipped" then
-			temp_furthest_blind = G.GAME.round_resets.ante * 10 + 2
-		elseif G.GAME.round_resets.blind_states.Small == "Skipped" then
-			temp_furthest_blind = G.GAME.round_resets.ante * 10 + 1
-		end
-
 		PVP.GAME.pincher_index = PVP.GAME.pincher_index + 1
-
-		PVP.GAME.furthest_blind = (temp_furthest_blind > PVP.GAME.furthest_blind) and temp_furthest_blind
-			or PVP.GAME.furthest_blind
-
-		PVP.ACTIONS.set_furthest_blind(PVP.GAME.furthest_blind)
 	end
 end
 
@@ -214,8 +210,7 @@ G.FUNCS.wipe_off = function()
 end
 
 function G.FUNCS:continue_in_singleplayer(e)
-	-- Detach from the multiplayer lobby (the API owns leave now; the legacy
-	-- PVP.ACTIONS.leave_lobby() is a no-op here), then update UI. The run itself is kept
+	-- Detach from the multiplayer lobby (the API owns leave), then update UI. The run itself is kept
 	-- and reloaded below so the player continues solo.
 	PVP.LOBBY.code = nil
 	local lobby = MPAPI.get_current_lobby()

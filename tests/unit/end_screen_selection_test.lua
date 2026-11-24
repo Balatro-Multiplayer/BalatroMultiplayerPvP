@@ -1,6 +1,6 @@
 -- Plain Lua test for who the PvP end screen opens on (ui/game/game_end.lua): in a 1v1
 -- it opens on the opponent's jokers and deck, a rebuild (closing View Deck) keeps the
--- player picked, and a result that arrives late redraws the opponent's jokers.
+-- player picked, and jokers the view carries late redraw the opponent's jokers.
 -- Run from the repo root: luajit tests/unit/end_screen_selection_test.lua
 G = { FUNCS = {}, UIDEF = {}, CARD_W = 1, CARD_H = 1, GAME = { starting_params = { joker_slots = 5 } } }
 PVP = { UI = {}, UTILS = {}, LOBBY = { code = "ABCDE" }, GAME = {}, Score = {} }
@@ -23,7 +23,6 @@ local SELF, OPP, THIRD = "me", "them", "third"
 local lobby_players
 MPAPI = {
 	connection_state = { player_id = SELF },
-	ActionTypes = { pvp_player_result = "pvp_player_result" },
 	get_current_lobby = function()
 		return {
 			player_id = SELF,
@@ -51,13 +50,20 @@ function MPAPI.end_screen_default_selection(lobby, players)
 	end
 	return players, options, current_option
 end
-local on_receive
-function MPAPI.ActionType(def)
-	on_receive = def.on_receive
+-- What the view's end of game holds, by player (pvp_api/finish_screen.lua).
+local view_jokers = {}
+PVP.finish_screen = {
+	jokers_of = function(player_id)
+		return view_jokers[player_id]
+	end,
+}
+-- The view brings a player's jokers in; finish_screen then redraws the open end screen.
+local function on_view(player_id, jokers)
+	view_jokers[player_id] = jokers
+	PVP.UI.refresh_end_game_jokers()
 end
 
 dofile("lib/match_players.lua")
-dofile("pvp_api/actions/player_result.lua")
 
 local function read(path)
 	local file = assert(io.open(path, "r"))
@@ -98,7 +104,7 @@ end
 local function fresh_match(players)
 	lobby_players = players
 	PVP._match_players = players
-	PVP._collected_results = {}
+	view_jokers = {}
 	PVP._end_screen_selected_player_id = nil
 	PVP._end_screen_selected_player_name = nil
 end
@@ -108,7 +114,7 @@ local OPP_JOKERS = { { key = "j_joker" } }
 
 -- 1v1, both out: the screen opens on the opponent's jokers.
 fresh_match(ONE_V_ONE)
-PVP._collected_results[OPP] = { jokers = OPP_JOKERS, cards = ";S-A-none-none-none" }
+view_jokers[OPP] = OPP_JOKERS
 local panel = PVP.UI.build_end_game_extras()
 check("1v1 opens on the opponent", PVP._end_screen_selected_player_id, OPP)
 check("1v1 selector shows the opponent", panel.current_option, 2)
@@ -130,18 +136,18 @@ check("a new run clears the pick", PVP._end_screen_selected_player_id, nil)
 fresh_match(ONE_V_ONE)
 PVP.UI.build_end_game_extras()
 check("before their result: still playing", PVP.end_game_jokers_text, "k_end_player_playing:Them")
-on_receive(nil, OPP, { jokers = OPP_JOKERS, cards = ";S-A-none-none-none" })
+on_view(OPP, OPP_JOKERS)
 check("their late result shows their jokers", PVP.end_game_jokers.cards, OPP_JOKERS)
 check("their late result updates the caption", PVP.end_game_jokers_text, "k_end_player_jokers:Them")
 
 -- A late result from someone else leaves the shown player alone.
-on_receive(nil, SELF, { jokers = { { key = "j_mine" } } })
+on_view(SELF, { { key = "j_mine" } })
 check("another player's result does not redraw", PVP.end_game_jokers.cards, OPP_JOKERS)
 
 -- An end screen that is gone is not redrawn.
 PVP.end_game_jokers.REMOVED = true
 local removed_cards = PVP.end_game_jokers.cards
-on_receive(nil, OPP, { jokers = { { key = "j_other" } } })
+on_view(OPP, { { key = "j_other" } })
 check("a removed end screen is not redrawn", PVP.end_game_jokers.cards, removed_cards)
 
 -- Pure: which player the end screen opens on.

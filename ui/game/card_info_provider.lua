@@ -73,15 +73,14 @@ local function elo_row(lobby, player_data)
 	return text_row(tonumber(cached.rank) and (elo .. " (#" .. cached.rank .. ")") or elo)
 end
 
-local function lives_row(player_data)
-	local lives = PVP.lives_of(player_data.id, {
-		ref_players = PVP.REF and PVP.REF.players,
-		self_id = PVP.self_player_id(),
-		own_lives = PVP.GAME and PVP.GAME.lives,
-		cache = PVP._player_lives_cache,
-		starting_lives = PVP.LOBBY.config.starting_lives,
-	})
-	return text_row(tostring(lives) .. " " .. localize("k_lives"))
+local function lives_row(lobby, player_data)
+	local lives
+	if player_data.id == lobby.player_id then
+		lives = PVP.GAME and PVP.GAME.lives or nil
+	else
+		lives = PVP.view.lives_of(PVP.match_net and PVP.match_net.view, player_data.id)
+	end
+	return text_row(tostring(PVP.opponent_lives_text(lives)) .. " " .. localize("k_lives"))
 end
 
 -- Skips and best PvP score: our own come from G.GAME/PVP.GAME. An opponent's
@@ -91,7 +90,7 @@ end
 local function run_rows(lobby, player_data, rows)
 	if G.STAGE ~= G.STAGES.RUN or not PVP.GAME or PVP.is_practice_mode() then return end
 	local skips, best_score
-	if player_data.id == PVP.self_player_id() then
+	if player_data.id == lobby.player_id then
 		skips, best_score = G.GAME.skips, PVP.GAME.highest_pvp_score
 	elseif #lobby:get_players() == 2 and not PVP.LOBBY.config.team_based then
 		skips, best_score = PVP.GAME.enemy.skips, PVP.GAME.enemy.highest_score
@@ -115,7 +114,7 @@ local function verified_row(player_data)
 end
 
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)
-	local rows = { lives_row(player_data) }
+	local rows = { lives_row(lobby, player_data) }
 	if (lobby:get_metadata() or {}).kind == PVP.LobbyAccess.PRIVATE then
 		rows[#rows + 1] = verified_row(player_data)
 	end

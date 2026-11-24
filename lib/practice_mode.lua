@@ -28,7 +28,7 @@ end
 --
 -- Reuses the exact same primitives the real private-lobby flow uses (PVP.pvp_create_private_lobby
 -- in pvp_api/flow.lua): PVP.setup_lobby_mirror to bridge the API lobby into PVP.LOBBY.*, and
--- PVP.pvp_lobby_metadata to resolve gamemode/ruleset/deck/stake/starting_lives/pvp_start_round
+-- PVP.pvp_lobby_metadata to resolve gamemode/ruleset/deck/stake/starting_lives/pvp_start_ante
 -- -- so practice can't drift from what a real lobby using the pvp_nemesis gamemode key
 -- would set up.
 --
@@ -37,7 +37,7 @@ end
 -- A nil seed is a random one, as in vanilla.
 --
 -- The PvP boss ("nemesis") blind still spawns and plays out normally from ante
--- PVP.LOBBY.config.pvp_start_round onward (see the practice branches in ui/game/game_state.lua
+-- PVP.LOBBY.config.pvp_start_ante onward (see the practice branches in ui/game/game_state.lua
 -- and ui/game/blind_hud.lua's opponent-score masking) -- it's neutered, not skipped: the
 -- opponent's score/hands always read "???", every hand is always usable, and no life is ever
 -- lost. Ante 8 ends the run naturally (see game_state.lua's update_new_round: the "prevent
@@ -93,7 +93,7 @@ function PVP._start_practice(ruleset_key, loadout)
 		-- first) has already mirrored the (empty, no real opponent) player roster --
 		-- otherwise its mirror_players() call overwrites this right back to {}.
 		PVP.LOBBY.guest = { username = "???", id = "practice" }
-		lobby:set_metadata(PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRACTICE))
+		PVP.lobby_screen.send_settings(lobby, PVP.pvp_lobby_metadata(gamemode_key, PVP.LobbyAccess.PRACTICE))
 		G.FUNCS.lobby_start_run(nil, { seed = loadout and loadout.seed })
 	end)
 end

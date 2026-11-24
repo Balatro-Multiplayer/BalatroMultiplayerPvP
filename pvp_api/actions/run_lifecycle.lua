@@ -1,6 +1,3 @@
-local A = PVP._pvp_action_helpers.A
-local relay = PVP._pvp_action_helpers.relay
-
 -- Stake indices the hovered stake applies, easiest first. White (and anything
 -- else marked hide_from_run_info) is included only when it is the stake itself.
 local function stake_effect_indices(stake_index)
@@ -213,22 +210,18 @@ function PVP.publish_drafted_loadout(lobby, back, stake)
 		patch.stake = tostring(stake)
 	end
 	if next(patch) then
-		lobby:set_metadata(patch)
+		PVP.lobby_screen.send_settings(lobby, patch)
 	end
 end
 
--- Every client's start of a game (params = { seed, stake }): run off the
--- pvp_start_game broadcast (host-refereed lobbies) or off GAME_STARTED
--- (server-refereed lobbies, see pvp_api/lobby_bridge.lua) -- the same body.
+-- Every client's start of a game (params = { seed, stake }), run off GAME_STARTED
+-- (pvp_api/lobby_bridge.lua).
 -- A rejoin into a game still in Setup calls it again (pvp_api/reconnect.lua).
 function PVP.on_game_start(params)
 	-- The match reveal hides every menu, and the votes and the Draft open in the lobby's: it
 	-- gives them back at once and its player cards slide off over them.
 	if PVP.QUEUE_HUD then
 		PVP.QUEUE_HUD.finish_reveal()
-	end
-	if PVP.stop_ready_resync then
-		PVP.stop_ready_resync()
 	end
 	if PVP.reset_ready_state then
 		PVP.reset_ready_state()
@@ -263,18 +256,17 @@ function PVP.on_game_start(params)
 		if lobby and lobby.is_host then
 			PVP.publish_drafted_loadout(lobby, deck_ref and PVP.LOBBY.config.back, stake)
 		end
-		PVP.referee_reset(PVP.LOBBY.config.starting_lives)
-		PVP.dispatch_action("startGame", { seed = params.seed, stake = stake or params.stake })
+		PVP.game_effects.start_game(params.seed, stake or params.stake)
 	end
 
-	-- Setup (pvp_api/setup.lua) runs on the server, so only a server-refereed
-	-- lobby has one: the Casual votes, then the matchmaking Draft. Two Draft
+	-- Setup (pvp_api/setup.lua) runs on the server, so only a lobby has one:
+	-- the Casual votes, then the matchmaking Draft. Two Draft
 	-- shapes exist (gamemodes.lua): BAN_PICK's explicit schedule addresses
 	-- exactly two actor slots, so it only drafts at exactly 2 players.
 	-- ROTATING_BAN_PICK (Royale/Manhunt/Teams) rotates through however many
 	-- players are in the game, so it runs at any N >= 2.
 	local plan = { votes = false, draft = false }
-	if lobby and MPAPI.has_server_referee(lobby) then
+	if lobby then
 		local started = lobby._game and lobby._game.started
 		plan = PVP.SETUP.plan(
 			meta.queue_mode,
@@ -309,9 +301,3 @@ function PVP.on_game_start(params)
 		proceed(picked or (lobby:get_metadata() or {}).deck)
 	end)
 end
-
-A("pvp_start_game", function(_at, from, params)
-	PVP.on_game_start(params)
-end)
-
-relay("pvp_stop_game", "stopGame")
