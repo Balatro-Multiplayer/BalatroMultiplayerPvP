@@ -122,6 +122,7 @@ function PVP._join_group_queue(gamemode_key)
 	if not def or not gm then
 		return nil, "unknown mode " .. tostring(gamemode_key)
 	end
+	PVP.MatchmakingPolicy.refresh_cocktail()
 	local handle, refusal = MPAPI.matchmaking.queue_group({
 		mod_id = PVP.id,
 		game_mode = gamemode_key,

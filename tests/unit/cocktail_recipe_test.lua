@@ -119,6 +119,36 @@ check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRIVATE).cocktail_recipe == nil, "
 check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRACTICE).cocktail_recipe == nil, "practice carries none")
 
 print()
+print("-- the recipe set on the website --")
+local Policy = PVP.MatchmakingPolicy
+Policy._set_server_recipe({ name = "Featured", decks = { "b_red", "b_blue" } })
+local featured = PVP.pvp_lobby_metadata("pvp_nemesis", A.RANKED).cocktail_recipe
+check(featured.name == "Featured" and table.concat(featured.decks, ",") == "b_red,b_blue", "Ranked carries the server's recipe")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", A.CASUAL).cocktail_recipe.name == "Featured", "Casual carries it too")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRIVATE).cocktail_recipe == nil, "a private lobby still carries none")
+featured.decks[1] = "b_green"
+check(Policy.cocktail_recipe(A.RANKED).decks[1] == "b_red", "the stored recipe cannot be edited through a returned one")
+Policy._set_server_recipe({ name = "Broken", decks = {} })
+check(Policy.cocktail_recipe(A.RANKED).name == "Bean's Cocktail", "a recipe with no decks falls back to the built-in one")
+
+-- The server's answer replaces the recipe; an error keeps it; "none set" clears it.
+local answer
+MPAPI.networking = { nakama_lobby = { rpc = function(name, _, callback)
+	check(name == "cocktail_recipe", "asks the cocktail_recipe RPC")
+	callback(answer.err, answer.data)
+end } }
+answer = { data = { recipe = { name = "Fetched", decks = { "b_yellow" } } } }
+Policy.refresh_cocktail()
+check(Policy.cocktail_recipe(A.RANKED).name == "Fetched", "an answer sets the Ranked recipe")
+answer = { err = "offline" }
+Policy.refresh_cocktail()
+check(Policy.cocktail_recipe(A.RANKED).name == "Fetched", "an error keeps the last recipe")
+answer = { data = { recipe = {} } }
+Policy.refresh_cocktail()
+check(Policy.cocktail_recipe(A.RANKED).name == "Bean's Cocktail", "no recipe set goes back to the built-in one")
+MPAPI.networking = nil
+
+print()
 print("-- a lobby with a recipe --")
 join(PVP.pvp_lobby_metadata("pvp_nemesis", A.RANKED))
 local decks, forced = PVP.get_cocktail_decks(true)
