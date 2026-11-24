@@ -59,6 +59,8 @@ function D.board(decks, stakes, opts)
 	local rng = opts.rng or board_rng
 	local size = opts.size or DRAFT_SIZE
 	local weights = opts.weights or {}
+	-- Per-stake maximums that are never relaxed (e.g. Spectral+ at 1), by stake index.
+	local stake_caps = opts.caps or {}
 	local options = {}
 	for _, stake in ipairs(stakes) do
 		for _, key in ipairs(decks) do
@@ -74,7 +76,7 @@ function D.board(decks, stakes, opts)
 		for _, o in ipairs(options) do
 			if
 				not used[o]
-				and (per_stake[o.stake] or 0) < per_stake_max
+				and (per_stake[o.stake] or 0) < (stake_caps[o.stake] or per_stake_max)
 				and (per_deck[o.key] or 0) < MAX_PER_DECK
 				and (o.stake == WHITE or not only_white)
 			then
@@ -140,6 +142,11 @@ function D.build(opts)
 	for i, key in ipairs(stake_keys) do
 		weights[i] = declared_weights[key]
 	end
+	local declared_caps = field("stake_caps") or {}
+	local caps = {}
+	for i, key in ipairs(stake_keys) do
+		caps[i] = declared_caps[key]
+	end
 	local decks = D.candidates(backs, field("allowed_backs"), field("banned_backs"))
-	return D.board(decks, stakes, { size = opts.size, weights = weights, rng = opts.rng })
+	return D.board(decks, stakes, { size = opts.size, weights = weights, caps = caps, rng = opts.rng })
 end
