@@ -149,6 +149,55 @@ check(Policy.cocktail_recipe(A.RANKED).name == "Bean's Cocktail", "no recipe set
 MPAPI.networking = nil
 
 print()
+print("-- a random Cocktail --")
+answer = { data = { recipe = { name = "Mystery Cocktail", random = true } } }
+MPAPI.networking = { nakama_lobby = { rpc = function(_, _, callback) callback(answer.err, answer.data) end } }
+Policy.refresh_cocktail()
+MPAPI.networking = nil
+local function valid(r)
+	if not (r and r.name == "Mystery Cocktail" and #r.decks == 3) then return false end
+	local seen = {}
+	for _, key in ipairs(r.decks) do
+		if not G.P_CENTERS[key] or seen[key] then return false end
+		seen[key] = true
+	end
+	return true
+end
+local function same(a, b) return table.concat(a.decks, ",") == table.concat(b.decks, ",") end
+PVP.LOBBY.code = "LOBBY1"
+local first = Policy.cocktail_recipe(A.RANKED)
+check(valid(first), "rolls three different decks this game knows, named by the website")
+check(same(Policy.cocktail_recipe(A.RANKED), first), "stamping the lobby again keeps its roll")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", A.RANKED).cocktail_recipe.name == "Mystery Cocktail", "the lobby metadata carries it")
+check(PVP.pvp_lobby_metadata("pvp_nemesis", A.PRIVATE).cocktail_recipe == nil, "a private lobby still carries none")
+check(Policy.next_game_cocktail(A.RANKED) == nil, "the lobby's first game plays the roll it was stamped with")
+check(Policy.next_game_cocktail(A.PRIVATE) == nil, "a private lobby has its own roll")
+local rolls, changed = {}, false
+for _ = 1, 20 do
+	local r = Policy.next_game_cocktail(A.RANKED)
+	check(valid(r), "every later game rolls a valid recipe")
+	if not same(r, first) then changed = true end
+	rolls[#rolls + 1] = r
+end
+check(changed, "later games roll other decks")
+check(same(Policy.cocktail_recipe(A.RANKED), rolls[#rolls]), "the lobby now shows the latest roll")
+PVP.LOBBY.code = "LOBBY2"
+check(valid(Policy.cocktail_recipe(A.RANKED)), "a new lobby rolls its own")
+check(Policy.next_game_cocktail(A.CASUAL) == nil, "and plays it in its first game")
+-- The deck list the game lacks: only the decks it has are drawn.
+local saved = G.P_CENTERS
+G.P_CENTERS = { b_red = saved.b_red, b_blue = saved.b_blue, b_mp_cocktail = saved.b_mp_cocktail }
+PVP.LOBBY.code = "LOBBY3"
+local small = Policy.cocktail_recipe(A.RANKED)
+check(#small.decks == 2, "with fewer decks known, it mixes the ones there are")
+G.P_CENTERS = saved
+Policy._set_server_recipe({ name = "Broken", random = "yes" })
+check(Policy.cocktail_recipe(A.RANKED).name == "Bean's Cocktail", "random must be true, else the built-in one")
+Policy._set_server_recipe(nil)
+check(Policy.next_game_cocktail(A.RANKED) == nil, "a fixed recipe never rolls")
+PVP.LOBBY.code = nil
+
+print()
 print("-- a lobby with a recipe --")
 join(PVP.pvp_lobby_metadata("pvp_nemesis", A.RANKED))
 local decks, forced = PVP.get_cocktail_decks(true)
