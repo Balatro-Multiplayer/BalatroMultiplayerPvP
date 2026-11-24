@@ -1,9 +1,9 @@
-PVP.Gamemode({
+PVP.RULES.Gamemode({
 	key = "attrition",
 	get_blinds_by_ante = function(self, ante)
 		if ante >= PVP.LOBBY.config.pvp_start_ante then
 			local resets = G.GAME.round_resets
-			-- The only place the Boss slot is decided; target_screen asks again until the Boss is
+			-- The only place the Boss slot is decided; the target screen asks again until the Boss is
 			-- played. A bye the view has announced keeps the rolled normal boss but is still a blind
 			-- Boss: it gets Ready, waits for everyone, and is played and reported as the blind. Until
 			-- the view says either way the Boss is undecided: it cannot be picked. A playback has no
@@ -12,7 +12,7 @@ PVP.Gamemode({
 				resets.pvp_normal_boss = resets.blind_choices.Boss
 			end
 			local boss = "plays"
-			if not PVP.SP.playback_gamemode then boss = PVP.my_boss() end
+			if not PVP.PRACTICE.playback_gamemode then boss = PVP.READ.target.my_boss() end
 			if boss == "bye" then
 				resets.pvp_boss = "decided"
 				resets.pvp_blind_choices.Boss = true

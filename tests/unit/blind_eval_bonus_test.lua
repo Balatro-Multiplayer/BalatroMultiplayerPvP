@@ -2,13 +2,8 @@
 -- A player who loses a PvP blind on hands is paid the comeback bonus at that blind's cash-out: the
 -- evaluate_round wrapper in overrides/game.lua runs the waiting comebackBonus item before the game's
 -- own evaluation, which reads comeback_payout.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local warnings, queue = {}, {}
 sendWarnMessage = function(text) warnings[#warnings + 1] = text end
@@ -23,19 +18,18 @@ G = {
 	GAME = { round_resets = { ante = 1 } },
 	E_MANAGER = { add_event = function(_, event) queue[#queue + 1] = event end },
 }
-PVP = { id = "MultiplayerPvP", is_pvp_boss = function() return false end, GAME = { comeback_bonus = 0, comeback_payout = "none" } }
+PVP = { NET = {}, READ = {}, UI = {}, id = "MultiplayerPvP", UTILS = { is_pvp_blind = function() return false end }, GAME = { comeback_bonus = 0, comeback_payout = "none" } }
 MPAPI = {
 	playback = { is_driving = function() return false end },
 	get_current_lobby = function() return { mod_id = "MultiplayerPvP" } end,
 	send_match_input = function() return true end,
 	run_save = { is_staged = function() return false end, save_now = function() end },
 }
-dofile("pvp_api/_view.lua")
-dofile("pvp_api/_match_net_rules.lua")
-dofile("pvp_api/match_net.lua")
-dofile("pvp_api/inbox_game.lua")
-dofile("pvp_api/inbox_handlers.lua")
-PVP.match_net.handlers = PVP.inbox_handlers.effects
+dofile("pvp_api/read/_view.lua")
+dofile("pvp_api/net/_rules.lua")
+dofile("pvp_api/net/server_link.lua")
+dofile("pvp_api/net/inbox.lua")
+PVP.NET.handlers = PVP.NET.inbox.effects
 
 -- the wrapper chunk of overrides/game.lua, loaded with the game's own evaluation stubbed
 local file = assert(io.open("overrides/game.lua", "r"))
@@ -56,7 +50,7 @@ assert((loadstring or load)(chunk))()
 
 local pvp_net = { runId = "run1", inboxDone = 0, totals = {} }
 G.GAME.pvp_net = pvp_net
-PVP.match_net.receive_view(nil, {
+PVP.NET.receive_view(nil, {
 	serverTime = 1000,
 	lastMessageReceived = 0,
 	me = "a",
@@ -78,4 +72,4 @@ G.FUNCS.evaluate_round()
 eq(seen.bonus, 3, "a later evaluation does not add it again")
 eq(#warnings, 0, "no warning logged")
 
-print(string.format("blind_eval_bonus_test: ok (%d checks)", checks))
+T.done("blind_eval_bonus_test")

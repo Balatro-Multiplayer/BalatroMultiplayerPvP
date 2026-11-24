@@ -43,7 +43,7 @@ end
 
 -- A change applies at once: the Nemesis rows are only moved, so it is safe mid-run.
 function G.FUNCS.mp_change_nemesis_layout(args)
-	PVP.config.nemesis_layout = PVP.NEMESIS_LAYOUT_ORDER[args.to_key]
+	PVP.config.nemesis_layout = PVP.NEMESIS.LAYOUT_ORDER[args.to_key]
 	SMODS.save_mod_config(PVP)
-	if G.jokers and G.consumeables then PVP.place_nemesis_slots() end
+	if G.jokers and G.consumeables then PVP.NEMESIS.place_slots() end
 end

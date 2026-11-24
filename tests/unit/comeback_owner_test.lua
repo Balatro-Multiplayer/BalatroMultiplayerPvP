@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/comeback_owner_test.lua
--- The comeback bonus has one owner, the comebackBonus inbox item (pvp_api/inbox_game.lua): a life
--- dropping (pvp_api/game_effects.lua show_lives) pays nothing by itself.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+-- The comeback bonus has one owner, the comebackBonus inbox item (pvp_api/net/inbox.lua): a life
+-- dropping (pvp_api/ui/match.lua show_lives) pays nothing by itself.
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 
 local eased = {}
@@ -18,8 +13,8 @@ local function player_info(config, lives_before)
 		GAME = { lives = lives_before, comeback_bonus = 0, comeback_payout = "none" },
 		UI = { ease_lives = function(change) eased[#eased + 1] = change end },
 	}
-	dofile("pvp_api/game_effects.lua")
-	return function(p) PVP.game_effects.show_lives(p.lives) end
+	dofile("pvp_api/ui/match.lua")
+	return function(p) PVP.UI.match.show_lives(p.lives) end
 end
 
 local info = player_info({ gold_on_life_loss = true }, 4)
@@ -42,15 +37,14 @@ info({ lives = 3 })
 eq(G.GAME.blind.dollars, 0, "a ruleset with no gold on a lost blind still zeroes it")
 
 -- the inbox item is the one payer: the real item through the real game calls
-PVP = { GAME = { comeback_bonus = 2, comeback_payout = "given" } }
-dofile("pvp_api/_view.lua")
-dofile("pvp_api/inbox_game.lua")
-dofile("pvp_api/inbox_handlers.lua")
+PVP = { NET = {}, READ = {}, GAME = { comeback_bonus = 2, comeback_payout = "given" } }
+dofile("pvp_api/read/_view.lua")
+dofile("pvp_api/net/inbox.lua")
 sendWarnMessage = function() end
-PVP.inbox_handlers.effects.comebackBonus({ effect = "comebackBonus", itemNumber = 1, amount = 1 })
+PVP.NET.inbox.effects.comebackBonus({ effect = "comebackBonus", itemNumber = 1, amount = 1 })
 eq(PVP.GAME.comeback_bonus, 3, "it raises the bonus by its amount")
 eq(PVP.GAME.comeback_payout, "pending", "and opens the next payout")
-eq(pcall(PVP.inbox_handlers.effects.comebackBonus, { effect = "comebackBonus", itemNumber = 2 }), false, "an item with no amount is refused")
+eq(pcall(PVP.NET.inbox.effects.comebackBonus, { effect = "comebackBonus", itemNumber = 2 }), false, "an item with no amount is refused")
 eq(PVP.GAME.comeback_bonus, 3, "and changes nothing")
 
-print(string.format("comeback_owner_test: ok (%d checks)", checks))
+T.done("comeback_owner_test")

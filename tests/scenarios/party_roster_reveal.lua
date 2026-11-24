@@ -11,7 +11,7 @@ local PLAYERS = #P.roles
 local party = P.role:sub(1, 1)
 local hosts = { "a_host", "b_host" }
 local guests = { "a_guest", "b_guest" }
-local Reveal = PVP.QUEUE_REVEAL
+local Reveal = PVP.UI.queue.reveal
 
 local function lobby()
 	return MPAPI.get_current_lobby()
@@ -205,7 +205,7 @@ return P.steps(
 		end,
 		timeout = 30,
 		run = function()
-			PVP.pvp_join_lobby(P.get("party_" .. party))
+			PVP.LOBBY.join(P.get("party_" .. party))
 		end,
 	}),
 	{
@@ -227,7 +227,7 @@ return P.steps(
 	}),
 	P.only(hosts, {
 		until_ = function()
-			return MPAPI.Party.find_game_enabled(MPAPI.Party.find_game_facts(PVP.lobby.ref, PVP.lobby.ready))
+			return MPAPI.Party.find_game_enabled(MPAPI.Party.find_game_facts(PVP.UI.lobby.ref, PVP.UI.lobby.ready))
 		end,
 		timeout = 30,
 	}),

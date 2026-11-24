@@ -6,8 +6,8 @@ function G.FUNCS.mp_pvp_return_to_lobby()
 	G.FUNCS.exit_overlay_menu()
 	G.SETTINGS.paused = false
 	G.FUNCS.go_to_menu()
-	PVP.reset_game_states()
-	PVP.reset_ready_state()
+	PVP.LOBBY.reset_game()
+	PVP.UI.lobby.reset_ready()
 end
 
 function PVP.UI.create_UIBox_round_scores_row_nemesis()
@@ -15,7 +15,7 @@ function PVP.UI.create_UIBox_round_scores_row_nemesis()
     local score_tab = {}
     local label_w, score_w, h = 2.9, 1, 0.5
 
-    local blind_name_string = (PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host or {})["username"] or PVP.pvp_blind_opponent_name()
+    local blind_name_string = (PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host or {})["username"] or PVP.READ.pvp_blind.opponent_name()
 
     local nemesis_blind_col = PVP.UTILS.get_nemesis_key()
     local blind_choice = {}
@@ -48,8 +48,8 @@ function PVP.UI.create_UIBox_round_scores_row_nemesis()
     }}
 end
 
--- Rebuilds PVP.end_game_jokers for whichever player is currently selected: my own jokers from my
--- game, another player's from the view (PVP.finish_screen). No jokers known = no ROSTER state.
+-- Rebuilds PVP.UI.end_screen.jokers for whichever player is currently selected: my own jokers from my
+-- game, another player's from the view (PVP.UI.finish). No jokers known = no ROSTER state.
 local END_GAME_JOKERS_TEXT_KEY = {
 	[PVP.MATCH_PLAYERS.State.ROSTER] = "k_end_player_jokers",
 	[PVP.MATCH_PLAYERS.State.LEFT] = "k_end_player_left",
@@ -68,18 +68,18 @@ local function end_game_player_state(player_id, player_name, result)
 end
 
 local function pvp_rebuild_end_game_jokers(player_id, player_name)
-	local jokers = player_id and PVP.finish_screen.jokers_of(player_id)
+	local jokers = player_id and PVP.UI.finish.jokers_of(player_id)
 	local state, result, text = end_game_player_state(player_id, player_name, jokers and { jokers = jokers } or nil)
 	local show_jokers = state == PVP.MATCH_PLAYERS.State.ROSTER
-	MPAPI.rebuild_jokers_area(PVP.end_game_jokers, show_jokers and result.jokers or nil)
-	PVP.end_game_jokers_text = text
+	MPAPI.rebuild_jokers_area(PVP.UI.end_screen.jokers, show_jokers and result.jokers or nil)
+	PVP.UI.end_screen.jokers_text = text
 end
 
 -- The players the end screen lists: everyone who started the match (a player
 -- who left or forfeited stays), else the current lobby members (a rejoin has
 -- no start snapshot).
 local function end_screen_players(lobby)
-	return PVP._match_players or (lobby and lobby:get_players()) or {}
+	return PVP.LOBBY.match_players or (lobby and lobby:get_players()) or {}
 end
 
 G.FUNCS.pvp_end_screen_select_player = function(e)
@@ -87,17 +87,17 @@ G.FUNCS.pvp_end_screen_select_player = function(e)
 	local lobby = MPAPI.get_current_lobby()
 	local p = end_screen_players(lobby)[e.to_key]
 	if not p then return end
-	PVP._end_screen_selected_player_id = p.id
-	PVP._end_screen_selected_player_name = p.displayName or p.id
-	pvp_rebuild_end_game_jokers(p.id, PVP._end_screen_selected_player_name)
+	PVP.UI.end_screen.selected_id = p.id
+	PVP.UI.end_screen.selected_name = p.displayName or p.id
+	pvp_rebuild_end_game_jokers(p.id, PVP.UI.end_screen.selected_name)
 end
 
--- The open end screen takes jokers that arrived after it was built (pvp_api/finish_screen.lua).
+-- The open end screen takes jokers that arrived after it was built (pvp_api/ui/finish.lua).
 -- The player who lost usually sees the screen before the winner's jokers come in.
 function PVP.UI.refresh_end_game_jokers()
-	local id = PVP._end_screen_selected_player_id
-	if id == nil or not PVP.end_game_jokers or PVP.end_game_jokers.REMOVED then return end
-	pvp_rebuild_end_game_jokers(id, PVP._end_screen_selected_player_name)
+	local id = PVP.UI.end_screen.selected_id
+	if id == nil or not PVP.UI.end_screen.jokers or PVP.UI.end_screen.jokers.REMOVED then return end
+	pvp_rebuild_end_game_jokers(id, PVP.UI.end_screen.selected_name)
 end
 
 -- The jokers + player-selector panel embedded in end_game_body, built via
@@ -108,7 +108,7 @@ end
 -- (PVP.UI.end_screen_start_index). "View Deck" opens a tab per player, starting
 -- on the selected player's (PVP.UI.deck_tabs below).
 function PVP.UI.build_end_game_extras()
-	PVP.end_game_jokers = CardArea(
+	PVP.UI.end_screen.jokers = CardArea(
 		0,
 		0,
 		5 * G.CARD_W,
@@ -121,19 +121,19 @@ function PVP.UI.build_end_game_extras()
 	current_option = PVP.UI.end_screen_start_index(
 		players,
 		lobby and lobby.player_id,
-		PVP._end_screen_selected_player_id,
-		PVP.current_target_id and PVP.current_target_id(),
+		PVP.UI.end_screen.selected_id,
+		PVP.READ.target.current_id and PVP.READ.target.current_id(),
 		current_option
 	)
 
 	local selected = players[current_option]
-	PVP._end_screen_selected_player_id = selected and selected.id
-	PVP._end_screen_selected_player_name = selected and (selected.displayName or selected.id)
-	pvp_rebuild_end_game_jokers(PVP._end_screen_selected_player_id, PVP._end_screen_selected_player_name)
+	PVP.UI.end_screen.selected_id = selected and selected.id
+	PVP.UI.end_screen.selected_name = selected and (selected.displayName or selected.id)
+	pvp_rebuild_end_game_jokers(PVP.UI.end_screen.selected_id, PVP.UI.end_screen.selected_name)
 
 	return MPAPI.end_screen_player_panel({
 		jokers_text_ref = { table = PVP, key = "end_game_jokers_text" },
-		jokers_area = PVP.end_game_jokers,
+		jokers_area = PVP.UI.end_screen.jokers,
 		options = options,
 		current_option = current_option,
 		opt_callback = "pvp_end_screen_select_player",
@@ -147,7 +147,7 @@ end
 -- The lobby-exit buttons on the end screen, via the shared
 -- MPAPI.end_screen_buttons (matching SPDRN.end_screen_buttons's own
 -- per-situation button lists in BalatroMultiplayerSpeed/ui/lose_screen.lua).
-function PVP.end_screen_buttons()
+function PVP.UI.end_screen.buttons()
 	local specs = {
 		{ button = "continue_in_singleplayer", label = localize("b_continue_singleplayer"), colour = G.C.BLUE },
 	}
@@ -158,7 +158,7 @@ function PVP.end_screen_buttons()
 		})
 	end
 	-- Only a private lobby is a room to come back to; a matchmade one is over with the match.
-	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
+	if PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE then
 		specs[#specs + 1] =
 			{ button = "mp_pvp_return_to_lobby", label = localize("b_return_lobby"), colour = G.C.GREEN }
 	end
@@ -203,7 +203,7 @@ function PVP.UI.end_game_body(has_won)
 		})
 	end
 	if PVP.GAME.pending_death_screen then
-		local wait_key = PVP.pending_death_reader.wait_key(PVP.GAME.pending_death)
+		local wait_key = PVP.UI.pending_death.wait_key(PVP.GAME.pending_death)
 		side_rows = {}
 		for _, line in ipairs({
 			{ "k_pvp_pending_death_result", 0.5 },
@@ -218,12 +218,12 @@ function PVP.UI.end_game_body(has_won)
 	return MPAPI.end_screen_body({
 		player_panel = PVP.UI.build_end_game_extras(),
 		side_rows = side_rows,
-		buttons = PVP.end_screen_buttons(),
+		buttons = PVP.UI.end_screen.buttons(),
 	})
 end
 
 -- Builds the PvP win / game-over screen inside the shared MPAPI.end_screen shell. Jokers and decks
--- are read from the view when shown (PVP.finish_screen). PvP hooks this via the create_UIBox_win/
+-- are read from the view when shown (PVP.UI.finish). PvP hooks this via the create_UIBox_win/
 -- game_over overrides below rather than calling the overlay directly, so it keeps its own paused handling.
 function PVP.UI.create_UIBox_mp_game_end(has_won)
 	G.SETTINGS.paused = false
@@ -241,7 +241,7 @@ end
 
 -- Pure: which deck View Deck shows for a player. { own = true } for yourself;
 -- { cards = <deck string> } for a player whose end of game the view carries
--- (PVP.finish_screen.deck_of answers it); nil while they are still playing or the deck is unknown.
+-- (PVP.UI.finish.deck_of answers it); nil while they are still playing or the deck is unknown.
 function PVP.UI.deck_to_show(player_id, self_id, deck_of)
 	if player_id == nil then return nil end
 	if player_id == self_id then return { own = true } end
@@ -300,14 +300,14 @@ local delete_run_ref = Game.delete_run
 function Game:delete_run()
 	PVP.UI.clear_shown_deck_area()
 	-- The next match's end screen opens on its own opponent.
-	PVP._end_screen_selected_player_id = nil
-	PVP._end_screen_selected_player_name = nil
+	PVP.UI.end_screen.selected_id = nil
+	PVP.UI.end_screen.selected_name = nil
 	return delete_run_ref(self)
 end
 
 -- The cards View Deck shows for a player, or nil (deck_to_show).
 function PVP.UI.player_deck(player_id)
-	local show = PVP.UI.deck_to_show(player_id, MPAPI.connection_state.player_id, PVP.finish_screen.deck_of)
+	local show = PVP.UI.deck_to_show(player_id, MPAPI.connection_state.player_id, PVP.UI.finish.deck_of)
 	if not show then return nil end
 	if show.own then return G.playing_cards end
 	-- Build them in a fresh off-screen area, dropping the last one shown.
@@ -348,7 +348,7 @@ function G.UIDEF.create_UIBox_view_nemesis_deck()
 	local deck_tabs = PVP.UI.deck_tabs(
 		end_screen_players(MPAPI.get_current_lobby()),
 		MPAPI.connection_state.player_id,
-		PVP._end_screen_selected_player_id
+		PVP.UI.end_screen.selected_id
 	)
 	for _, tab in ipairs(deck_tabs) do
 		tabs[#tabs + 1] = {
@@ -408,7 +408,7 @@ end
 
 function G.UIDEF.multiplayer_deck()
 	return G.UIDEF.challenge_description(
-		get_challenge_int_from_id(PVP.current_ruleset().challenge_deck),
+		get_challenge_int_from_id(PVP.RULES.current().challenge_deck),
 		nil,
 		false
 	)

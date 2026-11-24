@@ -1,6 +1,6 @@
 -- Match reveal: player data, animation lifetime, and temporary UI visibility.
 local Reveal = { generation = 0, ratings = {} }
-PVP.QUEUE_REVEAL = Reveal
+PVP.UI.queue.reveal = Reveal
 -- Seconds between the opponent's card turning up and the game starting. The matchmaking host
 -- holds its auto-start this long (ui/lobby/_ready.lua); the footer counts it down.
 Reveal.HOLD_SECONDS = 4
@@ -11,7 +11,7 @@ function SMODS.Sound:get_current_music(...)
 	return get_current_music(self, ...)
 end
 
-local Cards, Backdrop, Widgets = PVP.QUEUE_CARDS, PVP.QUEUE_BACKDROP, PVP.QUEUE_WIDGETS
+local Cards, Backdrop, Widgets = PVP.UI.queue.cards, PVP.UI.queue.backdrop, PVP.UI.queue.widgets
 local now, reduced_motion = Widgets.now, Widgets.reduced_motion
 local slide, juice, remove_box = Widgets.slide, Widgets.juice, Widgets.remove_box
 local text_object, room_box, clear_root = Widgets.text_object, Widgets.room_box, Widgets.clear_root
@@ -39,7 +39,7 @@ end
 function Reveal.card_lines(rating)
 	if not rating then return "...", "" end
 	if rating.unknown then return "", "" end
-	local placement = PVP.placement_progress(rating)
+	local placement = PVP.UI.card_info.placement_progress(rating)
 	if placement then
 		return localize({ type = "variable", key = "k_pvp_placement_progress", vars = { placement } }),
 			localize("k_pvp_rank_after_placements")

@@ -61,7 +61,7 @@ end
 
 SMODS.Joker({
 	key = "idol_sandbox_zealot",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	blueprint_compat = true,
@@ -170,7 +170,7 @@ end
 
 SMODS.Joker({
 	key = "idol_sandbox_collector",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	blueprint_compat = true,

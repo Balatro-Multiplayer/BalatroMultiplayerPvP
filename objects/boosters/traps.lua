@@ -15,7 +15,7 @@ SMODS.Atlas({
 -- could show in the shop, and every shop pack roll on a seed shifted whenever
 -- PvP was installed (Ghost Deck CXGHOST1: Standard pack -> Jumbo Standard).
 local function traps_in_pool(self)
-	return PVP.is_layer_active("traps")
+	return PVP.RULES.is_layer_active("traps")
 end
 
 -- Normal: 1 choose from 3 (matches vanilla Arcana/Celestial normal sizing).
@@ -28,7 +28,7 @@ SMODS.Booster({
 	config = { extra = 3, choose = 1 },
 	cost = 4,
 	mp_include = function(self)
-		return PVP.is_layer_active("traps")
+		return PVP.RULES.is_layer_active("traps")
 	end,
 	in_pool = traps_in_pool,
 	create_card = function(self, card, i)
@@ -52,7 +52,7 @@ SMODS.Booster({
 	config = { extra = 5, choose = 1 },
 	cost = 6,
 	mp_include = function(self)
-		return PVP.is_layer_active("traps")
+		return PVP.RULES.is_layer_active("traps")
 	end,
 	in_pool = traps_in_pool,
 	create_card = function(self, card, i)

@@ -1,7 +1,7 @@
 -- Card effects. The HUD owns a fan; the reveal owns a scatter scene.
 local Cards = {}
-PVP.QUEUE_CARDS = Cards
-local Widgets = PVP.QUEUE_WIDGETS
+PVP.UI.queue.cards = Cards
+local Widgets = PVP.UI.queue.widgets
 local now, reduced_motion = Widgets.now, Widgets.reduced_motion
 local room_box, clear_root = Widgets.room_box, Widgets.clear_root
 local FAN_CARDS, FAN_SCALE = 5, 0.42

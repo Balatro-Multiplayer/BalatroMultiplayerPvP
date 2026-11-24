@@ -5,7 +5,7 @@ SMODS = {
 		id = "MultiplayerPvP",
 		path = ".",
 		config = { integrations = {}, preview = {} },
-		Score = { ZERO = 0 },
+		SCORE = { ZERO = 0 },
 		UTILS = {
 			timer_base = noop,
 			get_username = noop,
@@ -45,7 +45,7 @@ dofile("core.lua")
 dofile("lib/replay_bootstrap.lua")
 dofile("lib/rejoin.lua")
 local practice = false
-PVP.is_practice_mode = function()
+PVP.PRACTICE.is_on = function()
 	return practice
 end
 
@@ -74,12 +74,12 @@ end
 
 for _, enabled in ipairs({ false, true }) do
 	local timeline = recording(enabled)
-	local bootstrap = PVP.replay_bootstrap(timeline, "me")
+	local bootstrap = PVP.REPLAY.bootstrap(timeline, "me")
 	check("replay preserves " .. tostring(enabled), bootstrap.the_order_enabled, enabled)
 	local rejoin = {}
 	rejoin_hooks.read_lobby_info(timeline[1].args, rejoin)
 	check("rejoin preserves " .. tostring(enabled), rejoin.the_order_enabled, enabled)
-	PVP.apply_replay_loadout(PVP.LOBBY, bootstrap)
+	PVP.REPLAY.apply_loadout(PVP.LOBBY, bootstrap)
 	practice = true
 	check("playback gate honors " .. tostring(enabled), order_gate(), enabled)
 	practice = false
@@ -89,9 +89,9 @@ for _, enabled in ipairs({ false, true }) do
 	check("outside session stays off", order_gate(), false)
 end
 
-PVP.apply_replay_loadout(PVP.LOBBY, PVP.replay_bootstrap(recording(nil), "me"))
+PVP.REPLAY.apply_loadout(PVP.LOBBY, PVP.REPLAY.bootstrap(recording(nil), "me"))
 practice = true
 check("older recording keeps default on", order_gate(), true)
 PVP.LOBBY.config.the_order = false
-PVP.reset_lobby_config()
+PVP.LOBBY.reset_config()
 check("fresh practice resets default on", order_gate(), true)

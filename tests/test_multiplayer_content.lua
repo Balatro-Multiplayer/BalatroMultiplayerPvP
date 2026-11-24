@@ -16,7 +16,7 @@ local NAMES = {
 	v_mp_petroglyph_manhunt = "Petroglyph (Manhunt)",
 }
 
-local list = MPAPI.Layers[PVP.LayerKey.MULTIPLAYER_CONTENT]
+local list = MPAPI.Layers[PVP.RULES.LayerKey.MULTIPLAYER_CONTENT]
 
 local CARDS = { "c_mp_asteroid" }
 for _, key in ipairs(list.included_jokers) do
@@ -24,7 +24,7 @@ for _, key in ipairs(list.included_jokers) do
 end
 
 local function is_banned(key)
-	local ruleset = PVP.current_ruleset()
+	local ruleset = PVP.RULES.current()
 	for _, banned in ipairs(key:match("^j_") and ruleset.banned_jokers or ruleset.banned_consumables) do
 		if banned == key then return true end
 	end
@@ -99,10 +99,10 @@ section("Only cards on the Multiplayer Cards list can appear", function()
 	expanded._layer_order = order
 	if not ok then error(err, 0) end
 
-	PVP.Ruleset({ key = "cards_only", layers = { PVP.LayerKey.MULTIPLAYER_CONTENT } }):inject()
+	PVP.RULES.Ruleset({ key = "cards_only", layers = { PVP.RULES.LayerKey.MULTIPLAYER_CONTENT } }):inject()
 	H.start_run("cards_only", "lobby")
 	check(
-		#PVP.current_ruleset().reworked_jokers == 0,
+		#PVP.RULES.current().reworked_jokers == 0,
 		"adding Multiplayer Cards should not rework any base-game Jokers"
 	)
 	expect_cards("a ruleset of only Multiplayer Cards", true)
@@ -159,7 +159,7 @@ section("Cards with their own rules", function()
 	check(hieroglyph:in_pool() and appears(hieroglyph), "Hieroglyph (Manhunt) should be able to appear in Manhunt")
 
 	H.start_run("experimental_legacy", "lobby")
-	for _, key in ipairs(PVP.current_ruleset().reworked_jokers) do
+	for _, key in ipairs(PVP.RULES.current().reworked_jokers) do
 		check(
 			key ~= "j_mp_lets_go_gambling",
 			"Experimental Legacy should use the original Let's Go Gambling, not a reworked one"
@@ -177,7 +177,7 @@ section("Cards with their own rules", function()
 	rotation.active = true
 	local ok, err = pcall(function()
 		check(appears(magnet), "Magnet should be able to appear in Sandbox while it is in rotation")
-		sandbox._layer_order = { PVP.LayerKey.SANDBOX }
+		sandbox._layer_order = { PVP.RULES.LayerKey.SANDBOX }
 		check(not appears(magnet), "Magnet should not appear in Sandbox without the Multiplayer Cards")
 	end)
 	sandbox._layer_order = order

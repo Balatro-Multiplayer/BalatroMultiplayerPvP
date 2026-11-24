@@ -8,11 +8,6 @@ SMODS.Atlas({
 	py = 95,
 })
 
--- One asteroid launched at the other player. Their best-leveled hand goes down through their inbox.
-function PVP.launch_asteroid()
-	PVP.run_screen.effect("asteroid")
-end
-
 MPAPI.Consumable({
 	key = "asteroid",
 	set = "Planet",

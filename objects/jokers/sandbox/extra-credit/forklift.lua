@@ -3,7 +3,7 @@
 
 SMODS.Joker({
 	key = "forklift_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	blueprint_compat = false,

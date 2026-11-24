@@ -17,8 +17,8 @@ local function check(ok, message)
 end
 
 local core = read("core.lua")
-local block = core:match("function PVP%.reset_lobby_config.-\n\tPVP%.LOBBY%.config = {(.-)\n\t}\nend")
-assert(block, "reset_lobby_config block not found")
+local block = core:match("function PVP%.LOBBY%.reset_config.-\n\tPVP%.LOBBY%.config = {(.-)\n\t}\nend")
+assert(block, "reset_config block not found")
 local defaults = {}
 for key in block:gmatch("\n\t\t([%a_][%w_]*) =") do defaults[key] = true end
 assert(defaults.starting_lives and defaults.timer, "the defaults were not read")
@@ -34,7 +34,7 @@ for key, where in pairs(written) do
 end
 
 local flow = read("pvp_api/flow.lua")
-local list = flow:match("PVP%.PRIVATE_OPTION_KEYS = {(.-)}")
+local list = flow:match("PVP%.LOBBY%.PRIVATE_OPTION_KEYS = {(.-)}")
 assert(list, "PRIVATE_OPTION_KEYS not found")
 for key in list:gmatch('"([%w_]+)"') do
 	check(defaults[key], "PRIVATE_OPTION_KEYS lists " .. key .. ", which is not a config key in core.lua")

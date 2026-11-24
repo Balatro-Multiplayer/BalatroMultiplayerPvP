@@ -1,9 +1,9 @@
--- Plain Lua test for PVP.timer_reader.tip (pvp_api/timer_reader.lua): which hover hint the
+-- Plain Lua test for PVP.READ.timer.tip (pvp_api/read/timer.lua): which hover hint the
 -- timer box shows in each state.
 -- Run from the repo root: luajit tests/unit/timer_tooltip_state_test.lua
-PVP = {}
-dofile("pvp_api/timer_reader.lua")
-local reader = PVP.timer_reader
+PVP = { NET = {}, READ = {}, UI = {} }
+dofile("pvp_api/read/timer.lua")
+local reader = PVP.READ.timer
 local Tip = reader.Tip
 
 local failures = 0

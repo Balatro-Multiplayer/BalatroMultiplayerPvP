@@ -143,7 +143,7 @@ function PVP.UI.create_config_tab()
 								scale = 0.8,
 								options = localize("ml_nemesis_layout_opt"),
 								opt_callback = "mp_change_nemesis_layout",
-								current_option = PVP.nemesis_layout_index(),
+								current_option = PVP.NEMESIS.layout_index(),
 							}),
 						},
 					},

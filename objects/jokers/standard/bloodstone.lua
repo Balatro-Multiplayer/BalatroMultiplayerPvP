@@ -25,11 +25,11 @@ SMODS.Joker({
 		}
 	end,
 	calculate = function(self, card, context)
-		if PVP.is_pvp_boss() then
+		if PVP.UTILS.is_pvp_blind() then
 			if not context.blueprint then
 				if context.before then
 					G.GAME.round_resets.mp_bloodstone = G.GAME.round_resets.mp_bloodstone or {}
-					G.GAME.round_resets.mp_bloodstone[PVP.order_round_based(true)] = G.GAME.round_resets.mp_bloodstone[PVP.order_round_based(
+					G.GAME.round_resets.mp_bloodstone[PVP.RULES.order_round_based(true)] = G.GAME.round_resets.mp_bloodstone[PVP.RULES.order_round_based(
 						true
 					)] or {}
 					G.GAME.round_resets.mp_bsindex = 0
@@ -37,10 +37,10 @@ SMODS.Joker({
 			end
 			if context.individual and context.cardarea == G.play then
 				if context.other_card:is_suit("Hearts") then
-					local stored_queue = G.GAME.round_resets.mp_bloodstone[PVP.order_round_based(true)]
+					local stored_queue = G.GAME.round_resets.mp_bloodstone[PVP.RULES.order_round_based(true)]
 					G.GAME.round_resets.mp_bsindex = G.GAME.round_resets.mp_bsindex + 1 -- increment before indexing
 					stored_queue[G.GAME.round_resets.mp_bsindex] = stored_queue[G.GAME.round_resets.mp_bsindex]
-						or pseudorandom("bloodstone" .. PVP.order_round_based(true))
+						or pseudorandom("bloodstone" .. PVP.RULES.order_round_based(true))
 					if
 						stored_queue[G.GAME.round_resets.mp_bsindex]
 						< G.GAME.probabilities.normal / card.ability.extra.odds

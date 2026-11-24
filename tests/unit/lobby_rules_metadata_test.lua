@@ -11,19 +11,19 @@ end
 
 PVP = {
 	lobby = {},
+	QUEUE = { policy = { cocktail_recipe = function() end } },
 	LOBBY = { config = {}, deck = {} },
-	-- The lobby options a fresh lobby starts with (core.lua reset_lobby_config).
-	PVP_GAMEMODES = {
+	-- The lobby options a fresh lobby starts with (core.lua LOBBY.reset_config).
+	RULES = { MODES = {
 		pvp_nemesis = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition" },
 		pvp_smallworld = { ruleset = "ruleset_mp_smallworld", gamemode = "gamemode_mp_attrition" },
 		pvp_royale = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition" },
 		pvp_manhunt = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition" },
 		pvp_teams = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition" },
 		pvp_experimental = { ruleset = "ruleset_mp_experimental", gamemode = "gamemode_mp_attrition" },
-	},
-	MatchmakingPolicy = { cocktail_recipe = function() end },
+	} },
 	-- lib/verified_lobby.lua has its own test.
-	compute_verified_lobby = function() return false end,
+	VERIFIED = { compute = function() return false end },
 }
 MPAPI = { Party = { KIND = "party" } }
 dofile("pvp_api/flow.lua")
@@ -46,7 +46,7 @@ local function rulesets_in_folder()
 		local file = io.open(path, "rb")
 		local text = file:read("*a")
 		file:close()
-		local key = text:match('PVP%.Ruleset%(%{%s*key = "([%w_]+)"')
+		local key = text:match('PVP%.RULES%.Ruleset%(%{%s*key = "([%w_]+)"')
 		if key then
 			keys[#keys + 1] = "ruleset_mp_" .. key
 		end
@@ -66,12 +66,12 @@ local function check_rules(meta, label)
 	check(type(meta.timer_increment_seconds) == "number", label .. ": timer_increment_seconds is a number")
 end
 
-local kinds = { PVP.LobbyAccess.PRIVATE, PVP.LobbyAccess.CASUAL }
-for gamemode_key in pairs(PVP.PVP_GAMEMODES) do
+local kinds = { PVP.LOBBY.Access.PRIVATE, PVP.LOBBY.Access.CASUAL }
+for gamemode_key in pairs(PVP.RULES.MODES) do
 	for _, kind in ipairs(kinds) do
 		fresh_config()
 		PVP.LOBBY.config.ruleset = nil
-		check_rules(PVP.pvp_lobby_metadata(gamemode_key, kind), gamemode_key .. "/" .. kind)
+		check_rules(PVP.LOBBY.metadata(gamemode_key, kind), gamemode_key .. "/" .. kind)
 	end
 end
 
@@ -81,7 +81,7 @@ for _, ruleset_key in ipairs(rulesets) do
 	for _, kind in ipairs(kinds) do
 		fresh_config()
 		PVP.LOBBY.config.ruleset = ruleset_key
-		local meta = PVP.pvp_lobby_metadata("pvp_nemesis", kind)
+		local meta = PVP.LOBBY.metadata("pvp_nemesis", kind)
 		check(meta.ruleset == ruleset_key, ruleset_key .. " is published as chosen")
 		check_rules(meta, ruleset_key .. "/" .. kind)
 	end
@@ -92,7 +92,7 @@ fresh_config()
 PVP.LOBBY.config.timer_base_seconds = 210
 PVP.LOBBY.config.timer_forgiveness = 1
 PVP.LOBBY.config.timer_increment_seconds = 30
-local meta = PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.PRIVATE)
+local meta = PVP.LOBBY.metadata("pvp_nemesis", PVP.LOBBY.Access.PRIVATE)
 check(meta.timer_base_seconds == 210, "chosen timer base is published")
 check(meta.timer_forgiveness == 1, "chosen forgiveness is published")
 check(meta.timer_increment_seconds == 30, "chosen skip time is published")
@@ -100,7 +100,7 @@ check(meta.timer_increment_seconds == 30, "chosen skip time is published")
 -- An option the lobby does not have is left out, never guessed.
 fresh_config()
 PVP.LOBBY.config.timer_increment_seconds = nil
-meta = PVP.pvp_lobby_metadata("pvp_nemesis", PVP.LobbyAccess.PRIVATE)
+meta = PVP.LOBBY.metadata("pvp_nemesis", PVP.LOBBY.Access.PRIVATE)
 check(meta.timer_increment_seconds == nil, "a missing skip time is not filled in")
 
 print(("ok   %d checks"):format(checks))

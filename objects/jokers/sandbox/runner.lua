@@ -7,7 +7,7 @@ SMODS.Atlas({
 
 SMODS.Joker({
 	key = "runner_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	blueprint_compat = true,
 	perishable_compat = false,
 

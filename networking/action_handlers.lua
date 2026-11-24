@@ -9,12 +9,12 @@ end
 
 -- ── Run start (relocated from the removed legacy ui/lobby/lobby.lua) ──────────────
 -- G.FUNCS.lobby_start_run is the actual multiplayer run-starter. It is called by
--- game_effects.start_game and by the API bridge gamemode's (required, but never invoked)
+-- UI.match.start_game and by the API bridge gamemode's (required, but never invoked)
 -- start_run in pvp_api/gamemodes.lua. The `mp_start` contract it passes to
 -- G.FUNCS.start_run is interpreted by the start_run wrapper relocated to overrides/game.lua.
 local function get_random_back_pool()
 	local names, seen = {}, {}
-	local cocktail_keys = PVP.get_cocktail_decks(false)
+	local cocktail_keys = PVP.COCKTAIL.decks(false)
 	for i = 1, #cocktail_keys do
 		local key = cocktail_keys[i]
 		if G.P_CENTERS[key] and not seen[key] then
@@ -83,7 +83,7 @@ end
 
 -- The Ready press leaves its button; a blind entered without one (after a restart) takes the
 -- boss blind's own select button.
-function PVP.boss_select_button()
+function PVP.UI.boss_select_button()
 	local choice = G.blind_select_opts and G.blind_select_opts.boss
 	return choice and choice:get_UIE_by_ID("select_blind_button")
 end
@@ -92,7 +92,7 @@ end
 -- `result` is "beaten" or "lost" (a blind failed on the cards: it costs a life where the rules say so).
 function PVP.ACTIONS.blind_result(result, blind)
 	blind = blind or G.GAME.blind_on_deck
-	if MPAPI.get_current_lobby() then PVP.run_screen.blind_result(blind, result) end
+	if MPAPI.get_current_lobby() then PVP.UI.run.blind_result(blind, result) end
 end
 
 function PVP.ACTIONS.fail_blind(hands_used)
@@ -121,7 +121,7 @@ function PVP.ACTIONS.set_location(location, blind)
 	PVP.GAME.location_type = location_type
 	PVP.GAME.location_blind = location_blind
 	PVP.GAME.location_full = location
-	PVP.run_screen.progress(location)
+	PVP.UI.run.progress(location)
 end
 
 function PVP.ACTIONS.update_location(keep_blind)
@@ -133,24 +133,24 @@ end
 ---@param score number
 ---@param hands_left number
 function PVP.ACTIONS.play_hand(score, hands_left)
-	local score_text = PVP.Score.from_game_value(score)
+	local score_text = PVP.SCORE.from_game_value(score)
 	PVP.GAME.score = score_text
-	if PVP.Score.greater(score_text, PVP.GAME.highest_score) then
+	if PVP.SCORE.greater(score_text, PVP.GAME.highest_score) then
 		PVP.GAME.highest_score = score_text
 	end
 	-- The end-of-run roster's "highest PvP-blind score" is PvP-blind-only,
 	-- unlike the any-blind figure just above.
-	if PVP.is_pvp_boss() and PVP.Score.greater(score_text, PVP.GAME.highest_pvp_score) then
+	if PVP.UTILS.is_pvp_blind() and PVP.SCORE.greater(score_text, PVP.GAME.highest_pvp_score) then
 		PVP.GAME.highest_pvp_score = score_text
 	end
 
 	-- The replay log keeps each hand's result.
-	if PVP.RLOG then PVP.RLOG.record(MPAPI.OPCODE.HAND_RESULT, { score_text, hands_left }) end
-	PVP.pvp_blind_screen.hand_scored(score_text, hands_left)
+	if PVP.REPLAY.log then PVP.REPLAY.log.record(MPAPI.OPCODE.HAND_RESULT, { score_text, hands_left }) end
+	PVP.UI.pvp_blind.hand_scored(score_text, hands_left)
 end
 
 function PVP.ACTIONS.set_ante(ante)
-	PVP.run_screen.ante_changed(ante)
+	PVP.UI.run.ante_changed(ante)
 end
 
 function PVP.ACTIONS.new_round()

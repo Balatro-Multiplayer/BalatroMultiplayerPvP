@@ -1,25 +1,8 @@
 -- Run from the repo root: luajit tests/unit/screens_send_test.lua
 -- Every input the screens send, with a stub net that records send(kind, body): the kinds and the body
 -- field names are the server's (nakama/src/lobby/pvp/parts/{entry,pvp_blind,timer}.ts).
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
-
-local function show(value)
-	if type(value) ~= "table" then return tostring(value) end
-	local keys = {}
-	for key in pairs(value) do keys[#keys + 1] = key end
-	table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
-	local parts = {}
-	for _, key in ipairs(keys) do parts[#parts + 1] = tostring(key) .. "=" .. show(value[key]) end
-	return "{" .. table.concat(parts, ",") .. "}"
-end
-
-local function same(actual, expected, message) eq(show(actual), show(expected), message) end
+local T = dofile("tests/support/check.lua")
+local eq, same = T.eq, T.same
 
 local sent, waiting = {}, {}
 local net
@@ -38,22 +21,19 @@ net = {
 
 local dispatched
 PVP = {
-	match_net = net,
+	READ = {},
+	NET = net,
 	GAME = {},
-	LOBBY = {},
-	Score = { ZERO = "0", from_game_value = function(value) return tostring(value) end },
-	in_session = function() return true end,
-	is_practice_mode = function() return false end,
-	is_pvp_boss = function() return true end,
-	is_layer_active = function() return true end,
-	boss_select_button = function() return nil end,
-	refresh_team_pickers = function() end,
-	game_effects = {
+	LOBBY = { in_session = function() return true end },
+	SCORE = { ZERO = "0", from_game_value = function(value) return tostring(value) end },
+	PRACTICE = { is_on = function() return false end },
+	RULES = { is_layer_active = function() return true end },
+	UTILS = { timer_display_text = function() return "t" end, is_pvp_blind = function() return true end },
+	UI = { timer = {}, boss_select_button = function() return nil end, lobby_options = { refresh_team_pickers = function() end }, match = {
 		start_pvp_blind = function(on_selected, on_missed)
 			dispatched = { name = "startBlind", params = { on_selected = on_selected, on_missed = on_missed } }
 		end,
-	},
-	UTILS = { timer_display_text = function() return "t" end },
+	} },
 }
 Game = { update = function() end }
 G = {
@@ -73,7 +53,7 @@ function localize(key) return key end
 function sendWarnMessage() end
 
 for _, file in ipairs({
-	"_view", "entry_reader", "pvp_blind_reader", "timer_reader", "entry_screen", "pvp_blind_screen", "timer_screen",
+	"read/_view", "read/blind_start", "read/pvp_blind", "read/timer", "ui/blind_start", "ui/pvp_blind", "ui/timer",
 }) do
 	dofile("pvp_api/" .. file .. ".lua")
 end
@@ -89,17 +69,17 @@ net.view = {
 	timers = { timerButton = "pvp", deadlines = {} },
 	match = { run = { id = "run1", currentPvpBlind = { stage = "waiting", blindKey = "2:Boss", players = { a = "not ready", b = "ready" } } } },
 }
-eq(PVP.entry_screen.press_ready({}), true, "the press asks for Ready")
+eq(PVP.UI.blind_start.press_ready({}), true, "the press asks for Ready")
 eq(last().kind, "ready", "ready: kind")
 same(last().body, { ready = true, blindKey = "2:Boss" }, "ready: body")
 
 -- Team.
-PVP.entry_screen.pick_team("HUNTER")
+PVP.UI.blind_start.pick_team("HUNTER")
 eq(last().kind, "team", "team: kind")
 same(last().body, { team = "HUNTER" }, "team: body")
 waiting.team = true
 local before = #sent
-PVP.entry_screen.pick_team("RUNNER")
+PVP.UI.blind_start.pick_team("RUNNER")
 eq(#sent, before, "team: no press while a pick is unconfirmed")
 waiting.team = nil
 
@@ -107,9 +87,9 @@ waiting.team = nil
 net.view.match.run.currentPvpBlind = { stage = "playing", blindKey = "2:Boss", players = { a = { stage = "not entered" }, b = { stage = "not entered" } } }
 G.STATE = G.STATES.BLIND_SELECT
 G.GAME.blind_on_deck = "Boss"
-PVP.boss_select_button = function() return {} end
+PVP.UI.boss_select_button = function() return {} end
 before = #sent
-PVP.entry_screen.update()
+PVP.UI.blind_start.update()
 eq(dispatched and dispatched.name, "startBlind", "entry: the blind is started")
 eq(#sent, before, "blindStart: nothing sent before select_blind ran")
 dispatched.params.on_selected()
@@ -119,45 +99,45 @@ G.STATE = G.STATES.SELECTING_HAND
 G.STATE_COMPLETE = false
 G.GAME.current_round.hands_left = 7
 G.GAME.chips = 0
-PVP.pvp_blind_screen.update()
+PVP.UI.pvp_blind.update()
 eq(#sent, before, "blindStart: not before the pick-a-hand is built")
-eq(PVP.pvp_blind_screen.may_play(), false, "no Play before the blindStart went out")
+eq(PVP.UI.pvp_blind.may_play(), false, "no Play before the blindStart went out")
 G.STATE_COMPLETE = true
-PVP.pvp_blind_screen.update()
+PVP.UI.pvp_blind.update()
 eq(last().kind, "blindStart", "blindStart: kind")
 same(last().body, { blindKey = "2:Boss", handsLeft = 7, score = "0" }, "blindStart: body")
 eq(#sent, before + 1, "blindStart: sent")
-PVP.pvp_blind_screen.update()
+PVP.UI.pvp_blind.update()
 eq(#sent, before + 1, "blindStart: once per blind")
-eq(PVP.pvp_blind_screen.may_play(), true, "Play once it went out")
+eq(PVP.UI.pvp_blind.may_play(), true, "Play once it went out")
 G.GAME.current_round.hands_left = 4
 
 -- Timer: start, pause, spend, animating.
 G.STATE = G.STATES.SELECTING_HAND
-PVP.timer_screen.press()
+PVP.UI.timer.press()
 eq(last().kind, "timerStart", "timerStart: kind")
 same(last().body, { timer = "pvp" }, "timerStart: body")
 net.view.timers = { timerButton = "none", deadlines = { { kind = "pvp", endsAt = 100000, by = "a", against = {} } } }
-PVP.timer_screen.press()
+PVP.UI.timer.press()
 eq(last().kind, "timerPause", "timerPause: kind")
 same(last().body, {}, "timerPause: body")
-eq(PVP.timer_screen.clock(), "mine", "clock: my own running timer")
-eq(type(PVP.timer_screen.seconds()), "number", "clock: the seconds shown")
+eq(PVP.UI.timer.clock(), "mine", "clock: my own running timer")
+eq(type(PVP.UI.timer.seconds()), "number", "clock: the seconds shown")
 net.view.timers.deadlines[1].by = "b"
 net.view.timers.deadlines[1].against = { "a" }
-eq(PVP.timer_screen.clock(), "against me", "clock: an opponent's timer against me")
+eq(PVP.UI.timer.clock(), "against me", "clock: an opponent's timer against me")
 net.view.timers.deadlines[1].kind = "personal"
-eq(PVP.timer_screen.clock(), "none", "clock: a personal timer of another is not shown")
+eq(PVP.UI.timer.clock(), "none", "clock: a personal timer of another is not shown")
 net.view.timers.deadlines = {}
-eq(PVP.timer_screen.seconds(), nil, "clock: no seconds with no timer")
+eq(PVP.UI.timer.seconds(), nil, "clock: no seconds with no timer")
 net.view.timers.deadlines = { { kind = "pvp", endsAt = 100000, by = "a", against = {} } }
-PVP.timer_screen.spend()
+PVP.UI.timer.spend()
 eq(last().kind, "paidPreviews", "paidPreviews: kind")
 same(last().body, { total = 1 }, "paidPreviews: body")
 G.CONTROLLER = { locked = true, locks = {} }
 G.SETTINGS = {}
 G.GAME.STOP_USE = 0
-PVP.timer_screen.update()
+PVP.UI.timer.update()
 eq(last().kind, "animating", "animating: kind")
 same(last().body, { on = true }, "animating: body")
 
@@ -165,30 +145,30 @@ same(last().body, { on = true }, "animating: body")
 -- (match_net.send answers nil only with no view or no run.)
 net.view = nil
 before = #sent
-PVP.timer_screen.spend()
+PVP.UI.timer.spend()
 eq(#sent, before, "no spend is sent with no view")
 eq(G.GAME.pvp_net.totals.paidPreviews, 1, "and its total is not raised")
 local run = G.GAME.pvp_net
 G.GAME.pvp_net = { totals = {} }
 net.view = { me = "a" }
-PVP.timer_screen.spend()
+PVP.UI.timer.spend()
 eq(G.GAME.pvp_net.totals.paidPreviews, nil, "with no run id the total is not raised either")
 G.GAME.pvp_net = run
 net.view = {
 	me = "a", players = { a = {} }, timers = { deadlines = {} },
 	match = { run = { id = "run1", currentPvpBlind = { stage = "playing", blindKey = "2:Boss", players = { a = { stage = "not entered" } } } } },
 }
-PVP.timer_screen.spend()
+PVP.UI.timer.spend()
 same(last().body, { total = 2 }, "the next spend carries the next total")
 
 -- handPlayed and handScored.
-local body = PVP.pvp_blind_screen.play_body()
+local body = PVP.UI.pvp_blind.play_body()
 same(body, { blindKey = "2:Boss", handsLeft = 3 }, "handPlayed: body")
-PVP.pvp_blind_screen.send_hand_played(body)
+PVP.UI.pvp_blind.send_hand_played(body)
 eq(last().kind, "handPlayed", "handPlayed: kind")
 same(last().body, { blindKey = "2:Boss", handsLeft = 3 }, "handPlayed: sent body")
-PVP.pvp_blind_screen.hand_scored("1500", 3)
+PVP.UI.pvp_blind.hand_scored("1500", 3)
 eq(last().kind, "handScored", "handScored: kind")
 same(last().body, { blindKey = "2:Boss", handsLeft = 3, score = "1500" }, "handScored: body")
 
-print("screens_send_test: ok (" .. checks .. " checks)")
+T.done("screens_send_test")

@@ -1,12 +1,12 @@
 -- Run from the repo root: luajit tests/unit/run_save_state_test.lua
 local registered
-PVP = { id = "MultiplayerPvP", GAME = { lives = 4, enemy = { score = "0" } } }
--- The fresh-match defaults (core.lua's PVP.reset_game_states), cut down to a few keys.
-function PVP.reset_game_states()
+PVP = { ACTIONS = { save = {} }, READ = {}, UI = {}, LOBBY = {}, id = "MultiplayerPvP", GAME = { lives = 4, enemy = { score = "0" } } }
+-- The fresh-match defaults (core.lua's PVP.LOBBY.reset_game), cut down to a few keys.
+function PVP.LOBBY.reset_game()
 	PVP.GAME = { lives = 0, timer = 120, enemy = { score = "0" } }
 end
 local in_session = true
-function PVP.in_session()
+function PVP.LOBBY.in_session()
 	return in_session
 end
 MPAPI = {
@@ -16,7 +16,7 @@ MPAPI = {
 		end,
 	},
 }
-PVP.pvp_blind_reader = { hands_source_loaded = function() return { kind = "from server" } end }
+PVP.READ.pvp_blind = { hands_source_loaded = function() return { kind = "from server" } end }
 dofile("lib/run_save.lua")
 assert(registered and registered.mod_id == "MultiplayerPvP", "registers under the mod id")
 
@@ -38,7 +38,7 @@ assert(PVP.GAME.next_blind_context == nil, "and the blind button is not kept fro
 
 -- load: a join that refused its save ends the load with the reason, and the match state is left alone.
 local refusal = "no run record"
-PVP.match_net = { take_refusal = function() local r = refusal; refusal = nil; return r end }
+PVP.NET = { take_refusal = function() local r = refusal; refusal = nil; return r end }
 local shown
 function localize(key) return key end
 function attention_text(args) shown = args.text end

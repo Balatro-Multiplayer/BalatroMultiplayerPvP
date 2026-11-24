@@ -28,18 +28,18 @@ return {
 			return MPAPI.is_ready()
 		end,
 		run = function()
-			PVP._start_practice("ruleset_mp_expanded")
+			PVP.PRACTICE.start("ruleset_mp_expanded")
 		end,
 	},
 	{
 		until_ = function()
-			return PVP.is_practice_mode() and G.STATE == G.STATES.BLIND_SELECT and G.blind_select_opts
+			return PVP.PRACTICE.is_on() and G.STATE == G.STATES.BLIND_SELECT and G.blind_select_opts
 		end,
 		timeout = 30,
 		run = function(S)
 			S.check(PVP.LOBBY.code == nil, "Practice has no network lobby code")
-			S.check(PVP.multiplayer_content_enabled(), "Expanded explicitly includes multiplayer content")
-			local layer = MPAPI.Layers[PVP.LayerKey.MULTIPLAYER_CONTENT]
+			S.check(PVP.RULES.content_enabled(), "Expanded explicitly includes multiplayer content")
+			local layer = MPAPI.Layers[PVP.RULES.LayerKey.MULTIPLAYER_CONTENT]
 			local keys = { c_mp_asteroid = "Planet" }
 			for _, key in ipairs(layer.included_jokers) do
 				keys[key] = ({ "Common", "Uncommon", "Rare" })[G.P_CENTERS[key].rarity]
@@ -57,7 +57,7 @@ return {
 			local ok, err = pcall(function()
 				local without = {}
 				for _, name in ipairs(order) do
-					if name ~= PVP.LayerKey.MULTIPLAYER_CONTENT then without[#without + 1] = name end
+					if name ~= PVP.RULES.LayerKey.MULTIPLAYER_CONTENT then without[#without + 1] = name end
 				end
 				ruleset._layer_order = without
 				local disabled = snapshot()
@@ -81,7 +81,7 @@ return {
 			end)
 			ruleset._layer_order = order
 			assert(ok, err)
-			S.check(PVP.multiplayer_content_enabled(), "content configuration restored")
+			S.check(PVP.RULES.content_enabled(), "content configuration restored")
 		end,
 	},
 }

@@ -1,4 +1,4 @@
--- The dead player's waiting screen while the view's run.waitingDeaths lists me (pvp_api/pending_death_screen.lua
+-- The dead player's waiting screen while the view's run.waitingDeaths lists me (pvp_api/ui/pending_death.lua
 -- opens and closes it). Leave goes through mp_pvp_leave_from_game, which is not a forfeit: the opponent plays
 -- on and the result is decided later.
 
@@ -36,7 +36,8 @@ end
 
 -- The pending death is over (the view no longer lists it, or the result arrived): drop the screen and
 -- unpause so the end screen can show.
-function PVP.end_pending_death()
+PVP.UI.pending_death = PVP.UI.pending_death or {}
+function PVP.UI.pending_death.close()
 	if PVP.GAME.pending_death_screen then
 		PVP.GAME.pending_death_screen = false
 		MPAPI._restorable_overlay = nil

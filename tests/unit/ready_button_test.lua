@@ -3,13 +3,8 @@
 -- view answers: held with no action while the answer is unknown, Ready once it says there is a partner,
 -- never held for the Small blind. The Boss is built by the real gamemode and decided by the real screen,
 -- from a rolled boss that is not the default.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local gamemode
 local lobby = {}
@@ -17,17 +12,15 @@ Game = { update = function() end }
 MPAPI = { get_current_lobby = function() return lobby end }
 localize = function(key) return key end
 PVP = {
-	LOBBY = { config = { pvp_start_ante = 2, nemesis_pairing = true } },
+	NET = {}, READ = {},
+	LOBBY = { config = { pvp_start_ante = 2, nemesis_pairing = true }, mirror_players = function() end },
 	GAME = {},
-	SP = {},
-	UI = {},
-	Gamemode = function(init) gamemode = init return { inject = function() end } end,
-	get_active_gamemode = function() return "attrition" end,
-	entry_screen = {
+	PRACTICE = {},
+	RULES = { Gamemode = function(init) gamemode = init return { inject = function() end } end, active_gamemode = function() return "attrition" end },
+	UI = { blind_start = {
 		ready_button = function() return PVP.look end,
 		ready_colour = function() return (PVP.look == "held" or PVP.look == "waiting") and "inactive" or "ready_colour" end,
-	},
-	mirror_players = function() end,
+	} },
 	refresh_catching_up_badge = function() end,
 }
 G = {
@@ -36,11 +29,11 @@ G = {
 	GAME = { blind_on_deck = "Boss", round_resets = { ante = 2, pvp_blind_choices = {}, blind_choices = {}, blind_states = {} } },
 }
 
-dofile("pvp_api/_view.lua")
-dofile("pvp_api/target_reader.lua")
-dofile("pvp_api/target_screen.lua")
+dofile("pvp_api/read/_view.lua")
+dofile("pvp_api/read/target.lua")
+dofile("pvp_api/ui/target.lua")
 dofile("gamemodes/attrition.lua")
-PVP.Gamemodes = { attrition = gamemode }
+PVP.RULES.gamemodes = { attrition = gamemode }
 dofile("ui/game/functions.lua")
 
 local resets = G.GAME.round_resets
@@ -62,7 +55,7 @@ local function button()
 end
 
 -- The Boss is built before the view answers.
-PVP.match_net = { view = nil }
+PVP.NET = { view = nil }
 resets.blind_choices = { Boss = "bl_hook" }
 resets.blind_states = { Boss = "Upcoming" }
 local _, _, key = gamemode:get_blinds_by_ante(resets.ante)
@@ -86,8 +79,8 @@ eq(small.config.colour, "ready_colour", "with the Ready colour")
 G.GAME.blind_on_deck = "Boss"
 
 -- The answer arrives: a partner. The held button is Ready again.
-PVP.match_net.view = view_of("plays")
-PVP.target_screen.update()
+PVP.NET.view = view_of("plays")
+PVP.UI.target.update()
 eq(resets.pvp_boss, "decided", "the answer decides the Boss")
 eq(resets.blind_choices.Boss, "bl_mp_nemesis", "a partner keeps the PvP blind")
 G.FUNCS.pvp_ready_button(held)
@@ -101,11 +94,11 @@ eq(held.children[1].config.maxw, 2.2, "the Ready text is bounded to the button")
 resets.blind_choices = { Boss = "bl_hook" }
 resets.blind_states = { Boss = "Upcoming" }
 resets.pvp_blind_choices = {}
-PVP.match_net.view = nil
+PVP.NET.view = nil
 _, _, key = gamemode:get_blinds_by_ante(resets.ante)
 resets.blind_choices.Boss = key
-PVP.match_net.view = view_of("bye")
-PVP.target_screen.update()
+PVP.NET.view = view_of("bye")
+PVP.UI.target.update()
 eq(resets.blind_choices.Boss, "bl_hook", "a bye plays the rolled boss")
 eq(resets.pvp_blind_choices.Boss, true, "a bye's Boss is a PvP Boss: it gets the Ready button")
 eq(resets.pvp_boss, "decided", "and is decided")
@@ -150,4 +143,4 @@ PVP.look = "not_ready"
 G.FUNCS.pvp_ready_button(no_view)
 eq(no_view.config.button, "mp_toggle_ready", "the view came: Ready")
 
-print(string.format("ready_button_test: ok (%d checks)", checks))
+T.done("ready_button_test")

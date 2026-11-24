@@ -7,13 +7,13 @@ FNSJ.simulate_mp_taxes = function(joker_obj, context)
 end
 
 FNSJ.simulate_mp_pacifist = function(joker_obj, context)
-	if context.cardarea == G.jokers and context.global and not PVP.is_pvp_boss() then
+	if context.cardarea == G.jokers and context.global and not PVP.UTILS.is_pvp_blind() then
 		FN.SIM.x_mult(joker_obj.ability.extra.x_mult)
 	end
 end
 
 FNSJ.simulate_mp_conjoined_joker = function(joker_obj, context)
-	if context.cardarea == G.jokers and context.global and PVP.is_pvp_boss() then
+	if context.cardarea == G.jokers and context.global and PVP.UTILS.is_pvp_blind() then
 		FN.SIM.x_mult(joker_obj.ability.extra.x_mult)
 	end
 end

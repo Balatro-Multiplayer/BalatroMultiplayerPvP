@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/away_notice_test.lua
--- pvp_api/away_reader.lua + away_screen.lua: while another player is away and the server holds the
+-- pvp_api/read/away.lua + pvp_api/ui/away.lua: while another player is away and the server holds the
 -- countdowns, one banner names them; it goes the frame the view says they are back.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local boxes, players = {}, { { id = "me", displayName = "Me" }, { id = "b", displayName = "Bea" }, { id = "c" } }
 local driving, practice = false, false
@@ -35,17 +30,18 @@ MPAPI = {
 	playback = { is_driving = function() return driving end },
 }
 PVP = {
-	match_net = {},
-	in_session = function() return true end,
-	is_practice_mode = function() return practice end,
+	READ = {}, UI = {},
+	NET = {},
+	LOBBY = { in_session = function() return true end },
+	PRACTICE = { is_on = function() return practice end },
 }
 local now = 500
 love = { timer = { getTime = function() return now end } }
-dofile("pvp_api/_view.lua")
-dofile("pvp_api/away_reader.lua")
-dofile("pvp_api/reconnect_screen.lua")
-dofile("pvp_api/away_screen.lua")
-local reader, screen = PVP.away_reader, PVP.away_screen
+dofile("pvp_api/read/_view.lua")
+dofile("pvp_api/read/away.lua")
+dofile("pvp_api/ui/reconnect.lua")
+dofile("pvp_api/ui/away.lua")
+local reader, screen = PVP.READ.away, PVP.UI.away
 
 
 -- opponents: the ids the view names as my opponents; statuses: id -> status, or { status =, team = }
@@ -115,7 +111,7 @@ eq(reader.names_line({ "b", "c" }, function(id) return id == "b" and "Bea" or ni
 
 -- The screen
 local function title(box) return box.definition.nodes[1].nodes[1].nodes[1].config.text end
-PVP.match_net.view = view(away("b"), { b = "away" })
+PVP.NET.view = view(away("b"), { b = "away" })
 screen.update()
 eq(#boxes, 1, "the banner opens")
 eq(title(boxes[1]), "k_pvp_player_away:Bea", "it names the player")
@@ -123,24 +119,24 @@ eq(#boxes[1].definition.nodes[1].nodes, 2, "with a second line")
 eq(boxes[1].definition.nodes[1].nodes[2].nodes[1].config.text, "k_pvp_timers_held", "that says the timers are held")
 screen.update()
 eq(#boxes, 1, "the same notice is not opened twice")
-PVP.match_net.view = view({}, { b = "away" })
+PVP.NET.view = view({}, { b = "away" })
 screen.update()
 eq(#boxes, 2, "the pause ends but they are still away: a new banner")
 eq(boxes[1].removed, true, "the old one is removed")
 eq(title(boxes[2]), "k_pvp_player_away:Bea", "still names them")
 eq(#boxes[2].definition.nodes[1].nodes, 1, "without the timers line")
-PVP.match_net.view = view({}, { b = "away", c = "away" }, { "b", "c" })
+PVP.NET.view = view({}, { b = "away", c = "away" }, { "b", "c" })
 screen.update()
 eq(#boxes, 3, "a different set of players is a new banner")
 eq(boxes[2].removed, true, "the old one is removed")
 eq(title(boxes[3]), "k_pvp_player_away:Bea, ????", "both named")
-PVP.match_net.view = view({}, { b = "playing", c = "playing" }, { "b", "c" })
+PVP.NET.view = view({}, { b = "playing", c = "playing" }, { "b", "c" })
 screen.update()
 eq(boxes[3].removed, true, "the view says they are back: the banner goes")
 screen.update()
 eq(#boxes, 3, "nothing more opens")
 
-PVP.match_net.view = view(away("b"), { b = "away" })
+PVP.NET.view = view(away("b"), { b = "away" })
 driving = true
 screen.update()
 eq(#boxes, 3, "a playback shows none")
@@ -151,13 +147,13 @@ eq(#boxes, 3, "outside a run shows none")
 G.STAGE = 2
 screen.update()
 eq(#boxes, 4, "back in the run it shows")
-PVP.match_net.view = nil
+PVP.NET.view = nil
 screen.update()
 eq(boxes[4].removed, true, "no view: the banner goes")
 
 
 -- A rebuilt room or a removed box brings the banner back though nothing else changed.
-PVP.match_net.view = view({}, { b = "away" })
+PVP.NET.view = view({}, { b = "away" })
 screen.update()
 local before = #boxes
 screen.update()
@@ -173,7 +169,7 @@ eq(#boxes, before + 2, "a removed box: the banner is rebuilt")
 local function lines(box) return box.definition.nodes[1].nodes end
 local function clock_text(box) return lines(box)[2].nodes[1].config.ref_table.text end
 players = { { id = "me", displayName = "Me" }, { id = "b", displayName = "Bea", forfeits_at_local = now + 102 }, { id = "c" } }
-PVP.match_net.view = view({}, { b = "away" })
+PVP.NET.view = view({}, { b = "away" })
 screen.update()
 local banner = boxes[#boxes]
 eq(#lines(banner), 2, "a known forfeit time adds a countdown line")
@@ -186,7 +182,7 @@ eq(clock_text(banner), "k_pvp_player_reconnecting_timed:Bea|1:00", "and counts d
 players[2].forfeits_at_local = nil
 screen.update()
 eq(#lines(boxes[#boxes]), 1, "no time from the server: no countdown line")
-PVP.match_net.view = view(away("b"), { b = "away" })
+PVP.NET.view = view(away("b"), { b = "away" })
 players[2].forfeits_at_local = now + 30
 screen.update()
 eq(#lines(boxes[#boxes]), 3, "title, countdown and the timers line")
@@ -195,4 +191,4 @@ G.STAGE = 1
 eq(screen.in_run(), false, "outside a run it does not")
 G.STAGE = 2
 
-print(string.format("away_notice_test: ok (%d checks)", checks))
+T.done("away_notice_test")

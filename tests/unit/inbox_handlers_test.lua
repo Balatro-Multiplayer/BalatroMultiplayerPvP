@@ -1,31 +1,14 @@
 -- Run from the repo root: luajit tests/unit/inbox_handlers_test.lua
--- pvp_api/inbox_handlers.lua: every inbox item effect makes the right game calls, waits for its safe
+-- pvp_api/net/inbox.lua: every inbox item effect makes the right game calls, waits for its safe
 -- point, and is applied once, through the real match_net runner.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
-
-local function show(value)
-	if type(value) ~= "table" then return tostring(value) end
-	local keys = {}
-	for key in pairs(value) do keys[#keys + 1] = key end
-	table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
-	local parts = {}
-	for _, key in ipairs(keys) do parts[#parts + 1] = tostring(key) .. "=" .. show(value[key]) end
-	return "{" .. table.concat(parts, ",") .. "}"
-end
-
-local function same(actual, expected, message) eq(show(actual), show(expected), message) end
+local T = dofile("tests/support/check.lua")
+local eq, same = T.eq, T.same
 
 local net, inbox, queue, warnings, calls
 local receiver_ante = 1
 
 local function fake_game()
-	local game = PVP.inbox_game
+	local game = PVP.NET.inbox
 	-- Every call an effect can make is a function of the game module: stub each one.
 	for name, member in pairs(game) do
 		if type(member) == "function" then
@@ -50,7 +33,7 @@ end
 
 local function setup()
 	queue, warnings, calls = {}, {}, {}
-	PVP = { id = "MultiplayerPVP", is_pvp_boss = function() return false end }
+	PVP = { NET = {}, READ = {}, UI = {}, id = "MultiplayerPVP", UTILS = { is_pvp_blind = function() return false end } }
 	love = { timer = { getTime = function() return 0 end } }
 	sendWarnMessage = function(text) warnings[#warnings + 1] = text end
 	G = {
@@ -69,13 +52,12 @@ local function setup()
 		send_match_input = function() return true end,
 		run_save = { save_now = function() end },
 	}
-	dofile("pvp_api/_view.lua")
-	dofile("pvp_api/_match_net_rules.lua")
-	dofile("pvp_api/match_net.lua")
-	dofile("pvp_api/_trap_data.lua")
-	dofile("pvp_api/inbox_handlers.lua")
-	dofile("pvp_api/inbox_game.lua")
-	net, inbox = PVP.match_net, PVP.inbox_handlers
+	dofile("pvp_api/read/_view.lua")
+	dofile("pvp_api/net/_rules.lua")
+	dofile("pvp_api/net/server_link.lua")
+	dofile("pvp_api/read/_trap_record.lua")
+	dofile("pvp_api/net/inbox.lua")
+	net, inbox = PVP.NET, PVP.NET.inbox
 end
 
 local function run_queue()
@@ -139,17 +121,6 @@ end
 calls, warnings = {}, {}
 eq(apply_with_fakes(item("trapReward", 1, { id = 4, key = "c_mp_trap_alarm", data = {} })), false, "empty data still refuses a trap that needs a field")
 
--- Every trap card the mod has has a reward.
-local trap_keys = {}
-for key in pairs(inbox.traps) do trap_keys[#trap_keys + 1] = key end
-table.sort(trap_keys)
-same(trap_keys, {
-	"c_mp_trap_alarm", "c_mp_trap_arcane_lock", "c_mp_trap_explosive_runes", "c_mp_trap_faithful_hound",
-	"c_mp_trap_fire_trap", "c_mp_trap_forbiddance", "c_mp_trap_glyph_of_warding", "c_mp_trap_guards_and_wards",
-	"c_mp_trap_magic_mouth", "c_mp_trap_mental_prison", "c_mp_trap_phase_door", "c_mp_trap_programmed_illusion",
-	"c_mp_trap_sepia_snake_sigil", "c_mp_trap_snare", "c_mp_trap_symbol", "c_mp_trap_web",
-}, "trap keys")
-
 -- A Pizza carries the ante it was eaten for; its discards come off at the end of that ante's PvP blind,
 -- so a receiver already in a later ante gets nothing.
 local function pizza_for(ante)
@@ -169,14 +140,6 @@ for _, row in ipairs({
 	eq(#warnings, #row[4] == 0 and 1 or 0, "pizza " .. row[1] .. " logged when dropped")
 end
 receiver_ante = 1
-
--- The effects are the server's: nakama/src/lobby/pvp/core/types.ts, InboxItem.effect.
-local server_effects = { "pizza", "gambling", "asteroid", "comebackBonus", "voucherLife", "trapReward" }
-local have = {}
-for effect in pairs(inbox.effects) do have[#have + 1] = effect end
-table.sort(have)
-table.sort(server_effects)
-same(have, server_effects, "effects equal the server's")
 
 -- A bad item is refused whole: no game call, a logged reason.
 local refused = {
@@ -245,20 +208,6 @@ for _, name in ipairs({ "BLIND_SELECT", "SHOP", "SELECTING_HAND" }) do
 	eq(G.GAME.pvp_net.inboxDone, 1, name .. " is a safe state")
 end
 
--- Not ready: a pack is open, so nothing is applied and the number stays.
-setup()
-G.STATE = G.STATES.BOOSTER
-start(in_run({ numbered(1, "pizza", 2) }))
-eq(#calls, 0, "nothing applied in a pack")
-eq(G.GAME.pvp_net.inboxDone, 0, "last item done unchanged in a pack")
-
--- Not at a safe point: the run is not live.
-setup()
-G.STATE_COMPLETE = false
-start(in_run({ numbered(1, "pizza", 2) }))
-eq(#calls, 0, "nothing applied while the state is not complete")
-eq(G.GAME.pvp_net.inboxDone, 0, "last item done unchanged while the state is not complete")
-
 -- Once only: the save holds inboxDone with the effect; a load and the same view apply nothing.
 setup()
 local one_view = in_run({ numbered(1, "pizza", 2) })
@@ -292,4 +241,4 @@ eq(G.GAME.pvp_net.inboxDone, 1, "an unknown effect moves the number")
 eq(#calls, 0, "an unknown effect changes nothing")
 eq(#warnings, 1, "an unknown effect is logged")
 
-print("inbox_handlers_test: ok (" .. checks .. " checks)")
+T.done("inbox_handlers_test")

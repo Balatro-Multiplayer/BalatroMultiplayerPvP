@@ -20,10 +20,10 @@ end
 
 local function roster_row(lobby, player_id)
 	local name = player_display_name(lobby, player_id)
-	local jokers = PVP.finish_screen.jokers_of(player_id)
+	local jokers = PVP.UI.finish.jokers_of(player_id)
 	local joker_count = jokers and #jokers or 0
-	local best = PVP.finish_screen.best_score_of(player_id)
-	local score_label = best and PVP.Score.display(best) or localize('k_timer_none')
+	local best = PVP.UI.finish.best_score_of(player_id)
+	local score_label = best and PVP.SCORE.display(best) or localize('k_timer_none')
 
 	local nodes = {
 		{ n = G.UIT.C, config = { align = 'cm', minw = 3, padding = 0.05 }, nodes = {
@@ -72,7 +72,7 @@ function PVP.UI.show_roster_overlay()
 	})
 end
 
--- Called by PVP.finish_screen when another player's end of game arrives, so an
+-- Called by PVP.UI.finish when another player's end of game arrives, so an
 -- already-open roster reflects it without needing to be reopened.
 function PVP.UI.refresh_roster()
 	if _roster_el then
@@ -106,7 +106,7 @@ end
 
 G.FUNCS.mp_pvp_view_roster_jokers = function(e)
 	local player_id = e.config.ref_table.player_id
-	local jokers = PVP.finish_screen.jokers_of(player_id) or {}
+	local jokers = PVP.UI.finish.jokers_of(player_id) or {}
 
 	local area = build_joker_area(jokers)
 	G.FUNCS.overlay_menu({

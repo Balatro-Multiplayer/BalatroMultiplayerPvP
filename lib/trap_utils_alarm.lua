@@ -18,7 +18,7 @@ end
 
 local update_shop_ref = Game.update_shop
 function Game:update_shop(dt)
-	if PVP.in_session() and not G.STATE_COMPLETE and (G.GAME.mp_pending_free_rerolls or 0) > 0 then
+	if PVP.LOBBY.in_session() and not G.STATE_COMPLETE and (G.GAME.mp_pending_free_rerolls or 0) > 0 then
 		local pending = G.GAME.mp_pending_free_rerolls
 		G.GAME.mp_pending_free_rerolls = nil
 		add_free_rerolls(pending)

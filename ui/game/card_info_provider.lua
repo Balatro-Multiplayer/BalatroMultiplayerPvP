@@ -9,14 +9,14 @@
 -- first hover with no cache entry fires the lookup in the background and
 -- shows a placeholder immediately, a later hover shows the resolved value.
 -- The cache belongs to one lobby, so the next match reads ratings afresh.
-PVP._rating_cache = PVP._rating_cache or {}
+PVP.UI.card_info.rating_cache = PVP.UI.card_info.rating_cache or {}
 
 -- Matches the server's PLACEMENT_GAMES, for a server that doesn't send it.
 local DEFAULT_PLACEMENT_GAMES = 5
 
 -- "2/5" while a rating_get record is still in its placement games, else nil. Shared with the
 -- Find Game page's Ranked pillars (ui/main_menu/find_game.lua).
-function PVP.placement_progress(record)
+function PVP.UI.card_info.placement_progress(record)
 	if not record.isPlacement and record.rating then
 		return nil
 	end
@@ -38,24 +38,24 @@ local function elo_row(lobby, player_data)
 	if not meta.ruleset then
 		return text_row("Elo: N/A")
 	end
-	local gamemode = PVP.ranked_ticket(meta.ruleset)
+	local gamemode = PVP.QUEUE.ranked_ticket(meta.ruleset)
 
-	if PVP._rating_cache_lobby ~= lobby.code then
-		PVP._rating_cache = {}
-		PVP._rating_cache_lobby = lobby.code
+	if PVP.UI.card_info.rating_cache_lobby ~= lobby.code then
+		PVP.UI.card_info.rating_cache = {}
+		PVP.UI.card_info.rating_cache_lobby = lobby.code
 	end
 
 	local cache_key = gamemode .. ":" .. player_data.id
-	local cached = PVP._rating_cache[cache_key]
+	local cached = PVP.UI.card_info.rating_cache[cache_key]
 
 	if cached == nil then
-		PVP._rating_cache[cache_key] = false -- in-flight marker, avoids re-firing on every hover
+		PVP.UI.card_info.rating_cache[cache_key] = false -- in-flight marker, avoids re-firing on every hover
 		MPAPI.matchmaking.get_rating(PVP.id, gamemode, nil, player_data.id, function(err, data)
 			if err then
-				PVP._rating_cache[cache_key] = nil -- allow a retry on the next hover
+				PVP.UI.card_info.rating_cache[cache_key] = nil -- allow a retry on the next hover
 				return
 			end
-			PVP._rating_cache[cache_key] = data or { rating = nil }
+			PVP.UI.card_info.rating_cache[cache_key] = data or { rating = nil }
 		end)
 		return text_row("Elo: ...")
 	end
@@ -64,7 +64,7 @@ local function elo_row(lobby, player_data)
 		return text_row("Elo: ...")
 	end
 
-	local placement = PVP.placement_progress(cached)
+	local placement = PVP.UI.card_info.placement_progress(cached)
 	if placement then
 		return text_row(localize({ type = "variable", key = "k_pvp_placement_progress", vars = { placement } }))
 	end
@@ -78,9 +78,9 @@ local function lives_row(lobby, player_data)
 	if player_data.id == lobby.player_id then
 		lives = PVP.GAME and PVP.GAME.lives or nil
 	else
-		lives = PVP.view.lives_of(PVP.match_net and PVP.match_net.view, player_data.id)
+		lives = PVP.READ.view.lives_of(PVP.NET and PVP.NET.view, player_data.id)
 	end
-	return text_row(tostring(PVP.opponent_lives_text(lives)) .. " " .. localize("k_lives"))
+	return text_row(tostring(PVP.UTILS.opponent_lives_text(lives)) .. " " .. localize("k_lives"))
 end
 
 -- Skips and best PvP score: our own come from G.GAME/PVP.GAME. An opponent's
@@ -88,7 +88,7 @@ end
 -- so it is that player's own numbers only in a two-player, non-Teams lobby.
 -- Anyone else gets no rows rather than another player's numbers.
 local function run_rows(lobby, player_data, rows)
-	if G.STAGE ~= G.STAGES.RUN or not PVP.GAME or PVP.is_practice_mode() then return end
+	if G.STAGE ~= G.STAGES.RUN or not PVP.GAME or PVP.PRACTICE.is_on() then return end
 	local skips, best_score
 	if player_data.id == lobby.player_id then
 		skips, best_score = G.GAME.skips, PVP.GAME.highest_pvp_score
@@ -98,12 +98,12 @@ local function run_rows(lobby, player_data, rows)
 		return
 	end
 	rows[#rows + 1] = text_row(tostring(skips or 0) .. " " .. localize("k_skips"))
-	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. PVP.Score.display(best_score))
+	rows[#rows + 1] = text_row(localize("k_best_pvp_score") .. ": " .. PVP.SCORE.display(best_score))
 end
 
 -- A private lobby marks each player Verified (green) or Not verified (red).
 local function verified_row(player_data)
-	local verified = PVP.player_is_verified(player_data)
+	local verified = PVP.VERIFIED.player_is_verified(player_data)
 	return { n = G.UIT.R, config = { align = "cm", padding = 0.03 }, nodes = {
 		{ n = G.UIT.T, config = {
 			text = localize(verified and "k_pvp_verified" or "k_pvp_not_verified"),
@@ -115,12 +115,12 @@ end
 
 MPAPI.register_card_info_provider(PVP.id, function(lobby, player_data)
 	local rows = { lives_row(lobby, player_data) }
-	if (lobby:get_metadata() or {}).kind == PVP.LobbyAccess.PRIVATE then
+	if (lobby:get_metadata() or {}).kind == PVP.LOBBY.Access.PRIVATE then
 		rows[#rows + 1] = verified_row(player_data)
 	end
 	run_rows(lobby, player_data, rows)
 	local meta = lobby:get_metadata() or {}
-	if meta.kind == PVP.LobbyAccess.RANKED then
+	if meta.kind == PVP.LOBBY.Access.RANKED then
 		rows[#rows + 1] = elo_row(lobby, player_data)
 	end
 	return rows

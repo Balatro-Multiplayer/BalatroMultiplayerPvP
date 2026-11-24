@@ -1,4 +1,4 @@
-# so here's the deal: when we rework vanilla jokers with PVP.ReworkCenter,
+# so here's the deal: when we rework vanilla jokers with PVP.RULES.ReworkCenter,
 # some vanilla behavior still exists on the center. for `calculate`, we can just
 # do an early return to prevent the vanilla logic from running (see bloodstone.lua
 # for an example - it returns `nil, true` to signal "don't run vanilla logic").

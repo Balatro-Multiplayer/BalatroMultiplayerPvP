@@ -1,22 +1,17 @@
 -- Run from the repo root: luajit tests/unit/blind_save_point_test.lua
 -- lib/run_save.lua: a PvP blind's save is numbered by the API and taken in a queued event, and a
 -- load makes the blind screen expect the view's hands.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local numbered, taken, directly = 0, {}, 0
 local lobby = nil
 local queued = {}
 local hooks
-PVP = { id = "MultiplayerPvP", GAME = {}, LOBBY = { code = "ABCD" } }
-function PVP.in_session() return true end
-function PVP.is_pvp_boss() return true end
-function PVP.reset_game_states() PVP.GAME = {} end
+PVP = { ACTIONS = { save = {} }, READ = {}, UI = {}, UTILS = {}, id = "MultiplayerPvP", GAME = {}, LOBBY = { code = "ABCD" } }
+function PVP.LOBBY.in_session() return true end
+function PVP.UTILS.is_pvp_blind() return true end
+function PVP.LOBBY.reset_game() PVP.GAME = {} end
 MPAPI = {
 	run_save = {
 		register_state = function(_, given) hooks = given end,
@@ -50,9 +45,9 @@ eq(taken[1], 1, "the event takes the save of that number")
 eq(directly, 0, "the API's take is never called directly")
 
 local expected = 0
-PVP.pvp_blind_reader = { hands_source_loaded = function() expected = expected + 1; return { kind = "from server" } end }
+PVP.READ.pvp_blind = { hands_source_loaded = function() expected = expected + 1; return { kind = "from server" } end }
 hooks.load({ lives = 3 })
 eq(expected, 1, "a load makes the blind wait for the view's hands")
 eq(PVP.GAME.lives, 3, "and puts the saved match state back")
 
-print(string.format("blind_save_point_test: ok (%d checks)", checks))
+T.done("blind_save_point_test")

@@ -6,8 +6,8 @@
 -- nothing still running: not while the hand scores, not while an event or an inbox item is
 -- running (a save then could hold an effect without the applied number that goes with it), and
 -- never in a booster pack, the shop or the cash out, where the due mark is dropped.
-PVP.ActionSave = {}
-local AS = PVP.ActionSave
+PVP.ACTIONS.save = {}
+local AS = PVP.ACTIONS.save
 
 -- The states a hand, discard or consumable passes through on its way back to "pick a hand".
 local HAND_LOOP = { "HAND_PLAYED", "DRAW_TO_HAND", "PLAY_TAROT", "NEW_ROUND" }
@@ -68,7 +68,7 @@ end
 if not (G and G.FUNCS and Game) then return end
 
 local function in_match()
-	return PVP.in_session() and MPAPI.get_current_lobby() ~= nil and PVP.LOBBY.code ~= nil
+	return PVP.LOBBY.in_session() and MPAPI.get_current_lobby() ~= nil and PVP.LOBBY.code ~= nil
 end
 
 local world = {
@@ -86,7 +86,7 @@ local world = {
 		return MPAPI.playback._queues_empty() and "empty" or "running"
 	end,
 	must_wait = function()
-		local net = PVP.match_net
+		local net = PVP.NET
 		return net ~= nil and net.save_must_wait() or false
 	end,
 	take = function()
@@ -103,7 +103,7 @@ local function mark_after(original, coverage)
 	return function(...)
 		local result = original(...)
 		local replaying = MPAPI.playback.is_driving("pvp")
-		local covered = coverage == "server_covers" and PVP.is_pvp_boss()
+		local covered = coverage == "server_covers" and PVP.UTILS.is_pvp_blind()
 		if in_match() and not replaying and not covered then AS.mark_due() end
 		return result
 	end

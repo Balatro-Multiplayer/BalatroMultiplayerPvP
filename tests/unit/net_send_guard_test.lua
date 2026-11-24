@@ -1,6 +1,6 @@
 -- Run from the repo root: luajit tests/unit/net_send_guard_test.lua
 -- Every state change the PvP mod asks of the server goes up through the one numbered input
--- (pvp_api/match_net.lua), which is resent until the view confirms it. A direct lobby call sends once
+-- (pvp_api/net/server_link.lua), which is resent until the view confirms it. A direct lobby call sends once
 -- and is lost on a dropped socket, so none may appear outside the files allowed below.
 local SENDS = {
 	":set_metadata%(",
@@ -19,9 +19,9 @@ local SENDS = {
 -- file -> the one send it may make, and why.
 local ALLOWED = {
 	-- The envelope itself.
-	["./pvp_api/match_net.lua"] = "send_match_input%(",
+	["./pvp_api/net/server_link.lua"] = "send_match_input%(",
 	-- A local lobby (practice, playback) has no server: it merges the settings itself.
-	["./pvp_api/lobby_screen.lua"] = ":set_metadata%(",
+	["./pvp_api/ui/lobby.lua"] = ":set_metadata%(",
 	-- Replay log events are diagnostics; one lost costs nothing in play.
 	["./pvp_api/replay_log_actions.lua"] = ":action%(",
 }
@@ -54,6 +54,6 @@ end
 handle:close()
 
 if #offenders > 0 then
-	error("sends outside the numbered input (route them through PVP.match_net.send):\n" .. table.concat(offenders, "\n"))
+	error("sends outside the numbered input (route them through PVP.NET.send):\n" .. table.concat(offenders, "\n"))
 end
 print(string.format("net_send_guard_test: %d checks passed", checks))

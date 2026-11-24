@@ -12,7 +12,7 @@ local Backdrop = {
 	spin = { real = 0, eased = 0, amount = 0 }, -- as G.ARGS.spin
 	spin_time = 0, -- as G.TIMERS.BACKGROUND
 }
-PVP.QUEUE_BACKDROP = Backdrop
+PVP.UI.queue.backdrop = Backdrop
 
 -- Which preset the reveal plays over, or false to keep the menu's swirl.
 Backdrop.REVEAL = "planet_pack"

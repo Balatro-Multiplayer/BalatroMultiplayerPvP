@@ -14,9 +14,9 @@ PVP.TRAP.KEY = {
 -- Fires from a Trap card's own use() -- the ONLY moment use() ever runs, since a Trap can only
 -- be obtained by taking it from a Trap pack (Card:use_consumeable removes the card from
 -- G.pack_cards and never adds it anywhere else). The server decides who holds it and whether an
--- Arcane Lock sends it back; the card then reaches its holder through the view (pvp_api/trap_screen.lua).
+-- Arcane Lock sends it back; the card then reaches its holder through the view (pvp_api/ui/trap.lua).
 function PVP.TRAP.plant(card)
-	PVP.trap_screen.planted(card.config.center.key)
+	PVP.UI.trap.planted(card.config.center.key)
 end
 
 -- A planted trap of this center key that is still hidden and has not fired, in the player's own consumables.
@@ -61,7 +61,7 @@ end
 
 local can_sell_card_ref = Card.can_sell_card
 function Card:can_sell_card(context)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return can_sell_card_ref(self, context)
 	end
 	if self.ability and self.ability.mp_trap_hidden then
@@ -113,13 +113,13 @@ function PVP.TRAP.fire(trap, data)
 	PVP.TRAP.notify_owner(trap, data)
 end
 
--- Every trap's calculate ends by calling this with the fields its trap names (pvp_api/_trap_data.lua):
+-- Every trap's calculate ends by calling this with the fields its trap names (pvp_api/read/_trap_record.lua):
 -- the server passes them on to the Trapper's inbox. The owner is the one stamped on the card when the
 -- view gave it to me, not whoever is the Nemesis now.
 function PVP.TRAP.notify_owner(card, data)
 	data = data or {}
 	data.owner = card.ability.mp_trap_owner_id
-	PVP.trap_screen.fired(card, data)
+	PVP.UI.trap.fired(card, data)
 	return {}
 end
 
@@ -130,7 +130,7 @@ function PVP.TRAP.fire_problem(card, data)
 	for name, value in pairs(data or {}) do
 		values[name] = value
 	end
-	return PVP.trap_screen.fire_problem(card, values)
+	return PVP.UI.trap.fire_problem(card, values)
 end
 
 -- The "use" animation played on the Trapper's own screen when their planted trap

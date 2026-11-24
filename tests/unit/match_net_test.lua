@@ -1,21 +1,16 @@
 -- Run from the repo root: luajit tests/unit/match_net_test.lua
--- pvp_api/match_net.lua: numbered inputs with resends, the stored view and clock offset, the inbox
+-- pvp_api/net/server_link.lua: numbered inputs with resends, the stored view and clock offset, the inbox
 -- (one item per safe point, in order, once), the join keys and the put-off Run save.
 local unpack = unpack or table.unpack
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local net, sent, warnings, queue, now, socket_up, calls, lobby_mod, view_handler, gone_handler
 
 local function setup()
 	sent, warnings, queue, now, socket_up, calls, lobby_mod = {}, {}, {}, 0, true, {}, "MultiplayerPvP"
 	view_handler, gone_handler = nil, nil
-	PVP = { id = "MultiplayerPvP", is_pvp_boss = function() return false end }
+	PVP = { NET = {}, READ = {}, UI = {}, PRACTICE = {}, id = "MultiplayerPvP", UTILS = { is_pvp_blind = function() return false end } }
 	love = { timer = { getTime = function() return now end } }
 	sendWarnMessage = function(text) warnings[#warnings + 1] = text end
 	G = {
@@ -45,10 +40,10 @@ local function setup()
 			is_staged = function() return false end,
 		},
 	}
-	dofile("pvp_api/_view.lua")
-	dofile("pvp_api/_match_net_rules.lua")
-	dofile("pvp_api/match_net.lua")
-	net = PVP.match_net
+	dofile("pvp_api/read/_view.lua")
+	dofile("pvp_api/net/_rules.lua")
+	dofile("pvp_api/net/server_link.lua")
+	net = PVP.NET
 end
 
 -- Runs the blocking events the net queued, oldest first, as the game's event queue would.
@@ -411,7 +406,7 @@ eq(net.busy(), true, "the second item is waiting, not an item stuck in flight")
 net.update()
 eq(table.concat(ran, ","), "1,2", "the next item still runs")
 
--- client_skips_items_at_or_below_local_inbox_done
+-- client_skips_items_at_or_below_local_last_applied
 setup()
 ran = {}
 net.handlers.pizza = function(it) ran[#ran + 1] = it.itemNumber end
@@ -477,7 +472,7 @@ eq(old_game_net.inboxDone, 0, "nor is the old one's")
 eq(#sent, 0, "and no applied goes out")
 eq(net.busy(), false, "the net is not stuck")
 
--- handler_error_moves_inbox_done
+-- handler_error_moves_last_applied
 setup()
 ran = {}
 net.handlers.pizza = function() error("boom") end
@@ -682,7 +677,7 @@ eq(type(net.take_refusal()), "string", "a bad save is still refused")
 local function fresh_game()
 	setup()
 	MPAPI.has_server_referee = function() return true end
-	PVP.is_practice_mode = function() return false end
+	PVP.PRACTICE.is_on = function() return false end
 	net.register()
 	net.receive_view(nil, view())
 	G.GAME = {}
@@ -717,7 +712,7 @@ eq(net.send("ready", {}) ~= nil and sent[#sent].runId, "r1", "inputs carry the r
 -- the view arrives before the game's run exists
 setup()
 MPAPI.has_server_referee = function() return true end
-PVP.is_practice_mode = function() return false end
+PVP.PRACTICE.is_on = function() return false end
 net.register()
 net.receive_view(nil, view_of_run("r1"))
 G.GAME = {}
@@ -779,7 +774,7 @@ eq(G.GAME.pvp_net, nil, "and the wait is over")
 local function server_lobby_setup()
 	setup()
 	MPAPI.has_server_referee = function() return true end
-	PVP.is_practice_mode = function() return false end
+	PVP.PRACTICE.is_on = function() return false end
 	net.register()
 end
 
@@ -884,14 +879,14 @@ end
 -- practice, solo and other lobbies: no record
 setup()
 MPAPI.has_server_referee = function() return true end
-PVP.is_practice_mode = function() return true end
+PVP.PRACTICE.is_on = function() return true end
 net.register()
 net.receive_view(nil, view_of_run("r1"))
 G.GAME = {}
 net.game_started(false)
 net.receive_view(nil, view_of_run("r1"))
 eq(G.GAME.pvp_net, nil, "practice has no record")
-PVP.is_practice_mode = function() return false end
+PVP.PRACTICE.is_on = function() return false end
 lobby_mod = "OtherMod"
 net.game_started(false)
 net.receive_view(nil, view_of_run("r1"))
@@ -968,7 +963,7 @@ eq(calls[#calls], "save_now", "the put-off save is released once the last-item-d
 G.STATE = G.STATES.SELECTING_HAND
 net.send("handPlayed", { handsLeft = 3 })
 eq(net.save_must_wait(), false, "an unconfirmed input does not put it off outside a PvP blind")
-PVP.is_pvp_boss = function() return true end
+PVP.UTILS.is_pvp_blind = function() return true end
 eq(net.save_must_wait(), false, "nor in a PvP blind")
 eq(G.GAME.pvp_net.unconfirmed[#G.GAME.pvp_net.unconfirmed].kind, "handPlayed", "the record holds the unconfirmed input")
 net.send("handPlayed", { handsLeft = 2 })
@@ -1173,4 +1168,4 @@ net.receive_view(nil, view_of_run("r2"))
 eq(#sent, 0, "a new game's start drops the inputs of the one before")
 
 
-print("match_net_test: ok (" .. checks .. " checks)")
+T.done("match_net_test")

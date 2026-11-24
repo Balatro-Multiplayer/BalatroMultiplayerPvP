@@ -113,7 +113,7 @@ function S._on_run(data)
 		mod_id = 'pvp',
 		live = true,
 		start_run = function(bootstrap, on_ready)
-			PVP._start_playback(bootstrap, on_ready)
+			PVP.REPLAY.start(bootstrap, on_ready)
 		end,
 	}
 	if data.runSave then

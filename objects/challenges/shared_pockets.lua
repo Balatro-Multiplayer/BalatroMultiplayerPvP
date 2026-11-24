@@ -12,7 +12,7 @@ SMODS.Challenge({
 		},
 	},
 	apply = function(self)
-		PVP.setup_shared_pockets()
+		PVP.RULES.setup_shared_pockets()
 	end,
 	unlocked = function(self)
 		return true

@@ -2,17 +2,17 @@
 -- mode (the group queue, pvp_api/group_queue.lua) and come back to it after
 -- the game.
 
-function PVP.pvp_create_party_lobby()
+function PVP.LOBBY.create_party()
 	MPAPI.Party.create(PVP.id, function(lobby)
-		PVP._pvp_kind = PVP.LobbyAccess.PRIVATE
-		PVP._pvp_gamemode = nil
-		PVP.setup_lobby_mirror(lobby)
+		PVP.LOBBY.kind = PVP.LOBBY.Access.PRIVATE
+		PVP.LOBBY.mode_key = nil
+		PVP.LOBBY.mirror(lobby)
 	end)
 end
 
 -- The host's Find Game: the Casual pillars, each QUEUE queueing the party.
 G.FUNCS.mp_pvp_party_find_game = function()
-	local L = PVP.lobby
+	local L = PVP.UI.lobby
 	if not MPAPI.Party.find_game_enabled(MPAPI.Party.find_game_facts(L.ref, L.ready)) then
 		return
 	end

@@ -89,7 +89,7 @@ end
 --- @param joker_key string The key of the joker to check (e.g., "j_mp_mail_sandbox")
 --- @return boolean true if the joker is allowed in the sandbox ruleset and in a multiplayer lobby
 function PVP.SANDBOX.is_joker_allowed(joker_key)
-	if not PVP.is_layer_active(PVP.LayerKey.SANDBOX) then return false end
+	if not PVP.RULES.is_layer_active(PVP.RULES.LayerKey.SANDBOX) then return false end
 
 	for _, mapping in ipairs(PVP.SANDBOX.joker_mappings) do
 		if mapping.active and mapping.sandbox == joker_key then return true end
@@ -117,7 +117,7 @@ local function select_random_idol()
 	end
 end
 
-MPAPI.Layer(PVP.LayerKey.SANDBOX, {
+MPAPI.Layer(PVP.RULES.LayerKey.SANDBOX, {
 	banned_jokers = { "j_hanging_chad", "j_mp_conjoined_joker" },
 	banned_silent = PVP.SANDBOX.get_vanilla_bans(),
 	banned_consumables = { "c_ouija", "c_ectoplasm" },
@@ -141,4 +141,4 @@ MPAPI.Layer(PVP.LayerKey.SANDBOX, {
 })
 
 -- debugging hotswitch
-PVP.sandbox_no_collection = not PVP.EXPERIMENTAL.show_sandbox_collection
+PVP.SANDBOX.no_collection = not PVP.EXPERIMENTAL.show_sandbox_collection

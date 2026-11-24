@@ -1,6 +1,6 @@
 -- Plain Lua test: the real Penny Pincher pays for the opponent's shop it points at,
 -- whether or not a Pincher was held when that shop's spend was shown, and however
--- many copies are held. The spends are in PVP.GAME.enemy.spent_in_shop, where run_screen.lua
+-- many copies are held. The spends are in PVP.GAME.enemy.spent_in_shop, where pvp_api/ui/run.lua
 -- puts what the view shows.
 -- Run from the repo root: luajit tests/unit/penny_pincher_payout_test.lua
 local failures = 0
@@ -27,12 +27,14 @@ SMODS = { Atlas = function() end }
 PVP = {
 	id = "pvp",
 	UTILS = { add_nemesis_info = function() end },
-	current_target_id = function()
-		return "them"
-	end,
-	my_boss = function()
-		return "plays"
-	end,
+	READ = { target = {
+		current_id = function()
+			return "them"
+		end,
+		my_boss = function()
+			return "plays"
+		end,
+	} },
 }
 
 local function new_game()

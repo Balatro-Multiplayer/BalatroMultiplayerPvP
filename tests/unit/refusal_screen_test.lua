@@ -1,12 +1,7 @@
 -- Run from the repo root: luajit tests/unit/refusal_screen_test.lua
--- pvp_api/refusal_screen.lua: which refusals show a notice, and that each shows one.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+-- pvp_api/ui/refusal.lua: which refusals show a notice, and that each shows one.
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local shown = {}
 G = {}
@@ -19,8 +14,8 @@ function localize(key)
 	if type(key) == "table" then return "text:" .. key.key .. ":" .. table.concat(key.vars, ",") end
 	return "text:" .. key
 end
-dofile("pvp_api/refusal_screen.lua")
-local screen = PVP.refusal_screen
+dofile("pvp_api/ui/refusal.lua")
+local screen = PVP.UI.refusal
 
 -- Which errors show a notice, and which key: every case on a closed overlay.
 local function shown_for(err)
@@ -71,4 +66,4 @@ eq(shown[5], "text:k_start_refused:not_all_ready", "a start refused while a play
 screen.show_no_stake()
 eq(shown[6], "text:k_start_no_stake", "no stake is its own notice")
 
-print(string.format("refusal_screen_test: ok (%d checks)", checks))
+T.done("refusal_screen_test")

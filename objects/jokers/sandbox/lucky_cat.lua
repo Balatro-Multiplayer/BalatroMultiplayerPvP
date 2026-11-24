@@ -9,7 +9,7 @@ SMODS.Joker({
 
 	unlocked = true,
 	discovered = true,
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	atlas = "lucky_cat_sandbox",
 	blueprint_compat = true,
 	perishable_compat = false,

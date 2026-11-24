@@ -1,6 +1,6 @@
 -- Plain Lua test for lib/play_lock.lua (the double-Play guard, no game needed).
 -- Run from the repo root: luajit tests/unit/play_lock_test.lua
-PVP = {}
+PVP = { LOBBY = {}, ACTIONS = {} }
 
 local failures = 0
 local function check(name, got, want)
@@ -33,12 +33,12 @@ G = {
 function Event(e)
 	return e
 end
-function PVP.in_session()
+function PVP.LOBBY.in_session()
 	return in_session
 end
 
 dofile("lib/play_lock.lua")
-local PL = PVP.PlayLock
+local PL = PVP.ACTIONS.play_lock
 
 local plays = 0
 local function play()

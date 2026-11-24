@@ -3,11 +3,11 @@
 -- The button shows while the server says I may start a timer, or while my own timer runs (to pause it).
 function PVP.UI.cam_timer_opponent()
 	if not PVP.LOBBY.config.timer then return false end
-	return PVP.timer_screen.button() ~= nil
+	return PVP.UI.timer.button() ~= nil
 end
 
 function G.FUNCS.mp_timer_button(e)
-	PVP.timer_screen.press()
+	PVP.UI.timer.press()
 end
 
 function PVP.UI.timer_hud()
@@ -56,11 +56,11 @@ function PVP.UI.timer_hud()
 							n = G.UIT.O,
 							config = {
 								object = DynaText({
-									string = PVP.is_layer_active("speedlatro_timer") and ">>" or {
+									string = PVP.RULES.is_layer_active("speedlatro_timer") and ">>" or {
 										{
 											ref_table = setmetatable({}, {
 												__index = function()
-													return PVP.timer_screen.text()
+													return PVP.UI.timer.text()
 												end,
 											}),
 											ref_value = "timer",
@@ -165,13 +165,13 @@ SMODS.Gradient({
 		G.C.IMPORTANT,
 	},
 	update = function(self, dt)
-		if #self.colours < 2 or not PVP.LOBBY.config.ruleset or not PVP.timer_screen then return end
-		local own_clock = PVP.timer_screen.timing()
-		local speedup = own_clock and 1 or PVP.timer_screen.rate()
+		if #self.colours < 2 or not PVP.LOBBY.config.ruleset or not PVP.UI.timer.timing then return end
+		local own_clock = PVP.UI.timer.timing()
+		local speedup = own_clock and 1 or PVP.UI.timer.rate()
 
 		-- When you "timering" opponent, timer stops and you cannot see is button pressed
 		-- So we need switch to real timer to make it flush
-		local time_value = own_clock and G.TIMERS.REAL or -(PVP.timer_screen.seconds() or 0)
+		local time_value = own_clock and G.TIMERS.REAL or -(PVP.UI.timer.seconds() or 0)
 		local timer = (time_value / speedup) % self.cycle
 		local start_index = math.ceil(timer * #self.colours / self.cycle)
 		if start_index == 0 then start_index = 1 end
@@ -199,13 +199,13 @@ SMODS.Gradient({
 		mix_colours(G.C.IMPORTANT, G.C.WHITE, 0.55),
 	},
 	update = function(self, dt)
-		if #self.colours < 2 or not PVP.speedlatro_timer or not PVP.timer_screen then return end
+		if #self.colours < 2 or not PVP.UI.speedlatro_timer or not PVP.UI.timer.personal then return end
 		local speedup, seconds
 		if PVP.LOBBY.code then
-			local personal = PVP.timer_screen.personal()
+			local personal = PVP.UI.timer.personal()
 			speedup, seconds = personal and personal.rate or 1, personal and personal.seconds or 0
 		else
-			speedup, seconds = PVP.current_ruleset().timer_speedup_multiplier or 1, PVP.speedlatro_timer.real or 0
+			speedup, seconds = PVP.RULES.current().timer_speedup_multiplier or 1, PVP.UI.speedlatro_timer.real or 0
 		end
 
 		local timer_value = PVP.GAME.ready_blind and 0 or -seconds
@@ -229,7 +229,7 @@ SMODS.Gradient({
 -- pvp_api loads after ui, so the hint table is built on first use.
 local timer_tooltip_keys
 local function tooltip_keys()
-	local Tip = PVP.timer_reader.Tip
+	local Tip = PVP.READ.timer.Tip
 	timer_tooltip_keys = timer_tooltip_keys or {
 		[Tip.CAN_START] = { "k_timer_tip_can_start_1", "k_timer_tip_can_start_2" },
 		[Tip.CAN_PAUSE] = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" },
@@ -244,7 +244,7 @@ end
 
 -- Swap the tooltip only when the state changes; if it's open, rebuild it in place.
 local function update_timer_tooltip(e)
-	local state = PVP.timer_screen.tip()
+	local state = PVP.UI.timer.tip()
 	if e.config.mp_timer_tooltip_state == state then return end
 	e.config.mp_timer_tooltip_state = state
 	local text = {}
@@ -261,15 +261,15 @@ end
 function G.FUNCS.set_timer_box(e)
 	if PVP.LOBBY.config.timer then
 		update_timer_tooltip(e)
-		if PVP.timer_screen.timed() then
+		if PVP.UI.timer.timed() then
 			e.config.colour = G.C.DYN_UI.BOSS_DARK
 			-- Pulse because why not
 			e.children[1].config.object.colours = {
-				(PVP.timer_screen.seconds() or 0) > 0 and SMODS.Gradients["mp_timer_accelerated"] or G.C.IMPORTANT,
+				(PVP.UI.timer.seconds() or 0) > 0 and SMODS.Gradients["mp_timer_accelerated"] or G.C.IMPORTANT,
 			}
 			return
 		end
-		if not PVP.timer_screen.timing() and PVP.UI.cam_timer_opponent() then
+		if not PVP.UI.timer.timing() and PVP.UI.cam_timer_opponent() then
 			e.config.colour = G.C.IMPORTANT
 			e.children[1].config.object.colours = { G.C.UI.TEXT_LIGHT }
 			return
@@ -277,7 +277,7 @@ function G.FUNCS.set_timer_box(e)
 		e.config.colour = G.C.DYN_UI.BOSS_DARK
 		e.children[1].config.object.colours =
 			{
-                (not PVP.is_pvp_boss() and not PVP.GAME.pvp_countdown_in_progress and PVP.is_layer_active("pressure_timer"))
+                (not PVP.UTILS.is_pvp_blind() and not PVP.GAME.pvp_countdown_in_progress and PVP.RULES.is_layer_active("pressure_timer"))
                 and G.C.IMPORTANT or G.C.UI.TEXT_DARK
             }
 	end
@@ -291,10 +291,10 @@ local old_play = G.FUNCS.play_cards_from_highlighted
 -- A second Play before the first hand has been played is ignored (lib/play_lock.lua).
 -- Play is refused here too, not only on the button: a paused game keeps the button lit.
 function G.FUNCS.play_cards_from_highlighted(...)
-	if not PVP.pvp_blind_screen.may_play() then return end
-	local hand_played = PVP.pvp_blind_screen.play_body()
-	if not PVP.PlayLock.run(old_play, ...) then
+	if not PVP.UI.pvp_blind.may_play() then return end
+	local hand_played = PVP.UI.pvp_blind.play_body()
+	if not PVP.ACTIONS.play_lock.run(old_play, ...) then
 		return
 	end
-	PVP.pvp_blind_screen.send_hand_played(hand_played)
+	PVP.UI.pvp_blind.send_hand_played(hand_played)
 end

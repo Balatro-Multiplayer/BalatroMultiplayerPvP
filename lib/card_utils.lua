@@ -172,23 +172,23 @@ function PVP.UTILS.reorder_permutation(old_ids, cards)
 	return perm
 end
 
-function PVP.is_phantom(card)
+function PVP.NEMESIS.is_phantom(card)
 	return card.ability ~= nil and card.ability.mp_phantom == true
 end
 
 function PVP.UTILS.get_phantom_joker(key)
-	if not PVP.nemesis_jokers or not PVP.nemesis_jokers.cards then return nil end
-	for i = 1, #PVP.nemesis_jokers.cards do
-		local card = PVP.nemesis_jokers.cards[i]
-		if card.ability.name == key and PVP.is_phantom(card) then return card end
+	if not PVP.NEMESIS.jokers or not PVP.NEMESIS.jokers.cards then return nil end
+	for i = 1, #PVP.NEMESIS.jokers.cards do
+		local card = PVP.NEMESIS.jokers.cards[i]
+		if card.ability.name == key and PVP.NEMESIS.is_phantom(card) then return card end
 	end
 	return nil
 end
 
 function PVP.UTILS.run_for_each_phantom_joker(key, func)
-	if not PVP.nemesis_jokers or not PVP.nemesis_jokers.cards then return end
-	for i = 1, #PVP.nemesis_jokers.cards do
-		if PVP.nemesis_jokers.cards[i].ability.name == key then func(PVP.nemesis_jokers.cards[i]) end
+	if not PVP.NEMESIS.jokers or not PVP.NEMESIS.jokers.cards then return end
+	for i = 1, #PVP.NEMESIS.jokers.cards do
+		if PVP.NEMESIS.jokers.cards[i].ability.name == key then func(PVP.NEMESIS.jokers.cards[i]) end
 	end
 end
 
@@ -201,7 +201,7 @@ end
 -- Drives the grim/familiar/incantation lovely patch. Returns center *objects*
 -- (not keys) to match the vanilla loop body the patch slots into.
 function PVP.UTILS.get_spectral_enhancement_pool()
-	local bans = PVP.current_ruleset().spectral_banned_enhancements
+	local bans = PVP.RULES.current().spectral_banned_enhancements
 	local ban_set = {}
 	if bans then
 		for _, k in ipairs(bans) do

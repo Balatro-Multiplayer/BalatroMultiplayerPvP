@@ -21,11 +21,9 @@ PVP.BANNED_MODS = {
 
 PVP.LOBBY = {
 	connected = false,
-	temp_code = "",
 	temp_seed = "",
 	code = nil,
-	type = "",
-	config = {}, -- Now set in PVP.reset_lobby_config
+	config = {}, -- Now set in PVP.LOBBY.reset_config
 	deck = {
 		back = "Red Deck",
 		sleeve = "sleeve_casl_none",
@@ -40,25 +38,37 @@ PVP.LOBBY = {
 	ready_to_start = false,
 }
 PVP.GAME = {}
-PVP.UI = {}
+PVP.UI = {
+	queue = {},
+	timer = {},
+	mode_chips = {},
+	run_options = {},
+	end_screen = {},
+	card_info = {},
+	find_game = {},
+	lobby_options = {},
+	contest = {},
+	pre_lobby = {},
+	game_select = {},
+	blind_end = {},
+}
 PVP.ACTIONS = {}
-PVP.MOD_ACTIONS = {}
+
+-- Role tables and feature tables, created here so no file depends on load order for its own table.
+PVP.NET = {}
+PVP.READ = {}
+PVP.QUEUE = {}
+PVP.REPLAY = {}
+PVP.RULES = {}
+PVP.NEMESIS = {}
+PVP.PRACTICE = {}
+PVP.VERIFIED = {}
+PVP.COCKTAIL = {}
+PVP.SCORE = {}
+PVP.CONTEST = {}
 
 -- SMODS flag: lets cards count as multiple enhancements at once (required by Alloy)
 PVP.optional_features = { quantum_enhancements = false }
-
-function PVP.register_mod_action(modAction, callback, modId)
-	if not modId then
-		local mod = SMODS.current_mod
-		if not mod then
-			sendWarnMessage("PVP.register_mod_action called outside of mod init without a modId", "MULTIPLAYER")
-			return
-		end
-		modId = mod.id
-	end
-	PVP.MOD_ACTIONS[modId] = PVP.MOD_ACTIONS[modId] or {}
-	PVP.MOD_ACTIONS[modId][modAction] = callback
-end
 
 PVP.INTEGRATIONS = {
 	Preview = PVP.config.integrations.Preview,
@@ -112,11 +122,11 @@ PVP.MIN_LOVELY_VERSION = "0.10.0"
 -- The Order (deterministic/anti-desync RNG) engine now lives entirely in the API
 -- (BalatroMultiplayerAPI/api/the_order/). We delegate the gate + helpers to the
 -- API's single implementation instead of shipping our own copy (was compatibility/TheOrder.lua).
-function PVP.should_use_the_order()
+function PVP.RULES.use_the_order()
 	return MPAPI.should_use_the_order()
 end
 
-function PVP.is_major_league_ruleset()
+function PVP.RULES.is_major_league()
 	return PVP.LOBBY and PVP.LOBBY.config and PVP.LOBBY.config.ruleset == "ruleset_mp_majorleague" and PVP.LOBBY.code
 end
 
@@ -129,12 +139,12 @@ MPAPI.register_order_gate(function()
 	if not (config and config.the_order) then
 		return false
 	end
-	return (PVP.is_practice_mode() or PVP.LOBBY.code ~= nil) and true or false
+	return (PVP.PRACTICE.is_on() or PVP.LOBBY.code ~= nil) and true or false
 end)
 
 -- MLBa plays without The Order, but its voucher queue and The Idol's card follow it.
 local function in_major_league_lobby()
-	return PVP.is_major_league_ruleset() and true or false
+	return PVP.RULES.is_major_league() and true or false
 end
 
 MPAPI.register_voucher_queue_gate(in_major_league_lobby)
@@ -143,13 +153,12 @@ MPAPI.register_idol_gate(in_major_league_lobby)
 -- Legacy PVP.* aliases for The Order queue helpers, kept because live content still calls
 -- them (objects/jokers/standard/bloodstone, objects/boosters/standard_giga, ui/game/blind_choice,
 -- layers/smallworld). They forward to the API's implementations.
-PVP.ante_based = MPAPI.ante_based
-PVP.order_round_based = MPAPI.order_round_based
-PVP.sorted_hand_list = MPAPI.sorted_hand_list
+PVP.RULES.ante_based = MPAPI.ante_based
+PVP.RULES.order_round_based = MPAPI.order_round_based
 
--- Stub until rulesets/_rulesets.lua (PVP.load_mp_dir("rulesets") below) defines PVP.current_ruleset:
+-- Stub until rulesets/_rulesets.lua (PVP.load_mp_dir("rulesets") below) defines PVP.RULES.current:
 -- a ruleset read while the mod is still loading gets an empty ruleset instead of a nil call.
-function PVP.current_ruleset()
+function PVP.RULES.current()
 	return {}
 end
 
@@ -201,7 +210,7 @@ end
 PVP.load_mp_dir("lib")
 PVP.load_mp_dir("overrides")
 
-function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
+function PVP.LOBBY.reset_config(persist_ruleset_and_gamemode)
 	PVP.match_log("debug", "Resetting lobby options")
 	PVP.LOBBY.config = {
 		gold_on_life_loss = true,
@@ -238,19 +247,16 @@ function PVP.reset_lobby_config(persist_ruleset_and_gamemode)
 		smallerworld = false,
 	}
 end
-PVP.reset_lobby_config()
+PVP.LOBBY.reset_config()
 
-function PVP.reset_game_states()
+function PVP.LOBBY.reset_game()
 	PVP.match_log("debug", "Resetting game states")
-	-- Players who started the match (lib/match_players.lua); set by game_effects.start_game.
-	PVP._match_players = nil
-	-- This client's clock readings for the run: a new game or a Run load starts without them.
-	PVP._run_started_at = nil
-	PVP.magnet_request_at = nil
+	-- Players who started the match (lib/match_players.lua); set by UI.match.start_game.
+	PVP.LOBBY.match_players = nil
 	PVP.GAME = {
 		ready_blind = false,
 		ready_blind_text = localize("b_ready"),
-		-- Where the PvP blind's hands and score come from (pvp_blind_reader.lua).
+		-- Where the PvP blind's hands and score come from (pvp_api/read/pvp_blind.lua).
 		hands_source = { kind = "game" },
 		-- "not yet", "by out" (out before any result), "by result" or "by contest": how the end screen came.
 		end_shown = "not yet",
@@ -260,9 +266,9 @@ function PVP.reset_game_states()
 		comeback_bonus = 0,
 		end_pvp = false,
 		enemy = {
-			score = PVP.Score.ZERO,
-			real_score = PVP.Score.ZERO,
-			score_text = PVP.Score.ZERO,
+			score = PVP.SCORE.ZERO,
+			real_score = PVP.SCORE.ZERO,
+			score_text = PVP.SCORE.ZERO,
 			-- hands stays unset until the blind starts and the opponent's starting count is known.
 			hands_text = localize("k_pvp_hands_unknown"),
 			-- Whether an enemyInfo message has arrived this blind.
@@ -274,7 +280,7 @@ function PVP.reset_game_states()
 			skips = 0,
 			sells_per_ante = {},
 			spent_in_shop = {},
-			highest_score = PVP.Score.ZERO,
+			highest_score = PVP.SCORE.ZERO,
 		},
 		location = "loc_selecting",
 		next_blind_context = nil,
@@ -286,9 +292,9 @@ function PVP.reset_game_states()
 		misprint_display = "",
 		spent_total = 0,
 		spent_before_shop = 0,
-		highest_score = PVP.Score.ZERO,
+		highest_score = PVP.SCORE.ZERO,
 		-- Best score in a PvP blind only; highest_score above counts every blind.
-		highest_pvp_score = PVP.Score.ZERO,
+		highest_pvp_score = PVP.SCORE.ZERO,
 		pvp_countdown = 0,
 		pincher_index = -3,
 		pincher_unlock = false,
@@ -302,7 +308,7 @@ function PVP.reset_game_states()
 		},
 	}
 end
-PVP.reset_game_states()
+PVP.LOBBY.reset_game()
 
 PVP.LOBBY.username = PVP.UTILS.get_username()
 PVP.LOBBY.blind_col = PVP.UTILS.get_blind_col()
@@ -382,14 +388,14 @@ PVP.load_mp_dir("objects/vouchers")
 -- lobbies, matchmaking, leaderboards, and the main-menu host, so we no longer start
 -- our own socket thread. Instead we register with
 -- the API once it signals ready; it then lists "PvP" in its account panel and swaps
--- in our menu (PVP.build_pre_lobby_ui) when the player selects it.
+-- in our menu (PVP.UI.pre_lobby.build) when the player selects it.
 --
 MPAPI.on_loaded(function()
 	MPAPI.Page({
 		key = 'pvp_main_menu',
 		category = 'mod_menu',
 		build = function(self)
-			return PVP.build_pre_lobby_ui()
+			return PVP.UI.pre_lobby.build()
 		end,
 		-- Fixes the logo back to its normal spot regardless of which page was previously
 		-- showing -- entering from pvp_find_game (which nudges it up via
@@ -405,7 +411,7 @@ MPAPI.on_loaded(function()
 		key = 'pvp_lobby',
 		category = 'lobby_menu',
 		build = function(self)
-			return PVP.build_in_lobby_ui()
+			return PVP.UI.lobby.build()
 		end,
 	})
 
@@ -415,7 +421,7 @@ MPAPI.on_loaded(function()
 		key = 'pvp_game_select',
 		category = 'game_select',
 		build = function(self)
-			self._pillar_row = PVP.build_game_select_ui(self.params and self.params.intent)
+			self._pillar_row = PVP.UI.game_select.build(self.params and self.params.intent)
 			return self._pillar_row.definition
 		end,
 		on_enter = function(self)
@@ -439,7 +445,7 @@ MPAPI.on_loaded(function()
 		key = 'pvp_find_game',
 		category = 'game_select',
 		build = function(self)
-			self._pillar_row = PVP.build_find_game_ui(self.params and self.params.category, self.params and self.params.group)
+			self._pillar_row = PVP.UI.find_game.build(self.params and self.params.category, self.params and self.params.group)
 			return self._pillar_row.definition
 		end,
 		on_enter = function(self)
@@ -458,13 +464,13 @@ MPAPI.on_loaded(function()
 			-- value SPDRN's own main-menu cleanup uses for unrelated reasons) clears both. -3.2
 			-- since the pillars grew to fit the Ranked standing row, which raised the tab row too.
 			MPAPI.set_logo_offset(-3.2, true)
-			PVP.start_find_game_polling()
+			PVP.UI.find_game.start_polling()
 		end,
 		dispose = function(self)
 			if self._pillar_row then
 				self._pillar_row:dispose()
 			end
-			PVP.stop_find_game_polling()
+			PVP.UI.find_game.stop_polling()
 		end,
 	})
 
@@ -477,7 +483,7 @@ MPAPI.on_loaded(function()
 		-- Custom in-run pause menu (Settings + Seed Change + Forfeit), built by the API's
 		-- options_builder hook instead of the vanilla options box (see ui/pvp_run_options.lua).
 		prevent_pause = true,
-		options_builder = PVP.create_run_options,
+		options_builder = PVP.UI.run_options.build,
 		-- Custom title logo shown while PvP's menu is focused (atlas in ui/pvp_title.lua).
 		-- Prefixed with the mod prefix "mp" like every SMODS key.
 		title = "mp_pvp_title",
@@ -487,20 +493,20 @@ MPAPI.on_loaded(function()
 	-- their SMODS GameObjects are tagged to this mod — per-lobby routing requires it.
 	PVP.load_mp_dir("pvp_api", true)
 
-	-- The match net is the only way the lobby talks to the server in PvP: its view, inputs and inbox.
-	PVP.match_net.register()
-	PVP.match_net.handlers = PVP.inbox_handlers.effects
-	PVP.entry_screen.install(PVP.match_net)
-	PVP.lobby_screen.install(PVP.match_net)
-	PVP.timer_screen.install(PVP.match_net)
+	-- The server link is the only way the lobby talks to the server in PvP: its view, inputs and inbox.
+	PVP.NET.register()
+	PVP.NET.inbox.install(PVP.NET)
+	PVP.UI.blind_start.install(PVP.NET)
+	PVP.UI.lobby.install(PVP.NET)
+	PVP.UI.timer.install(PVP.NET)
 
 	MPAPI.on_connection_state_change(function()
 		if PVP.UI and PVP.UI.update_connection_status then
 			pcall(PVP.UI.update_connection_status)
 		end
 		-- Refresh the reactive main-menu buttons so they enable once connected.
-		if PVP.update_main_menu_buttons then
-			pcall(PVP.update_main_menu_buttons)
+		if PVP.UI.main_menu.update_buttons then
+			pcall(PVP.UI.main_menu.update_buttons)
 		end
 	end)
 end)

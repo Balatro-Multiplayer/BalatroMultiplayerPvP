@@ -16,11 +16,11 @@ end
 -- The live lobby replaces the local one.
 local function attach(lobby, _ctx)
 	-- Left set, the resumed run stays a practice run and its PvP blinds never reach the server.
-	PVP.SP.practice = false
-	PVP.SP.playback_gamemode = nil
-	PVP._pvp_kind = PVP.rejoined_lobby_kind(lobby)
+	PVP.PRACTICE.practice = false
+	PVP.PRACTICE.playback_gamemode = nil
+	PVP.LOBBY.kind = PVP.LOBBY.rejoined_kind(lobby)
 	-- Before MPAPI plays the held messages, so the view lands on a reset state.
-	PVP.setup_lobby_mirror(lobby)
+	PVP.LOBBY.mirror(lobby)
 end
 
 MPAPI.playback.register_rejoin_hooks(PVP.id, {
@@ -30,12 +30,12 @@ MPAPI.playback.register_rejoin_hooks(PVP.id, {
 	read_lobby_info = read_lobby_info,
 	read_run_info = read_run_info,
 	start_run = function(bootstrap, on_ready)
-		PVP._start_playback(bootstrap, on_ready)
+		PVP.REPLAY.start(bootstrap, on_ready)
 	end,
 	attach = attach,
 	-- The seat was lost before the run went live: nobody can play on, so leave.
 	aborted = function()
-		PVP._drop_playback_waiters()
+		PVP.REPLAY.drop_waiters()
 		G.FUNCS.go_to_menu()
 	end,
 })

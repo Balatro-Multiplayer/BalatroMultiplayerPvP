@@ -1,5 +1,5 @@
 -- Independent streams survive Balatro reseeding math.random for each run.
-function PVP.new_rng()
+function PVP.UTILS.new_rng()
 	local generator
 	return function(...)
 		if not (love and love.math) then return math.random(...) end

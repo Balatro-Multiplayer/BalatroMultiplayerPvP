@@ -1,7 +1,7 @@
 -- Run from the repo root: luajit tests/unit/run_totals_test.lua
-PVP = {}
+PVP = { NET = {}, READ = {}, UI = {} }
 dofile("lib/run_totals.lua")
-local next_total = PVP.run_totals.next_total
+local next_total = PVP.NET.totals.next_total
 
 local function eq(actual, expected, message)
 	assert(actual == expected, string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)))

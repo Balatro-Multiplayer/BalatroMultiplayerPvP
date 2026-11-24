@@ -60,7 +60,7 @@ target = "card.lua"
 pattern = 'for i = self.ability.extra.min, self.ability.extra.max do'
 position = "before"
 payload = '''
-local mp_collection = self.area.config.type == "title" and PVP.in_session()
+local mp_collection = self.area.config.type == "title" and PVP.LOBBY.in_session()
 '''
 match_indent = true
 
@@ -92,7 +92,7 @@ match_indent = true
 target = "back.lua"
 pattern = '''local card = create_card('Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
 position = "at"
-payload = '''local card = create_card(PVP.in_session() and G.P_CENTERS[v].set or 'Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
+payload = '''local card = create_card(PVP.LOBBY.in_session() and G.P_CENTERS[v].set or 'Tarot', G.consumeables, nil, nil, nil, nil, v, 'deck')'''
 match_indent = true
 
 # Added in 0a583263 ("fix voucher desync", BalatroMultiplayer, 2025-08-28): The
@@ -105,7 +105,7 @@ match_indent = true
 target = "functions/misc_functions.lua"
 pattern = '''if G.SETTINGS.paused and key ~= 'to_do' then return math.random() end'''
 position = "at"
-payload = '''if G.SETTINGS.paused and key ~= 'to_do' and not PVP.in_session() then return math.random() end'''
+payload = '''if G.SETTINGS.paused and key ~= 'to_do' and not PVP.LOBBY.in_session() then return math.random() end'''
 match_indent = true
 
 # Pool exclusion hook (RNG-safe removal from get_current_pool) moved to
@@ -136,7 +136,7 @@ target = "functions/UI_definitions.lua"
 pattern = "local flags = SMODS.calculate_context({create_shop_card = true, set = v.type*})"
 position = 'before'
 payload = '''
-if PVP.in_session() then args.front = false end
+if PVP.LOBBY.in_session() then args.front = false end
 '''
 match_indent = true
 times = 1
@@ -148,7 +148,7 @@ target = "functions/misc_functions.lua"
 pattern = '''collectgarbage("collect")'''
 position = 'before'
 payload = '''
-PVP._DEBUG_PANIC_COLLECTS = (PVP._DEBUG_PANIC_COLLECTS or 0) + 1
+PVP.EXPERIMENTAL.panic_collects = (PVP.EXPERIMENTAL.panic_collects or 0) + 1
 '''
 match_indent = true
 times = 1

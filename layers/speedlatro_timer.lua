@@ -10,8 +10,8 @@ MPAPI.Layer("speedlatro_timer", {
 local base_timer = 147
 
 local function create_text()
-	PVP.speedlatro_timer = { real = base_timer, display = PVP.timer_reader.hundredths_text(base_timer) }
-	PVP.speedlatro_timer.text = UIBox({
+	PVP.UI.speedlatro_timer = { real = base_timer, display = PVP.READ.timer.hundredths_text(base_timer) }
+	PVP.UI.speedlatro_timer.text = UIBox({
 		definition = {
 			n = G.UIT.ROOT,
 			config = { align = "cm", colour = G.C.CLEAR, padding = 0.2 },
@@ -26,7 +26,7 @@ local function create_text()
 								func = "mp_update_speedlatro_timer",
 								object = DynaText({
 									scale = 1.1,
-									string = { { ref_table = PVP.speedlatro_timer, ref_value = "display" } },
+									string = { { ref_table = PVP.UI.speedlatro_timer, ref_value = "display" } },
 									maxw = 18,
 									colours = { G.C.WHITE },
 									float = true,
@@ -49,14 +49,14 @@ local function create_text()
 	})
 end
 
--- No lobby: the clock is local (seconds in PVP.speedlatro_timer.real) and its run-out ends the run.
+-- No lobby: the clock is local (seconds in PVP.UI.speedlatro_timer.real) and its run-out ends the run.
 local function tick_local(dt)
-	local timer = PVP.speedlatro_timer
+	local timer = PVP.UI.speedlatro_timer
 	if not (G.CONTROLLER.locks.enter_pvp or PVP.GAME.ready_blind or timer.wait) then
-		local self_score = PVP.Score.from_game_value(G.GAME.chips)
-		if (not PVP.is_pvp_boss()) or PVP.Score.greater(PVP.GAME.enemy.score, self_score) then
-			local speedup = PVP.current_ruleset().timer_speedup_multiplier or 2
-			local tick_mult = (PVP.timer_screen.clock() == "against me" and not PVP.is_pvp_boss()) and speedup or 1
+		local self_score = PVP.SCORE.from_game_value(G.GAME.chips)
+		if (not PVP.UTILS.is_pvp_blind()) or PVP.SCORE.greater(PVP.GAME.enemy.score, self_score) then
+			local speedup = PVP.RULES.current().timer_speedup_multiplier or 2
+			local tick_mult = (PVP.UI.timer.clock() == "against me" and not PVP.UTILS.is_pvp_blind()) and speedup or 1
 			timer.real = timer.real - dt * tick_mult
 		end
 	end
@@ -67,23 +67,23 @@ local function tick_local(dt)
 			G.STATE_COMPLETE = false
 		end
 	end
-	timer.display = PVP.timer_reader.hundredths_text(timer.real)
+	timer.display = PVP.READ.timer.hundredths_text(timer.real)
 end
 
 local game_update = Game.update
 function Game:update(dt)
-	if PVP.is_layer_active("speedlatro_timer") and G.STAGE == G.STAGES.RUN then
-		if not PVP.speedlatro_timer then create_text() end
+	if PVP.RULES.is_layer_active("speedlatro_timer") and G.STAGE == G.STAGES.RUN then
+		if not PVP.UI.speedlatro_timer then create_text() end
 		if PVP.LOBBY.code then
 			-- In a lobby the server owns the clock and its run-out.
-			local personal = PVP.timer_screen and PVP.timer_screen.personal()
-			PVP.speedlatro_timer.display = personal and PVP.timer_reader.hundredths_text(personal.seconds) or localize("k_timer_none")
+			local personal = PVP.UI.timer.personal and PVP.UI.timer.personal()
+			PVP.UI.speedlatro_timer.display = personal and PVP.READ.timer.hundredths_text(personal.seconds) or localize("k_timer_none")
 		else
 			tick_local(dt)
 		end
-	elseif PVP.speedlatro_timer then
-		PVP.speedlatro_timer.text:remove()
-		PVP.speedlatro_timer = nil
+	elseif PVP.UI.speedlatro_timer then
+		PVP.UI.speedlatro_timer.text:remove()
+		PVP.UI.speedlatro_timer = nil
 	end
 	return game_update(self, dt)
 end
@@ -91,12 +91,12 @@ end
 -- No lobby only: the local clock's refills. In a lobby the server refills it.
 local new_round_ref = new_round
 function new_round()
-	if PVP.is_layer_active("speedlatro_timer") and not PVP.LOBBY.code and PVP.speedlatro_timer then
+	if PVP.RULES.is_layer_active("speedlatro_timer") and not PVP.LOBBY.code and PVP.UI.speedlatro_timer then
 		if
 			G.GAME.round_resets.blind ~= G.P_BLINDS["bl_small"]
 			and G.GAME.round_resets.blind ~= G.P_BLINDS["bl_big"]
 		then
-			PVP.speedlatro_timer.real = base_timer / 2
+			PVP.UI.speedlatro_timer.real = base_timer / 2
 		end
 	end
 	return new_round_ref()
@@ -104,8 +104,8 @@ end
 
 local end_round_ref = end_round
 function end_round()
-	if PVP.is_layer_active("speedlatro_timer") and not PVP.LOBBY.code and PVP.speedlatro_timer then
-		if G.GAME.blind:get_type() == "Boss" then PVP.speedlatro_timer.real = base_timer end
+	if PVP.RULES.is_layer_active("speedlatro_timer") and not PVP.LOBBY.code and PVP.UI.speedlatro_timer then
+		if G.GAME.blind:get_type() == "Boss" then PVP.UI.speedlatro_timer.real = base_timer end
 	end
 	return end_round_ref()
 end
@@ -114,11 +114,11 @@ G.FUNCS.mp_update_speedlatro_timer = function(e)
 	if not e.config.object then return end
 	local accelerated
 	if PVP.LOBBY.code then
-		accelerated = PVP.timer_reader.accelerated(PVP.timer_screen.personal())
+		accelerated = PVP.READ.timer.accelerated(PVP.UI.timer.personal())
 	else
-		accelerated = PVP.timer_screen.clock() == "against me"
-			and not PVP.is_pvp_boss()
-			and PVP.speedlatro_timer.real > 0
+		accelerated = PVP.UI.timer.clock() == "against me"
+			and not PVP.UTILS.is_pvp_blind()
+			and PVP.UI.speedlatro_timer.real > 0
 	end
 	e.config.object.colours[1] = accelerated and SMODS.Gradients["mp_speedlatro_timer_accelerated"] or G.C.WHITE
 end

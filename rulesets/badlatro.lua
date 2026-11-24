@@ -1,4 +1,4 @@
-PVP.Ruleset({
+PVP.RULES.Ruleset({
 	key = "badlatro",
-	layers = { "badlatro", PVP.LayerKey.MULTIPLAYER_CONTENT },
+	layers = { "badlatro", PVP.RULES.LayerKey.MULTIPLAYER_CONTENT },
 }):inject()

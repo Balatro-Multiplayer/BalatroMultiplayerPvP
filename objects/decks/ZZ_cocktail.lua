@@ -23,7 +23,7 @@ SMODS.Back({
 		G.GAME.pseudorandom.seed = seed or generate_starting_seed()
 		G.GAME.modifiers.mp_cocktail = {}
 		G.GAME.modifiers.mp_cocktail_sticker = {}
-		local decks, forced = PVP.get_cocktail_decks(true)
+		local decks, forced = PVP.COCKTAIL.decks(true)
 		pseudoshuffle(decks, pseudoseed("mp_cocktail"))
 		local back = G.GAME.selected_back
 
@@ -47,7 +47,7 @@ SMODS.Back({
 			add_deck(i, forced[i], true)
 		end
 		for i = 1, math.min(3 - #forced, #decks) do
-			add_deck(#forced + i, decks[i], PVP.cocktail_cfg_readpos("show", true) ~= "H" and true or false)
+			add_deck(#forced + i, decks[i], PVP.COCKTAIL.cfg_readpos("show", true) ~= "H" and true or false)
 		end
 		local function merge(t1, t2, safe)
 			local t3 = {}
@@ -99,9 +99,9 @@ SMODS.Back({
 				G.GAME.modifiers.b_aij_patchwork = true
 			end
 		end
-		if PVP.is_layer_active("smallworld") then PVP.apply_fake_back_vouchers(back) end
+		if PVP.RULES.is_layer_active("smallworld") then PVP.RULES.fake_back_vouchers(back) end
 		back.effect.mp_cocktailed = true
-		if PVP.cocktail_check_edited() then G.GAME.seeded = true end
+		if PVP.COCKTAIL.check_edited() then G.GAME.seeded = true end
 	end,
 	calculate = function(self, back, context)
 		for i = 1, #G.GAME.modifiers.mp_cocktail do
@@ -143,7 +143,7 @@ local sticker_x_pos = {
 }
 
 -- Reject unsupported recipes as a whole: every player must apply the same decks.
-function PVP.receive_cocktail_recipe(recipe)
+function PVP.COCKTAIL.receive_recipe(recipe)
 	if recipe == nil or recipe == false then
 		PVP.LOBBY.deck.cocktail_recipe = nil
 		return true
@@ -169,7 +169,7 @@ function PVP.receive_cocktail_recipe(recipe)
 		end
 	end
 	if err then
-		PVP.pvp_leave_lobby()
+		PVP.LOBBY.leave()
 		PVP.UI.UTILS.overlay_message(err .. " Please check that all players have the same mods.")
 		return false
 	end
@@ -181,7 +181,7 @@ function PVP.receive_cocktail_recipe(recipe)
 	return true
 end
 
-function PVP.cocktail_recipe()
+function PVP.COCKTAIL.recipe()
 	local recipe = PVP.LOBBY.code and PVP.LOBBY.deck.cocktail_recipe
 	if not recipe then return nil end
 	local decks = {}
@@ -191,13 +191,13 @@ function PVP.cocktail_recipe()
 	return { name = recipe.name, decks = decks }
 end
 
-local roll = PVP.new_rng()
+local roll = PVP.UTILS.new_rng()
 
 -- Private lobbies share the host's forced decks plus random picks, up to three.
-function PVP.roll_cocktail_recipe()
+function PVP.COCKTAIL.roll_recipe()
 	local pool, decks = {}, {}
-	for i, key in ipairs(PVP.get_cocktail_decks()) do
-		local pos = PVP.cocktail_cfg_readpos(i)
+	for i, key in ipairs(PVP.COCKTAIL.decks()) do
+		local pos = PVP.COCKTAIL.cfg_readpos(i)
 		if pos == "2" and #decks < 3 then
 			decks[#decks + 1] = key
 		elseif pos == "1" then
@@ -211,8 +211,8 @@ function PVP.roll_cocktail_recipe()
 	return { decks = decks }
 end
 
-function PVP.get_cocktail_decks(cull)
-	local recipe = cull and PVP.cocktail_recipe()
+function PVP.COCKTAIL.decks(cull)
+	local recipe = cull and PVP.COCKTAIL.recipe()
 	if recipe then return {}, recipe.decks end
 	local ret = {}
 	local forced = {}
@@ -227,9 +227,9 @@ function PVP.get_cocktail_decks(cull)
 	if cull then
 		local _ret = {}
 		for i, v in ipairs(ret) do
-			if PVP.cocktail_cfg_readpos(i, true) == "1" then
+			if PVP.COCKTAIL.cfg_readpos(i, true) == "1" then
 				_ret[#_ret + 1] = ret[i]
-			elseif PVP.cocktail_cfg_readpos(i, true) == "2" then
+			elseif PVP.COCKTAIL.cfg_readpos(i, true) == "2" then
 				forced[#forced + 1] = ret[i]
 			end
 		end
@@ -285,7 +285,7 @@ function Card:click() -- i'd rather deal with the cardarea but this is fine i su
 					{ card_limit = 5, type = "title", highlight_limit = 999, collection = true }
 				)
 			end
-			local decks = PVP.get_cocktail_decks()
+			local decks = PVP.COCKTAIL.decks()
 			local cfg = PVP.config
 			for i, v in ipairs(decks) do
 				local row = math.floor((((i - 1) / #decks) * 2) + 1)
@@ -303,12 +303,12 @@ function Card:click() -- i'd rather deal with the cardarea but this is fine i su
 				card.sprite_facing = "back"
 				card.facing = "back"
 				card.mp_cocktail_select = v
-				local num = PVP.cocktail_cfg_readpos(i)
+				local num = PVP.COCKTAIL.cfg_readpos(i)
 				card.highlighted = tonumber(num) >= 1 and true or false
 				card.mp_cocktail_forced = num == "2" and true or false
 			end
 			G.GAME.viewed_back = MPAPI.back_for_key("b_mp_cocktail")
-			PVP.show_cocktail_decks = PVP.cocktail_cfg_readpos("show") ~= "H" and true or false
+			PVP.COCKTAIL.show_decks = PVP.COCKTAIL.cfg_readpos("show") ~= "H" and true or false
 			deck_tables = {}
 			for i = 1, #G.cocktail_select do
 				deck_tables[i] = {
@@ -333,10 +333,10 @@ function Card:click() -- i'd rather deal with the cardarea but this is fine i su
 							create_toggle({
 								id = "show_cocktail_decks",
 								label = "Show active decks during run",
-								ref_table = PVP,
-								ref_value = "show_cocktail_decks",
+								ref_table = PVP.COCKTAIL,
+								ref_value = "show_decks",
 								callback = function(bool)
-									PVP.cocktail_cfg_edit(bool, "show")
+									PVP.COCKTAIL.cfg_edit(bool, "show")
 								end,
 							}),
 						},
@@ -557,7 +557,7 @@ function Card:highlight(is_highlighted)
 			self.mp_cocktail_forced = false
 		elseif shift then
 			is_highlighted = true
-			if PVP.cocktail_get_forced_num() < 3 then
+			if PVP.COCKTAIL.forced_num() < 3 then
 				self.mp_cocktail_forced = true
 				play_sound("foil1", 1.5, 0.3)
 			else
@@ -565,7 +565,7 @@ function Card:highlight(is_highlighted)
 				play_sound("timpani", 1.2, 0.7)
 			end
 		end
-		PVP.cocktail_cfg_edit(self.mp_cocktail_forced and 2 or is_highlighted, self.mp_cocktail_select)
+		PVP.COCKTAIL.cfg_edit(self.mp_cocktail_forced and 2 or is_highlighted, self.mp_cocktail_select)
 	end
 	return highlight_ref(self, is_highlighted)
 end
@@ -595,7 +595,7 @@ function Controller:queue_R_cursor_press(x, y)
 		else
 			play_sound("cardSlide2", nil, 0.3)
 		end
-		PVP.cocktail_cfg_edit(highlight)
+		PVP.COCKTAIL.cfg_edit(highlight)
 	end
 	return ret
 end
@@ -603,7 +603,7 @@ end
 -- kill me
 G.E_MANAGER:add_event(Event({
 	func = function()
-		local decks = PVP.get_cocktail_decks()
+		local decks = PVP.COCKTAIL.decks()
 		local cfg = PVP.config
 		if (not cfg.cocktail) or #decks + 1 ~= #cfg.cocktail then
 			local string = ""
@@ -618,8 +618,8 @@ G.E_MANAGER:add_event(Event({
 	end,
 }))
 
-function PVP.cocktail_cfg_edit(bool, deck) -- strings are easier to send, and it's just ones and zeroes
-	local decks = PVP.get_cocktail_decks()
+function PVP.COCKTAIL.cfg_edit(bool, deck) -- strings are easier to send, and it's just ones and zeroes
+	local decks = PVP.COCKTAIL.decks()
 	local cfg = PVP.config
 	local num = (bool == 2) and "2" or (bool and "1" or "0")
 	if not deck then
@@ -627,7 +627,7 @@ function PVP.cocktail_cfg_edit(bool, deck) -- strings are easier to send, and it
 		for i = 1, #decks do
 			string = string .. num
 		end
-		local show = PVP.cocktail_cfg_readpos("show")
+		local show = PVP.COCKTAIL.cfg_readpos("show")
 		string = string .. show
 		cfg.cocktail = string
 	else
@@ -646,26 +646,26 @@ function PVP.cocktail_cfg_edit(bool, deck) -- strings are easier to send, and it
 	SMODS.save_mod_config(PVP)
 end
 
-function PVP.cocktail_cfg_readpos(pos, construct)
-	local cfg = construct and PVP.cocktail_cfg_get() or PVP.config.cocktail
+function PVP.COCKTAIL.cfg_readpos(pos, construct)
+	local cfg = construct and PVP.COCKTAIL.cfg_get() or PVP.config.cocktail
 	if pos == "show" then pos = #cfg end
 	return cfg:sub(pos, pos)
 end
 
-function PVP.cocktail_cfg_get()
+function PVP.COCKTAIL.cfg_get()
 	if PVP.LOBBY.code and PVP.LOBBY.deck and PVP.LOBBY.deck.cocktail then
 		local cfg = PVP.LOBBY.deck.cocktail
 		-- Matchmaking has no custom selection. Use the same default pool on
 		-- every client, not each player's saved single-player preferences.
-		if cfg == "" then return string.rep("1", #PVP.get_cocktail_decks()) .. "H" end
+		if cfg == "" then return string.rep("1", #PVP.COCKTAIL.decks()) .. "H" end
 		return cfg
 	else
 		return PVP.config.cocktail
 	end
 end
 
-function PVP.cocktail_check_edited()
-	local str = PVP.cocktail_cfg_get()
+function PVP.COCKTAIL.check_edited()
+	local str = PVP.COCKTAIL.cfg_get()
 	for i = 1, #str - 1 do
 		if string.sub(str, i, i) ~= "1" then return true end
 	end
@@ -673,7 +673,7 @@ function PVP.cocktail_check_edited()
 	return false
 end
 
-function PVP.cocktail_get_forced_num()
+function PVP.COCKTAIL.forced_num()
 	local str = PVP.config.cocktail
 	local c = 0
 	for i = 1, #str - 1 do
@@ -687,7 +687,7 @@ function localize(args, misc_cat)
 	if args and type(args) == "table" and args.key then
 		local key = args.key or args.node and args.node.config.center.key or "NULL"
 		-- A lobby's Cocktail: its own name, and its decks' names as the description.
-		local recipe = key == "b_mp_cocktail" and PVP.cocktail_recipe()
+		local recipe = key == "b_mp_cocktail" and PVP.COCKTAIL.recipe()
 		if recipe and args.type == "name_text" and recipe.name then return recipe.name end
 		if recipe and args.type == "descriptions" then
 			local mix = {}
@@ -704,7 +704,7 @@ function localize(args, misc_cat)
 		end
 		local ret = localize_ref(args, misc_cat)
 		if args.type == "name_text" and key == "b_mp_cocktail" then
-			if PVP.cocktail_check_edited() then return ret .. "*" end
+			if PVP.COCKTAIL.check_edited() then return ret .. "*" end
 		end
 		return ret
 	else

@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/trap_magic_mouth_test.lua
 -- lib/trap_utils_magic_mouth.lua: a Magic Mouth takes the seal reward card from its holder only when
 -- its fire can be sent; a card the server would refuse stays with its player and the trap stays live.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local warnings = {}
 function sendWarnMessage(text) warnings[#warnings + 1] = text end
@@ -50,13 +45,13 @@ Card = {
 	can_sell_card = function() return true end,
 	start_dissolve = function() end,
 }
-PVP = { in_session = function() return true end, UI = {} }
+PVP = { NET = {}, READ = {}, LOBBY = { in_session = function() return true end }, UI = {} }
 
 dofile("lib/run_totals.lua")
-dofile("pvp_api/_view.lua")
-dofile("pvp_api/_trap_data.lua")
-dofile("pvp_api/trap_reader.lua")
-dofile("pvp_api/trap_screen.lua")
+dofile("pvp_api/read/_view.lua")
+dofile("pvp_api/read/_trap_record.lua")
+dofile("pvp_api/read/trap.lua")
+dofile("pvp_api/ui/trap.lua")
 dofile("lib/trap_utils.lua")
 PVP.TRAP.fire = function(trap, data) fired[#fired + 1] = { trap = trap, data = data } end
 dofile("lib/trap_utils_magic_mouth.lua")
@@ -114,4 +109,4 @@ Card.calculate_seal({ seal = "Purple" }, {})
 run_queue()
 eq(#fired, 0, "a Purple Seal's oversized reward is left too")
 
-print("trap_magic_mouth_test: ok (" .. checks .. " checks)")
+T.done("trap_magic_mouth_test")

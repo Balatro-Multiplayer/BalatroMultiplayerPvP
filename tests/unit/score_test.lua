@@ -1,11 +1,11 @@
--- Plain Lua test for PVP.Score (no game needed).
+-- Plain Lua test for PVP.SCORE (no game needed).
 -- Run from the repo root: luajit tests/unit/score_test.lua
 -- Needs the MPAPI repo next to this one (BalatroMultiplayerAPI/lib/big_score.lua).
 MPAPI = {}
-PVP = {}
+PVP = { SCORE = {} }
 dofile("../BalatroMultiplayerAPI/lib/big_score.lua")
 dofile("lib/score.lua")
-local S = PVP.Score
+local S = PVP.SCORE
 
 local failures = 0
 local function check(name, got, want)

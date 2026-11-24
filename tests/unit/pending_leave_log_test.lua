@@ -11,8 +11,8 @@ local function note(name)
 end
 local ended
 local lobby = { leave = note("lobby_leave") }
-PVP = { GAME = {}, UI = {}, RLOG = {} }
-function PVP.RLOG.end_run(outcome)
+PVP = { GAME = {}, UI = {}, REPLAY = { log = {} } }
+function PVP.REPLAY.log.end_run(outcome)
 	calls[#calls + 1] = "end_run"
 	ended = outcome
 end

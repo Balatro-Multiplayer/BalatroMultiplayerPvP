@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/action_save_test.lua
 -- lib/action_save.lua: a local save after each hand, discard and consumable, once the game is back
 -- at "pick a hand" with nothing running; never while scoring, in a pack, or outside a match.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local STATES = {
 	SELECTING_HAND = 1,
@@ -22,12 +17,12 @@ local STATES = {
 }
 local played, discarded, used = 0, 0, 0
 local frames = {}
-PVP = { LOBBY = { code = "ABCD" } }
-function PVP.in_session()
+PVP = { LOBBY = { code = "ABCD" }, UTILS = {}, ACTIONS = {} }
+function PVP.LOBBY.in_session()
 	return true
 end
 local running, driving, pvp_blind = false, false, false
-function PVP.is_pvp_boss()
+function PVP.UTILS.is_pvp_blind()
 	return pvp_blind
 end
 MPAPI = {
@@ -67,7 +62,7 @@ function Game:update(dt)
 	frames[#frames + 1] = dt
 end
 dofile("lib/action_save.lua")
-local AS = PVP.ActionSave
+local AS = PVP.ACTIONS.save
 
 -- Pure pieces.
 eq(AS.phase(1, true, STATES), "ready", "a built pick-a-hand is ready")
@@ -196,7 +191,7 @@ eq(AS.is_due(), false, "and clears the mark")
 
 -- The inbox holds the save back while an item runs.
 lobby = {}
-PVP.match_net = {
+PVP.NET = {
 	save_must_wait = function()
 		return true
 	end,
@@ -204,7 +199,7 @@ PVP.match_net = {
 G.FUNCS.play_cards_from_highlighted()
 frame()
 eq(saves, 5, "no save while the inbox holds it")
-PVP.match_net = {
+PVP.NET = {
 	save_must_wait = function()
 		return false
 	end,
@@ -212,4 +207,4 @@ PVP.match_net = {
 frame()
 eq(saves, 6, "saved once the inbox lets go")
 
-print(string.format("action_save_test: ok (%d checks)", checks))
+T.done("action_save_test")

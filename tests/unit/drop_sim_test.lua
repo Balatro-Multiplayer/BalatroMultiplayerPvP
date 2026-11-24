@@ -1,17 +1,12 @@
 -- Run from the repo root: luajit tests/unit/drop_sim_test.lua
--- The real pvp_api/match_net.lua against a stand-in server over a socket that drops at random. Over TCP a
+-- The real pvp_api/net/server_link.lua against a stand-in server over a socket that drops at random. Over TCP a
 -- message is lost only with its socket: whatever is in flight when it drops is gone both ways, and the
 -- rejoin's new session is sent a whole view. The server takes input `last + 1` once and sends a view when
 -- it changes (the lobby) or on every tick (the game). Every input the player makes, of every kind, before
 -- the first view, in the lobby and in the run, must reach the server exactly once, in order, and end
 -- confirmed; the latest Ready and settings are the server's.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local RUN_KINDS = { "blindStart", "handPlayed", "handScored", "progress", "sell", "timerStart", "paidPreviews", "timerPause", "animating", "ready", "endGame" }
 local LOBBY_KINDS = { "lobbySettings", "lobbyReady", "team" }
@@ -33,7 +28,7 @@ local function simulate(seed)
 	local lobby = { mod_id = "MultiplayerPvP", is_host = true }
 	local view_handler
 
-	PVP = { id = "MultiplayerPvP", is_pvp_boss = function() return false end }
+	PVP = { NET = {}, READ = {}, UI = {}, id = "MultiplayerPvP", UTILS = { is_pvp_blind = function() return false end } }
 	love = { timer = { getTime = function() return now end } }
 	sendWarnMessage = function() end
 	G = {
@@ -59,10 +54,10 @@ local function simulate(seed)
 		playback = { is_driving = function() return false end },
 		run_save = { register_save_wait = function() end, save_now = function() end, is_staged = function() return false end },
 	}
-	dofile("pvp_api/_view.lua")
-	dofile("pvp_api/_match_net_rules.lua")
-	dofile("pvp_api/match_net.lua")
-	local net = PVP.match_net
+	dofile("pvp_api/read/_view.lua")
+	dofile("pvp_api/net/_rules.lua")
+	dofile("pvp_api/net/server_link.lua")
+	local net = PVP.NET
 	net.register()
 
 	local function view_of_server()
@@ -174,4 +169,4 @@ local function simulate(seed)
 end
 
 for seed = 1, 200 do simulate(seed) end
-print(string.format("drop_sim_test: %d checks passed", checks))
+T.done("drop_sim_test")

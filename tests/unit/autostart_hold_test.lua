@@ -34,16 +34,18 @@ MPAPI = {
 	end,
 }
 PVP = {
-	LobbyAccess = { RANKED = "ranked", CASUAL = "casual" },
-	QUEUE_REVEAL = { HOLD_SECONDS = 4 },
-	pvp_start_match = function()
-		starts = starts + 1
-	end,
+	NET = {}, READ = {}, UI = { queue = { reveal = { HOLD_SECONDS = 4 } } }, QUEUE = {},
+	LOBBY = {
+		Access = { RANKED = "ranked", CASUAL = "casual" },
+		start_match = function()
+			starts = starts + 1
+		end,
+	},
 }
 localize = function(k)
 	return k
 end
-PVP.lobby_screen = { refresh_buttons = function() end }
+PVP.UI.lobby = { refresh_buttons = function() end }
 dofile("ui/lobby/_ready.lua")
 
 local function eq(got, want, what)
@@ -67,14 +69,14 @@ local lobby = {
 local tally = {}
 local function set_ready(id, ready)
 	tally[id] = ready
-	PVP.apply_ready_view(tally, #players)
+	PVP.UI.lobby.apply_ready(tally, #players)
 end
 local function reset_state()
 	tally = {}
-	PVP.reset_ready_state()
+	PVP.UI.lobby.reset_ready()
 end
-PVP._pvp_kind = "ranked"
-PVP.lobby.ref = lobby
+PVP.LOBBY.kind = "ranked"
+PVP.UI.lobby.ref = lobby
 set_ready("me", true)
 eq(#events, 0, "no hold until every player is ready")
 set_ready("opp", true)
@@ -92,7 +94,7 @@ reset_state()
 set_ready("me", true)
 set_ready("opp", true)
 players[2] = nil
-PVP.apply_ready_view(tally, #players)
+PVP.UI.lobby.apply_ready(tally, #players)
 run_events()
 eq(starts, 1, "an opponent who left during the hold stops the start")
 players[2] = { id = "opp" }

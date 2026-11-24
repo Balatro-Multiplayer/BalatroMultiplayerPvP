@@ -37,7 +37,7 @@ local function cleanup()
 		PVP.GAME = saved.game
 		PVP.LOBBY = saved.lobby
 		for _, name in ipairs(screen_names) do
-			PVP.timer_screen[name] = saved.screen[name]
+			PVP.UI.timer[name] = saved.screen[name]
 		end
 		saved = nil
 	end
@@ -112,9 +112,9 @@ local can_pause = { "k_timer_tip_can_pause_1", "k_timer_tip_can_pause_2" }
 
 return {
 	step(function(S)
-		assert(S.check(PVP and PVP.timer_screen and PVP.timer_screen.tip ~= nil, "tooltip implementation loaded"))
+		assert(S.check(PVP and PVP.UI.timer and PVP.UI.timer.tip ~= nil, "tooltip implementation loaded"))
 		assert(not PVP.LOBBY.code, "run this scenario from the main menu, outside a lobby")
-		assert(not PVP.is_pvp_boss(), "main menu has no active PvP boss")
+		assert(not PVP.UTILS.is_pvp_blind(), "main menu has no active PvP boss")
 		saved = {
 			game = PVP.GAME,
 			lobby = PVP.LOBBY,
@@ -126,19 +126,19 @@ return {
 		PVP.LOBBY.config.timer = true
 		PVP.GAME.pvp_countdown_in_progress = false
 		for _, name in ipairs(screen_names) do
-			saved.screen[name] = PVP.timer_screen[name]
+			saved.screen[name] = PVP.UI.timer[name]
 		end
-		PVP.timer_screen.seconds = function() return fake.seconds end
-		PVP.timer_screen.clock = function() return fake.clock end
-		PVP.timer_screen.timing = function() return fake.timing end
-		PVP.timer_screen.timed = function() return fake.timing or fake.clock == "against me" end
-		PVP.timer_screen.button = function()
+		PVP.UI.timer.seconds = function() return fake.seconds end
+		PVP.UI.timer.clock = function() return fake.clock end
+		PVP.UI.timer.timing = function() return fake.timing end
+		PVP.UI.timer.timed = function() return fake.timing or fake.clock == "against me" end
+		PVP.UI.timer.button = function()
 			if not fake.can_act then return nil end
 			return fake.timing and "pause" or "start"
 		end
-		PVP.timer_screen.text = function() return "60.00" end
-		PVP.timer_screen.press = function()
-			local action = PVP.timer_screen.button()
+		PVP.UI.timer.text = function() return "60.00" end
+		PVP.UI.timer.press = function()
+			local action = PVP.UI.timer.button()
 			if action == "start" then
 				calls.start = calls.start + 1
 				fake.timing = true
@@ -223,7 +223,7 @@ return {
 		local original = saved
 		cleanup()
 		S.check(PVP.GAME == original.game and PVP.LOBBY == original.lobby, "original state restored")
-		S.check(PVP.timer_screen.press ~= nil and PVP.timer_screen.tip ~= nil, "timer screen restored")
+		S.check(PVP.UI.timer.press ~= nil and PVP.UI.timer.tip ~= nil, "timer screen restored")
 		for _, popup in ipairs(retired) do
 			S.check(not registered(popup), "cleanup leaves no scenario popup")
 		end

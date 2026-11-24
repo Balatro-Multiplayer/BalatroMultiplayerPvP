@@ -9,12 +9,12 @@ local function text_row(text, scale, colour)
 end
 
 local function mode_display(key)
-	local def = PVP.PVP_GAMEMODES[key]
+	local def = PVP.RULES.MODES[key]
 	return def and def.display or tostring(key)
 end
 
 -- The panel's rows, or nil while the party does not queue. Reads only.
-function PVP.lobby.group_panel_rows(lobby)
+function PVP.UI.lobby.group_panel_rows(lobby)
 	local Group = MPAPI.matchmaking.group
 	local view = lobby.group_queue
 	if not view then
@@ -34,8 +34,8 @@ function PVP.lobby.group_panel_rows(lobby)
 	return rows
 end
 
-function PVP.lobby.build_group_panel(lobby)
-	local rows = PVP.lobby.group_panel_rows(lobby)
+function PVP.UI.lobby.build_group_panel(lobby)
+	local rows = PVP.UI.lobby.group_panel_rows(lobby)
 	if not rows then
 		return nil
 	end

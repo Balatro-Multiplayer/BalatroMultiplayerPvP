@@ -13,14 +13,14 @@ local fail_load_with = nil
 local stopped_spectating = false
 local saved_state = { T2 = { lives = 2 } }
 
-PVP = { id = "MultiplayerPvP", GAME = {} }
--- The fresh-match defaults (core.lua's PVP.reset_game_states), cut down to a few keys.
-function PVP.reset_game_states()
+PVP = { ACTIONS = { save = {} }, READ = {}, UI = {}, LOBBY = {}, REPLAY = {}, id = "MultiplayerPvP", GAME = {} }
+-- The fresh-match defaults (core.lua's PVP.LOBBY.reset_game), cut down to a few keys.
+function PVP.LOBBY.reset_game()
 	PVP.GAME = { lives = 0, timer = 120 }
 end
-function PVP.in_session() return true end
+function PVP.LOBBY.in_session() return true end
 local run_save_hooks
-function PVP._start_playback(manifest, on_ready)
+function PVP.REPLAY.start(manifest, on_ready)
 	started_with[#started_with + 1] = manifest
 	on_ready()
 end
@@ -79,7 +79,7 @@ MPAPI = {
 		end,
 	},
 }
-PVP.pvp_blind_reader = { hands_source_loaded = function() return { kind = "from server" } end }
+PVP.READ.pvp_blind = { hands_source_loaded = function() return { kind = "from server" } end }
 dofile("lib/run_save.lua")
 dofile("pvp_api/spectate_feed.lua")
 local S = PVP.SPECTATE

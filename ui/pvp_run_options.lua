@@ -6,13 +6,13 @@
 G.FUNCS.mp_pvp_seed_change = function()
 	G.FUNCS.exit_overlay_menu()
 	-- The server restarts the match on a fresh seed once every player has voted.
-	PVP.finish_screen.vote("seed")
+	PVP.UI.finish.vote("seed")
 end
 
 G.FUNCS.mp_pvp_draw_vote = function()
 	G.FUNCS.exit_overlay_menu()
 	-- The server ends the match as a draw once every player has voted.
-	PVP.finish_screen.vote("draw")
+	PVP.UI.finish.vote("draw")
 end
 
 G.FUNCS.mp_pvp_forfeit = function()
@@ -20,22 +20,22 @@ G.FUNCS.mp_pvp_forfeit = function()
 	-- Practice is solo: there is no opponent or server to resolve a forfeit,
 	-- so pressing Forfeit did nothing. It ends the practice run instead
 	-- (go_to_menu also leaves practice, see lib/practice_mode.lua).
-	if PVP.is_practice_mode() and not PVP.LOBBY.code then
+	if PVP.PRACTICE.is_on() and not PVP.LOBBY.code then
 		G.FUNCS.go_to_menu()
 		return
 	end
 	-- A matchmade match (2 players or more) asks first: forfeit or contest.
-	if PVP.contest_offered() then
+	if PVP.UI.contest.offered() then
 		PVP.UI.show_contest_modal()
 		return
 	end
-	PVP.finish_screen.forfeit()
+	PVP.UI.finish.forfeit()
 end
 
 -- Seed change is only offered for the first few minutes of a run.
-PVP.SEED_CHANGE_WINDOW = 300
+PVP.UI.run_options.SEED_CHANGE_WINDOW = 300
 
-PVP.create_run_options = function()
+PVP.UI.run_options.build = function()
 	-- §17.9: unlike Speedrunning's version of this same overlay (a timed race, where
 	-- pausing must never stop the clock), PvP's pause menu is meant to actually pause --
 	-- prevent_pause (core.lua) only means "render our own options box instead of
@@ -61,14 +61,14 @@ PVP.create_run_options = function()
 	local meta = lobby and lobby:get_metadata()
 	local gm = meta and meta.queue_mode and MPAPI.GameModes[meta.queue_mode]
 	if not gm or gm.seed_change_allowed ~= false then
-		local within_window = PVP._run_started_at ~= nil
-			and (love.timer.getTime() - PVP._run_started_at) < PVP.SEED_CHANGE_WINDOW
+		local within_window = PVP.GAME.run_started_at ~= nil
+			and (love.timer.getTime() - PVP.GAME.run_started_at) < PVP.UI.run_options.SEED_CHANGE_WINDOW
 		add_row(MPAPI.disableable_button({
 			button = "mp_pvp_seed_change",
 			label = { "Seed Change" },
 			colour = G.C.BLUE,
 			minw = 5,
-			enabled = within_window and not PVP.finish_screen.waiting("vote"),
+			enabled = within_window and not PVP.UI.finish.waiting("vote"),
 		}).node)
 	end
 
@@ -77,13 +77,13 @@ PVP.create_run_options = function()
 	-- is a different risk profile than reseeding mid-run.
 	-- Also hidden in practice: with no opponent the 1/1 vote "won", and vanilla's game
 	-- over screen came up outside any blind, reading "Defeated By ERROR".
-	if (not gm or gm.draw_vote_allowed ~= false) and not PVP.is_practice_mode() then
+	if (not gm or gm.draw_vote_allowed ~= false) and not PVP.PRACTICE.is_on() then
 		add_row(MPAPI.disableable_button({
 			button = "mp_pvp_draw_vote",
 			label = { localize("k_draw_vote") },
 			colour = G.C.BLUE,
 			minw = 5,
-			enabled = not PVP.finish_screen.waiting("vote"),
+			enabled = not PVP.UI.finish.waiting("vote"),
 		}).node)
 	end
 

@@ -4,9 +4,11 @@ local active, legacy, ordered, replacement
 local rolls, hand_rolls
 MPAPI = { Layer = function() end }
 PVP = {
-	is_layer_active = function() return active end,
-	should_use_the_order = function() return ordered end,
-	sorted_hand_list = function() return { "Pair", "Flush" } end,
+	RULES = {
+		is_layer_active = function() return active end,
+		use_the_order = function() return ordered end,
+	},
+	UTILS = { sorted_hand_list = function() return { "Pair", "Flush" } end },
 }
 SMODS = { showman = function() return false end }
 Back = { apply_to_run = function() end }

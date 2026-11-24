@@ -1,6 +1,6 @@
 -- Draft simulator for qhud_sim.lua: a fake server-refereed lobby whose Setup referee runs
 -- here, so the walkthrough continues past the match reveal into the real matchmaking lobby
--- view and the real ranked Draft (MPAPI.BanPick, configured by PVP._ban_pick_config_for),
+-- view and the real ranked Draft (MPAPI.BanPick, configured by PVP.DRAFT.ban_pick_config_for),
 -- against a bot. The referee follows the server's Draft rules (BalatroMultiplayerServer
 -- nakama/src/actions/setup.ts) only as far as the 2-player schedule needs: a random first
 -- actor, a turn clock that bans or picks at random when it runs out, then the survivors.
@@ -226,7 +226,7 @@ local function pvp_mod()
 end
 
 local function reset_lobby_view()
-	local L = PVP.lobby
+	local L = PVP.UI.lobby
 	L.ref, L.ui_ref, L.buttons_initialized = nil, nil, false
 end
 
@@ -239,7 +239,7 @@ function DRAFT.start(players, on_picked)
 	DRAFT.real = {
 		get_current_lobby = MPAPI.get_current_lobby,
 		leave = G.FUNCS.mp_pvp_leave_lobby,
-		kind = PVP._pvp_kind,
+		kind = PVP.LOBBY.kind,
 	}
 	MPAPI.get_current_lobby = function()
 		return lobby
@@ -247,12 +247,12 @@ function DRAFT.start(players, on_picked)
 	G.FUNCS.mp_pvp_leave_lobby = function()
 		DRAFT.on_leave()
 	end
-	PVP._pvp_kind = PVP.LobbyAccess.RANKED
+	PVP.LOBBY.kind = PVP.LOBBY.Access.RANKED
 	reset_lobby_view()
 	local mod = pvp_mod()
 	MPAPI.pages.show(mod.lobby_ui, { mod = mod, lobby = lobby })
 	local gm_def = MPAPI.GameModes[DRAFT.QUEUE_MODE]
-	MPAPI.BanPick.start(lobby, PVP._ban_pick_config_for(gm_def, DRAFT.RULESET), function(survivors)
+	MPAPI.BanPick.start(lobby, PVP.DRAFT.ban_pick_config_for(gm_def, DRAFT.RULESET), function(survivors)
 		on_picked(survivors[1])
 	end)
 end
@@ -266,7 +266,7 @@ function DRAFT.stop(opts)
 	DRAFT.lobby = nil
 	MPAPI.get_current_lobby = DRAFT.real.get_current_lobby
 	G.FUNCS.mp_pvp_leave_lobby = DRAFT.real.leave
-	PVP._pvp_kind = DRAFT.real.kind
+	PVP.LOBBY.kind = DRAFT.real.kind
 	DRAFT.real = nil
 	reset_lobby_view()
 	local mod = pvp_mod()

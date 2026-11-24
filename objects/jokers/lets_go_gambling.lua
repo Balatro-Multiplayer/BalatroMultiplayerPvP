@@ -39,7 +39,7 @@ MPAPI.Joker({
 		if
 			context.cardarea == G.jokers
 			and context.joker_main
-			and not PVP.is_phantom(card)
+			and not PVP.NEMESIS.is_phantom(card)
 		then
 			local returns = nil
 			if SMODS.pseudorandom_probability(card, "j_mp_lets_go_gambling", 1, card.ability.extra.odds) then
@@ -48,7 +48,7 @@ MPAPI.Joker({
 				returns.dollars = card.ability.extra.dollars
 			end
 			if
-				PVP.is_pvp_boss()
+				PVP.UTILS.is_pvp_blind()
 				and SMODS.pseudorandom_probability(
 					card,
 					"j_mp_lets_go_gambling_misfire",
@@ -57,7 +57,7 @@ MPAPI.Joker({
 				)
 			then
 				returns = returns or {}
-				PVP.run_screen.effect("gambling")
+				PVP.UI.run.effect("gambling")
 				returns.message = localize("k_oops_ex")
 			end
 			return returns

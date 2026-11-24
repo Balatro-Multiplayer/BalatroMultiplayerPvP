@@ -85,11 +85,11 @@ end
 -- The opponent this location belongs to; before a target latches, the same
 -- gamemode name the blind shows (see ui/game/blind_hud.lua).
 local function opponent_name()
-	if (PVP.my_boss() == "bye") then
-		return PVP.pvp_blind_opponent_name()
+	if (PVP.READ.target.my_boss() == "bye") then
+		return PVP.READ.pvp_blind.opponent_name()
 	end
 	local opponent = PVP.LOBBY.is_host and PVP.LOBBY.guest or PVP.LOBBY.host
-	return (opponent and opponent.username) or PVP.pvp_blind_opponent_name()
+	return (opponent and opponent.username) or PVP.READ.pvp_blind.opponent_name()
 end
 
 -- The hover popup names the opponent where the HUD slot says "Enemy location".
@@ -106,7 +106,7 @@ local function popup_rows()
 	) }
 end
 
-PVP._enemy_location = MPAPI.enemy_location({
+PVP.UI.enemy_location = MPAPI.enemy_location({
 	-- A function: this file loads before the localization does.
 	label = function()
 		return localize("ml_enemy_loc")
@@ -115,7 +115,7 @@ PVP._enemy_location = MPAPI.enemy_location({
 	build_popup_rows = popup_rows,
 	swatch_minw = 2.8,
 	popup_disabled = function()
-		return PVP.current_ruleset().enemy_location_disabled and true or false
+		return PVP.RULES.current().enemy_location_disabled and true or false
 	end,
 	-- Vietnamese reads more naturally with round/score swapped; vanilla
 	-- itself doesn't do this, it's a PvP-specific community fix.
@@ -128,12 +128,12 @@ PVP._enemy_location = MPAPI.enemy_location({
 })
 
 function PVP.UI.show_enemy_location()
-	if PVP.current_ruleset().enemy_location_disabled then return end
-	PVP._enemy_location.show()
+	if PVP.RULES.current().enemy_location_disabled then return end
+	PVP.UI.enemy_location.show()
 end
 
 function PVP.UI.hide_enemy_location()
-	PVP._enemy_location.hide()
+	PVP.UI.enemy_location.hide()
 end
 
 -- Refreshes the blind-icon renderer(s) in place when a new location update
@@ -152,7 +152,7 @@ function PVP.UI.update_enemy_location_render()
 		renderer.UIBox:recalculate()
 	end
 
-	local hover_renderer = PVP._enemy_location.popup and PVP._enemy_location.popup:get_UIE_by_ID("mp_enemy_location_render")
+	local hover_renderer = PVP.UI.enemy_location.popup and PVP.UI.enemy_location.popup:get_UIE_by_ID("mp_enemy_location_render")
 
 	if hover_renderer then
 		local blind_object_render = PVP.UI.enemy_location_blind_render()

@@ -1,4 +1,4 @@
-PVP.Ruleset({
+PVP.RULES.Ruleset({
 	key = "minorleague",
 	forced_gamemode = "gamemode_mp_attrition",
 	forced_lobby_options = true,

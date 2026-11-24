@@ -9,14 +9,14 @@ dofile(api .. "api/layers/registry.lua")
 dofile(api .. "api/layers/fields.lua")
 MPAPI.MODIFIERS = {}
 
-PVP = { LayerKey = { SANDBOX = "sandbox", MULTIPLAYER_CONTENT = "multiplayer_content" } }
+PVP = { RULES = { LayerKey = { SANDBOX = "sandbox", MULTIPLAYER_CONTENT = "multiplayer_content" } } }
 local resolved = {}
-function PVP.Ruleset(init)
+function PVP.RULES.Ruleset(init)
 	resolved[init.key] = MPAPI.resolve_layers(init)
 	return { inject = function() end }
 end
 local reworks = {}
-function PVP.ReworkCenter(key, opts)
+function PVP.RULES.ReworkCenter(key, opts)
 	reworks[#reworks + 1] = { key = key, layers = opts.layers }
 end
 

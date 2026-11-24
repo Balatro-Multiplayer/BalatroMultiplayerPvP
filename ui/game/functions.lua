@@ -5,7 +5,7 @@
 local READY_TEXT_MAX_WIDTH = 2.2
 
 G.FUNCS.pvp_ready_button = function(e)
-	-- An undecided Boss (pvp_api/target_screen.lua) cannot be picked until the view says if I have a bye.
+	-- An undecided Boss (pvp_api/ui/target.lua) cannot be picked until the view says if I have a bye.
 	if G.GAME.round_resets.pvp_boss == "undecided" and G.GAME.blind_on_deck == "Boss" then
 		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
 		e.config.button = nil
@@ -23,7 +23,7 @@ G.FUNCS.pvp_ready_button = function(e)
 	-- A held Ready (a blind is playing, or no view yet) has no action; the look decides each frame, so it
 	-- releases itself.
 	if e.config.button == "mp_toggle_ready" or e.config.pvp_ready_hold == "held" then
-		local look = PVP.entry_screen.ready_button()
+		local look = PVP.UI.blind_start.ready_button()
 		local held = look == "held" or look == "waiting"
 		e.config.pvp_ready_hold = held and "held" or "free"
 		if held then
@@ -31,15 +31,15 @@ G.FUNCS.pvp_ready_button = function(e)
 		else
 			e.config.button = "mp_toggle_ready"
 		end
-		e.config.colour = PVP.entry_screen.ready_colour()
+		e.config.colour = PVP.UI.blind_start.ready_colour()
 	end
 end
 
 function G.FUNCS.mp_toggle_ready(e)
-	local ready = PVP.entry_screen.press_ready(e)
+	local ready = PVP.UI.blind_start.press_ready(e)
 	if ready == nil then return end
 	PVP.match_log("trace", "Toggling Ready")
-	PVP.RLOG.record(MPAPI.OPCODE.READY_BLIND, ready and 1 or 0)
+	PVP.REPLAY.log.record(MPAPI.OPCODE.READY_BLIND, ready and 1 or 0)
 end
 
 local old_skip_blind = G.FUNCS.skip_blind
@@ -52,7 +52,7 @@ end
 
 local can_play_ref = G.FUNCS.can_play
 G.FUNCS.can_play = function(e)
-	if PVP.in_session() and (G.GAME.current_round.hands_left <= 0 or not PVP.pvp_blind_screen.may_play()) then
+	if PVP.LOBBY.in_session() and (G.GAME.current_round.hands_left <= 0 or not PVP.UI.pvp_blind.may_play()) then
 		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
 		e.config.button = nil
 	else
@@ -62,7 +62,7 @@ end
 
 local can_open_ref = G.FUNCS.can_open
 G.FUNCS.can_open = function(e)
-	if PVP.in_session() and (PVP.GAME.ready_blind or PVP.entry_screen.ready_pending()) then
+	if PVP.LOBBY.in_session() and (PVP.GAME.ready_blind or PVP.UI.blind_start.ready_pending()) then
 		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
 		e.config.button = nil
 		return
@@ -75,7 +75,7 @@ function G.FUNCS.select_blind(e)
 	PVP.GAME.end_pvp = false
 	PVP.GAME.prevent_eval = false
 	select_blind_ref(e)
-	if PVP.is_mp_or_practice() then
+	if PVP.LOBBY.in_lobby_or_practice() then
 		PVP.GAME.ante_key = tostring(math.random())
 		-- Carbon: log the freshly-rolled (non-deterministic) ante_key so a
 		-- replay can restore it -- PvP-only opcode, still recorded directly
@@ -83,7 +83,7 @@ function G.FUNCS.select_blind(e)
 		-- is now recorded once, generically, by
 		-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own
 		-- G.FUNCS.select_blind hook.
-		PVP.RLOG.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
+		PVP.REPLAY.log.record(MPAPI.OPCODE.SET_ANTE_KEY, PVP.GAME.ante_key)
 		PVP.ACTIONS.new_round()
 		PVP.ACTIONS.set_location("loc_playing", (e.config.ref_table.key or e.config.ref_table.name))
 		if PVP.UI.hide_enemy_location then PVP.UI.hide_enemy_location() end
@@ -96,12 +96,12 @@ G.FUNCS.skip_blind = function(e)
 	skip_blind_ref(e)
 	if PVP.LOBBY.code then
 		-- The server counts a skipped blind as beaten, so no blind result goes with it.
-		PVP.run_screen.skipped(skipped_blind)
+		PVP.UI.run.skipped(skipped_blind)
 		-- The replay log keeps the score and hands a skip leaves, as a played hand does.
-		if PVP.RLOG then
-			PVP.RLOG.record(
+		if PVP.REPLAY.log then
+			PVP.REPLAY.log.record(
 				MPAPI.OPCODE.HAND_RESULT,
-				{ PVP.Score.or_zero(PVP.GAME.score), (G.GAME.current_round and G.GAME.current_round.hands_left) or 0 }
+				{ PVP.SCORE.or_zero(PVP.GAME.score), (G.GAME.current_round and G.GAME.current_round.hands_left) or 0 }
 			)
 		end
 		-- RLOG's skip_blind opcode is now recorded once, generically, by
@@ -216,7 +216,7 @@ function G.FUNCS:continue_in_singleplayer(e)
 	local lobby = MPAPI.get_current_lobby()
 	if lobby then
 		-- The solo run isn't PvP's any more: it ends on Balatro's own menu.
-		PVP.set_lobby_exit_page(lobby, nil)
+		PVP.LOBBY.set_exit_page(lobby, nil)
 		lobby:leave()
 	end
 	PVP.UI.update_connection_status()
@@ -230,10 +230,10 @@ function G.FUNCS:continue_in_singleplayer(e)
 	for _, key in pairs(G.GAME.round_resets.blind_choices) do
 		if key == "bl_mp_nemesis" then fallback_boss = get_new_boss(); break end
 	end
-	local snapshot = PVP.take_run_snapshot(G, save_run)
+	local snapshot = PVP.PRACTICE.take_snapshot(G, save_run)
 	-- The PvP blind (or the game over) counts as beaten: resume at the cash out.
 	if snapshot then
-		PVP.solo_resume_snapshot(snapshot, {
+		PVP.PRACTICE.resume_snapshot(snapshot, {
 			states = G.STATES,
 			nemesis_key = "bl_mp_nemesis",
 			fallback_boss = fallback_boss,

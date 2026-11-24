@@ -1,4 +1,4 @@
--- The opponent's sells come from the view (pvp_api/run_screen.lua); Taxes only reads them.
+-- The opponent's sells come from the view (pvp_api/ui/run.lua); Taxes only reads them.
 local function next_taxes_total_mult_gain(card)
 	return PVP.OPPONENT_RECORD.taxes_mult_gain(
 		PVP.GAME.enemy.sells_per_ante,

@@ -7,7 +7,7 @@
 -- Ranked (5 pillars) and Casual (4 pillars) are two separate screens now, not one 9-pillar row
 -- -- too many to read comfortably on one page (2026-09-08 user feedback on the first pass).
 -- self.params.category (set by the tab buttons below, read in core.lua's page registration)
--- picks which list PVP.build_find_game_ui builds; the tab row at the top of the page switches
+-- picks which list PVP.UI.find_game.build builds; the tab row at the top of the page switches
 -- between them via a normal MPAPI.pages.show() re-navigation (same page, new params), same
 -- mechanism SPDRN's practice/create_lobby/find_game intents already use -- not a separate
 -- widget/mechanism of its own.
@@ -16,10 +16,10 @@
 -- straight to the existing mp_pvp_queue_ranked_*/
 -- mp_pvp_queue_casual_* handlers (pvp_api/queue.lua), unchanged.
 
-local CHIP_ROW = PVP.MODE_CHIP_ROW
-local MODE_COLOUR = PVP.MODE_COLOUR
+local CHIP_ROW = PVP.UI.mode_chips.ROW
+local MODE_COLOUR = PVP.UI.mode_chips.COLOUR
 
--- uses_order reflects PVP.LOBBY.config.the_order as core.lua's reset_lobby_config default
+-- uses_order reflects PVP.LOBBY.config.the_order as core.lua's LOBBY.reset_config default
 -- (true) and each ruleset's own force_lobby_options override actually resolve it, not a
 -- hand-picked guess: rulesets/majorleague.lua explicitly forces false; rulesets/vanilla.lua
 -- forces false; balanced/expanded/smallworld have no override, so they inherit the
@@ -31,34 +31,34 @@ local MODE_COLOUR = PVP.MODE_COLOUR
 -- (Battle Royale, Teams) were 25+ chars per line before this and visibly overran their card
 -- (2026-09-08 user feedback). No code-level truncation/wrapping added; this is just each string
 -- rewritten by hand to fit.
--- ruleset_key is the exact string PVP._join_ranked_ruleset stamps onto PVP.LOBBY.config.ruleset
--- and PVP._active_queue_id.key (pvp_api/queue.lua) -- build_select below compares against it to
+-- ruleset_key is the exact string PVP.QUEUE.join_ranked stamps onto PVP.LOBBY.config.ruleset
+-- and PVP.QUEUE.active_id.key (pvp_api/queue.lua) -- build_select below compares against it to
 -- decide whether this exact pillar's queue is the one currently active.
 local RANKED_MODES = {
 	{ key = "pvp_ranked_vanilla",
 		desc = { "Normal Balatro", "with PvP blinds" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RulesetKey.VANILLA, colour = HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
+		queue_button = "mp_pvp_queue_ranked_vanilla", ruleset_key = PVP.RULES.RulesetKey.VANILLA, colour = HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
 	{ key = "pvp_ranked_balanced",
 		desc = { "Near-vanilla with", "a few reworks" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RulesetKey.BALANCED, colour = HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
+		queue_button = "mp_pvp_queue_ranked_balanced", ruleset_key = PVP.RULES.RulesetKey.BALANCED, colour = HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
 	{ key = "pvp_ranked_expanded",
 		desc = { "Balanced plus more", "reworks and MP cards" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RulesetKey.EXPANDED, colour = HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
+		queue_button = "mp_pvp_queue_ranked_expanded", ruleset_key = PVP.RULES.RulesetKey.EXPANDED, colour = HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
 	{ key = "pvp_ranked_majorleague", short_name = "MLBa",
 		desc = { "Follows the MLBa", "ruleset" }, uses_order = false,
-		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RulesetKey.MAJORLEAGUE, colour = HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
+		queue_button = "mp_pvp_queue_ranked_majorleague", ruleset_key = PVP.RULES.RulesetKey.MAJORLEAGUE, colour = HEX(MODE_COLOUR.mlba), chip_row = CHIP_ROW.mlba },
 	{ key = "pvp_smallworld_ranked",
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
-		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld_ranked), chip_row = CHIP_ROW.smallworld_ranked },
+		queue_button = "mp_pvp_queue_ranked_smallworld", ruleset_key = PVP.RULES.RulesetKey.SMALLWORLD, colour = HEX(MODE_COLOUR.smallworld_ranked), chip_row = CHIP_ROW.smallworld_ranked },
 }
 
 -- Casual: Nemesis is 1v1, the others take 2-16 players. Each pillar plays its gamemode key's own default ruleset
--- (PVP.reset_ruleset_to_gamemode_default, pvp_api/queue.lua). Manhunt has an existing
+-- (PVP.RULES.reset_to_gamemode_default, pvp_api/queue.lua). Manhunt has an existing
 -- casual queue handler (mp_pvp_queue_casual_manhunt) but wasn't in the requested pillar
 -- set, so it's left reachable only via Create Lobby for now, not duplicated here. None
 -- has a the_order override, so all four inherit the default and use The Order here.
--- gamemode_key is the exact PVP.GamemodeKey value PVP._join_queue's second argument (and
--- PVP._active_queue_id.key) uses -- see the ruleset_key comment on RANKED_MODES above for why
+-- gamemode_key is the exact PVP.RULES.GamemodeKey value PVP.QUEUE.join's second argument (and
+-- PVP.QUEUE.active_id.key) uses -- see the ruleset_key comment on RANKED_MODES above for why
 -- build_select needs it. Note these deliberately differ from a couple of the pillar `key` ids
 -- above (e.g. "pvp_smallworld_casual" vs. gamemode_key "pvp_smallworld") -- `key` is just this
 -- page's own UI item id, unrelated to the wire gamemode key.
@@ -72,18 +72,18 @@ local CASUAL_MODES = {
 	{ key = "pvp_teams", name = "Teams",
 		desc = { "Team vs team;", "best score wins" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_teams", gamemode_key = "pvp_teams", colour = HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
-	{ key = "pvp_smallworld_casual", display_ruleset = PVP.RulesetKey.SMALLWORLD,
+	{ key = "pvp_smallworld_casual", display_ruleset = PVP.RULES.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, uses_order = true,
 		queue_button = "mp_pvp_queue_casual_smallworld", gamemode_key = "pvp_smallworld", colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 }
 
 -- Every currently-built pillar's SELECT button, keyed by mode.key -- reset at the start of each
 -- build_items call (a fresh page build, e.g. a Ranked<->Casual tab switch) and refreshed live by
--- PVP._refresh_find_game_queue_ui (called from pvp_api/queue.lua's PVP._show_searching any time
+-- PVP.UI.find_game.refresh_queue (called from pvp_api/queue.lua's PVP.UI.queue.show_searching any time
 -- PvP's single active queue starts, ends, or targets a different pillar).
 local _select_els = {}
 
-function PVP._refresh_find_game_queue_ui()
+function PVP.UI.find_game.refresh_queue()
 	for _, el in pairs(_select_els) do
 		el:update()
 	end
@@ -92,7 +92,7 @@ end
 -- The pillars grey out by the account's standing, which the server can change at any time.
 if MPAPI.on_standing_changed then
 	MPAPI.on_standing_changed(function()
-		PVP._refresh_find_game_queue_ui()
+		PVP.UI.find_game.refresh_queue()
 	end)
 end
 
@@ -110,11 +110,11 @@ G.FUNCS.mp_pvp_find_game_toggle_queue = function(e)
 	-- handlers this replaces (pvp_api/queue.lua), which all called this before queuing.
 	G.FUNCS.exit_overlay_menu()
 	if rt.cancel then
-		PVP._cancel_queue()
+		PVP.QUEUE.cancel()
 	elseif rt.ruleset_key then
-		PVP._join_ranked_ruleset(rt.ruleset_key)
+		PVP.QUEUE.join_ranked(rt.ruleset_key)
 	elseif rt.gamemode_key then
-		PVP._join_queue(PVP.LobbyAccess.CASUAL, rt.gamemode_key)
+		PVP.QUEUE.join(PVP.LOBBY.Access.CASUAL, rt.gamemode_key)
 	end
 end
 
@@ -134,19 +134,19 @@ end
 
 -- Reactive SELECT button: QUEUE (orange) when idle or a different pillar is the active queue,
 -- CANCEL (red) while this exact pillar's own queue is PvP's one active queue
--- (PVP._active_queue_matches, pvp_api/queue.lua). A pillar the account's standing refuses
+-- (PVP.QUEUE.active_matches, pvp_api/queue.lua). A pillar the account's standing refuses
 -- (MPAPI.can_queue: Casual needs a valid or verified account, Ranked on the Official server a launcher-verified one,
 -- matching SPDRN's own gating in BalatroMultiplayerSpeed/ui/main_menu/game_select.lua) is
 -- greyed, and pressing it says why. Every OTHER pillar is also disabled while
 -- one queue is active: PvP tracks only a single matchmaking handle at a time
--- (PVP._match_handle), unlike SPDRN's per-mode _queue_handles table, so queuing a second pillar
+-- (PVP.QUEUE.match_handle), unlike SPDRN's per-mode _queue_handles table, so queuing a second pillar
 -- here would silently orphan the first handle instead of joining both.
 local function build_select(mode)
 	local el = MPAPI.ui_element(function()
-		local this_queued = (mode.ruleset_key and PVP._active_queue_matches(PVP.LobbyAccess.RANKED, mode.ruleset_key))
-			or (mode.gamemode_key and PVP._active_queue_matches(PVP.LobbyAccess.CASUAL, mode.gamemode_key))
+		local this_queued = (mode.ruleset_key and PVP.QUEUE.active_matches(PVP.LOBBY.Access.RANKED, mode.ruleset_key))
+			or (mode.gamemode_key and PVP.QUEUE.active_matches(PVP.LOBBY.Access.CASUAL, mode.gamemode_key))
 			or false
-		local other_active = PVP._is_queue_active() and not this_queued
+		local other_active = PVP.QUEUE.is_active() and not this_queued
 		local may_queue, refusal = MPAPI.can_queue(queue_kind(mode))
 		local standing_refused = not this_queued and not may_queue
 		local unavailable = mode.queue_button == nil
@@ -184,7 +184,7 @@ end
 -- pressable, so the server's refusal says which mods.
 local function build_group_select(mode)
 	local el = MPAPI.ui_element(function()
-		local available, standing_refused = PVP.group_mode_available(MPAPI.get_current_lobby(), mode.gamemode_key)
+		local available, standing_refused = PVP.QUEUE.group_mode_available(MPAPI.get_current_lobby(), mode.gamemode_key)
 		local lit = available and not standing_refused
 		local config = {
 			align = "cm", minh = 0.5, minw = 2.2, padding = 0.06, r = 0.1,
@@ -218,7 +218,7 @@ local _stat_els = {}
 -- pvp_api/queue.lua builds it (and the matchmade lobby's label carries).
 local function count_key(mode)
 	if mode.ruleset_key then
-		return PVP.ranked_ticket(mode.ruleset_key)
+		return PVP.QUEUE.ranked_ticket(mode.ruleset_key)
 	end
 	return mode.gamemode_key
 end
@@ -232,7 +232,7 @@ local function fetch_own_ratings()
 	for _, mode in ipairs(RANKED_MODES) do
 		local key = mode.key
 		_own_ratings[key] = false
-		MPAPI.matchmaking.get_rating(PVP.id, PVP.ranked_ticket(mode.ruleset_key), nil, nil, function(err, data)
+		MPAPI.matchmaking.get_rating(PVP.id, PVP.QUEUE.ranked_ticket(mode.ruleset_key), nil, nil, function(err, data)
 			_own_ratings[key] = (not err and data) or nil
 			if _rating_els[key] then
 				_rating_els[key]:update()
@@ -249,7 +249,7 @@ local function stop_poller_only()
 end
 
 -- From on_enter, which runs after build() filled _stat_els, so only the old poller goes.
-function PVP.start_find_game_polling()
+function PVP.UI.find_game.start_polling()
 	stop_poller_only()
 	_latest_counts = nil
 	if next(_rating_els) then
@@ -264,7 +264,7 @@ function PVP.start_find_game_polling()
 	_poller.start()
 end
 
-function PVP.stop_find_game_polling()
+function PVP.UI.find_game.stop_polling()
 	stop_poller_only()
 	_stat_els = {}
 	_rating_els = {}
@@ -310,7 +310,7 @@ local function build_rating_box(mode)
 			elo, right = "...", "..."
 		elseif r then
 			elo = tonumber(r.rating) and tostring(math.floor(r.rating + 0.5)) or "-"
-			local placement = PVP.placement_progress(r)
+			local placement = PVP.UI.card_info.placement_progress(r)
 			if placement then
 				right_label, right = "Placement", placement
 			else
@@ -350,10 +350,10 @@ end
 -- Ranked pillars read "<ruleset> / Ranked"; a Casual pillar may take its name from its ruleset.
 local function pillar_name(mode)
 	if mode.ruleset_key then
-		return { mode.short_name or PVP.ruleset_display_name(mode.ruleset_key), localize("k_pvp_ranked") }
+		return { mode.short_name or PVP.RULES.display_name(mode.ruleset_key), localize("k_pvp_ranked") }
 	end
 	if mode.display_ruleset then
-		return PVP.ruleset_display_name(mode.display_ruleset)
+		return PVP.RULES.display_name(mode.display_ruleset)
 	end
 	return mode.name
 end
@@ -366,7 +366,7 @@ local function build_items(modes, group)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = mode.ruleset_key and PVP.ruleset_chip_sprite(mode.ruleset_key) or PVP.mode_chip_sprite(mode.chip_row),
+			icon = mode.ruleset_key and PVP.UI.mode_chips.ruleset_sprite(mode.ruleset_key) or PVP.UI.mode_chips.sprite(mode.chip_row),
 			select = group and build_group_select(mode) or build_select(mode),
 			name_plate = MPAPI.ui_pillar_name_plate({
 				lines = pillar_name(mode),
@@ -454,7 +454,7 @@ end
 -- Ranked boxes end where the Casual ones do, and both tabs share one layout.
 local PILLAR_MINH = 8.35
 
-function PVP.build_find_game_ui(category, group)
+function PVP.UI.find_game.build(category, group)
 	category = group and "casual" or category or "ranked"
 	local modes = category == "casual" and CASUAL_MODES or RANKED_MODES
 

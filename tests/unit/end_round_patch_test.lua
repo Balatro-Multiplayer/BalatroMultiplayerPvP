@@ -1,5 +1,5 @@
 -- Run from the repo root: luajit tests/unit/end_round_patch_test.lua
--- lovely/end_round.toml sets the flag that PVP.handle_duplicate_end (ui/game/game_state.lua) reads,
+-- lovely/end_round.toml sets the flag that PVP.UI.blind_end.duplicate_end (ui/game/game_state.lua) reads,
 -- and the flag is reset where every other PvP blind flag is.
 local function read(path)
 	local f = assert(io.open(path, "r"))
@@ -13,7 +13,7 @@ local set = patch:match("PVP%.GAME%.([%w_]+) = true")
 assert(set, "end_round.toml sets no PVP.GAME flag")
 
 local guard = read("ui/game/game_state.lua")
-local read_flag = guard:match("function PVP%.handle_duplicate_end%(%).-if PVP%.GAME%.([%w_]+) then")
+local read_flag = guard:match("function PVP%.UI%.blind_end%.duplicate_end%(%).-if PVP%.GAME%.([%w_]+) then")
 assert(read_flag, "handle_duplicate_end reads no PVP.GAME flag")
 
 if set ~= read_flag then

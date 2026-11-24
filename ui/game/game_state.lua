@@ -3,14 +3,14 @@
 
 local update_draw_to_hand_ref = Game.update_draw_to_hand
 function Game:update_draw_to_hand(dt)
-	if PVP.is_mp_or_practice() then
+	if PVP.LOBBY.in_lobby_or_practice() then
 		if
 			not G.STATE_COMPLETE
 			and G.GAME.current_round.hands_played == 0
 			and G.GAME.current_round.discards_used == 0
 			and G.GAME.facing_blind
 		then
-			if PVP.is_pvp_boss() then
+			if PVP.UTILS.is_pvp_blind() then
 				PVP.GAME.pincher_unlock = true
 				G.after_pvp = true -- i can't find a reasonable way to detect end of pvp (for pizza) so i'm doing something strange instead
 
@@ -38,7 +38,7 @@ function Game:update_draw_to_hand(dt)
 					G.E_MANAGER:add_event(Event({
 						func = function()
 							for i = 1, PVP.GAME.asteroids do
-								PVP.launch_asteroid()
+								PVP.UI.run.effect("asteroid")
 							end
 							PVP.GAME.asteroids = 0
 							return true
@@ -169,8 +169,8 @@ local update_hand_played_ref = Game.update_hand_played
 ---@diagnostic disable-next-line: duplicate-set-field
 function Game:update_hand_played(dt)
 	-- Ignore for singleplayer or regular blinds
-	local practice = PVP.is_practice_mode()
-	if (not practice and (not PVP.LOBBY.connected or not PVP.LOBBY.code)) or not PVP.is_pvp_boss() then
+	local practice = PVP.PRACTICE.is_on()
+	if (not practice and (not PVP.LOBBY.connected or not PVP.LOBBY.code)) or not PVP.UTILS.is_pvp_blind() then
 		update_hand_played_ref(self, dt)
 		return
 	end
@@ -221,7 +221,7 @@ function Game:update_hand_played(dt)
 		}))
 	end
 
-	if PVP.GAME.end_pvp and PVP.is_pvp_boss() and not (G.GAME.STOP_USE and G.GAME.STOP_USE > 0) then
+	if PVP.GAME.end_pvp and PVP.UTILS.is_pvp_blind() and not (G.GAME.STOP_USE and G.GAME.STOP_USE > 0) then
 		G.STATE_COMPLETE = false
 		G.STATE = G.STATES.NEW_ROUND
 		PVP.GAME.end_pvp = false
@@ -238,17 +238,17 @@ function Game:update_new_round(dt)
 		G.STATE = G.STATES.NEW_ROUND
 		PVP.GAME.end_pvp = false
 	end
-	if PVP.is_mp_or_practice() and not G.STATE_COMPLETE then
-		local practice = PVP.is_practice_mode()
+	if PVP.LOBBY.in_lobby_or_practice() and not G.STATE_COMPLETE then
+		local practice = PVP.PRACTICE.is_on()
 		-- Prevent player from losing
-		if to_big(G.GAME.chips) < to_big(G.GAME.blind.chips) and not PVP.is_pvp_boss() then
+		if to_big(G.GAME.chips) < to_big(G.GAME.blind.chips) and not PVP.UTILS.is_pvp_blind() then
 			G.GAME.blind.chips = -1
 			if practice then
 				-- Just score as much as you can -- no life, no fail, ever.
 			else
 				PVP.ACTIONS.fail_blind(G.GAME.current_round.hands_played)
 			end
-		elseif not practice and not PVP.is_pvp_boss() then
+		elseif not practice and not PVP.UTILS.is_pvp_blind() then
 			PVP.ACTIONS.blind_result("beaten")
 		end
 
@@ -281,11 +281,11 @@ function Game:update_selecting_hand(dt)
 		#G.hand.cards < 1
 		and #G.deck.cards < 1
 		and #G.play.cards < 1
-		and PVP.is_mp_or_practice()
-		and (PVP.is_pvp_boss() or G.GAME.current_round.hands_left < G.GAME.round_resets.hands)
+		and PVP.LOBBY.in_lobby_or_practice()
+		and (PVP.UTILS.is_pvp_blind() or G.GAME.current_round.hands_left < G.GAME.round_resets.hands)
 	then
 		G.GAME.current_round.hands_left = 0
-		if not PVP.is_pvp_boss() then
+		if not PVP.UTILS.is_pvp_blind() then
 			G.STATE_COMPLETE = false
 			G.STATE = G.STATES.NEW_ROUND
 		else
@@ -297,7 +297,7 @@ function Game:update_selecting_hand(dt)
 	end
 	update_selecting_hand_ref(self, dt)
 
-	if PVP.GAME.end_pvp and PVP.is_pvp_boss() and PVP.is_mp_or_practice() then
+	if PVP.GAME.end_pvp and PVP.UTILS.is_pvp_blind() and PVP.LOBBY.in_lobby_or_practice() then
 		G.hand:unhighlight_all()
 		G.STATE_COMPLETE = false
 		G.STATE = G.STATES.NEW_ROUND
@@ -344,11 +344,11 @@ local session_reworks_loaded = false
 -- after it). Outside a PvP session MPAPI alone owns them; a session's
 -- leftovers come off first so this run's cards aren't made from them.
 local function load_run_reworks()
-	if PVP.in_session() then
-		PVP.LoadReworks(PVP.get_active_ruleset())
+	if PVP.LOBBY.in_session() then
+		PVP.RULES.load_reworks(PVP.RULES.active_ruleset())
 		session_reworks_loaded = true
 	elseif session_reworks_loaded then
-		PVP.LoadReworks(nil)
+		PVP.RULES.load_reworks(nil)
 		session_reworks_loaded = false
 	end
 end
@@ -405,13 +405,13 @@ end
 -- __index so the text node reads it again every frame.
 local hud_opponent_lives = setmetatable({}, {
 	__index = function()
-		return PVP.opponent_lives_text(PVP.GAME.enemy.lives)
+		return PVP.UTILS.opponent_lives_text(PVP.GAME.enemy.lives)
 	end,
 })
 
 -- Turns the Ante box into the Lives box: your lives "vs" the opponent's. Reads
 -- PVP.GAME by reference, so it is built again whenever PVP.GAME is replaced
--- (PVP.reset_game_states).
+-- (PVP.LOBBY.reset_game).
 function PVP.UI.apply_lives_hud()
 	if not (G.HUD and lobby_hud_shown()) then return end
 
@@ -483,8 +483,8 @@ function PVP.UI.apply_lives_hud()
 end
 
 -- This prevents duplicate execution during certain cases. e.g. Full deck discard before playing any hands.
-function PVP.handle_duplicate_end()
-	if PVP.is_mp_or_practice() then
+function PVP.UI.blind_end.duplicate_end()
+	if PVP.LOBBY.in_lobby_or_practice() then
 		if PVP.GAME.blind_ended then
 			if not PVP.GAME.duplicate_end then
 				PVP.GAME.duplicate_end = true
@@ -499,8 +499,8 @@ end
 -- This handles an edge case where a player plays no hands, and discards the only cards in their deck:
 -- on a non-PvP blind it fails the blind. A PvP blind already finished through
 -- update_selecting_hand's out-of-cards check, with a score of 0.
-function PVP.handle_deck_out()
-	if PVP.is_mp_or_practice() and not PVP.is_pvp_boss() then
+function PVP.UI.blind_end.deck_out()
+	if PVP.LOBBY.in_lobby_or_practice() and not PVP.UTILS.is_pvp_blind() then
 		if
 			G.GAME.current_round.hands_played == 0
 			and G.GAME.current_round.discards_used > 0

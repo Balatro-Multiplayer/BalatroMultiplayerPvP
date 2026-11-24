@@ -23,7 +23,7 @@ MPAPI.Joker({
 	in_pool = function(self)
 		return PVP.GAME.pincher_unlock -- do NOT replace this with G.GAME.round_resets.ante >= 3, order sets ante to 0
 	end,
-	-- The opponent's shop spending comes from the view (pvp_api/run_screen.lua); Penny Pincher only reads it.
+	-- The opponent's shop spending comes from the view (pvp_api/ui/run.lua); Penny Pincher only reads it.
 	calc_dollar_bonus = function(self, card)
 		local money = PVP.OPPONENT_RECORD.pincher_payout(
 			PVP.GAME.enemy.spent_in_shop,

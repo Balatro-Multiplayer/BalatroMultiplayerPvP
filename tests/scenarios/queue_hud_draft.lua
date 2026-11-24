@@ -76,7 +76,7 @@ local steps = {
 		SIM.join(0.5)
 	end },
 	{ wait = 1.5, run = function(S)
-		local view = PVP.QUEUE_REVEAL.view
+		local view = PVP.UI.queue.reveal.view
 		local footer = tostring(view and view.footer_text)
 		S.check(footer:match("%d$") ~= nil, "the footer counts down: " .. footer)
 		shot("countdown")
@@ -84,7 +84,7 @@ local steps = {
 	{ wait = 0.5, timeout = 8, until_ = function()
 		return setup() and setup().open ~= nil
 	end, run = function(S)
-		S.check(PVP.QUEUE_REVEAL.view == nil, "the reveal ended for the Draft")
+		S.check(PVP.UI.queue.reveal.view == nil, "the reveal ended for the Draft")
 		S.check(MPAPI.get_current_view() == "lobby_menu", "the Draft shows in the lobby view")
 		S.check(MPAPI.BanPick.is_active(), "MPAPI.BanPick runs the Draft")
 		S.check(#setup().open.pool == 9, "nine deck and stake tiles")
@@ -106,8 +106,8 @@ end }
 steps[#steps + 1] = { wait = 0.5, timeout = 20, until_ = function()
 	return G.STAGE == G.STAGES.RUN and G.GAME and G.GAME.selected_back and G.STATE == G.STATES.BLIND_SELECT
 end, run = function(S)
-	S.check(PVP.is_practice_mode(), "a practice run")
-	S.check(PVP.SP.ruleset == "ruleset_mp_expanded", "on Expanded")
+	S.check(PVP.PRACTICE.is_on(), "a practice run")
+	S.check(PVP.PRACTICE.ruleset == "ruleset_mp_expanded", "on Expanded")
 	S.check(G.GAME.selected_back.name == G.P_CENTERS[picked.key].name, "on the drafted deck: " .. tostring(G.GAME.selected_back.name))
 	S.check(G.GAME.stake == picked.stake, "on the drafted stake: " .. tostring(G.GAME.stake))
 	S.check(MPAPI.get_current_lobby() ~= DRAFT.lobby and not SIM.active, "the simulator let go")

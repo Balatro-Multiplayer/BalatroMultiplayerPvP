@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/nemesis_slots_test.lua
--- lib/phantom.lua: PVP.create_nemesis_slots rebuilds the Nemesis areas, and the trap row is drawn again
+-- lib/phantom.lua: PVP.NEMESIS.create_slots rebuilds the Nemesis areas, and the trap row is drawn again
 -- in the new area right after the ante's Nemesis is set.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local steps = {}
 local function area_stub()
@@ -27,12 +22,14 @@ Game = { delete_run = function() end }
 CardArea = setmetatable({ align_cards = function() end }, { __call = function() return area_stub() end })
 math.pi = math.pi
 PVP = {
+	UI = { trap_row = { refresh = function() steps[#steps + 1] = "trap row refreshed" end } },
 	LOBBY = { code = "ABCD" },
 	config = {},
-	is_phantom = function() return false end,
-	clear_ante_nemesis = function() steps[#steps + 1] = "ante cleared" end,
-	init_ante_nemesis = function() steps[#steps + 1] = "ante set" end,
-	TRAP_ROW = { refresh = function() steps[#steps + 1] = "trap row refreshed" end },
+	NEMESIS = {
+		is_phantom = function() return false end,
+		clear_ante = function() steps[#steps + 1] = "ante cleared" end,
+		init_ante = function() steps[#steps + 1] = "ante set" end,
+	},
 }
 
 dofile("lib/phantom.lua")
@@ -41,17 +38,17 @@ local sizes = { consumeable_W = 4, consumeable_H = 1, joker_W = 5, joker_H = 1 }
 
 -- In a lobby: the areas are rebuilt, the ante's Nemesis is set, and only then is the trap row drawn.
 steps = {}
-PVP.create_nemesis_slots(sizes)
+PVP.NEMESIS.create_slots(sizes)
 eq(steps[1], "ante cleared", "the old rows go first")
 eq(steps[#steps - 1], "ante set", "the ante's Nemesis is set")
 eq(steps[#steps], "trap row refreshed", "then the trap row is drawn in the new area")
-eq(PVP.nemesis_consumeables ~= nil and PVP.nemesis_jokers ~= nil, true, "both rows exist")
+eq(PVP.NEMESIS.consumeables ~= nil and PVP.NEMESIS.jokers ~= nil, true, "both rows exist")
 
 -- Outside a lobby there are no rows, so nothing is drawn.
 PVP.LOBBY.code = nil
 steps = {}
-PVP.create_nemesis_slots(sizes)
-eq(PVP.nemesis_jokers, nil, "no row outside a lobby")
+PVP.NEMESIS.create_slots(sizes)
+eq(PVP.NEMESIS.jokers, nil, "no row outside a lobby")
 for _, step in ipairs(steps) do eq(step ~= "trap row refreshed", true, "no trap row drawn outside a lobby") end
 
-print("nemesis_slots_test: ok (" .. checks .. " checks)")
+T.done("nemesis_slots_test")

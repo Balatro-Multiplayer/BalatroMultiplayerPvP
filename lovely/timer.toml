@@ -10,7 +10,7 @@ target = 'game.lua'
 pattern = 'self.TIMERS.TOTAL = self.TIMERS.TOTAL + dt*(self.SPEEDFACTOR)'
 position = 'before'
 payload = '''
-if PVP.TIMER_FORCE_GAMESPEED and (G.STAGE == G.STAGES.RUN and not G.SETTINGS.paused and not G.screenwipe) then
+if PVP.UI.timer.FORCE_GAMESPEED and (G.STAGE == G.STAGES.RUN and not G.SETTINGS.paused and not G.screenwipe) then
     self.SPEEDFACTOR = math.max(self.SPEEDFACTOR, 4 + math.max(0, math.abs(G.ACC) - 2))
 end
 '''

@@ -1,4 +1,4 @@
--- This mod's live transport for PVP.RLOG (an alias to MPAPI.replay, the
+-- This mod's live transport for PVP.REPLAY.log (an alias to MPAPI.replay, the
 -- generic recorder in BalatroMultiplayerAPI/api/replay/recorder.lua -- see
 -- lib/replay_log.lua).
 --
@@ -12,7 +12,7 @@
 -- both shapes satisfy the same schema without a second ActionType.
 -- Receiving clients ignore the event: it is for spectators.
 
-PVP.RLOG_EVENT_ACTION = MPAPI.ActionType({
+PVP.REPLAY.EVENT_ACTION = MPAPI.ActionType({
 	key = "pvp_log_event",
 	prefix_config = { key = false },
 	parameters = {
@@ -23,7 +23,7 @@ PVP.RLOG_EVENT_ACTION = MPAPI.ActionType({
 	on_receive = function() end,
 })
 
--- Normalizes PVP.RLOG.record's flexible args shape (nil | scalar | array/dict
+-- Normalizes PVP.REPLAY.log.record's flexible args shape (nil | scalar | array/dict
 -- table) into what pvp_log_event's `args` param actually needs: nil (omitted
 -- entirely, since it's optional) or a table. A bare scalar (e.g. pack_skip's
 -- literal `0`) gets wrapped as a single-element array so it still round-trips.
@@ -46,5 +46,5 @@ end
 MPAPI.replay.register_broadcaster(PVP.id, function(t, opcode, args)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby then return end
-	lobby:action(PVP.RLOG_EVENT_ACTION):broadcast({ t = t, opcode = opcode, args = normalize_args(args) })
+	lobby:action(PVP.REPLAY.EVENT_ACTION):broadcast({ t = t, opcode = opcode, args = normalize_args(args) })
 end)

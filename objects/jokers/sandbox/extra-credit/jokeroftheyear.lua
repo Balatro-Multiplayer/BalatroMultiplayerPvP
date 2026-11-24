@@ -1,6 +1,6 @@
 SMODS.Joker({
 	key = "jokeroftheyear_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	unlocked = true,
 	discovered = true,
 	blueprint_compat = true,

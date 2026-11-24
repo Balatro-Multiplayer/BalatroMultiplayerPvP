@@ -1,6 +1,6 @@
 -- §22.2/§22.3: PvP's own opcode semantics for MPAPI's generic playback engine
 -- (BalatroMultiplayerAPI/api/playback/{registry,driver,timeline}.lua). One
--- MPAPI.playback.register_handler("pvp", opcode, fn) per opcode PVP.RLOG.record
+-- MPAPI.playback.register_handler("pvp", opcode, fn) per opcode PVP.REPLAY.log.record
 -- ever emits (see lib/replay_log.lua's own header comment for the full
 -- vocabulary), so nothing recorded is silently dropped during playback.
 --
@@ -8,10 +8,10 @@
 -- AUTONOMOUS_DECISIONS.md): every POV opcode is replayed by calling the exact
 -- real function a live click would call, fed the exact real Card/CardArea
 -- objects the recording's positional indices point to. This works because
--- PVP.RLOG's `manifest` event already captures {seed, deck, sleeve, stake,
+-- PVP.REPLAY.log's `manifest` event already captures {seed, deck, sleeve, stake,
 -- challenge, ruleset, gamemode} (lib/replay_log.lua's REQUIRED_MANIFEST_KEYS),
 -- and Balatro's own RNG is a pure deterministic hash chain keyed only by seed
--- + call sequence -- so PVP._start_playback (lib/playback_launch.lua)
+-- + call sequence -- so PVP.REPLAY.start (lib/playback_launch.lua)
 -- starting a fresh local run from that same manifest reproduces the exact
 -- same cards/shops at every point, making the original recording's
 -- positional args (1-based CardArea indices) valid references again. Real
@@ -25,7 +25,7 @@
 -- board to drive (the POV's), the opponent side is still just a display.
 --
 -- Recording is already silenced automatically during any of this: a replay/
--- spectate session always runs through PVP._start_playback's local lobby
+-- spectate session always runs through PVP.REPLAY.start's local lobby
 -- (MPAPI.create_local_lobby), which never sets PVP.LOBBY.code -- and
 -- RLOG.is_active() (lib/replay_log.lua) already gates on that field, exactly
 -- like it already does for a human practicing. Confirmed live; no change
@@ -70,8 +70,8 @@ local function project_enemy_hand_result(args)
 	if not score_str or not hands_left then
 		return
 	end
-	local score = PVP.Score.or_zero(score_str)
-	if PVP.Score.greater(score, PVP.GAME.enemy.highest_score) then
+	local score = PVP.SCORE.or_zero(score_str)
+	if PVP.SCORE.greater(score, PVP.GAME.enemy.highest_score) then
 		PVP.GAME.enemy.highest_score = score
 	end
 	PVP.GAME.enemy.real_score = score
@@ -80,7 +80,7 @@ local function project_enemy_hand_result(args)
 end
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.MANIFEST, function(args, _ctx)
-	-- Framing event -- PVP._start_playback (lib/playback_launch.lua) reads the
+	-- Framing event -- PVP.REPLAY.start (lib/playback_launch.lua) reads the
 	-- manifest directly from the timeline/run metadata before playback starts,
 	-- not through this dispatch path. No-op here.
 end)
@@ -109,14 +109,14 @@ end)
 -- avoided by passing the REAL, currently-on-screen G.blind_select UIBox --
 -- valid because a playback session always has a real UI on screen, this
 -- isn't headless. Recording re-fires safely (see file header: RLOG is
--- already inactive for any PVP._start_playback session).
+-- already inactive for any PVP.REPLAY.start session).
 -- Real crash found live during verification: toggle_shop()'s SHOP->
 -- BLIND_SELECT state flip happens synchronously, but the actual G.blind_select
 -- UIBox is only (re)built later, off a queued event Game:update processes on
 -- a subsequent frame (mirrors the same "STATE flips before the screen exists"
 -- timing already found for round_eval/shop). Calling select_blind
 -- synchronously right after toggle_shop would hand it a stale/nil UIBox.
--- Deferred via PVP._playback_wait_for (lib/playback_launch.lua) -- the same
+-- Deferred via PVP.REPLAY.wait_for (lib/playback_launch.lua) -- the same
 -- one-shot condition-poll already used to reach BLIND_SELECT at bootstrap --
 -- rather than a blocking wait, since a registry handler is a plain
 -- synchronous function with no coroutine to yield from.
@@ -149,7 +149,7 @@ local function blind_action(ctx, act, applied)
 		end
 	end
 	local deadline = love.timer.getTime() + BLIND_WAIT_TIMEOUT_SECONDS
-	PVP._playback_wait_for(function()
+	PVP.REPLAY.wait_for(function()
 		if on_blind_select_screen() then
 			return true
 		end
@@ -169,7 +169,7 @@ local function blind_action(ctx, act, applied)
 			return
 		end
 		local applied_by = love.timer.getTime() + BLIND_WAIT_TIMEOUT_SECONDS
-		PVP._playback_wait_for(function()
+		PVP.REPLAY.wait_for(function()
 			return applied() or love.timer.getTime() >= applied_by
 		end, resume)
 	end)
@@ -206,7 +206,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SKIP_BLIND, function(args, c
 	else
 		-- Direct projection, same reasoning as project_enemy_hand_result above. A replay has no view to
 		-- show the opponent's skips; with a live view the view owns them.
-		if not (PVP.match_net and PVP.match_net.view) then
+		if not (PVP.NET and PVP.NET.view) then
 			PVP.GAME.enemy.skips = (PVP.GAME.enemy.skips or 0) + 1
 		end
 	end
@@ -241,7 +241,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.PLAY, function(args, ctx)
 			return
 		end
 		G.FUNCS.play_cards_from_highlighted()
-	end, PVP._playback_wait_for)
+	end, PVP.REPLAY.wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.DISCARD, function(args, ctx)
@@ -262,7 +262,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.DISCARD, function(args, ctx)
 			return
 		end
 		G.FUNCS.discard_cards_from_highlighted(nil, false)
-	end, PVP._playback_wait_for)
+	end, PVP.REPLAY.wait_for)
 end)
 
 MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
@@ -278,7 +278,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.SELL, function(args, ctx)
 end)
 
 local function with_shop_ready(ctx, fn)
-	MPAPI.playback.with_shop_ready(ctx, fn, PVP._playback_wait_for)
+	MPAPI.playback.with_shop_ready(ctx, fn, PVP.REPLAY.wait_for)
 end
 
 local function replay_buy(args, ctx)
@@ -404,7 +404,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.HAND_RESULT, function(args, 
 	if ctx.is_pov then
 		local score_str = args and args[1]
 		if score_str then
-			PVP.check_hand_result_when_scored(score_str, PVP._playback_wait_for)
+			PVP.REPLAY.check_hand_result(score_str, PVP.REPLAY.wait_for)
 		end
 	else
 		project_enemy_hand_result(args)
@@ -429,7 +429,7 @@ MPAPI.playback.register_handler('pvp', MPAPI.OPCODE.CASHOUT, function(_args, ctx
 		-- once the blind's evaluation has run: it writes the same field.
 		local recorded = recorded_round_dollars
 		recorded_round_dollars = nil
-		MPAPI.playback.cash_out_when_ready(ctx, PVP._playback_wait_for, function()
+		MPAPI.playback.cash_out_when_ready(ctx, PVP.REPLAY.wait_for, function()
 			if recorded and G.GAME.current_round then
 				G.GAME.current_round.dollars = recorded
 			end

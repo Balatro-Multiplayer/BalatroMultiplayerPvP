@@ -1,8 +1,7 @@
 -- Pure rules for the Forfeit or Contest modal. No game state, broadcasts or UI
 -- here: ui/contest_modal.lua feeds this module and acts on the answer.
 
-PVP.Contest = {}
-local Contest = PVP.Contest
+local Contest = PVP.CONTEST
 
 -- The run status the server gives a contested run (GAME_ENDED).
 Contest.RunStatus = { CONTESTED = "contested" }
@@ -13,7 +12,7 @@ function Contest.should_offer(kind, player_count)
 	if player_count < 2 then
 		return false
 	end
-	return kind == PVP.LobbyAccess.RANKED or kind == PVP.LobbyAccess.CASUAL
+	return kind == PVP.LOBBY.Access.RANKED or kind == PVP.LOBBY.Access.CASUAL
 end
 
 -- Who a Contest ends the match for. A match of 2 players ends for both. In a

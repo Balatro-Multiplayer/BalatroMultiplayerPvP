@@ -5,7 +5,7 @@ local P = assert(SMODS.load_file("tests/scenarios/lib/pair.lua", "MultiplayerPvP
 
 return P.steps(
 	P.connect(),
-	P.lobby(PVP.GamemodeKey.PVP_NEMESIS),
+	P.lobby(PVP.RULES.GamemodeKey.PVP_NEMESIS),
 	P.sync("in_lobby"),
 	P.start(),
 	P.reach_blind_select(),

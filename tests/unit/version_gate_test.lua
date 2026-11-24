@@ -1,8 +1,8 @@
 -- Plain Lua test for lib/version_gate.lua (pure rules, no game needed).
 -- Run from the repo root: lua5.4 tests/unit/version_gate_test.lua
-PVP = {}
+PVP = { NET = {} }
 dofile("lib/version_gate.lua")
-local G = PVP.VersionGate
+local G = PVP.NET.version_gate
 
 local failures = 0
 local function check(name, got, want)

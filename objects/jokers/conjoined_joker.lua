@@ -43,8 +43,8 @@ MPAPI.Joker({
 		if
 			context.cardarea == G.jokers
 			and context.joker_main
-			and PVP.is_pvp_boss()
-			and not PVP.is_phantom(card)
+			and PVP.UTILS.is_pvp_blind()
+			and not PVP.NEMESIS.is_phantom(card)
 		then
 			return {
 				x_mult = card.ability.extra.x_mult,

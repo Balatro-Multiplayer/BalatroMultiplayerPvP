@@ -11,7 +11,7 @@
     luajit tests/unit/draft_board_test.lua
 ]]
 
-PVP = { DECK = {}, SETUP = { Step = { DRAFT = "draft" } }, id = "MultiplayerPvP" }
+PVP = { ACTIONS = {}, UTILS = {}, RULES = {}, DECK = {}, SETUP = { Step = { DRAFT = "draft" } }, id = "MultiplayerPvP" }
 MPAPI = {}
 G = { FUNCS = {} }
 function localize(k)
@@ -174,13 +174,13 @@ dofile(api .. "api/layers/registry.lua")
 dofile(api .. "api/layers/fields.lua")
 dofile(api .. "api/ruleset/current.lua")
 MPAPI.MODIFIERS, MPAPI.Rulesets = {}, {}
-function PVP.Ruleset(init)
+function PVP.RULES.Ruleset(init)
 	MPAPI.Rulesets["ruleset_mp_" .. init.key] = MPAPI.resolve_layers(init)
 	return { inject = function() end }
 end
 SMODS, Tag, Back, Card = {}, {}, {}, {}
-PVP.LayerKey = PVP.LayerKey or { MULTIPLAYER_CONTENT = "multiplayer_content" }
-MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {})
+PVP.RULES.LayerKey = PVP.RULES.LayerKey or { MULTIPLAYER_CONTENT = "multiplayer_content" }
+MPAPI.Layer(PVP.RULES.LayerKey.MULTIPLAYER_CONTENT, {})
 for _, name in ipairs({ "balanced", "expanded", "expanded_draft", "pvp_timer", "smallworld" }) do
 	dofile("layers/" .. name .. ".lua")
 end
@@ -190,7 +190,7 @@ end
 dofile("pvp_api/actions/run_lifecycle.lua")
 
 local function pool_stakes_and_decks(ruleset, pool_size)
-	local config = PVP._ban_pick_config_for({ ban_pick = { pool_size = pool_size or 9, keep = 1, schedule = {} } }, ruleset)
+	local config = PVP.DRAFT.ban_pick_config_for({ ban_pick = { pool_size = pool_size or 9, keep = 1, schedule = {} } }, ruleset)
 	local stakes, decks, sizes = {}, {}, {}
 	for _ = 1, 200 do
 		local board = config.build_pool()

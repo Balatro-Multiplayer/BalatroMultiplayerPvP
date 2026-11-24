@@ -46,7 +46,7 @@ end
 
 local calculate_context_ref = SMODS.calculate_context
 function SMODS.calculate_context(context, return_table, no_resolve)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return calculate_context_ref(context, return_table, no_resolve)
 	end
 	local booster = type(context) == "table" and context.booster
@@ -70,7 +70,7 @@ end
 -- select-to-area branch. The card then dissolves like any used card.
 local use_card_ref = G.FUNCS.use_card
 function G.FUNCS.use_card(e, mute, nosave)
-	if not PVP.in_session() then
+	if not PVP.LOBBY.in_session() then
 		return use_card_ref(e, mute, nosave)
 	end
 	local card = e.config and e.config.ref_table

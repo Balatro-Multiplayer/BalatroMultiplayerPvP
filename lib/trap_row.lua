@@ -1,7 +1,7 @@
 -- The Nemesis consumable row: face-down, display-only copies of the traps I planted that the ante's
--- Nemesis holds. They are read from the net's view (pvp_api/trap_reader.lua), which lists only the
--- traps I own or hold, and drawn in PVP.nemesis_consumeables.
-PVP.TRAP_ROW = PVP.TRAP_ROW or {}
+-- Nemesis holds. They are read from the net's view (pvp_api/read/trap.lua), which lists only the
+-- traps I own or hold, and drawn in PVP.NEMESIS.consumeables.
+PVP.UI.trap_row = PVP.UI.trap_row or {}
 
 local function add_display_card(area, trap)
 	local card = Card(area.T.x + area.T.w / 2, area.T.y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS[trap.key])
@@ -35,12 +35,12 @@ end
 
 -- Make the row match my traps on the Nemesis. The cards are never added to the deck, so they neither
 -- calculate nor count for any effect. With no trap list in the view the row stays as it is.
-function PVP.TRAP_ROW.refresh()
-	local area = PVP.nemesis_consumeables
-	local view = PVP.match_net.view
-	local traps = PVP.trap_reader.traps(view)
+function PVP.UI.trap_row.refresh()
+	local area = PVP.NEMESIS.consumeables
+	local view = PVP.NET.view
+	local traps = PVP.READ.trap.traps(view)
 	if not (area and traps) then return end
-	local row = PVP.trap_reader.row(traps, view.me, PVP.ante_nemesis_ids())
+	local row = PVP.READ.trap.row(traps, view.me, PVP.NEMESIS.ante_ids())
 	local wanted = {}
 	for _, trap in ipairs(row.shown) do
 		wanted[trap.id] = true

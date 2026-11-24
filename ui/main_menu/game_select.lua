@@ -6,24 +6,24 @@
 -- handlers in ui/pvp_main_menu.lua, unchanged.
 
 
-local CHIP_ROW = PVP.MODE_CHIP_ROW
-local MODE_COLOUR = PVP.MODE_COLOUR
+local CHIP_ROW = PVP.UI.mode_chips.ROW
+local MODE_COLOUR = PVP.UI.mode_chips.COLOUR
 
 -- Practice: one pillar per ruleset; key is the ruleset key and the name is its display name.
 local PRACTICE_MODES = {
-	{ key = PVP.RulesetKey.BALANCED,
+	{ key = PVP.RULES.RulesetKey.BALANCED,
 		desc = { "Minor balance", "changes for MP" }, button = "mp_pvp_practice_balanced", colour = HEX(MODE_COLOUR.balanced), chip_row = CHIP_ROW.balanced },
-	{ key = PVP.RulesetKey.EXPANDED,
+	{ key = PVP.RULES.RulesetKey.EXPANDED,
 		desc = { "Standardized and", "balanced for MP" }, button = "mp_pvp_practice_expanded", colour = HEX(MODE_COLOUR.expanded), chip_row = CHIP_ROW.expanded },
-	{ key = PVP.RulesetKey.VANILLA,
+	{ key = PVP.RULES.RulesetKey.VANILLA,
 		desc = { "Normal Balatro", "with PvP blinds" }, button = "mp_pvp_practice_vanilla", colour = HEX(MODE_COLOUR.vanilla), chip_row = CHIP_ROW.vanilla },
-	{ key = PVP.RulesetKey.SMALLWORLD,
+	{ key = PVP.RULES.RulesetKey.SMALLWORLD,
 		desc = { "75% of cards are", "banned at random" }, button = "mp_pvp_practice_smallworld", colour = HEX(MODE_COLOUR.smallworld), chip_row = CHIP_ROW.smallworld },
 }
 
--- key is the gamemode key PVP.pvp_create_private_lobby takes (pvp_api/flow.lua). The Party
--- pillar's key is PVP.LobbyAccess.PARTY: it has no gamemode (pvp_api/party_lobby.lua). A
--- function because pvp_api (PVP.LobbyAccess) loads after the ui files.
+-- key is the gamemode key PVP.LOBBY.create_private takes (pvp_api/flow.lua). The Party
+-- pillar's key is PVP.LOBBY.Access.PARTY: it has no gamemode (pvp_api/party_lobby.lua). A
+-- function because pvp_api (PVP.LOBBY.Access) loads after the ui files.
 local function lobby_modes()
 	return {
 		{ key = "pvp_nemesis", name = "Nemesis",
@@ -34,13 +34,13 @@ local function lobby_modes()
 			desc = { "Hunters team up", "to stop a Runner" }, button = "mp_pvp_create_lobby_manhunt", colour = HEX(MODE_COLOUR.manhunt), chip_row = CHIP_ROW.manhunt },
 		{ key = "pvp_teams", name = "Teams",
 			desc = { "Team vs team;", "best score wins" }, button = "mp_pvp_create_lobby_teams", colour = HEX(MODE_COLOUR.teams), chip_row = CHIP_ROW.teams },
-		{ key = PVP.LobbyAccess.PARTY, name_key = "k_party",
+		{ key = PVP.LOBBY.Access.PARTY, name_key = "k_party",
 			desc_keys = { "k_party_desc_1", "k_party_desc_2" }, button = "mp_pvp_create_lobby_party", colour = HEX(MODE_COLOUR.party), chip_row = CHIP_ROW.party },
 	}
 end
 
 local function stat_box_for(mode, intent)
-	if intent == "create_lobby" and mode.key == PVP.LobbyAccess.PARTY then
+	if intent == "create_lobby" and mode.key == PVP.LOBBY.Access.PARTY then
 		local Group = MPAPI.matchmaking.group
 		return MPAPI.ui_pillar_stat_box({ label = localize("b_players"), value = Group.MIN_SIZE .. "-" .. Group.MAX_SIZE, value_colour = G.C.MONEY })
 	end
@@ -55,7 +55,7 @@ end
 
 local function pillar_name(mode, intent)
 	if intent ~= "create_lobby" then
-		return PVP.ruleset_display_name(mode.key)
+		return PVP.RULES.display_name(mode.key)
 	end
 	return mode.name_key and localize(mode.name_key) or mode.name
 end
@@ -77,7 +77,7 @@ local function build_items(intent)
 	for _, mode in ipairs(modes) do
 		items[#items + 1] = {
 			id = mode.key,
-			icon = PVP.mode_chip_sprite(mode.chip_row),
+			icon = PVP.UI.mode_chips.sprite(mode.chip_row),
 			select = MPAPI.ui_pillar_select_button({
 				label = intent == "create_lobby" and "CREATE" or "START",
 				button = mode.button,
@@ -97,7 +97,7 @@ end
 -- Builds the page for `intent` ('practice' or 'create_lobby', default 'practice'). The
 -- caller (pvp_game_select's MPAPI.Page registration, core.lua) disposes the returned
 -- pillar row with the page, so the chip icons get removed.
-function PVP.build_game_select_ui(intent)
+function PVP.UI.game_select.build(intent)
 	intent = intent == "create_lobby" and "create_lobby" or "practice"
 	local pillar_row = MPAPI.ui_pillar_row({ items = build_items(intent) })
 	local definition = {

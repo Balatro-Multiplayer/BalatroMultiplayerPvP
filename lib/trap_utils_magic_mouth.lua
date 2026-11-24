@@ -39,7 +39,7 @@ end
 local function wrap_seal_method(method_name)
 	local method_ref = Card[method_name]
 	Card[method_name] = function(self, context)
-		if not PVP.in_session() then
+		if not PVP.LOBBY.in_session() then
 			return method_ref(self, context)
 		end
 		local trap = (self.seal == "Blue" or self.seal == "Purple") and PVP.TRAP.find_planted(PVP.TRAP.KEY.MAGIC_MOUTH)

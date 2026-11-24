@@ -8,7 +8,7 @@ f:close()
 local body = text:match("function G%.FUNCS%.play_cards_from_highlighted%(%.%.%.%)(.-)\nend")
 assert(body, "timer.lua has no play_cards_from_highlighted hook")
 
-local gate = body:find("PVP.pvp_blind_screen.may_play()", 1, true)
+local gate = body:find("PVP.UI.pvp_blind.may_play()", 1, true)
 local play = body:find("old_play", 1, true)
 assert(gate, "the Play action does not check pvp_blind_screen.may_play()")
 assert(play and gate < play, "the Play action checks may_play() only after playing the hand")

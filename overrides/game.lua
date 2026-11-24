@@ -21,7 +21,7 @@ function Card:sell_card()
 	-- BalatroMultiplayerAPI/api/replay/generic_codes.lua's own Card:sell_card
 	-- hook (wrapping the same underlying method) -- nothing left to do here.
 	-- The server counts my sells per ante; Taxes reads the opponent's from the view.
-	if PVP.LOBBY.code then PVP.run_screen.sold() end
+	if PVP.LOBBY.code then PVP.UI.run.sold() end
 	return sell_card_ref(self)
 end
 
@@ -33,8 +33,8 @@ function G.FUNCS.cash_out(e)
 	-- which a replay or crash-rejoin fast-forward runs without; its cashout
 	-- handler pays this instead (lib/playback_handlers.lua). Recorded here, the
 	-- outer wrapper, so it lands just before MPAPI's own `cashout` event.
-	if PVP.rlog_active() and G.GAME.current_round then
-		PVP.RLOG.record(MPAPI.OPCODE.ROUND_DOLLARS, G.GAME.current_round.dollars or 0)
+	if PVP.REPLAY.logging() and G.GAME.current_round then
+		PVP.REPLAY.log.record(MPAPI.OPCODE.ROUND_DOLLARS, G.GAME.current_round.dollars or 0)
 	end
 	return cash_out_ref(e)
 end
@@ -67,7 +67,7 @@ G.FUNCS.evaluate_round = function()
 		G.after_pvp = nil
 		SMODS.calculate_context({ mp_end_of_pvp = true })
 	end
-	local ok, err = pcall(function() PVP.match_net.before_blind_eval() end)
+	local ok, err = pcall(function() PVP.NET.before_blind_eval() end)
 	if not ok then sendWarnMessage("[inbox] blind evaluation: " .. tostring(err), "MULTIPLAYER") end
 	evaluate_round_ref()
 end

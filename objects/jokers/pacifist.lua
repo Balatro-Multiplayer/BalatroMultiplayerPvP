@@ -20,7 +20,7 @@ SMODS.Joker({
 		return { vars = { card.ability.extra.x_mult } }
 	end,
 	calculate = function(self, card, context)
-		if context.cardarea == G.jokers and context.joker_main and not PVP.is_pvp_boss() then
+		if context.cardarea == G.jokers and context.joker_main and not PVP.UTILS.is_pvp_blind() then
 			return {
 				x_mult = card.ability.extra.x_mult,
 			}

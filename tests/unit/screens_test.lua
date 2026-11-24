@@ -1,24 +1,19 @@
 -- Run from the repo root: luajit tests/unit/screens_test.lua
--- pvp_api/screens.lua: the screens tick in their listed order, one failing does not stop the rest, and a
+-- pvp_api/ui/screens.lua: the screens tick in their listed order, one failing does not stop the rest, and a
 -- repeated error is logged once.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
-PVP = { match_net = {} }
+PVP = { READ = {}, UI = {}, NET = {} }
 Game = { update = function() end }
 sendWarnMessage = function() end
-dofile("pvp_api/screens.lua")
-local screens = PVP.match_net.screens
+dofile("pvp_api/ui/screens.lua")
+local screens = PVP.UI.screens
 
 local order = table.concat(screens.order, ",")
-eq(order, "away_screen,entry_screen,finish_screen,pending_death_screen,pvp_blind_screen,reconnect_screen,run_screen,target_screen,timer_screen,trap_screen", "the screens' order")
+eq(order, "away,blind_start,finish,pending_death,pvp_blind,reconnect,run,target,timer,trap", "the screens' order")
 for i, name in ipairs(screens.order) do
-	if name == "entry_screen" then eq(screens.order[i + 3], "pvp_blind_screen", "entry ticks before blind") end
+	if name == "blind_start" then eq(screens.order[i + 3], "pvp_blind", "entry ticks before blind") end
 end
 
 local ran, logs = {}, {}
@@ -39,9 +34,9 @@ eq(#logs, 2, "another error is logged")
 
 -- Each frame a new run clears the marks before any screen runs.
 local steps = {}
-PVP.match_net.view = "the view"
-PVP.view = { follow_run = function(view) steps[#steps + 1] = "follow " .. view end }
-PVP.only = { update = function() steps[#steps + 1] = "screen" end }
+PVP.NET.view = "the view"
+PVP.READ.view = { follow_run = function(view) steps[#steps + 1] = "follow " .. view end }
+PVP.UI.only = { update = function() steps[#steps + 1] = "screen" end }
 local listed = screens.order
 screens.order = { "only" }
 Game:update(0)
@@ -58,4 +53,4 @@ for path in files:lines() do
 end
 files:close()
 
-print("screens_test: ok (" .. checks .. " checks)")
+T.done("screens_test")

@@ -1,8 +1,8 @@
 -- Plain Lua test for lib/contest.lua (pure decision logic, no game needed).
 -- Run from the repo root: lua5.4 tests/unit/contest_test.lua
-PVP = { LobbyAccess = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" } }
+PVP = { LOBBY = { Access = { PRIVATE = "private", PRACTICE = "practice", RANKED = "ranked", CASUAL = "casual" } }, CONTEST = {} }
 dofile("lib/contest.lua")
-local C = PVP.Contest
+local C = PVP.CONTEST
 
 local failures = 0
 local function check(name, got, want)

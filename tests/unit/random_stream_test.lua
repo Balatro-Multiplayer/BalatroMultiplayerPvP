@@ -1,5 +1,5 @@
 -- Standalone: luajit tests/unit/random_stream_test.lua
-PVP = {}
+PVP = { UTILS = {} }
 dofile("lib/_random.lua")
 
 local streams = {}
@@ -22,7 +22,7 @@ love = {
 		end,
 	},
 }
-local board, recipe = PVP.new_rng(), PVP.new_rng()
+local board, recipe = PVP.UTILS.new_rng(), PVP.UTILS.new_rng()
 assert(#streams == 0, "generators are lazy")
 assert(board() == 0.1)
 assert(recipe(3) == 3)
@@ -34,6 +34,6 @@ assert(streams[2].limit == 3, "integer bounds reach the generator")
 assert(#streams == 2, "each generator is seeded only once")
 
 love = nil
-local fallback = PVP.new_rng()
+local fallback = PVP.UTILS.new_rng()
 assert(fallback(1) == 1, "standalone tests can use math.random")
 print("ok")

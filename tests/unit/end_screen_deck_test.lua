@@ -1,5 +1,5 @@
 -- Plain Lua test for the end screen's View Deck: another player's cards come from the view's end
--- of game (PVP.finish_screen.deck_of), and View Deck has a tab per player (PVP.UI.deck_tabs,
+-- of game (PVP.UI.finish.deck_of), and View Deck has a tab per player (PVP.UI.deck_tabs,
 -- ui/game/game_end.lua) that shows that player's deck (PVP.UI.player_deck), none for a player still
 -- in the match.
 -- Run from the repo root: luajit tests/unit/end_screen_deck_test.lua
@@ -11,7 +11,7 @@ G = {
 	P_CENTERS = { c_base = { name = "c_base" }, m_glass = { name = "m_glass" } },
 	P_SEALS = {},
 }
-PVP = { UI = {}, UTILS = {}, LOBBY = { code = "ABCDE" }, GAME = {}, Score = {} }
+PVP = { UI = {}, UTILS = {}, LOBBY = { code = "ABCDE" }, GAME = {}, SCORE = {} }
 function sendDebugMessage() end
 
 function Card(_x, _y, _w, _h, front, center)
@@ -34,7 +34,7 @@ local DECK = ";S-A-m_glass-none-none;H-K-none-none-none"
 -- What the view's end of game holds, by player: a player still in the run has none.
 local decks = { [OUT] = DECK, empty = "" }
 MPAPI = { connection_state = { player_id = SELF } }
-PVP.finish_screen = {
+PVP.UI.finish = {
 	deck_of = function(player_id)
 		return decks[player_id]
 	end,
@@ -97,7 +97,7 @@ for _, case in ipairs({
 	{ "a player whose deck came as an empty string", "empty", nil },
 }) do
 	local name, selected, want = case[1], case[2], case[3]
-	local show = PVP.UI.deck_to_show(selected, SELF, PVP.finish_screen.deck_of)
+	local show = PVP.UI.deck_to_show(selected, SELF, PVP.UI.finish.deck_of)
 	local got = show and (show.own and "own" or show.cards) or nil
 	check("deck_to_show, " .. name, got, want)
 end

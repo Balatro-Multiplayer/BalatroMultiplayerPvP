@@ -1,8 +1,8 @@
-function PVP.multiplayer_content_enabled()
-	return PVP.is_layer_active(PVP.LayerKey.MULTIPLAYER_CONTENT)
+function PVP.RULES.content_enabled()
+	return PVP.RULES.is_layer_active(PVP.RULES.LayerKey.MULTIPLAYER_CONTENT)
 end
 
-MPAPI.Layer(PVP.LayerKey.MULTIPLAYER_CONTENT, {
+MPAPI.Layer(PVP.RULES.LayerKey.MULTIPLAYER_CONTENT, {
 	included_jokers = {
 		"j_mp_speedrun",
 		"j_mp_conjoined_joker",

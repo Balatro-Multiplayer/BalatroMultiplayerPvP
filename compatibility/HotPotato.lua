@@ -28,7 +28,7 @@ if SMODS.Mods["HotPotato"] and SMODS.Mods["HotPotato"].can_load then
 
 			-- Suppress Order-mode determinism during this fake-ante reward roll: base-game
 			-- lovely patches (TheOrder.toml, now shipped from BalatroMultiplayerAPI) call
-			-- MPAPI.should_use_the_order() directly, not PVP.should_use_the_order -- monkeypatch
+			-- MPAPI.should_use_the_order() directly, not PVP.RULES.use_the_order -- monkeypatch
 			-- MPAPI's function or this suppression silently does nothing.
 			local temp_should_use_the_order = MPAPI.should_use_the_order
 			MPAPI.should_use_the_order = function()

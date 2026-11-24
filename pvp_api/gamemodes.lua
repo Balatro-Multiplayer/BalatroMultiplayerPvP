@@ -4,7 +4,7 @@
 -- key (pvp_nemesis/pvp_smallworld/pvp_royale/pvp_manhunt/pvp_teams — the exact
 -- keys the matchmaking server + web leaderboard expect, queried as `ranked:<key>`)
 -- onto a PVP ruleset + shape. Ranked queueing is ruleset-scoped instead
--- (pvp_api/queue.lua's PVP._join_ranked_ruleset), not routed through a per-ruleset
+-- (pvp_api/queue.lua's PVP.QUEUE.join_ranked), not routed through a per-ruleset
 -- gamemode key.
 --
 -- These MUST be loaded inside MPAPI.on_loaded so their GameObjects are tagged to
@@ -15,13 +15,13 @@
 -- PVP.LOBBY.config, so the API's reset_blinds/ease_ante overlay (api/gamemode/hooks.lua)
 -- must not also mutate the blinds. get_blinds_by_ante returns nothing so the API
 -- overlay is a harmless no-op; on_ante_change does nothing. Who wins, and a leaver's
--- forfeit, are the server's (match_net.lua).
+-- forfeit, are the server's (server_link.lua).
 
 -- The default/fallback queue mode key, referenced as a raw string across several
 -- consumer files (flow.lua, queue.lua, pvp_leaderboard.lua) -- kept as one named
--- constant here, next to its definition in PVP.PVP_GAMEMODES below, so those call
+-- constant here, next to its definition in PVP.RULES.MODES below, so those call
 -- sites can't drift from this table's actual key.
-PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
+PVP.RULES.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 
 -- There is no separate "plain 1v1" shape: Nemesis's rotating pairing degenerates
 -- identically to a plain pairwise 1v1 at exactly 2 players, so every
@@ -33,11 +33,11 @@ PVP.GamemodeKey = { PVP_NEMESIS = "pvp_nemesis" }
 -- pvp_nemesis/pvp_smallworld are the only two ruleset-only entries left as
 -- MPAPI.GameMode registrations. pvp_nemesis (the renamed former ranked format)
 -- is the private-lobby/practice-mode fallback and casual Nemesis's queue key;
--- ranked queues by ruleset directly (PVP._join_ranked_ruleset,
+-- ranked queues by ruleset directly (PVP.QUEUE.join_ranked,
 -- pvp_api/queue.lua) rather than through this gamemode key. Queues play
 -- `ruleset`; private lobbies open on `private_ruleset` if set (see
--- PVP.default_ruleset), and the host can change it in Lobby Options.
-PVP.PVP_GAMEMODES = {
+-- PVP.RULES.default_ruleset), and the host can change it in Lobby Options.
+PVP.RULES.MODES = {
 	pvp_nemesis = { ruleset = "ruleset_mp_balanced", private_ruleset = "ruleset_mp_expanded", gamemode = "gamemode_mp_attrition", display = "Nemesis", has_ranked = true, custom_bridge = true, nemesis_pairing = true, public_max_players = 2 },
 	-- Plays the Royale shape (no pairing): a 2-player game, ranked included, is a plain 1v1.
 	pvp_smallworld = { ruleset = "ruleset_mp_smallworld", gamemode = "gamemode_mp_attrition", display = "Small World", has_ranked = true, custom_bridge = true, public_max_players = 16 },
@@ -85,7 +85,7 @@ local ROTATING_BAN_PICK = {
 -- per ruleset. Ranked is 2 players; the shape at N>2 comes from the entry's
 -- flags (Nemesis pairs, Small World ranks like Royale).
 for _, key in ipairs({ "pvp_nemesis", "pvp_smallworld" }) do
-	local def = PVP.PVP_GAMEMODES[key]
+	local def = PVP.RULES.MODES[key]
 	MPAPI.GameMode({
 		key = key,
 		-- Keep the literal `pvp_*` key (the server/web matchmaking taxonomy expects it);
@@ -116,7 +116,7 @@ end
 
 -- Royale: rotating N-player draft via ROTATING_BAN_PICK.
 do
-	local def = PVP.PVP_GAMEMODES.pvp_royale
+	local def = PVP.RULES.MODES.pvp_royale
 	MPAPI.GameMode({
 		key = "pvp_royale",
 		prefix_config = { key = false },
@@ -139,7 +139,7 @@ end
 
 -- Manhunt: same bridge shape as Royale, including the rotating draft.
 do
-	local def = PVP.PVP_GAMEMODES.pvp_manhunt
+	local def = PVP.RULES.MODES.pvp_manhunt
 	MPAPI.GameMode({
 		key = "pvp_manhunt",
 		prefix_config = { key = false },
@@ -162,7 +162,7 @@ end
 
 -- Teams: same bridge shape, including the rotating draft.
 do
-	local def = PVP.PVP_GAMEMODES.pvp_teams
+	local def = PVP.RULES.MODES.pvp_teams
 	MPAPI.GameMode({
 		key = "pvp_teams",
 		prefix_config = { key = false },

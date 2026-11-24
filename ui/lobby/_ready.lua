@@ -2,26 +2,22 @@
 -- code/ready) and rewired to PvP. Private lobbies: host gets START + LOBBY OPTIONS,
 -- guests get a READY toggle; both get deck/code panels + LEAVE. Matchmaking lobbies:
 -- a status panel; the run auto-starts once all clients are ready.
--- Ready and Start are numbered inputs (pvp_api/lobby_screen.lua); the tally here follows the server's view.
+-- Ready and Start are numbered inputs (pvp_api/ui/lobby.lua); the tally here follows the server's view.
 
-PVP.lobby = PVP.lobby or { buttons = {} }
-PVP.lobby.ready = PVP.lobby.ready or MPAPI.ReadyTracker()
+PVP.UI.lobby = PVP.UI.lobby or { buttons = {} }
+PVP.UI.lobby.ready = PVP.UI.lobby.ready or MPAPI.ReadyTracker()
 
-function PVP.get_lobby_kind()
-	return PVP._pvp_kind
+function PVP.LOBBY.is_matchmaking()
+	return PVP.LOBBY.kind == PVP.LOBBY.Access.RANKED or PVP.LOBBY.kind == PVP.LOBBY.Access.CASUAL
 end
 
-function PVP.is_matchmaking()
-	return PVP._pvp_kind == PVP.LobbyAccess.RANKED or PVP._pvp_kind == PVP.LobbyAccess.CASUAL
-end
-
-function PVP.reset_ready_state()
-	local b = PVP.lobby.buttons
-	PVP.lobby.ready:reset()
-	PVP.lobby.start_broadcasted = false
-	PVP.lobby.start_hold = nil
-	if PVP.lobby_screen then
-		PVP.lobby_screen.refresh_buttons()
+function PVP.UI.lobby.reset_ready()
+	local b = PVP.UI.lobby.buttons
+	PVP.UI.lobby.ready:reset()
+	PVP.UI.lobby.start_broadcasted = false
+	PVP.UI.lobby.start_hold = nil
+	if PVP.UI.lobby.refresh_buttons then
+		PVP.UI.lobby.refresh_buttons()
 		return
 	end
 	for _, name in ipairs({ "ready", "start_game", "party_find_game" }) do
@@ -33,18 +29,18 @@ end
 
 -- The tally is the view's: every seated player's Ready as the server shows it. The host's buttons and
 -- the matchmaking auto-start read it.
-function PVP.apply_ready_view(by_player, present)
-	local lobby = PVP.lobby.ref
+function PVP.UI.lobby.apply_ready(by_player, present)
+	local lobby = PVP.UI.lobby.ref
 	if not lobby then
 		return
 	end
-	PVP.lobby.present = present
-	PVP.lobby.ready:reset()
+	PVP.UI.lobby.present = present
+	PVP.UI.lobby.ready:reset()
 	for player_id, ready in pairs(by_player) do
-		PVP.lobby.ready:set(player_id, ready)
+		PVP.UI.lobby.ready:set(player_id, ready)
 	end
-	if PVP.is_matchmaking() then
-		PVP.maybe_autostart()
+	if PVP.LOBBY.is_matchmaking() then
+		PVP.UI.lobby.maybe_autostart()
 	end
 end
 
@@ -52,7 +48,7 @@ local function can_autostart(L)
 	return not L.start_broadcasted
 		and L.ref
 		and L.ref.is_host
-		and PVP.is_matchmaking()
+		and PVP.LOBBY.is_matchmaking()
 		and (L.present or 0) >= 2
 		and L.ready:all_ready()
 end
@@ -60,8 +56,8 @@ end
 -- Host-only matchmaking auto-start: once all clients are ready, hold for the match reveal's
 -- countdown (ui/queue/reveal.lua), then start exactly once. The hold is the host's, so every
 -- client's reveal ends on the same game start and the Draft's turn clock starts after it.
-function PVP.maybe_autostart()
-	local L = PVP.lobby
+function PVP.UI.lobby.maybe_autostart()
+	local L = PVP.UI.lobby
 	if L.start_hold or not can_autostart(L) then
 		return
 	end
@@ -69,7 +65,7 @@ function PVP.maybe_autostart()
 	L.start_hold = hold
 	G.E_MANAGER:add_event(Event({
 		trigger = "after",
-		delay = PVP.QUEUE_REVEAL.HOLD_SECONDS,
+		delay = PVP.UI.queue.reveal.HOLD_SECONDS,
 		timer = "REAL",
 		blockable = false,
 		blocking = false,
@@ -81,7 +77,7 @@ function PVP.maybe_autostart()
 			L.start_hold = nil
 			if L.ref == lobby and can_autostart(L) then
 				L.start_broadcasted = true
-				PVP.pvp_start_match()
+				PVP.LOBBY.start_match()
 			end
 			return true
 		end,
@@ -89,5 +85,5 @@ function PVP.maybe_autostart()
 end
 
 G.FUNCS.mp_pvp_toggle_ready = function()
-	PVP.lobby_screen.press_ready()
+	PVP.UI.lobby.press_ready()
 end

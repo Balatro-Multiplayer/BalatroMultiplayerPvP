@@ -11,7 +11,7 @@ target = "functions/state_events.lua"
 pattern = '''function end_round\(\)(?<pre>[\s\S]+?)func = function\(\)'''
 position = 'after'
 payload = '''
-if PVP.handle_duplicate_end() then
+if PVP.UI.blind_end.duplicate_end() then
 	return true
 end
 if PVP.LOBBY.code then
@@ -28,7 +28,7 @@ target = "functions/state_events.lua"
 pattern = '''-- context.end_of_round calculations'''
 position = 'before'
 payload = '''
-if PVP.is_mp_or_practice() then
+if PVP.LOBBY.in_lobby_or_practice() then
 	game_over = false
 end
 '''
@@ -42,7 +42,7 @@ target = "functions/state_events.lua"
 pattern = '''if game_over then'''
 position = 'before'
 payload = '''
-if PVP.is_mp_or_practice() then
+if PVP.LOBBY.in_lobby_or_practice() then
 	game_won = nil
 	G.GAME.won = nil
 end
@@ -57,7 +57,7 @@ target = "functions/state_events.lua"
 pattern = '''G.FUNCS.draw_from_discard_to_deck()'''
 position = 'after'
 payload = '''
-PVP.handle_deck_out()
+PVP.UI.blind_end.deck_out()
 '''
 match_indent = true
 times = 1
@@ -89,8 +89,8 @@ function ease_ante(mod)
 '''
 position = 'after'
 payload = '''
-if PVP.is_mp_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud then
-	PVP.suppress_next_event = true
+if PVP.LOBBY.in_lobby_or_practice() and not PVP.LOBBY.config.disable_live_and_timer_hud then
+	PVP.UI.blind_end.suppress_next_event = true
 end
 '''
 match_indent = true

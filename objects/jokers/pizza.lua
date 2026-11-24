@@ -23,13 +23,13 @@ MPAPI.Joker({
 		return { vars = { card.ability.extra.discards, card.ability.extra.discards_nemesis } }
 	end,
 	calculate = function(self, card, context)
-		if context.mp_end_of_pvp and not context.blueprint and not PVP.is_phantom(card) then
+		if context.mp_end_of_pvp and not context.blueprint and not PVP.NEMESIS.is_phantom(card) then
 			PVP.GAME.pizza_discards = PVP.GAME.pizza_discards + card.ability.extra.discards
 			G.GAME.round_resets.discards = G.GAME.round_resets.discards + card.ability.extra.discards
 			ease_discard(card.ability.extra.discards)
 			card:remove_from_deck()
 			card:start_dissolve({ G.C.RED }, nil, 1.6)
-			PVP.run_screen.effect("pizza")
+			PVP.UI.run.effect("pizza")
 			return {
 				message = localize("k_eaten_ex"),
 				colour = G.C.RED,

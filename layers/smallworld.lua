@@ -5,7 +5,7 @@ MPAPI.Layer("smallworld", {
 		end
 		-- Smallerworld culls the survivors of the first pass a second time.
 		local requires = {}
-		for pass = 1, PVP.smallerworld() and 2 or 1 do
+		for pass = 1, PVP.RULES.smallerworld() and 2 or 1 do
 			local tables = {}
 			for k, v in pairs(G.P_CENTERS) do
 				if
@@ -57,7 +57,7 @@ MPAPI.Layer("smallworld", {
 
 local showman_ref = SMODS.showman
 function SMODS.showman(card_key)
-	if PVP.is_layer_active("smallworld") then return true end
+	if PVP.RULES.is_layer_active("smallworld") then return true end
 	return showman_ref(card_key)
 end
 
@@ -66,13 +66,13 @@ local tag_init_ref = Tag.init
 function Tag:init(_tag, for_collection, _blind_type)
 	local orbital = false
 	local old = G.orbital_hand -- i think this is always nil here but just to be safe
-	if PVP.is_layer_active("smallworld") and not for_collection then
+	if PVP.RULES.is_layer_active("smallworld") and not for_collection then
 		local blind_tags = _blind_type and G.GAME.round_resets.blind_tags
 		local is_blind_tag = blind_tags and blind_tags[_blind_type] == _tag
 		if G.GAME.banned_keys[_tag] and (not G.OVERLAY_MENU or is_blind_tag) then
 			local a = G.GAME.round_resets.ante
 
-			if PVP.should_use_the_order() then G.GAME.round_resets.ante = 10 end
+			if PVP.RULES.use_the_order() then G.GAME.round_resets.ante = 10 end
 
 			_tag = get_next_tag_key("replace")
 			if is_blind_tag then
@@ -86,18 +86,18 @@ function Tag:init(_tag, for_collection, _blind_type)
 			G.GAME.round_resets.ante = a
 		end
 	end
-	if orbital then G.orbital_hand = pseudorandom_element(PVP.sorted_hand_list(), pseudoseed("orbital_replace")) end
+	if orbital then G.orbital_hand = pseudorandom_element(PVP.UTILS.sorted_hand_list(), pseudoseed("orbital_replace")) end
 	tag_init_ref(self, _tag, for_collection, _blind_type)
 	G.orbital_hand = old
 end
 
 local apply_to_run_ref = Back.apply_to_run
 function Back:apply_to_run()
-	if PVP.is_layer_active("smallworld") then PVP.apply_fake_back_vouchers(self) end
+	if PVP.RULES.is_layer_active("smallworld") then PVP.RULES.fake_back_vouchers(self) end
 	return apply_to_run_ref(self)
 end
 
-function PVP.apply_fake_back_vouchers(back)
+function PVP.RULES.fake_back_vouchers(back)
 	local vouchers = {}
 	if back.effect.config.voucher then vouchers = { back.effect.config.voucher } end
 	if back.effect.config.vouchers or #vouchers > 0 then
@@ -125,7 +125,7 @@ end
 
 local add_joker_ref = add_joker
 function add_joker(joker, edition, silent, eternal)
-	if PVP.is_layer_active("smallworld") and G.GAME.banned_keys[joker] then
+	if PVP.RULES.is_layer_active("smallworld") and G.GAME.banned_keys[joker] then
 		local _pool = nil
 		local _pool_key = nil
 		local rarities = { [1] = 0, [2] = 0.9, [3] = 1, [4] = 1 }
@@ -144,7 +144,7 @@ function add_joker(joker, edition, silent, eternal)
 			it = it + 1
 			center = pseudorandom_element(
 				_pool,
-				pseudoseed(_pool_key .. (PVP.should_use_the_order() and "" or ("_resample" .. it)))
+				pseudoseed(_pool_key .. (PVP.RULES.use_the_order() and "" or ("_resample" .. it)))
 			)
 		end
 		joker = center
@@ -154,7 +154,7 @@ end
 
 local card_apply_to_run_ref = Card.apply_to_run
 function Card:apply_to_run(center)
-	if PVP.is_layer_active("smallworld") then
+	if PVP.RULES.is_layer_active("smallworld") then
 		if not self and center and G.GAME.banned_keys[center.key] then
 			G.GAME.used_vouchers[center.key] = nil
 			center = G.P_CENTERS[get_next_voucher_key()]
@@ -165,6 +165,6 @@ function Card:apply_to_run(center)
 end
 
 -- The private lobby option that applies Small World's bans twice.
-function PVP.smallerworld()
+function PVP.RULES.smallerworld()
 	return PVP.LOBBY.code and PVP.LOBBY.config and PVP.LOBBY.config.smallerworld
 end

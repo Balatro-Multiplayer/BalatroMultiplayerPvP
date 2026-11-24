@@ -2,10 +2,12 @@
 -- Load the actual deck with minimal game stubs; exercise selection and apply.
 local function noop() end
 PVP = {
+	UTILS = {},
 	id = "MultiplayerPvP",
 	config = { cocktail = "000H" },
 	LOBBY = { code = "test", deck = { cocktail = "" } },
-	is_layer_active = function() return false end,
+	RULES = { is_layer_active = function() return false end },
+	COCKTAIL = {},
 }
 G = {
 	P_CENTERS = {
@@ -56,13 +58,13 @@ local function apply(cfg)
 end
 
 check("pool includes current mod, excludes other mods and Cocktail",
-	table.concat(PVP.get_cocktail_decks(), ","), "b_red,b_blue,b_mp_test")
-check("empty lobby config uses defaults, not local preferences", PVP.cocktail_cfg_get(), "111H")
+	table.concat(PVP.COCKTAIL.decks(), ","), "b_red,b_blue,b_mp_test")
+check("empty lobby config uses defaults, not local preferences", PVP.COCKTAIL.cfg_get(), "111H")
 check("default lobby applies three decks", apply(""), "b_red,b_blue,b_mp_test")
 check("red effect applied", G.GAME.selected_back.effect.config.discards, 1)
 check("blue effect applied", G.GAME.selected_back.effect.config.hands, 1)
 check("PvP effect applied", G.GAME.selected_back.effect.config.dollars, 10)
-check("default is not marked edited", PVP.cocktail_check_edited(), false)
+check("default is not marked edited", PVP.COCKTAIL.check_edited(), false)
 check("one forced deck fills both remaining slots", apply("211H"), "b_red,b_blue,b_mp_test")
 check("two forced decks fill last slot", apply("221H"), "b_red,b_blue,b_mp_test")
 check("three forced decks need no random candidates", apply("222H"), "b_red,b_blue,b_mp_test")
@@ -70,8 +72,8 @@ check("small pool keeps all available candidates", apply("210H"), "b_red,b_blue"
 check("explicit empty selection is preserved", apply("000H"), "")
 PVP.config.cocktail = "H"
 PVP.LOBBY.deck.cocktail = "111S"
-check("visibility uses effective config length", PVP.cocktail_cfg_readpos("show", true), "S")
+check("visibility uses effective config length", PVP.COCKTAIL.cfg_readpos("show", true), "S")
 PVP.LOBBY.code = nil
 PVP.config.cocktail = "010H"
-local decks = PVP.get_cocktail_decks(true)
+local decks = PVP.COCKTAIL.decks(true)
 check("single-player keeps local selection", table.concat(decks, ","), "b_blue")

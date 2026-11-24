@@ -1,23 +1,20 @@
 -- Run from the repo root: luajit tests/unit/out_of_cards_test.lua
 -- ui/game/game_state.lua: running out of cards in a PvP blind ends the blind with one handScored of 0 hands.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local reported = {}
 PVP = {
-	UI = {},
-	LOBBY = { connected = true, code = "ABCD", config = {} },
+	UI = { blind_end = {} },
+	LOBBY = {
+		connected = true, code = "ABCD", config = {},
+		in_lobby_or_practice = function() return true end,
+		in_session = function() return true end,
+	},
+	UTILS = { is_pvp_blind = function() return true end },
 	GAME = {},
 	ACTIONS = { play_hand = function(chips, hands_left) reported[#reported + 1] = { chips = chips, hands_left = hands_left } end },
-	is_practice_mode = function() return false end,
-	is_pvp_boss = function() return true end,
-	is_mp_or_practice = function() return true end,
-	in_session = function() return true end,
+	PRACTICE = { is_on = function() return false end },
 }
 Game = {
 	update_draw_to_hand = function() end,
@@ -54,4 +51,4 @@ eq(#reported, 1, "the score is reported once")
 eq(reported[1].hands_left, 0, "with no hands left")
 eq(reported[1].chips, 50, "and the score")
 
-print(string.format("out_of_cards_test: ok (%d checks)", checks))
+T.done("out_of_cards_test")

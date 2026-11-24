@@ -1,5 +1,5 @@
 -- What Taxes and Penny Pincher read of the opponent's run (sells per ante, dollars spent per shop,
--- from the view; run_screen.lua writes them). Pure: plain tables in, plain numbers out, no game globals.
+-- from the view; pvp_api/ui/run.lua writes them). Pure: plain tables in, plain numbers out, no game globals.
 PVP.OPPONENT_RECORD = {}
 
 -- Taxes: sells this ante, plus every earlier ante until PvP has been reached. No sells known, no gain.

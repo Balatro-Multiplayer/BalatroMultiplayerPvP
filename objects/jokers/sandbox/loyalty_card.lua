@@ -10,7 +10,7 @@ SMODS.Joker({
 
 	unlocked = true,
 	discovered = true,
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 	blueprint_compat = true,
 	rarity = 2,
 	cost = 5,

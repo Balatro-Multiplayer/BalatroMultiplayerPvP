@@ -1,6 +1,6 @@
-PVP.Ruleset({
+PVP.RULES.Ruleset({
 	key = "experimental_legacy",
-	layers = { "classic", PVP.LayerKey.MULTIPLAYER_CONTENT },
+	layers = { "classic", PVP.RULES.LayerKey.MULTIPLAYER_CONTENT },
 	forced_gamemode = "gamemode_mp_attrition",
 	-- Let PVP jokers through but ban everything but LGG
 	banned_silent = {

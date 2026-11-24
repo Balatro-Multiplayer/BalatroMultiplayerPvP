@@ -3,8 +3,8 @@
 -- players on different versions); this module only lets the client say so early.
 -- No game state or UI here.
 
-PVP.VersionGate = {}
-local Gate = PVP.VersionGate
+PVP.NET.version_gate = {}
+local Gate = PVP.NET.version_gate
 
 -- The server's refusal reason for a start across versions (nakama VERSION_MISMATCH).
 Gate.SERVER_REASON = "version_mismatch"

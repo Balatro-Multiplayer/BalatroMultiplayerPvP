@@ -28,7 +28,7 @@ MPAPI.Layer("traps", {
 -- G.GAME.banned_keys, not mp_include) -- so ban the pack keys directly whenever "traps"
 -- isn't active. See objects/boosters/traps.lua.
 MPAPI.register_ban_source(function()
-	if PVP.is_layer_active("traps") then
+	if PVP.RULES.is_layer_active("traps") then
 		return nil
 	end
 	return { "p_mp_trap_normal", "p_mp_trap_jumbo" }

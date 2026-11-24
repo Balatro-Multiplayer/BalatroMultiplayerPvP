@@ -1,26 +1,25 @@
 -- Run from the repo root: luajit tests/unit/run_options_test.lua
 -- ui/pvp_run_options.lua: the pause menu's Forfeit button is always pressable in a PvP run, closes the
 -- overlay first, and leaves "once per run" to the finish screen.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local calls
 local plain_buttons, gated_buttons
 PVP = {
-	is_practice_mode = function() return false end,
-	contest_offered = function() return false end,
-	UI = { show_contest_modal = function() calls[#calls + 1] = "contest_modal" end },
-	-- The status gate the old button read: off once I am out.
-	finish_screen = {
-		can_forfeit = function() return false end,
-		waiting = function() return false end,
-		forfeit = function() calls[#calls + 1] = "forfeit" end,
-		vote = function() end,
+	NET = {}, READ = {}, GAME = {},
+	PRACTICE = { is_on = function() return false end },
+	UI = {
+		contest = { offered = function() return false end },
+		run_options = {},
+		show_contest_modal = function() calls[#calls + 1] = "contest_modal" end,
+		-- The status gate the old button read: off once I am out.
+		finish = {
+			can_forfeit = function() return false end,
+			waiting = function() return false end,
+			forfeit = function() calls[#calls + 1] = "forfeit" end,
+			vote = function() end,
+		},
 	},
 	LOBBY = {},
 }
@@ -52,7 +51,7 @@ dofile("ui/pvp_run_options.lua")
 
 local function build()
 	plain_buttons, gated_buttons = {}, {}
-	PVP.create_run_options()
+	PVP.UI.run_options.build()
 end
 local function has(list, name)
 	for _, entry in ipairs(list) do
@@ -77,15 +76,15 @@ eq(calls[4], "forfeit", "and leaves once-per-run to the finish screen")
 
 -- practice and contest keep their branches
 calls = {}
-PVP.is_practice_mode = function() return true end
+PVP.PRACTICE.is_on = function() return true end
 G.FUNCS.mp_pvp_forfeit()
 eq(calls[2], "menu", "practice goes to the menu")
 eq(#calls, 2, "and sends no forfeit")
-PVP.is_practice_mode = function() return false end
-PVP.contest_offered = function() return true end
+PVP.PRACTICE.is_on = function() return false end
+PVP.UI.contest.offered = function() return true end
 calls = {}
 G.FUNCS.mp_pvp_forfeit()
 eq(calls[2], "contest_modal", "a matchmade match asks first")
 eq(#calls, 2, "and sends no forfeit yet")
 
-print(string.format("run_options_test: ok (%d checks)", checks))
+T.done("run_options_test")

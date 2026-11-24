@@ -4,23 +4,24 @@
 -- Run from the repo root: luajit tests/unit/version_overlay_test.lua
 local noop = function() end
 PVP = {
-	LOBBY = { config = {}, deck = {} },
+	NET = {}, READ = { pvp_blind = {}, target = {} },
+	LOBBY = { config = {}, deck = {}, reset_game = noop, Access = {} },
 	GAME = {},
 	UTILS = {},
-	UI = { UTILS = {} },
+	UI = { UTILS = {}, queue = {}, lobby = { reset = noop } },
+	QUEUE = {},
 	SETUP = { apply_results = noop },
-	LobbyAccess = {},
-	reset_game_states = noop,
-	force_lobby_options = noop,
+	RULES = { force_lobby_options = noop },
+	VERIFIED = {},
 	version = "1.0.3",
-	-- The 1v1 opponent, as pvp_api/target_screen.lua picks it.
-	current_target_id = function()
+}
+-- The 1v1 opponent, as pvp_api/read/target.lua picks it.
+PVP.READ.target.current_id = function()
 		local lobby = MPAPI.get_current_lobby()
 		for _, p in ipairs(lobby:get_players()) do
 			if p.id ~= lobby.player_id then return p.id end
 		end
-	end,
-}
+end
 -- The notice waits on a REAL-timer event: wait() runs the queued ones, as 3 s passing would.
 local queued = {}
 G = { STAGE = 1, STAGES = { RUN = 2 }, E_MANAGER = {
@@ -63,11 +64,11 @@ MPAPI = {
 
 local clock = 1000
 local in_run = false
-PVP.away_screen = { in_run = function() return in_run end }
+PVP.UI.away = { in_run = function() return in_run end }
 love = { timer = { getTime = function() return clock end } }
 dofile("lib/version_gate.lua")
-dofile("pvp_api/reconnect_screen.lua")
-PVP.refresh_verified_lobby = function() end -- lib/verified_lobby.lua has its own test
+dofile("pvp_api/ui/reconnect.lua")
+PVP.VERIFIED.refresh = function() end -- lib/verified_lobby.lua has its own test
 dofile("pvp_api/lobby_bridge.lua")
 
 local overlays = {}
@@ -137,7 +138,7 @@ local function gone(id)
 end
 
 PVP.UTILS.version_mismatches = function()
-	return PVP.VersionGate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
+	return PVP.NET.version_gate.mismatches(PVP.version, lobby:get_players(), lobby.player_id)
 end
 
 local failures = 0
@@ -150,7 +151,7 @@ local function check(name, got, want)
 	end
 end
 
-PVP.setup_lobby_mirror(lobby)
+PVP.LOBBY.mirror(lobby)
 
 -- A joiner gets the host in the first snapshot: only CONNECTED fires.
 players = {
@@ -173,7 +174,7 @@ check("the waiting notice has a Back button", no_back[#overlays], false)
 players = { { id = "me", mods = { "MultiplayerPvP-1.0.3" } } }
 gone("host")
 check("expired reconnect identifies the player", overlays[#overlays], "host did not reconnect.")
-check("leaving re-arms the overlay", PVP._version_mismatch_shown, false)
+check("leaving re-arms the overlay", PVP.LOBBY.version_warning_shown, false)
 players = {
 	{ id = "me", mods = { "MultiplayerPvP-1.0.3" } },
 	{ id = "other", mods = { "MultiplayerPvP-1.0.5" } },
@@ -183,7 +184,7 @@ check("a later mismatch shows again", #overlays, 4)
 
 -- Leaving the lobby re-arms too.
 fire("DISCONNECTED")
-check("disconnect re-arms the overlay", PVP._version_mismatch_shown, false)
+check("disconnect re-arms the overlay", PVP.LOBBY.version_warning_shown, false)
 
 -- Coming back closes the "waiting for reconnection" notice: it pauses the game.
 PVP.reconcile_round = noop
@@ -286,9 +287,9 @@ wait()
 fire("CONNECTION_RESTORED")
 
 -- Back or Esc hides the big notice; a small line counts down to the forfeit the server named.
-PVP.setup_lobby_mirror(lobby)
+PVP.LOBBY.mirror(lobby)
 clock = clock + 100 -- earlier sections' reconnected messages are over
-local screen = PVP.reconnect_screen
+local screen = PVP.UI.reconnect
 G.OVERLAY_MENU = nil
 players = {
 	{ id = "me", displayName = "Me", mods = { "MultiplayerPvP-1.0.3" } },
@@ -369,7 +370,7 @@ players = {
 	{ id = "me", displayName = "Me", mods = { "MultiplayerPvP-1.0.3" } },
 	{ id = "other", displayName = "Bea", mods = { "MultiplayerPvP-1.0.3" }, is_away = true, forfeits_at_local = clock + 62 },
 }
-PVP.setup_lobby_mirror(lobby)
+PVP.LOBBY.mirror(lobby)
 fire("CONNECTED")
 wait()
 check("joining a lobby with someone away shows the notice", overlays[#overlays], "k_pvp_player_waiting:Bea")
@@ -388,7 +389,7 @@ check("a snapshot that moves the forfeit time moves the line", screen.shown_text
 back("other")
 
 clock = clock + 100
--- In a run away_screen.lua owns the line for others; mine and the reconnected message stay here.
+-- In a run pvp_api/ui/away.lua owns the line for others; mine and the reconnected message stay here.
 drop("other", clock + 100)
 wait()
 G.OVERLAY_MENU = nil

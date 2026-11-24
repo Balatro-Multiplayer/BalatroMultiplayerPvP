@@ -1,16 +1,11 @@
 -- Run from the repo root: luajit tests/unit/view_test.lua
--- pvp_api/_view.lua: the shared reads of the match net's view.
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+-- pvp_api/read/_view.lua: the shared reads of the match net's view.
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
-PVP = {}
-dofile("pvp_api/_view.lua")
-local view = PVP.view
+PVP = { NET = {}, READ = {}, UI = {} }
+dofile("pvp_api/read/_view.lua")
+local view = PVP.READ.view
 
 local from = {
 	me = "me",
@@ -94,4 +89,4 @@ view.follow_run(run_view("r2"))
 eq(view.changed("y", "v"), true, "a new run holds nothing")
 eq(view.once("k"), true, "and knows no key")
 
-print("view_test: ok (" .. checks .. " checks)")
+T.done("view_test")

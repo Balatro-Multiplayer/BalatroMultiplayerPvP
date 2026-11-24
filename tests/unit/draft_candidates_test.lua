@@ -1,5 +1,5 @@
 -- Standalone: luajit tests/unit/draft_candidates_test.lua (from the repo root).
-PVP = {}
+PVP = { UTILS = {} }
 G = { FUNCS = {} }
 dofile("lib/_random.lua")
 dofile("lib/draft.lua")

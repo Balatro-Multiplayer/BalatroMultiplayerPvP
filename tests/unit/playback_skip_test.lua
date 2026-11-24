@@ -1,13 +1,8 @@
 -- Run from the repo root: luajit tests/unit/playback_skip_test.lua
 -- A skip seen in a replay of the other player adds one to their skips only when there is no live
--- view: with a view, the view owns the count (run_screen.lua).
-local checks = 0
-local function eq(actual, expected, message)
-	checks = checks + 1
-	if actual ~= expected then
-		error(string.format("%s: expected %s, got %s", message, tostring(expected), tostring(actual)), 2)
-	end
-end
+-- view: with a view, the view owns the count (pvp_api/ui/run.lua).
+local T = dofile("tests/support/check.lua")
+local eq = T.eq
 
 local handlers = {}
 MPAPI = {
@@ -17,9 +12,10 @@ MPAPI = {
 	},
 }
 PVP = {
+	READ = {}, UI = {},
 	UTILS = { AREA = {} },
 	GAME = { enemy = {} },
-	match_net = { view = nil },
+	NET = { view = nil },
 }
 
 dofile("lib/playback_handlers.lua")
@@ -32,12 +28,12 @@ eq(PVP.GAME.enemy.skips, 1, "no view: the skip is counted")
 skip({}, { is_pov = false })
 eq(PVP.GAME.enemy.skips, 2, "and counted again")
 
-PVP.match_net.view = { match = { run = {} } }
+PVP.NET.view = { match = { run = {} } }
 skip({}, { is_pov = false })
 eq(PVP.GAME.enemy.skips, 2, "a live view: the view's count is left alone")
 
-PVP.match_net = nil
+PVP.NET = nil
 skip({}, { is_pov = false })
 eq(PVP.GAME.enemy.skips, 3, "no net at all: the skip is counted")
 
-print(string.format("playback_skip_test: %d checks ok", checks))
+T.done("playback_skip_test")

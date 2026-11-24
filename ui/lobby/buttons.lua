@@ -1,5 +1,5 @@
-function PVP.lobby.create_buttons()
-	local L = PVP.lobby
+function PVP.UI.lobby.create_buttons()
+	local L = PVP.UI.lobby
 	if L.buttons_initialized then
 		return
 	end
@@ -15,7 +15,7 @@ function PVP.lobby.create_buttons()
 		scale = 0.7,
 		enabled = function()
 			local lobby = L.ref
-			if not lobby or not lobby.is_host or not PVP.lobby_screen.start_askable() then
+			if not lobby or not lobby.is_host or not PVP.UI.lobby.start_askable() then
 				return false
 			end
 			local players = lobby:get_players()
@@ -52,7 +52,7 @@ function PVP.lobby.create_buttons()
 		scale = 0.7,
 		col = true,
 		enabled = function()
-			return PVP.lobby_screen.ready_state() ~= "waiting"
+			return PVP.UI.lobby.ready_state() ~= "waiting"
 		end,
 	}
 	b.ready = MPAPI.disableable_button(b.ready_args)
@@ -70,7 +70,7 @@ function PVP.lobby.create_buttons()
 		-- apply to any lobby kind, since a casual-formed match still needs roles
 		-- picked before it can start.
 		enabled = function()
-			return PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based or PVP._pvp_kind == PVP.LobbyAccess.PRIVATE
+			return PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based or PVP.LOBBY.kind == PVP.LOBBY.Access.PRIVATE
 		end,
 	})
 	b.view_code = MPAPI.disableable_button({
@@ -106,5 +106,5 @@ function PVP.lobby.create_buttons()
 	})
 
 	L.buttons_initialized = true
-	PVP.lobby_screen.refresh_buttons()
+	PVP.UI.lobby.refresh_buttons()
 end

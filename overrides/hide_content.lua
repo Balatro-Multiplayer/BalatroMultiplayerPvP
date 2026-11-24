@@ -5,13 +5,13 @@
 -- from the picker unless we're in practice (including run setup), in a private lobby,
 -- in a real PvP lobby whose ruleset uses the multiplayer content layer, or the player
 -- has opted in.
-function PVP.should_hide_mp_content()
-	return PVP.MpContentVisibility.should_hide(
+function PVP.RULES.hide_content()
+	return PVP.RULES.content.should_hide(
 		PVP.LOBBY.code ~= nil,
-		PVP._pvp_kind,
-		PVP.multiplayer_content_enabled(),
+		PVP.LOBBY.kind,
+		PVP.RULES.content_enabled(),
 		PVP.config.show_mp_content_anyway,
-		PVP.is_practice_mode() or PVP.practice_setup_ruleset() ~= nil
+		PVP.PRACTICE.is_on() or PVP.PRACTICE.setup_ruleset() ~= nil
 	)
 end
 
@@ -36,7 +36,7 @@ end
 local function hook(orig, type)
 	return function(...)
 		local temp = G.P_CENTER_POOLS[type]
-		if PVP.should_hide_mp_content() then G.P_CENTER_POOLS[type] = G.P_CENTER_POOLS[type .. "_non_mp"] end
+		if PVP.RULES.hide_content() then G.P_CENTER_POOLS[type] = G.P_CENTER_POOLS[type .. "_non_mp"] end
 		local results = orig(...)
 		G.P_CENTER_POOLS[type] = temp
 		return results
@@ -107,7 +107,7 @@ local ch_hooks = {
 local function ch_hook(orig)
 	return function(...)
 		local temp = G.CHALLENGES
-		if PVP.should_hide_mp_content() then G.CHALLENGES = G.CHALLENGES_non_mp end
+		if PVP.RULES.hide_content() then G.CHALLENGES = G.CHALLENGES_non_mp end
 		local results = orig(...)
 		G.CHALLENGES = temp
 		return results

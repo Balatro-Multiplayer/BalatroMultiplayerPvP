@@ -7,7 +7,7 @@ SMODS.Atlas({
 
 SMODS.Joker({
 	key = "constellation_sandbox",
-	no_collection = PVP.sandbox_no_collection,
+	no_collection = PVP.SANDBOX.no_collection,
 
 	unlocked = true,
 	discovered = true,

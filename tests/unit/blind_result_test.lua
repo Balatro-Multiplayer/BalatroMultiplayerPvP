@@ -4,7 +4,7 @@ local results = {}
 G = { GAME = { blind_on_deck = "Small" } }
 PVP = {
 	ACTIONS = {},
-	run_screen = { blind_result = function(...) results[#results + 1] = { ... } end },
+	UI = { run = { blind_result = function(...) results[#results + 1] = { ... } end } },
 	GAME = {},
 }
 MPAPI = { get_current_lobby = function() return {} end }
