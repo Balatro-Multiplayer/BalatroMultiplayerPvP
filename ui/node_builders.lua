@@ -38,6 +38,21 @@ function PVP.UI.UTILS.create_object_node(object, config)
 	return { n = G.UIT.O, config = config }
 end
 
+-- This player's match is over: the end screen (or its View Deck) is showing.
+function PVP.UI.UTILS.match_over()
+	return G.STAGE == G.STAGES.RUN
+		and ((PVP.GAME and (PVP.GAME.won or PVP.GAME.eliminated)) or G.STATE == G.STATES.GAME_OVER)
+end
+
+-- Back on a message popup. A popup replaces the end screen, so closing it reopens it.
+function G.FUNCS.pvp_close_message(e)
+	if PVP.UI.UTILS.match_over() then
+		G.FUNCS.overlay_endgame_menu()
+	else
+		G.FUNCS.exit_overlay_menu(e)
+	end
+end
+
 --- Overlay with a DynaText countdown timer
 --- @param message string Static message lines (newline-separated)
 --- @param countdown_table table Table with a "display" key that gets updated externally
@@ -85,10 +100,13 @@ function PVP.UI.UTILS.overlay_message_countdown(message, countdown_table, no_bac
 		definition = create_UIBox_generic_options({
 			no_back = no_back,
 			no_esc = no_back,
+			back_func = "pvp_close_message",
 			contents = {
 				PVP.UI.UTILS.create_column({ align = "cm", padding = 0.2 }, message_ui),
 			},
 		}),
+		-- Esc would close it without reopening the end screen.
+		config = { no_esc = PVP.UI.UTILS.match_over() or nil },
 	})
 end
 
@@ -121,9 +139,12 @@ function PVP.UI.UTILS.overlay_message(message, no_back)
 		definition = create_UIBox_generic_options({
 			no_back = no_back,
 			no_esc = no_back,
+			back_func = "pvp_close_message",
 			contents = {
 				PVP.UI.UTILS.create_column({ align = "cm", padding = 0.2 }, message_ui),
 			},
 		}),
+		-- Esc would close it without reopening the end screen.
+		config = { no_esc = PVP.UI.UTILS.match_over() or nil },
 	})
 end
