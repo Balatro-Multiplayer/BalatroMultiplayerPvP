@@ -16,3 +16,15 @@ end
 '''
 times = 1
 match_indent = true
+
+# Reject game speeds outside 0.5/1/2/4 (hand-edited settings, nil) before they are applied
+[[patches]]
+[patches.pattern]
+target = 'game.lua'
+pattern = 'self.TIMERS.TOTAL = self.TIMERS.TOTAL + dt*(self.SPEEDFACTOR)'
+position = 'before'
+payload = '''
+if PVP and PVP.enforce_gamespeed then PVP.enforce_gamespeed() end
+'''
+times = 1
+match_indent = true

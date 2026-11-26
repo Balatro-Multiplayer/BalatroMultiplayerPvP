@@ -450,6 +450,9 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 		if PVP.lobby and PVP.lobby.draw_votes then
 			PVP.lobby.draw_votes:remove(player_id)
+			if PVP._draw_vote_times then
+				PVP._draw_vote_times[player_id] = nil
+			end
 		end
 		mirror_players(lobby)
 		PVP.TRAP_ROW.forget(player_id)
@@ -536,8 +539,42 @@ PVP.setup_lobby_mirror = function(lobby)
 		end
 	end)
 
+	-- The host's own writes echo back from the server one per set_metadata. Copying an
+	-- older echo over PVP.LOBBY.config would undo a change the host made after it (and
+	-- the next write would then carry the stale value), so while a write of ours is
+	-- still in flight the host keeps its own config and mirrors on the last echo.
+	-- Entries expire in case the server never echoes one.
+	local PENDING_ECHO_SECONDS = 5
+	local pending_echoes = {}
+	if not lobby._local_mode and not lobby._pvp_metadata_tracked then
+		lobby._pvp_metadata_tracked = true
+		local raw_set_metadata = lobby.set_metadata
+		function lobby:set_metadata(tbl)
+			if self.is_host then
+				pending_echoes[#pending_echoes + 1] = love.timer.getTime()
+			end
+			return raw_set_metadata(self, tbl)
+		end
+	end
+	local function host_write_in_flight()
+		if not lobby.is_host then
+			pending_echoes = {}
+			return false
+		end
+		local now = love.timer.getTime()
+		while pending_echoes[1] and now - pending_echoes[1] > PENDING_ECHO_SECONDS do
+			table.remove(pending_echoes, 1)
+		end
+		if pending_echoes[1] then
+			table.remove(pending_echoes, 1)
+		end
+		return #pending_echoes > 0
+	end
+
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
-		if mirror_metadata(lobby) == false then return end
+		if not host_write_in_flight() and mirror_metadata(lobby) == false then
+			return
+		end
 		-- Passive: whatever changed the settings (or created the lobby), the host re-checks the
 		-- verdict against the mirrored config and republishes only if it moved.
 		PVP.refresh_verified_lobby(lobby)

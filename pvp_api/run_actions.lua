@@ -127,6 +127,28 @@ MPAPI.ActionType({
 	end,
 })
 
+-- A draw request lapses after this many seconds, so one player can't leave a vote
+-- hanging to catch the other out later (or spam the chat with a fresh count).
+PVP.DRAW_VOTE_TIMEOUT = 30
+PVP._draw_vote_times = PVP._draw_vote_times or {}
+
+-- Drop every draw vote older than the timeout. Returns true if any lapsed.
+function PVP.expire_draw_votes()
+	local lobby = PVP.lobby
+	local now = love.timer.getTime()
+	local lapsed = false
+	for voter_id, at in pairs(PVP._draw_vote_times) do
+		if now - at >= PVP.DRAW_VOTE_TIMEOUT then
+			PVP._draw_vote_times[voter_id] = nil
+			if lobby and lobby.draw_votes then
+				lobby.draw_votes:remove(voter_id)
+			end
+			lapsed = true
+		end
+	end
+	return lapsed
+end
+
 function PVP.cast_draw_vote()
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby or not MPAPI.ActionTypes["pvp_draw_vote"] then
@@ -150,7 +172,29 @@ function PVP.register_draw_vote(voter_id)
 	if not lobby or not PVP.lobby or not PVP.lobby.draw_votes then
 		return
 	end
+	PVP.expire_draw_votes()
+	PVP._draw_vote_times[voter_id] = love.timer.getTime()
 	local count, total, unanimous = PVP.lobby.draw_votes:record(voter_id)
+
+	-- Tell everyone when the request lapses (real time: the game may be paused or sped up).
+	if not unanimous then
+		G.E_MANAGER:add_event(Event({
+			trigger = "after",
+			timer = "REAL",
+			delay = PVP.DRAW_VOTE_TIMEOUT + 0.1,
+			blocking = false,
+			blockable = false,
+			func = function()
+				if PVP.expire_draw_votes() and MPAPI.chat and MPAPI.chat.addMessage then
+					MPAPI.chat.addMessage(
+						(localize("k_draw_vote") or "Vote for Draw") .. ": expired",
+						G.C.BLUE
+					)
+				end
+				return true
+			end,
+		}))
+	end
 
 	if MPAPI.chat and MPAPI.chat.addMessage then
 		MPAPI.chat.addMessage(
@@ -161,6 +205,7 @@ function PVP.register_draw_vote(voter_id)
 
 	if lobby.is_host and unanimous and MPAPI.ActionTypes["pvp_win"] then
 		PVP.lobby.draw_votes:reset()
+		PVP._draw_vote_times = {}
 		lobby:action(MPAPI.ActionTypes["pvp_win"]):broadcast({ draw = true })
 	end
 end
