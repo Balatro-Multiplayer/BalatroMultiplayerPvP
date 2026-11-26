@@ -494,6 +494,8 @@ PVP.setup_lobby_mirror = function(lobby)
 				func = function()
 					if pending_disconnect[player_id] ~= token then return true end
 					pending_disconnect[player_id] = nil
+					-- Left or replaced meanwhile: a popup now would show over the menu.
+					if lobby._leaving or MPAPI.get_current_lobby() ~= lobby then return true end
 					local departed_name = departed_player_name(lobby, player_id)
 					PVP.UI.UTILS.overlay_message(departed_name .. " disconnected.\nWaiting for reconnection...")
 					shown_disconnect[player_id] = G.OVERLAY_MENU

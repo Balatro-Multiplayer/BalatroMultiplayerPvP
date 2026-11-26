@@ -15,7 +15,9 @@ PVP = {
 	force_lobby_options = noop,
 	version = "1.0.3",
 }
-G = { STAGE = 1, STAGES = { RUN = 2 } }
+local queued = {}
+G = { STAGE = 1, STAGES = { RUN = 2 }, E_MANAGER = { add_event = function(_, e) queued[#queued + 1] = e end } }
+Event = function(t) return t end
 local EVENTS = {}
 for _, name in ipairs({
 	"CONNECTED", "PLAYER_JOINED", "PLAYER_INFO", "PLAYER_LEFT", "DISCONNECTED", "ERROR",
@@ -93,6 +95,7 @@ check("a second check of the same mismatch stays quiet", #overlays, 1)
 
 -- A disconnect identifies the player and tells the opponent it is waiting.
 fire("PLAYER_DISCONNECTED", "host")
+for _, e in ipairs(queued) do e.func() end -- the grace period passes
 check("disconnect identifies the player", overlays[#overlays], "host disconnected.\nWaiting for reconnection...")
 
 -- A later leave is the expired reconnect grace period, and re-arms the mismatch overlay.

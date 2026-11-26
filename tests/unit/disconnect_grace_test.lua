@@ -39,7 +39,7 @@ MPAPI = {
 	modifiers_serialize = noop,
 	refresh_current_view = noop,
 	create_lobby_ui = noop,
-	get_current_lobby = function() return nil end,
+	get_current_lobby = function() return MPAPI.current end,
 }
 
 dofile("lib/version_gate.lua")
@@ -50,6 +50,7 @@ function lobby:on(event, fn) self.handlers[event] = fn end
 function lobby:get_players() return {} end
 function lobby:get_metadata() return {} end
 PVP.setup_lobby_mirror(lobby)
+MPAPI.current = lobby
 
 local failures = 0
 local function check(name, got, want)
@@ -84,5 +85,11 @@ run_events()
 G.OVERLAY_MENU = {} -- the player moved on to another menu
 lobby.handlers.PLAYER_RECONNECTED("opp")
 check("an unrelated overlay is left open", exits, 1)
+
+lobby.handlers.PLAYER_DISCONNECTED("opp")
+MPAPI.current = nil -- the player left the lobby during the grace period
+run_events()
+check("a left lobby shows no overlay", #overlays, 2)
+MPAPI.current = lobby
 
 if failures > 0 then os.exit(1) end
