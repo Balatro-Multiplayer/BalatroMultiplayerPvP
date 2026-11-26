@@ -223,14 +223,20 @@ check(config.tile_order == D.tile_order, "the config shows tiles in Draft displa
 check(keys_of(stakes) == "1,11,3,4,6,8", "Expanded drafts its allowed stakes, Spectral+ included (" .. keys_of(stakes) .. ")")
 check(decks.b_mp_orange and decks.b_mp_violet and decks.b_mp_cocktail and not decks.b_challenge, "Expanded drafts Orange, Violet and Cocktail, not Challenge")
 check(sizes[9] and keys_of(sizes) == "9", "Expanded boards have 9 tiles")
-local counts = {}
+local counts, plus_max, plus_pools = {}, 0, 0
 for _ = 1, 3000 do
+	local in_pool = 0
 	for _, t in ipairs(config.build_pool()) do
 		counts[t.stake] = (counts[t.stake] or 0) + 1
+		if t.stake == 11 then in_pool = in_pool + 1 end
 	end
+	plus_max = math.max(plus_max, in_pool)
+	if in_pool > 0 then plus_pools = plus_pools + 1 end
 end
+check(plus_max == 1, "Spectral+ never appears more than once in a Draft (max " .. plus_max .. ")")
+check(plus_pools > 300, ("Spectral+ still shows up in many Drafts (%d of 3000)"):format(plus_pools))
 local plus = counts[11] / counts[3]
-check(plus > 0.35 and plus < 0.65, ("Spectral+ comes up about half as often as Green (%.2f)"):format(plus))
+check(plus < 0.5, ("Spectral+ comes up less often than Green (%.2f)"):format(plus))
 stakes, decks = pool_stakes_and_decks("ruleset_mp_smallworld")
 check(decks.b_mp_cocktail, "Small World drafts Cocktail")
 check(keys_of(stakes) == "1,11,3,4,6,8", "Small World drafts the same stakes as Expanded (" .. keys_of(stakes) .. ")")
