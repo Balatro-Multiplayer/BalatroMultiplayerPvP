@@ -299,26 +299,25 @@ local function build_stat_box(mode)
 	return el.node
 end
 
--- A Ranked pillar's own standing, two halves above the queue counts: Rank (the Elo rating), then placement
--- progress while the account is still in its placement games, or its leaderboard position once
--- they are done.
+-- A Ranked pillar's own standing, two halves above the queue counts: Rating (the Elo), then placement
+-- progress while the account is still in its placement games, or its leaderboard Rank once they are done.
 local function build_rating_box(mode)
 	local el = MPAPI.ui_element(function()
 		local r = _own_ratings[mode.key]
-		local elo, right_label, right = "-", "Position", "-"
+		local elo, right_label, right = "-", localize("k_pvp_rank"), "-"
 		if r == false then
 			elo, right = "...", "..."
 		elseif r then
 			elo = tonumber(r.rating) and tostring(math.floor(r.rating + 0.5)) or "-"
 			local placement = PVP.placement_progress(r)
 			if placement then
-				right_label, right = "Placement", placement
+				right_label, right = localize("k_pvp_placement"), placement
 			else
 				right = tonumber(r.rank) and ("#" .. r.rank) or "-"
 			end
 		end
 		return { nodes = {
-			build_count_half("Rank", elo),
+			build_count_half(localize("k_pvp_rating"), elo),
 			{ n = G.UIT.C, config = { minw = 0.06 }, nodes = {} },
 			build_count_half(right_label, right),
 		} }
