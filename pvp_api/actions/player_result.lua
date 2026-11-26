@@ -47,15 +47,35 @@ local function capture_local_jokers_save()
 		return MPAPI.encode(G.jokers:save())
 	end)
 	if not ok or type(encoded) ~= "string" then
-		sendDebugMessage("Failed to encode end game jokers: " .. tostring(encoded), "MULTIPLAYER")
+		PVP.match_log("debug", "Failed to encode end game jokers: " .. tostring(encoded))
 		return nil
 	end
 	if #encoded > MPAPI.MAX_ENCODED_BYTES then
 		-- MPAPI.decode would refuse it on the other side anyway.
-		sendDebugMessage(string.format("End game jokers too large to send (%d bytes)", #encoded), "MULTIPLAYER")
+		PVP.match_log("debug", string.format("End game jokers too large to send (%d bytes)", #encoded))
 		return nil
 	end
 	return encoded
+end
+
+-- The server drops an action whose params pass 16 KiB, which would lose the whole
+-- result. Stay under that with room for JSON escaping; past it the saved joker
+-- area is left out and receivers fall back to the plain `jokers` list.
+local MAX_ACTION_PARAMS_BYTES = 14 * 1024
+
+local function fit_to_server_cap(params)
+	if not params.jokers_save then
+		return params
+	end
+	local ok, encoded = pcall(function()
+		return require("json").encode(params)
+	end)
+	if ok and type(encoded) == "string" and #encoded <= MAX_ACTION_PARAMS_BYTES then
+		return params
+	end
+	PVP.match_log("debug", "End game jokers save left out: payload would pass the server cap")
+	params.jokers_save = nil
+	return params
 end
 
 -- Fills `area` from a collected result: the saved joker area when there is one,
@@ -82,7 +102,7 @@ function PVP.rebuild_result_jokers_area(area, result)
 			end
 			return
 		end
-		sendDebugMessage("Failed to load end game jokers: " .. tostring(err), "MULTIPLAYER")
+		PVP.match_log("debug", "Failed to load end game jokers: " .. tostring(err))
 		for _, card in ipairs(area.cards or {}) do
 			card.added_to_deck = false
 		end
@@ -137,13 +157,13 @@ function PVP.report_roster_result(on_delivered)
 			end,
 		}))
 	end
-	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
+	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast(fit_to_server_cap({
 		jokers = jokers,
 		jokers_save = jokers_save,
 		deck_back = deck_back,
 		highest_pvp_score = highest_pvp_score,
 		cards = cards,
-	})
+	}))
 end
 
 -- Interim roster: the last jokers other players saw. Sent when this player leaves
@@ -155,11 +175,11 @@ function PVP.report_roster_snapshot()
 	if not lobby or not MPAPI.ActionTypes["pvp_player_result"] or MPAPI.playback.is_driving("pvp") then
 		return
 	end
-	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast({
+	lobby:action(MPAPI.ActionTypes["pvp_player_result"]):broadcast(fit_to_server_cap({
 		jokers = capture_local_jokers(),
 		jokers_save = capture_local_jokers_save(),
 		interim = true,
-	})
+	}))
 end
 
 MPAPI.ActionType({
