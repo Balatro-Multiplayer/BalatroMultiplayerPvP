@@ -61,6 +61,9 @@ function PVP._join_queue(kind, gamemode_key)
 	local mm_max = (gm and gm.max_players and gm.max_players[mm_max_key]) or 2
 	local game_mode = (kind == PVP.LobbyAccess.RANKED) and (PVP.LobbyAccess.RANKED_PREFIX .. gamemode_key) or gamemode_key
 
+	-- The Cocktail every matchmade game plays is set on the website; the host stamps it into the lobby.
+	PVP.MatchmakingPolicy.refresh_cocktail()
+
 	local handle = MPAPI.matchmaking.queue({
 		mod_id = PVP.id,
 		game_mode = game_mode,
@@ -222,6 +225,8 @@ function PVP._join_ranked_ruleset(ruleset_key)
 	local gm = MPAPI.GameModes[gamemode_key]
 	local mm_max = (gm and gm.max_players and gm.max_players.ranked) or 2
 	local ticket = PVP.ranked_ticket(ruleset_key)
+	-- The Cocktail Ranked plays is set on the website; the host stamps it into the lobby.
+	PVP.MatchmakingPolicy.refresh_cocktail()
 
 	local handle = MPAPI.matchmaking.queue({
 		mod_id = PVP.id,

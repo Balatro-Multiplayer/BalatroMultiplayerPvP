@@ -741,6 +741,8 @@ do
 	end
 	PVP.match_log = noop
 	G.FUNCS = {}
+	-- Queueing asks the server for the Cocktail (lib/matchmaking_policy.lua).
+	PVP.MatchmakingPolicy = { refresh_cocktail = function() end }
 	dofile("pvp_api/queue.lua")
 	sendWarnMessage = noop
 	PVP._join_ranked_ruleset("balanced")

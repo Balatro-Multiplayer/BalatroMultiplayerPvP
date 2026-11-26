@@ -219,6 +219,12 @@ function PVP.pvp_start_match()
 	if PVP._pvp_kind == PVP.LobbyAccess.PRIVATE then
 		lobby:set_metadata({ cocktail_recipe = PVP.roll_cocktail_recipe() or false })
 	end
+	-- A Ranked or Casual lobby set to a random Cocktail rolls a new one for each
+	-- game after its first (lib/matchmaking_policy.lua).
+	local next_recipe = PVP.MatchmakingPolicy.next_game_cocktail(PVP._pvp_kind)
+	if next_recipe then
+		lobby:set_metadata({ cocktail_recipe = next_recipe })
+	end
 	if MPAPI.has_server_referee(lobby) then
 		-- The server checks who's ready and picks the seed; everyone starts off
 		-- GAME_STARTED (pvp_api/lobby_bridge.lua), where referee_reset runs host-side.
