@@ -202,8 +202,19 @@ end
 -- Copy the host-authored shared metadata into PVP.LOBBY.config / PVP.LOBBY.deck so
 -- PVP's ruleset/gamemode/option reads resolve. Metadata carries the lobby config
 -- fields plus PvP keys (gamemode/ruleset/kind/deck/stake).
-local function mirror_metadata(lobby)
+local function mirror_metadata(lobby, pending_writes)
 	local meta = lobby:get_metadata() or {}
+	if pending_writes then
+		-- The host's later writes are not in the echo yet: read them as written.
+		local merged = {}
+		for k, v in pairs(meta) do
+			merged[k] = v
+		end
+		for k, v in pairs(pending_writes) do
+			merged[k] = v
+		end
+		meta = merged
+	end
 	if meta.cocktail_recipe and not PVP.receive_cocktail_recipe(meta.cocktail_recipe) then return false end
 	-- `gamemode`/`ruleset` in metadata are already MPAPI's own content keys
 	-- ("gamemode_mp_attrition" / "ruleset_mp_balanced"), so they pass straight
@@ -544,8 +555,9 @@ PVP.setup_lobby_mirror = function(lobby)
 	-- The host's own writes echo back from the server one per set_metadata. Copying an
 	-- older echo over PVP.LOBBY.config would undo a change the host made after it (and
 	-- the next write would then carry the stale value), so while a write of ours is
-	-- still in flight the host keeps its own config and mirrors on the last echo.
-	-- Entries expire in case the server never echoes one.
+	-- still in flight the host mirrors the metadata with those writes laid over it.
+	-- Keys only the server set (cocktail_recipe, the referee checkpoint) still come
+	-- through. Entries expire in case the server never echoes one.
 	local PENDING_ECHO_SECONDS = 5
 	local pending_echoes = {}
 	if not lobby._local_mode and not lobby._pvp_metadata_tracked then
@@ -553,28 +565,38 @@ PVP.setup_lobby_mirror = function(lobby)
 		local raw_set_metadata = lobby.set_metadata
 		function lobby:set_metadata(tbl)
 			if self.is_host then
-				pending_echoes[#pending_echoes + 1] = love.timer.getTime()
+				pending_echoes[#pending_echoes + 1] = { at = love.timer.getTime(), written = tbl }
 			end
 			return raw_set_metadata(self, tbl)
 		end
 	end
-	local function host_write_in_flight()
+	-- The host's writes still unechoed after this event, merged oldest first; nil for none.
+	local function pending_host_writes()
 		if not lobby.is_host then
 			pending_echoes = {}
-			return false
+			return nil
 		end
 		local now = love.timer.getTime()
-		while pending_echoes[1] and now - pending_echoes[1] > PENDING_ECHO_SECONDS do
+		while pending_echoes[1] and now - pending_echoes[1].at > PENDING_ECHO_SECONDS do
 			table.remove(pending_echoes, 1)
 		end
 		if pending_echoes[1] then
 			table.remove(pending_echoes, 1)
 		end
-		return #pending_echoes > 0
+		if #pending_echoes == 0 then
+			return nil
+		end
+		local merged = {}
+		for _, entry in ipairs(pending_echoes) do
+			for k, v in pairs(entry.written) do
+				merged[k] = v
+			end
+		end
+		return merged
 	end
 
 	lobby:on(MPAPI.LobbyEvent.METADATA_CHANGED, function(metadata)
-		if not host_write_in_flight() and mirror_metadata(lobby) == false then
+		if mirror_metadata(lobby, pending_host_writes()) == false then
 			return
 		end
 		-- Passive: whatever changed the settings (or created the lobby), the host re-checks the
