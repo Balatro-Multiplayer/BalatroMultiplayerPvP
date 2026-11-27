@@ -63,6 +63,7 @@ function PVP._start_practice(ruleset_key, loadout)
 	-- a bare ruleset key).
 	PVP.LOBBY.config.ruleset = ruleset_key
 	PVP.LOBBY.config.gamemode = "gamemode_mp_attrition"
+	PVP.resolve_current_lobby_settings()
 	if loadout then
 		PVP.LOBBY.config.back = loadout.back
 		PVP.LOBBY.config.stake = loadout.stake

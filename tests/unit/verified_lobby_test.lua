@@ -13,6 +13,7 @@ end
 MPAPI = { Standing = { VERIFIED = "verified", VALID = "valid", NONE = "none" } }
 function MPAPI.is_launcher_verified() return false end
 PVP = { self_player_id = function() return "me" end }
+dofile("lib/lobby_settings.lua")
 dofile("lib/verified_lobby.lua")
 
 local function config(over)
@@ -49,8 +50,8 @@ check("other gamemode", ok(config({ gamemode = "gamemode_mp_royale" })), false)
 local _, failed = PVP.verified_lobby_check(config({ starting_lives = 3 }), both)
 check("reports the failed key", failed[1], "starting_lives")
 
-PVP.LOBBY = { config = config({ different_seeds = true, gamemode = "x", starting_lives = 1 }) }
-PVP.apply_verified_defaults()
-check("apply_verified_defaults restores", ok(PVP.LOBBY.config), true)
+local restored = config({ different_seeds = true, starting_lives = 1 })
+PVP.resolve_lobby_settings(restored, {}, {})
+check("fresh Expanded defaults still qualify", ok(restored), true)
 
 if failures > 0 then os.exit(1) end

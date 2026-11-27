@@ -31,6 +31,7 @@ local function setup(cfg)
 			return cfg.layer
 		end,
 	}
+	dofile("lib/ruleset_utils.lua")
 	PVP.UI.restore_timer = function(a)
 		PVP.GAME.timer = PVP.GAME.timer + a
 	end

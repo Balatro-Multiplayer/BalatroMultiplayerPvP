@@ -42,12 +42,13 @@ end
 -- gamemode key's own default -- see PVP.reset_ruleset_to_gamemode_default above.
 function PVP.pvp_lobby_metadata(gamemode_key, kind)
 	local def = PVP.PVP_GAMEMODES[gamemode_key] or PVP.PVP_GAMEMODES.pvp_nemesis
+	kind = kind or PVP.LobbyAccess.PRIVATE
 	local meta = {
 		cocktail_recipe = PVP.MatchmakingPolicy.cocktail_recipe(kind),
 		gamemode = PVP.LOBBY.config.gamemode or def.gamemode,
 		ruleset = PVP.LOBBY.config.ruleset or PVP.default_ruleset(gamemode_key, kind),
 		queue_mode = gamemode_key,
-		kind = kind or PVP.LobbyAccess.PRIVATE,
+		kind = kind,
 		deck = PVP.LOBBY.config.back or "Red Deck",
 		stake = tostring(PVP.LOBBY.config.stake or 1),
 		starting_lives = PVP.LOBBY.config.starting_lives or 4,
@@ -55,11 +56,15 @@ function PVP.pvp_lobby_metadata(gamemode_key, kind)
 		manhunt_hunter_lives = PVP.LOBBY.config.manhunt_hunter_lives or 7,
 		trap_cards = PVP.LOBBY.config.trap_cards == true,
 	}
-	-- A private lobby's host sets these in Lobby Options (ui/lobby/lobby_options.lua).
-	-- Matchmade and practice lobbies keep the config's own defaults and the rulesets' forced options.
-	if (kind or PVP.LobbyAccess.PRIVATE) == PVP.LobbyAccess.PRIVATE then
+	if kind == PVP.LobbyAccess.PRIVATE then
+		-- Keep intent as well as effective values: a promoted guest must be able to
+		-- release a lock without guessing what the previous host had picked.
+		meta.setting_choices = {}
+		for key, value in pairs(PVP.LOBBY.setting_choices or {}) do meta.setting_choices[key] = value end
 		for _, key in ipairs(PVP.PRIVATE_OPTION_KEYS) do
-			meta[key] = PVP.LOBBY.config[key]
+			if meta[key] == nil then
+				meta[key] = PVP.LOBBY.config[key]
+			end
 		end
 		meta.deck_mode = PVP.LOBBY.config.deck_mode or PVP.DeckMode.SELECT
 		meta.verified_lobby = PVP.compute_verified_lobby()
@@ -70,44 +75,9 @@ end
 -- How a private lobby picks its deck: the host chooses one, or the players run the Draft.
 PVP.DeckMode = { SELECT = "select", DRAFT = "draft" }
 
--- Lobby config fields a private lobby's host can set, carried in the lobby metadata.
-PVP.PRIVATE_OPTION_KEYS = {
-	"gold_on_life_loss",
-	"no_gold_on_round_loss",
-	"death_on_round_loss",
-	"normal_bosses",
-	"timer",
-	"timer_base_seconds",
-	"timer_increment_seconds",
-	"pvp_countdown_seconds",
-	"preview_disabled",
-	"the_order",
-	"smallerworld",
-	"different_seeds",
-	"different_decks",
-	"random_loadout",
-	"custom_seed",
-}
-
--- A Ranked or private lobby plays its ruleset's forced lobby options (MLBa:
--- 180 s timer, no The Order, no preview; Vanilla: no The Order). The lobby
--- options do not cross the wire, so every client applies them from the shared
--- ruleset. These lobbies have no Setup vote, so this is where they apply; the
--- Casual votes apply them in PVP.SETUP.apply_results. The host of a private
--- lobby can change the ruleset, so The Order goes back on before the ruleset
--- forces its options.
-local FORCES_LOBBY_OPTIONS = { [PVP.LobbyAccess.RANKED] = true, [PVP.LobbyAccess.PRIVATE] = true }
-
-function PVP.force_lobby_options(kind, ruleset_key)
-	if not FORCES_LOBBY_OPTIONS[kind] then
-		return
-	end
-	local def = ruleset_key and MPAPI.Rulesets[ruleset_key]
-	if def and def.force_lobby_options then
-		PVP.LOBBY.config.the_order = true
-		def:force_lobby_options(kind)
-	end
-end
+-- Lobby config fields a private lobby's host can set, carried in the lobby metadata:
+-- every key the lobby settings schema writes (lib/lobby_settings.lua).
+PVP.PRIVATE_OPTION_KEYS = PVP.lobby_settings_config_keys()
 
 function PVP.pvp_create_private_lobby(gamemode_key)
 	gamemode_key = gamemode_key or PVP.GamemodeKey.PVP_NEMESIS

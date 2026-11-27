@@ -1,6 +1,7 @@
 -- Run from the repo root: luajit tests/unit/replay_order_test.lua
 local function noop() end
 SMODS = {
+	load_file = loadfile,
 	current_mod = {
 		id = "MultiplayerPvP",
 		path = ".",
@@ -16,7 +17,8 @@ SMODS = {
 }
 NFS = {
 	getInfo = noop,
-	getDirectoryItemsInfo = function()
+	getDirectoryItemsInfo = function(path)
+		if path == "./lib" then return { { name = "lobby_settings.lua", type = "file" } } end
 		return {}
 	end,
 }

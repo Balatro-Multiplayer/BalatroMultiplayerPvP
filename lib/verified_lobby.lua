@@ -8,27 +8,16 @@
 -- metadata (PVP.pvp_lobby_metadata), so every client shows the same badge. It is
 -- recomputed on every lobby change (PVP.refresh_verified_lobby).
 
--- The standard ranked (Expanded) settings. A missing config value counts as false.
+-- Competitive eligibility is a contract on effective gameplay values. A new
+-- lobby knob, or changing a recommended default, must not silently change it.
 PVP.VERIFIED_DEFAULTS = {
-	ruleset = "ruleset_mp_expanded",
-	starting_lives = 4,
-	pvp_start_round = 2,
-	gold_on_life_loss = true,
-	no_gold_on_round_loss = false,
-	death_on_round_loss = true,
-	the_order = true,
-	normal_bosses = false,
-	preview_disabled = false,
-	smallerworld = false,
-	trap_cards = false,
-	timer = true,
-	timer_base_seconds = 150,
-	timer_increment_seconds = 60,
-	pvp_countdown_seconds = 3,
-	different_seeds = false,
-	different_decks = false,
-	random_loadout = false,
-	custom_seed = "random",
+	ruleset = PVP.LOBBY_STANDARD_RULESET,
+	starting_lives = 4, pvp_start_round = 2,
+	gold_on_life_loss = true, no_gold_on_round_loss = false, death_on_round_loss = true,
+	the_order = true, normal_bosses = false, preview_disabled = false,
+	smallerworld = false, trap_cards = false, timer = true, timer_base_seconds = 150,
+	timer_increment_seconds = 60, pvp_countdown_seconds = 3,
+	different_seeds = false, custom_seed = "random", different_decks = false, random_loadout = false,
 }
 
 local NEMESIS_GAMEMODE = "gamemode_mp_attrition"
@@ -112,13 +101,4 @@ function PVP.refresh_verified_lobby(lobby)
 	if now ~= (PVP.LOBBY.config.verified_lobby == true) then
 		lobby:set_metadata(PVP.pvp_lobby_metadata(PVP._pvp_gamemode, PVP._pvp_kind))
 	end
-end
-
--- Host: put every setting that matters to verification at the standard ranked value.
--- The deck and stake picks are left alone.
-function PVP.apply_verified_defaults()
-	for key, value in pairs(PVP.VERIFIED_DEFAULTS) do
-		PVP.LOBBY.config[key] = value
-	end
-	PVP.LOBBY.config.gamemode = NEMESIS_GAMEMODE
 end

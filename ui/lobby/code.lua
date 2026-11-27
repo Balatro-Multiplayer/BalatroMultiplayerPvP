@@ -69,6 +69,7 @@ G.FUNCS.lobby_choose_deck = function(e)
 	end
 end
 
+-- Lobby Options (ui/lobby/options/). Also the seed entry overlay's Back.
 G.FUNCS.mp_pvp_lobby_options = function()
-	G.FUNCS.overlay_menu({ definition = PVP.build_lobby_options() })
+	PVP.lobby_opts.open()
 end

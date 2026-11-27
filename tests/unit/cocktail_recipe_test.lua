@@ -68,11 +68,11 @@ G = {
 
 dofile("lib/matchmaking_policy.lua")
 PVP.compute_verified_lobby = function() return false end -- lib/verified_lobby.lua has its own test
+dofile("lib/lobby_settings.lua")
 dofile("pvp_api/flow.lua")
 dofile("lib/_random.lua")
 dofile("objects/decks/ZZ_cocktail.lua")
 dofile("pvp_api/lobby_bridge.lua")
-PVP.force_lobby_options = noop
 PVP.SETUP = { apply_results = noop }
 G.P_CENTERS.b_mp_cocktail = { set = "Back", order = 99, deck_blacklist = { b_mp_cocktail = true }, mod_whitelist = {} }
 

@@ -61,30 +61,65 @@ local function deck_button()
 	}).node
 end
 
+-- Manhunt's role and Teams' team: each player's own pick, so it sits in the lobby
+-- rather than in the host's Lobby Options. nil when the gamemode has neither.
+local function own_pick_row()
+	local pick
+	if PVP.LOBBY.config.manhunt then
+		pick = MPAPI.disableable_option_cycle({
+			id = "mp_pvp_manhunt_role",
+			label = localize("k_pvp_pick_role"),
+			options = { localize("k_pvp_role_hunter"), localize("k_pvp_role_runner") },
+			current_option = (PVP.LOBBY.team_id == "RUNNER") and 2 or 1,
+			opt_callback = "mp_pvp_change_manhunt_role",
+			w = 3,
+			scale = 0.6,
+			enabled = function()
+				return PVP.LOBBY.team_id == "RUNNER" or not PVP.is_runner_taken()
+			end,
+		}).node
+	elseif PVP.LOBBY.config.team_based then
+		pick = create_option_cycle({
+			id = "mp_pvp_team_pick",
+			label = localize("k_pvp_pick_team"),
+			options = { localize("k_pvp_team_a"), localize("k_pvp_team_b") },
+			current_option = (PVP.LOBBY.team_id == "B") and 2 or 1,
+			opt_callback = "mp_pvp_change_team",
+			w = 3,
+			scale = 0.6,
+		})
+	end
+	return pick and { n = G.UIT.R, config = { align = "cm", padding = 0.05 }, nodes = { pick } } or nil
+end
+
+G.FUNCS.mp_pvp_change_manhunt_role = function(e)
+	PVP.pvp_set_team((e.to_key == 2) and "RUNNER" or "HUNTER")
+end
+
+G.FUNCS.mp_pvp_change_team = function(e)
+	PVP.pvp_set_team((e.to_key == 2) and "B" or "A")
+end
+
 local function build_private_controls()
 	local b = PVP.lobby.buttons
 	local lobby = PVP.lobby.ref
 	local row_nodes = {}
 	if lobby and lobby.is_host then
 		row_nodes[#row_nodes + 1] = b.start_game.node
-		row_nodes[#row_nodes + 1] = b.lobby_options.node
 	else
 		row_nodes[#row_nodes + 1] = b.ready.node
-		-- Manhunt's role and Teams' team are each player's own pick (the options
-		-- screen keeps the ruleset and Hunter Lives rows host-only); without this
-		-- a guest could never open the picker and always got the host's default.
-		if PVP.LOBBY.config.manhunt or PVP.LOBBY.config.team_based then
-			row_nodes[#row_nodes + 1] = b.lobby_options.node
-		end
 	end
+	row_nodes[#row_nodes + 1] = b.lobby_options.node
 	row_nodes[#row_nodes + 1] = deck_button()
 	row_nodes[#row_nodes + 1] = code_panel()
 	row_nodes[#row_nodes + 1] = b.leave.node
 
+	local rows = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = row_nodes } }
+	rows[#rows + 1] = own_pick_row()
 	return {
 		n = G.UIT.C,
 		config = { align = "cm", padding = 0.1, r = 0.1, emboss = 0.1, colour = G.C.L_BLACK, mid = true },
-		nodes = { { n = G.UIT.R, config = { align = "cm", padding = 0.1 }, nodes = row_nodes } },
+		nodes = rows,
 	}
 end
 

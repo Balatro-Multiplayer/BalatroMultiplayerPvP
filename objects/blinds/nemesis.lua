@@ -78,7 +78,7 @@ MPAPI.Blind({
 					and not PVP.GAME.timer_started
 					and not PVP.GAME.nemesis_timer_started
 					and not PVP.GAME.timer_consumed
-					and PVP.is_any_layer_active({ "no_animation_timer", "pressure_timer" })
+					and PVP.UTILS.skip_increment_mode() == "opponent"
 					and (PVP.LOBBY.config.timer_increment_seconds or 0) > 0
 				then
 					PVP.UI.restore_timer(PVP.LOBBY.config.timer_increment_seconds)

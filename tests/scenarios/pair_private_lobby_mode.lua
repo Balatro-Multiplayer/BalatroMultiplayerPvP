@@ -74,7 +74,8 @@ return P.steps(
 	P.sync("shot1"),
 	P.only("host", {
 		run = function()
-			G.FUNCS.mp_pvp_change_ruleset({ to_key = 1 })
+			-- The Lobby Options header's ruleset arrow, two steps back: Expanded -> Vanilla.
+			G.FUNCS.mp_pvp_opt_ruleset({ config = { ref_table = { dir = -2 } } })
 		end,
 	}),
 	{

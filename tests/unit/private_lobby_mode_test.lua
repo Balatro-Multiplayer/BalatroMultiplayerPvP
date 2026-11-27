@@ -31,6 +31,7 @@ PVP = {
 }
 MPAPI = { Party = { KIND = "party" } }
 PVP.compute_verified_lobby = function() return false end -- lib/verified_lobby.lua has its own test
+dofile("lib/lobby_settings.lua")
 dofile("pvp_api/flow.lua")
 dofile("ui/lobby/mode_banner.lua")
 

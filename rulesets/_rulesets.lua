@@ -2,7 +2,7 @@
 -- Thin delegating wrapper around MPAPI.Ruleset: registers PvP rulesets into the
 -- shared MPAPI.Rulesets registry (dupe-key checking, required_params validation,
 -- `inject`'s G.P_CENTER_POOLS.Ruleset registration, and the default no-op
--- is_disabled/force_lobby_options methods all come from MPAPI's own RulesetBase
+-- is_disabled method all come from MPAPI's own RulesetBase
 -- for free) while keeping PvP's own active-ruleset/gamemode
 -- resolution (lobby / practice-mode -- MPAPI only knows about the lobby case,
 -- so this stays PvP-owned).
