@@ -505,13 +505,13 @@ local generate_card_ui_ref = generate_card_ui
 function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, hide_desc, main_start, main_end, card)
 	if card and card.mp_cocktail_select then
 		_c = G.P_CENTERS[card.mp_cocktail_select]
-		-- The base call draws the description once, with _c.vars for a base-game deck (it ignores
-		-- specific_vars for a Back); a modded deck's generate_ui fills its own. The shared center stays as is.
-		if type(_c.generate_ui) ~= "function" then
-			_c = setmetatable({ vars = base_deck_vars(_c) }, { __index = _c })
-		end
-		return generate_card_ui_ref(
-			_c,
+		-- A modded deck's generate_ui fills its own description. For a base-game deck the base call
+		-- reads _c.vars if it draws a Back at all (older Steamodded does not), so draw it here only when
+		-- it drew nothing. The shared center stays as is.
+		local base_deck = type(_c.generate_ui) ~= "function"
+		local vars = base_deck and base_deck_vars(_c) or nil
+		local ret = generate_card_ui_ref(
+			base_deck and setmetatable({ vars = vars }, { __index = _c }) or _c,
 			full_UI_table,
 			specific_vars,
 			"Back",
@@ -521,6 +521,11 @@ function generate_card_ui(_c, full_UI_table, specific_vars, card_type, badges, h
 			main_end,
 			card
 		)
+		local extra = (main_start and 1 or 0) + (main_end and 1 or 0)
+		if base_deck and not hide_desc and ret and ret.main and #ret.main <= extra then
+			localize({ type = "descriptions", key = _c.key, set = "Back", nodes = ret.main, vars = vars })
+		end
+		return ret
 	end
 	return generate_card_ui_ref(
 		_c,
