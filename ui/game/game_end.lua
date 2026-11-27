@@ -233,7 +233,7 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 
 	G.SETTINGS.paused = false
 
-	return MPAPI.end_screen_uibox({
+	local config = {
 		won = has_won,
 		draw = PVP.GAME.draw,
 		title_key = PVP.GAME.contested and "k_pvp_contested_title"
@@ -241,7 +241,17 @@ function PVP.UI.create_UIBox_mp_game_end(has_won)
 			or nil,
 		id = has_won and "you_win_UI" or nil,
 		body = PVP.UI.end_game_body,
-	})
+	}
+	local def = MPAPI.end_screen_uibox(config)
+	-- A notice or Options replaces the overlay; closing it must bring the exits back.
+	MPAPI._restorable_overlay = {
+		id = def.config.id,
+		overlay_config = { no_esc = true },
+		rebuild_fn = function()
+			return MPAPI.end_screen_uibox(config)
+		end,
+	}
+	return def
 end
 
 -- Pure: which deck View Deck shows for a player. { own = true } for yourself;
