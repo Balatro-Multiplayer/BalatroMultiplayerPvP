@@ -13,6 +13,8 @@ function ease_ante(mod)
 			ease_discard(-PVP.GAME.pizza_discards)
 			PVP.GAME.pizza_discards = 0
 		end
+		-- then add the other players' Pizza discards that waited for this ante (lib/pizza.lua)
+		PVP.PIZZA.ante_reached(G.GAME.round_resets.ante + mod)
 
 		PVP.GAME.antes_keyed[PVP.GAME.ante_key] = true
 		PVP.ACTIONS.set_ante(G.GAME.round_resets.ante + mod)
@@ -20,6 +22,7 @@ function ease_ante(mod)
 			trigger = "immediate",
 			func = function()
 				G.GAME.round_resets.ante = G.GAME.round_resets.ante + mod
+				PVP.PIZZA.ante_settled()
 				check_and_set_high_score("furthest_ante", G.GAME.round_resets.ante)
 				-- Practice ends after ante 8: real matches suppress vanilla's native
 				-- win_ante=8 trigger (see game_state.lua's update_new_round) to continue
