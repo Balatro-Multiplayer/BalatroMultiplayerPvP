@@ -311,6 +311,8 @@ function PVP.reset_game_states()
 		pincher_unlock = false,
 		asteroids = 0,
 		pizza_discards = 0,
+		-- Other players' Pizza discards waiting for a later ante, by ante (lib/pizza.lua).
+		pizza_pending = {},
 		disable_live_and_timer_hud = false,
 		timers_forgiven = 0,
 		stats = {
